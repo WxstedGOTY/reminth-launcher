@@ -22,13 +22,13 @@ module.exports = {
   // Fabric's KnotClient looks for a "mods" folder relative to the game's
   // working directory (cwd, which launch() sets to GAME_DIR) - NOT relative
   // to the instance root. MODS_DIR must be nested inside GAME_DIR or every
-  // mod we download (Fabric API, WxHUD) would sit unused on disk and never
-  // actually load into the running game.
+  // mod we download (Fabric API, ReminthHUD) would sit unused on disk and
+  // never actually load into the running game.
   MODS_DIR: path.join(INSTANCE_DIR, "game", "mods"),
   JAVA_DIR: path.join(ROOT, "java"),
   ACCOUNTS_FILE: path.join(ROOT, "account.json"),
-  // WxHUD jar(s) bundled with the Reminth app itself, at assets/mods/ in
-  // the repo. Ships with zero hosting required; see
-  // config.WXHUD_UPDATE_MANIFEST_URL for the future hosted-update path.
-  WXHUD_ASSET_DIR: path.join(__dirname, "..", "..", "assets", "mods"),
+  // ReminthHUD jar(s) bundled with the Reminth app itself, at assets/mods/
+  // in the repo. Ships with zero hosting required; see
+  // config.REMINTHHUD_UPDATE_MANIFEST_URL for the future hosted-update path.
+  REMINTHHUD_ASSET_DIR: path.join(__dirname, "..", "..", "assets", "mods"),
 };

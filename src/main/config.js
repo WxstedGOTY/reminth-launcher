@@ -14,18 +14,18 @@ module.exports = {
 
   MOJANG_VERSION_MANIFEST_URL: "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json",
   FABRIC_META_URL: "https://meta.fabricmc.net/v2",
-  // Fabric API is a mandatory dependency of most Fabric mods (WxHUD
+  // Fabric API is a mandatory dependency of most Fabric mods (ReminthHUD
   // included). Pulled straight from Fabric's own Maven, the same official
   // channel Fabric loader itself comes from - no third-party mod host.
   FABRIC_MAVEN_URL: "https://maven.fabricmc.net",
 
-  // Optional future path: once WxHUD has real hosting, point this at a
-  // JSON manifest ({ version, url, sha256 }) and installWxHud will fetch
-  // + auto-update from it. Until then, Reminth bundles whatever jar ships
-  // in assets/mods/ (see paths.js).
-  WXHUD_UPDATE_MANIFEST_URL: process.env.REMINTH_WXHUD_MANIFEST_URL || null,
+  // Optional future path: once ReminthHUD has real hosting, point this at a
+  // JSON manifest ({ version, url, sha256 }) and installReminthHud will
+  // fetch + auto-update from it. Until then, Reminth bundles whatever jar
+  // ships in assets/mods/ (see paths.js).
+  REMINTHHUD_UPDATE_MANIFEST_URL: process.env.REMINTH_HUD_MANIFEST_URL || null,
 
-  // Optional open-source Fabric perf mods, bundled alongside WxHUD for a
+  // Optional open-source Fabric perf mods, bundled alongside ReminthHUD for a
   // real FPS/stutter improvement (the launcher itself can't change FPS -
   // this is the only thing that actually does). Pulled straight from each
   // mod's own GitHub Releases, never Modrinth/CurseForge - Reminth doesn't

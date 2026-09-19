@@ -17,4 +17,5 @@ contextBridge.exposeInMainWorld("reminth", {
 
   onInstallProgress: (cb) => ipcRenderer.on("install:progress", (_e, data) => cb(data)),
   onInstallDone: (cb) => ipcRenderer.on("install:done", () => cb()),
+  onPlayCrashed: (cb) => ipcRenderer.on("play:crashed", (_e, data) => cb(data)),
 });

@@ -75,7 +75,7 @@ $("playBtn").onclick = async () => {
   }
 };
 
-// Downloading/updating the Fabric+WxHUD files is public and needs no
+// Downloading/updating the Fabric+ReminthHUD files is public and needs no
 // sign-in, so it's available from either panel - useful for pre-caching,
 // repairing an install, or just checking everything still resolves.
 $("updateBtnOut").onclick = () => runUpdate("Out");
@@ -125,6 +125,22 @@ window.reminth.onInstallDone(() => {
   const suffix = $("mainPanel").hidden ? "Out" : "";
   $("progressStage" + suffix).textContent = "Done";
   $("progressFill" + suffix).style.width = "100%";
+});
+
+// Fires if the actual Java/Minecraft process dies shortly after launch -
+// see minecraft.js's launch(). Without this, a crash-on-startup was
+// completely invisible: the launcher already told the player "launched"
+// before the game process finished failing.
+window.reminth.onPlayCrashed(({ code, signal, error, logPath }) => {
+  const reason = error
+    ? error
+    : signal
+    ? `the game process was killed (${signal})`
+    : `the game process exited immediately (code ${code})`;
+  appendLog(
+    `Minecraft closed right after launching - ${reason}. Full log: ${logPath}`,
+    true
+  );
 });
 
 function appendLog(line, isError, suffix) {

@@ -63,9 +63,9 @@ ipcMain.handle("auth:signOut", async () => {
   return { ok: true };
 });
 
-// ---- download/update (Fabric + Fabric API + WxHUD, into Reminth's own private instance) ----
+// ---- download/update (Fabric + Fabric API + ReminthHUD, into Reminth's own private instance) ----
 // Deliberately independent of sign-in: all of this is public, unauthenticated
-// downloads (Mojang's version manifest, Fabric's meta API and Maven, WxHUD's
+// downloads (Mojang's version manifest, Fabric's meta API and Maven, ReminthHUD's
 // bundled jar), so there's no reason to gate it behind Microsoft sign-in -
 // and it lets players pre-download while a friend walks them through signing
 // in, or just keep an instance up to date without opening the game.
@@ -104,6 +104,8 @@ ipcMain.handle("play:run", async () => {
   });
   win.webContents.send("install:done");
 
-  minecraft.launch(installResult, cachedAccount);
+  minecraft.launch(installResult, cachedAccount, (crashInfo) => {
+    win.webContents.send("play:crashed", crashInfo);
+  });
   return { launched: true };
 });

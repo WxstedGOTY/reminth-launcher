@@ -1,56 +1,65 @@
 # Reminth Launcher
 
 A custom Windows Minecraft launcher: sign in with your own Microsoft
-account, it downloads vanilla Minecraft 26.2 + Fabric + WxHUD automatically,
-and launches the game.
+account, it downloads vanilla Minecraft 26.2 + Fabric + ReminthHUD
+automatically, and launches the game. No official Minecraft Launcher, no
+Modrinth dependency, anywhere in the shipped product.
 
-## Honest status — read this first
+## Status
 
-I (Claude) wrote all of this code but **could not run the actual app**.
-This cloud sandbox's network policy blocks `registry.npmjs.org` for
-package installs (confirmed: even `npm install lodash` gets a 403), and
-there's no shell access into your Windows PC from here (unlike the wxhud
-mod, which I built *and* ran *and* watched render in-game).
+Confirmed working end-to-end on a real Windows PC, against real
+Mojang/Fabric/Microsoft infrastructure: sign-in (Microsoft device-code flow
+→ Xbox Live → XSTS → Minecraft Services), the full install pipeline (Java,
+version manifest, Fabric merge, libraries, natives, assets, Fabric API,
+ReminthHUD, optional performance mods), and an actual successful Minecraft
+launch into a joinable world/server. 33/33 unit tests pass (`npm test`).
 
-What I *could* do without npm: I dropped the `node-fetch` dependency
-entirely (Node 18+ ships `fetch` built in, no package needed), and wrote
-real unit tests (`test/minecraft.test.js`, `node --test`, zero npm
-packages required) for the pure-logic pieces — Fabric/vanilla profile
-merging, per-OS library filtering, and Maven-coordinate resolution. All 8
-pass. That's real, not a claim — run `npm test` (or just `node --test`)
-yourself to see it. Everything else — the actual Electron window, the
-Microsoft device-code sign-in round trip, the real download/launch — is
-written against the documented protocols but genuinely untested. Budget
-time to run it and fix whatever breaks — most likely candidates, roughly
-in order of "probably needs fixing":
+Two real bugs were found and fixed along the way, both worth knowing about
+if you're touching `minecraft.js`:
 
-1. **`MS_CLIENT_ID` in `src/main/config.js`** — placeholder, see setup below. Nothing works without this.
-2. **`WXHUD_UPDATE_MANIFEST_URL`** — placeholder pointing nowhere. Needs a real URL once WxHUD is hosted somewhere (your site, GitHub releases, whatever) serving JSON like `{"version":"1.0.0","url":"https://.../wxhud-1.0.0.jar"}`.
-3. **JDK download URL in `src/main/java.js`** (`aka.ms/download-jdk/...`) — I'm fairly confident in this alias but it's exactly the kind of thing that silently changes; verify it actually downloads a zip and not an error page.
-4. **Argument merging in `minecraft.js` (`mergeProfiles`)** — this is the part of any custom launcher most likely to need tweaking version-to-version. If the game crashes on launch with a `ClassNotFoundException` or missing-argument error, this is where to look first.
-5. **Fabric's mod loading `KnotClient` mainClass** — should be right, but confirm against `https://meta.fabricmc.net/v2/versions/loader/26.2/0.19.5/profile/json` once that endpoint is reachable, since Minecraft 26.2 is very new.
+- **Silent launch failures**: the game process used to be spawned with
+  `stdio: "ignore"` and no error/exit handlers, so any crash was completely
+  invisible — the launcher reported "launched: true" no matter what
+  actually happened. Fixed: stdout/stderr now go to
+  `%AppData%\Reminth\latest_log.txt`, and a crash within the first 15s
+  surfaces in the UI.
+- **Mojang's conditional argument objects**: `arguments.jvm`/`arguments.game`
+  in Mojang's version JSON mix plain strings with rule-gated objects like
+  `{rules: [...], value: "..."}` (macOS-only flags, `--demo`,
+  `--width`/`--height`, `--quickPlay*`). These used to be concatenated
+  unresolved, so one could reach `spawn()` unfiltered, get stringified to
+  `"[object Object]"`, and get misread by Java as the main class to load.
+  Fixed by `resolveArguments()`, which filters by OS/feature rules before
+  anything reaches the spawned process.
 
 ## Setup
 
-### 1. Azure app registration (required, ~5 minutes, free)
+### 1. Azure app registration (required, free)
 
-Every third-party Minecraft launcher needs its own Microsoft app ID —
-this is what makes the "Sign in with Microsoft" button work.
+Every third-party Minecraft launcher needs its own Microsoft app ID — this
+is what makes "Sign in with Microsoft" work, and it needs Microsoft's
+approval to actually reach the Minecraft Services API (takes about a week;
+until approved, sign-in completes through Microsoft/Xbox fine but the final
+token exchange 403s with "Invalid app registration" — that's expected, not
+a bug).
 
-1. Go to https://portal.azure.com -> **Azure Active Directory** -> **App registrations** -> **New registration**
-2. Name: `Reminth` (or whatever)
-3. **Supported account types**: "Personal Microsoft accounts only"
-4. Redirect URI: leave blank (not needed for device code flow)
-5. Register, then copy the **Application (client) ID** from the overview page
-6. Put it in `src/main/config.js` as `MS_CLIENT_ID`, or set env var `REMINTH_MS_CLIENT_ID`
+1. https://portal.azure.com → **Azure Active Directory** → **App
+   registrations** → **New registration**
+2. **Supported account types**: "Personal Microsoft accounts only"
+3. Redirect URI: leave blank (not needed for device code flow)
+4. Register, copy the **Application (client) ID**
+5. Submit for Minecraft API access: https://aka.ms/mce-reviewappid
+6. Put the client ID in `src/main/config.js` as `MS_CLIENT_ID`, or set env
+   var `REMINTH_MS_CLIENT_ID`
 
-No client secret needed — this is a public client (device code) flow, same as MultiMC/Prism.
+No client secret needed — public client (device code) flow, same as
+MultiMC/Prism.
 
 ### 2. Install & run
 
 ```
 npm install
-npm test    # pure-logic unit tests, already passing, sanity-check your environment too
+npm test    # pure-logic unit tests, node --test, zero extra packages
 npm start
 ```
 
@@ -60,22 +69,36 @@ npm start
 npm run dist
 ```
 
-Outputs a `.exe` NSIS installer to `dist/`.
+Outputs an NSIS `.exe` installer to `dist/`. Unsigned for now (no code
+signing cert) — first-run SmartScreen warning is expected until that's
+addressed.
 
 ## Project layout
 
 ```
 src/main/main.js        Electron entry point, IPC wiring
-src/main/msAuth.js       Microsoft -> Xbox Live -> XSTS -> Minecraft auth (device code flow)
-src/main/minecraft.js    Version resolution, download, Fabric merge, launch
-src/main/java.js         Downloads a private JDK 25 (never touches system Java)
-src/main/store.js        Encrypted-at-rest account/refresh-token storage
-src/main/config.js       <-- fill in MS_CLIENT_ID and WXHUD_UPDATE_MANIFEST_URL here
-src/renderer/            UI (glassmorphism, charcoal + electric teal, per the brand doc)
+src/main/msAuth.js      Microsoft -> Xbox Live -> XSTS -> Minecraft auth (device code flow)
+src/main/minecraft.js   Version resolution, download, Fabric merge, launch
+src/main/java.js        Downloads a private JDK 25 (never touches system Java)
+src/main/store.js       Encrypted-at-rest account/refresh-token storage (Electron safeStorage)
+src/main/config.js      <-- fill in MS_CLIENT_ID and REMINTHHUD_UPDATE_MANIFEST_URL here
+src/renderer/           UI (glassmorphism, charcoal + electric teal, per the brand doc)
 ```
+
+## Known gaps (not blockers, just not done yet)
+
+- **No auto-updater.** Every future fix needs a fresh manual download.
+- **ReminthHUD has no update manifest yet** (`REMINTHHUD_UPDATE_MANIFEST_URL`
+  is unset) — it ships as a static bundled jar; updating it means a new
+  Reminth release, not a hot-update.
+- **Sodium / ScalableLux** have no published Fabric build for Minecraft
+  26.2 yet — that's upstream, not us. The installer already handles this
+  gracefully (logs it, skips, doesn't fail the install).
+- Only ever verified on one PC. Not yet tested on a genuinely clean
+  machine with zero prior Java/Minecraft history.
 
 ## What this deliberately does NOT include
 
 No targeting/aimbot, ESP, or packet-manipulation modules. Those were
-scoped out — see the conversation this was built from. This is a clean
-launcher + cosmetic HUD overlay only.
+scoped out from day one. This is a clean launcher + cosmetic HUD overlay
+only.

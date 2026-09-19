@@ -9,7 +9,7 @@ const crypto = require("crypto");
  * Download a URL to a file, skipping if it already exists with a matching
  * hash. `algo` defaults to "sha1" (what Mojang's manifest and Maven sidecar
  * files use); pass "sha256" for sources that publish that instead (e.g. a
- * WxHUD update manifest). If `expectedHash` is falsy, no verification is
+ * ReminthHUD update manifest). If `expectedHash` is falsy, no verification is
  * done - only use that for sources with no published hash at all.
  */
 async function downloadFile(url, destPath, expectedHash, algo = "sha1") {

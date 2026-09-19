@@ -1,7 +1,7 @@
 "use strict";
 /**
  * Reminth's own download + launch pipeline. Fully standalone: downloads
- * vanilla Minecraft, the Fabric loader, Fabric API, and WxHUD itself into
+ * vanilla Minecraft, the Fabric loader, Fabric API, and ReminthHUD itself into
  * a private %APPDATA%\Reminth\instance folder (see paths.js), then spawns
  * the Java process directly with the signed-in player's real account
  * (see msAuth.js). No official Minecraft Launcher, no Modrinth App, no
@@ -68,8 +68,8 @@ async function ensureInstalled(onProgress) {
   await fsp.mkdir(paths.MODS_DIR, { recursive: true });
   await downloadFabricApi(paths.MODS_DIR);
 
-  report("Installing WxHUD", 0, 1);
-  await installWxHud(paths.MODS_DIR);
+  report("Installing ReminthHUD", 0, 1);
+  await installReminthHud(paths.MODS_DIR);
 
   report("Installing performance mods", 0, 1);
   const perfMods = await downloadPerformanceMods(paths.MODS_DIR, (msg) =>
@@ -80,8 +80,19 @@ async function ensureInstalled(onProgress) {
   return { profile, clientJarPath, libraries: libs, perfMods };
 }
 
-/** Spawns the game. `account` comes from msAuth.signIn()/refreshSession(). */
-function launch(installResult, account) {
+/**
+ * Spawns the game. `account` comes from msAuth.signIn()/refreshSession().
+ * `onCrash({ code, signal, error, logPath })` is called if the game process
+ * dies within the first LAUNCH_GRACE_MS of starting - long enough for a real
+ * play session to be well past main-menu load, short enough that a crash-on-
+ * startup (bad classpath, missing native, corrupt jar, etc.) gets caught and
+ * reported instead of silently discarded. Game stdout/stderr are written to
+ * latest_log.txt in Reminth's own root so a real in-game crash later on is
+ * still diagnosable even though the launcher already reported success.
+ */
+const LAUNCH_GRACE_MS = 15000;
+
+function launch(installResult, account, onCrash) {
   const { profile, clientJarPath, libraries } = installResult;
 
   const classpath = [
@@ -125,16 +136,40 @@ function launch(installResult, account) {
     "-XX:G1NewSizePercent=20",
     "-XX:G1ReservePercent=20",
     "-XX:G1HeapRegionSize=32M",
-    ...profile.arguments.jvm.map(sub),
+    ...resolveArguments(profile.arguments.jvm, sub),
   ];
-  const gameArgs = profile.arguments.game.map(sub);
+  const gameArgs = resolveArguments(profile.arguments.game, sub);
   const javawPath = path.join(paths.JAVA_DIR, "bin", "javaw.exe");
+
+  // Write the game's own stdout/stderr to a log file instead of discarding
+  // it. File descriptors (not pipes) so the child can keep writing after
+  // this launcher process unref()'s it - a pipe would need the parent to
+  // stay around draining it.
+  const logPath = path.join(paths.ROOT, "latest_log.txt");
+  fs.mkdirSync(paths.ROOT, { recursive: true });
+  const logFd = fs.openSync(logPath, "w");
 
   const child = spawn(javawPath, [...jvmArgs, profile.mainClass, ...gameArgs], {
     cwd: paths.GAME_DIR,
     detached: true,
-    stdio: "ignore",
+    stdio: ["ignore", logFd, logFd],
   });
+
+  const startedAt = Date.now();
+  child.on("error", (err) => {
+    // spawn() itself failed (e.g. javaw.exe missing/corrupt) - this fires
+    // async, so without this listener Node treats it as an unhandled
+    // 'error' event.
+    fs.closeSync(logFd);
+    onCrash && onCrash({ code: null, signal: null, error: err.message, logPath });
+  });
+  child.on("exit", (code, signal) => {
+    fs.closeSync(logFd);
+    if (Date.now() - startedAt < LAUNCH_GRACE_MS && code !== 0) {
+      onCrash && onCrash({ code, signal, error: null, logPath });
+    }
+  });
+
   child.unref();
   return child;
 }
@@ -153,7 +188,7 @@ function computeDefaultMaxMemoryMb(totalMemBytes) {
 function mergeProfiles(vanilla, fabric) {
   return {
     id: "reminth-" + config.MINECRAFT_VERSION,
-    mainClass: fabric.mainClass,
+    mainClass: extractMainClass(fabric.mainClass),
     inheritsFrom: vanilla.id,
     arguments: {
       game: [...(vanilla.arguments?.game || []), ...(fabric.arguments?.game || [])],
@@ -167,6 +202,27 @@ function mergeProfiles(vanilla, fabric) {
   };
 }
 
+/**
+ * Pure: Fabric's loader profile JSON has shipped "mainClass" as a plain
+ * string historically, but newer profile builds return
+ * { client: "...", server: "..." } instead (Reminth only ever launches the
+ * client). Passing that object straight to child_process.spawn() as an arg
+ * silently stringifies it to the literal text "[object Object]" - Java then
+ * fails with "Could not find or load main class [object Object]", a launch
+ * crash with zero indication it was ever a JS type mismatch rather than a
+ * real missing class. Handle both shapes so a future Fabric loader release
+ * doesn't quietly break launch again.
+ */
+function extractMainClass(mainClass) {
+  if (typeof mainClass === "string") return mainClass;
+  if (mainClass && typeof mainClass === "object" && typeof mainClass.client === "string") {
+    return mainClass.client;
+  }
+  throw new Error(
+    `Fabric profile's mainClass is in an unexpected shape: ${JSON.stringify(mainClass)}`
+  );
+}
+
 function osRulesAllow(rules) {
   if (!rules) return true;
   let allowed = false;
@@ -175,6 +231,64 @@ function osRulesAllow(rules) {
     if (osMatches) allowed = rule.action === "allow";
   }
   return allowed;
+}
+
+// Reminth never sets any of Mojang's optional launch features (demo
+// accounts, a custom starting resolution, or any quick-play mode), so any
+// argument gated behind a "features" rule is always excluded below - that's
+// correct, not an oversight: those flags (--demo, --width/--height,
+// --quickPlay*) genuinely don't apply to how Reminth launches the game.
+const REMINTH_FEATURES = {};
+
+function argRuleConditionMatches(rule) {
+  const osOk = !rule.os || rule.os.name === "windows";
+  const featuresOk =
+    !rule.features ||
+    Object.entries(rule.features).every(([key, want]) => Boolean(REMINTH_FEATURES[key]) === want);
+  return osOk && featuresOk;
+}
+
+function argRuleAllows(rules) {
+  if (!rules) return true;
+  let allowed = false;
+  for (const rule of rules) {
+    if (argRuleConditionMatches(rule)) allowed = rule.action === "allow";
+  }
+  return allowed;
+}
+
+/**
+ * Pure: Mojang's version JSON "arguments.jvm"/"arguments.game" arrays are
+ * NOT plain string arrays - each entry is either a plain string, or a
+ * conditional object like { rules: [...], value: "..." | ["...", "..."] }
+ * gating an OS-specific or opt-in-feature-specific flag (macOS's
+ * -XstartOnFirstThread, --demo, --width/--height, --quickPlay*, etc).
+ * These used to be concatenated completely unresolved, so a conditional-
+ * object entry got passed straight through into child_process.spawn()'s
+ * args array, where Node silently stringifies any non-string arg to the
+ * literal text "[object Object]". Since that landed among the JVM args -
+ * which come right before the actual main class name on the command line -
+ * and doesn't start with "-", javaw.exe treated THAT as the main class to
+ * load: "Could not find or load main class [object Object]" (the real
+ * mainClass string was still further down the array, now misread as a game
+ * argument instead). This resolves every entry to zero or more plain
+ * strings, with `sub` applied to each, before any of it reaches spawn().
+ */
+function resolveArguments(rawArgs, sub) {
+  const out = [];
+  for (const entry of rawArgs || []) {
+    if (typeof entry === "string") {
+      out.push(sub(entry));
+      continue;
+    }
+    if (entry && typeof entry === "object" && argRuleAllows(entry.rules)) {
+      const values = Array.isArray(entry.value) ? entry.value : [entry.value];
+      for (const v of values) out.push(sub(v));
+    }
+    // Disallowed conditional entries (non-windows flags, or features Reminth
+    // never enables) are intentionally dropped here, not stringified.
+  }
+  return out;
 }
 
 function collectLibraries(profile) {
@@ -311,21 +425,22 @@ function latestMatchingMavenVersion(xml, mcVersion) {
   return matching.length ? matching[matching.length - 1] : null;
 }
 
-/** Copies the bundled WxHUD jar (assets/mods/wxhud-*.jar) into modsDir. */
-async function installWxHud(modsDir) {
-  const bundled = await findBundledWxHud();
+/** Copies the bundled ReminthHUD jar (assets/mods/reminthhud-*.jar) into modsDir. */
+async function installReminthHud(modsDir) {
+  const bundled = await findBundledReminthHud();
   if (bundled) {
     await fsp.copyFile(bundled, path.join(modsDir, path.basename(bundled)));
     return versionFromJarName(path.basename(bundled));
   }
-  if (!config.WXHUD_UPDATE_MANIFEST_URL) {
+  if (!config.REMINTHHUD_UPDATE_MANIFEST_URL) {
     throw new Error(
-      `No WxHUD jar found in ${paths.WXHUD_ASSET_DIR} and no WXHUD_UPDATE_MANIFEST_URL is ` +
-        `configured. Drop a wxhud-<version>.jar in assets/mods/, or set REMINTH_WXHUD_MANIFEST_URL.`
+      `No ReminthHUD jar found in ${paths.REMINTHHUD_ASSET_DIR} and no ` +
+        `REMINTHHUD_UPDATE_MANIFEST_URL is configured. Drop a reminthhud-<version>.jar in ` +
+        `assets/mods/, or set REMINTH_HUD_MANIFEST_URL.`
     );
   }
-  const manifest = await fetchJson(config.WXHUD_UPDATE_MANIFEST_URL);
-  const dest = path.join(modsDir, `wxhud-${manifest.version}.jar`);
+  const manifest = await fetchJson(config.REMINTHHUD_UPDATE_MANIFEST_URL);
+  const dest = path.join(modsDir, `reminthhud-${manifest.version}.jar`);
   // Bug fixed here: this used to pass `manifest.sha256 ? null : undefined`,
   // which is falsy either way - a manifest-supplied hash was never actually
   // checked. Now it is, when the manifest provides one.
@@ -343,7 +458,7 @@ async function installWxHud(modsDir) {
  * Releases - never Modrinth/CurseForge, Reminth doesn't depend on either.
  * A missing build for the current MINECRAFT_VERSION, or any network/parse
  * failure, is logged via onProgress and skipped rather than failing the
- * whole install: Fabric API and WxHUD are required, these are a bonus.
+ * whole install: Fabric API and ReminthHUD are required, these are a bonus.
  */
 async function downloadPerformanceMods(modsDir, onProgress) {
   if (!config.BUNDLE_PERFORMANCE_MODS) return [];
@@ -429,19 +544,19 @@ function pickJarAsset(assets) {
   return pool.reduce((biggest, a) => (a.size > biggest.size ? a : biggest), pool[0]);
 }
 
-async function findBundledWxHud() {
+async function findBundledReminthHud() {
   let files;
   try {
-    files = await fsp.readdir(paths.WXHUD_ASSET_DIR);
+    files = await fsp.readdir(paths.REMINTHHUD_ASSET_DIR);
   } catch {
     return null;
   }
-  const jar = files.find((f) => f.startsWith("wxhud-") && f.endsWith(".jar"));
-  return jar ? path.join(paths.WXHUD_ASSET_DIR, jar) : null;
+  const jar = files.find((f) => f.startsWith("reminthhud-") && f.endsWith(".jar"));
+  return jar ? path.join(paths.REMINTHHUD_ASSET_DIR, jar) : null;
 }
 
 function versionFromJarName(filename) {
-  const match = filename.match(/^wxhud-(.+)\.jar$/);
+  const match = filename.match(/^reminthhud-(.+)\.jar$/);
   return match ? match[1] : "unknown";
 }
 
@@ -450,7 +565,10 @@ module.exports = {
   launch,
   // exported for unit testing (see test/minecraft.test.js) - pure, no I/O
   mergeProfiles,
+  extractMainClass,
   osRulesAllow,
+  argRuleAllows,
+  resolveArguments,
   collectLibraries,
   mavenCoordToPath,
   latestMatchingMavenVersion,
