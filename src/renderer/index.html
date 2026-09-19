@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reminth</title>
+  <!-- Silences Electron's "Insecure Content-Security-Policy" DevTools
+       warning and adds real defense-in-depth on top of contextIsolation
+       (see main.js). Everything this window loads is local file:// content
+       with no remote page, inline script, or network fetch from the
+       renderer itself, so a tight allowlist costs nothing functionally. -->
+  <!-- img-src includes file: (not just 'self') because icon.png is
+       referenced from two directories up (../../assets/icon.png) -
+       Chromium's file:// origin-matching for 'self' across different
+       directories is inconsistent enough between Electron versions that
+       it's not worth risking a broken logo over; there's no security cost
+       since this app never renders remote or user-supplied images. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="titlebar">
+      <div class="brand"><img class="brand-mark" src="../../assets/icon.png" alt="" /> Reminth <span class="tag">| 1.0.0-dev</span></div>
+      <div class="win-controls">
+        <button id="minBtn" title="Minimize">&#8211;</button>
+        <button id="closeBtn" class="close" title="Close">&#10005;</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- signed out: Microsoft device-code sign-in -->
+      <div class="panel" id="signedOutPanel">
+        <img class="logo-mark-img" src="../../assets/icon.png" alt="Reminth" />
+        <div class="logo-mark">Reminth _</div>
+        <div class="subtitle">Fabric + ReminthHUD, sign in and play - nothing else to install</div>
+
+        <button class="primary" id="signInBtn">Sign in with Microsoft</button>
+        <div class="trust-note">Opens Microsoft's own sign-in page. Reminth never sees your password.</div>
+        <button class="ghost" id="updateBtnOut">Download / update files</button>
+
+        <div id="codePanel" hidden>
+          <div class="code-box" id="userCode">----</div>
+          <div class="hint" id="codeHint">
+            Go to <a id="verificationLink" href="#">microsoft.com/link</a> and enter the code above.
+            Sign in with the same Microsoft account you already use for Minecraft.
+          </div>
+        </div>
+
+        <div class="progress-wrap" id="progressWrapOut" hidden>
+          <div class="progress-stage" id="progressStageOut">Preparing&hellip;</div>
+          <div class="progress-track"><div class="progress-fill" id="progressFillOut"></div></div>
+        </div>
+        <div class="log" id="logOut" hidden></div>
+      </div>
+
+      <!-- signed in: build + play -->
+      <div class="panel" id="mainPanel" hidden>
+        <img class="logo-mark-img" src="../../assets/icon.png" alt="Reminth" />
+        <div class="logo-mark">Reminth _</div>
+        <div class="account-row">Signed in as <span class="name" id="username"></span></div>
+
+        <button class="primary" id="playBtn">Play</button>
+        <button class="ghost" id="signOutBtn">Sign out</button>
+
+        <div class="progress-wrap" id="progressWrap" hidden>
+          <div class="progress-stage" id="progressStage">Preparing&hellip;</div>
+          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+
+        <div class="log" id="log" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

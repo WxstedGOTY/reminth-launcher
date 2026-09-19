@@ -1,0 +1,44 @@
+{
+  "name": "reminth-launcher",
+  "version": "1.0.0-dev",
+  "description": "Reminth - a custom Minecraft launcher",
+  "main": "src/main/main.js",
+  "author": "Reminth",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "extract-zip": "^2.0.1"
+  },
+  "build": {
+    "appId": "com.reminth.launcher",
+    "productName": "Reminth",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Reminth"
+    }
+  }
+}
