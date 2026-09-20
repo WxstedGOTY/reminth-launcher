@@ -39,6 +39,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Reminth"
-    }
+    },
+    "artifactName": "Reminth-Setup.exe"
   }
 }

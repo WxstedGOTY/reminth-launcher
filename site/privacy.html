@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy Policy — Reminth</title>
+<meta name="description" content="What Reminth stores, what it sends, and to whom. Reminth has no servers of its own and collects no analytics." />
+<meta name="robots" content="index, follow" />
+<link rel="stylesheet" href="legal-base.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="brand-mark">R</span>Reminth</a>
+    <a class="back" href="index.html">← Back to site</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <p class="eyebrow">Legal</p>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: 20 September 2026</p>
+
+    <div class="summary">
+      <b>The short version.</b> Reminth has no servers, no accounts of its own, and no analytics.
+      Nothing you do in the launcher is reported back to us, because there is nowhere for it to be
+      reported to. Everything the launcher stores stays on your own computer, and you can delete all
+      of it by deleting one folder.
+    </div>
+
+    <h2>Who this covers</h2>
+    <p>
+      This policy covers the Reminth website and the Reminth launcher for Windows. Reminth is a free,
+      independent project. It is not affiliated with Mojang Studios, Microsoft, Modrinth or the Fabric
+      project.
+    </p>
+
+    <h2>The website</h2>
+    <p>
+      The site is a static page. It sets <b>no cookies</b>, uses <b>no local storage</b>, runs
+      <b>no analytics, no trackers and no advertising</b>, and has no forms — there is nothing on it
+      that collects your name, your email address or anything else about you.
+    </p>
+    <p>Two third parties are involved in serving it, and you should know about both:</p>
+    <ul>
+      <li>
+        <b>Google Fonts</b> — the main page loads two typefaces from <code>fonts.googleapis.com</code>
+        and <code>fonts.gstatic.com</code>. Loading them means your browser makes a request to Google,
+        which necessarily reveals your IP address and browser to Google. This page and the Terms page
+        deliberately load no external resources at all.
+      </li>
+      <li>
+        <b>GitHub</b> — the download button points at a GitHub release. Downloading the installer is a
+        request to GitHub's servers and is subject to GitHub's own privacy policy. We receive nothing
+        from it; we can't see who downloaded what.
+      </li>
+    </ul>
+    <p>
+      Whoever hosts the site can also see standard web server request logs (IP address, time, page
+      requested), as any web server can. That is not used to build a profile of you and is not combined
+      with anything else.
+    </p>
+
+    <h2>The launcher</h2>
+
+    <h3>What it stores, and where</h3>
+    <p>
+      Everything Reminth saves lives in one folder on your computer:
+      <code>%APPDATA%\Reminth</code>. That includes:
+    </p>
+    <ul>
+      <li>
+        <b>Your sign-in tokens</b>, in <code>account.json</code>, so you don't have to sign in every
+        time you play. On Windows these are encrypted with your own Windows account's key, using the
+        operating system's own protection (DPAPI, via Electron's safeStorage). They never leave your
+        machine.
+      </li>
+      <li><b>Your launcher settings</b> — memory, window size, accent colour and so on.</li>
+      <li><b>A cached copy of your skin</b>, so your face still shows when you're offline.</li>
+      <li>
+        <b>A local catalogue of public Modrinth listings</b> — mod names, authors, descriptions,
+        download counts and icon addresses. This is public information about mods, not information
+        about you.
+      </li>
+      <li><b>Minecraft itself</b>, plus the Fabric loader, Java and your worlds, in the same folder.</li>
+    </ul>
+
+    <h3>What it reads from your computer</h3>
+    <p>
+      To fill in the Home and Player Statistics pages, Reminth reads your worlds, your server list,
+      your play statistics and your game logs from its own game folder. This is read-only and entirely
+      local. None of it is uploaded anywhere, including to us.
+    </p>
+
+    <h3>What it sends, and to whom</h3>
+    <p>
+      Reminth contains <b>no telemetry, no analytics, no crash reporting and no tracking of any kind</b>.
+      There is no Reminth server for it to talk to. It only makes the requests it needs to do its job,
+      and every one of them goes directly to the company that runs that service:
+    </p>
+    <ul>
+      <li><b>Microsoft and Xbox Live</b> — to sign you in to your own Microsoft account.</li>
+      <li><b>Minecraft Services and Mojang</b> — to verify your Minecraft licence, look up your profile and fetch your skin.</li>
+      <li><b>Mojang's download servers</b> — to download the game files, which are checked against Mojang's own published hashes.</li>
+      <li><b>Fabric</b> — to download the Fabric mod loader.</li>
+      <li><b>Modrinth's public API</b> — to browse and search mods. These requests are anonymous: they carry no account information and nothing that identifies you.</li>
+      <li><b>Microsoft's Java download</b> — to fetch the Java runtime the game needs.</li>
+    </ul>
+    <p>
+      Each of those services has its own privacy policy, which governs what they do with the request.
+      We have no visibility into any of it.
+    </p>
+
+    <div class="note">
+      Reminth talks to Mojang's own endpoints for your skin, not to a third-party avatar service. That
+      is a deliberate choice: routing it elsewhere would tell a stranger's server which players use
+      this launcher.
+    </div>
+
+    <h2>Children</h2>
+    <p>
+      Playing Minecraft requires a Microsoft account, and Microsoft applies its own age requirements
+      and parental controls when you sign in. Reminth does not create an account of its own, does not
+      ask for your age, and collects nothing directly from anyone.
+    </p>
+
+    <h2>Deleting your data</h2>
+    <p>
+      Sign out in the launcher to delete the stored account file. To remove everything Reminth has ever
+      written, delete the <code>%APPDATA%\Reminth</code> folder — note that this also deletes any worlds
+      you played inside Reminth, so back those up first if you want to keep them.
+    </p>
+    <p>
+      There is no server-side copy of anything to request, correct or export, because there is no
+      server. If a future version of Reminth ever does store something off your machine — server
+      hosting is the obvious candidate — that will come with its own clear notice and its own policy,
+      not a quiet edit to this page.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      If what the launcher does changes, this page changes with it, and the date at the top moves. The
+      rule the project holds itself to is simple: this page describes what the code actually does.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions, corrections, or a security issue to report: open an issue on the
+      <a href="https://github.com/WxstedGOTY/reminth-launcher">Reminth GitHub repository</a>. For
+      anything you'd rather not post publicly — a security vulnerability in particular — please mark it
+      clearly and it'll be handled privately.
+    </p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>&copy; 2026 Reminth. Not affiliated with Mojang or Microsoft.</span>
+    <span><a href="terms.html">Terms of Service</a> · <a href="index.html">Home</a></span>
+  </div>
+</footer>
+
+</body>
+</html>
