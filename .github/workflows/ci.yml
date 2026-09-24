@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    # Reminth is a Windows-only launcher and some tests exercise Windows paths.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No .nvmrc or "engines" pin in package.json, so track the current LTS.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      # The tests stub out "electron", so skip downloading its ~100MB binary.
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+
+      - run: npm test
