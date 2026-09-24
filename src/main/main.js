@@ -137,6 +137,9 @@ app.on("window-all-closed", () => {
 ipcMain.on("window:minimize", () => win.minimize());
 ipcMain.on("window:close", () => win.close());
 ipcMain.on("window:maximizeToggle", () => (win.isMaximized() ? win.unmaximize() : win.maximize()));
+// The renderer asks on load rather than trusting it caught the one-off
+// "window:maximized" push - that push is lost on any reload of the page.
+ipcMain.handle("window:isMaximized", () => Boolean(win && !win.isDestroyed() && win.isMaximized()));
 
 // ---- sign in with Microsoft (device code flow) ----
 ipcMain.handle("auth:signIn", async () => {

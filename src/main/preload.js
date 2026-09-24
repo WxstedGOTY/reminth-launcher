@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld("reminth", {
   maximizeToggle: () => ipcRenderer.send("window:maximizeToggle"),
   close: () => ipcRenderer.send("window:close"),
   onMaximized: on("window:maximized"),
+  isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
 
   // account + skins
   currentAccount: () => ipcRenderer.invoke("auth:current"),

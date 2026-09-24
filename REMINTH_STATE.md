@@ -5,6 +5,93 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 6 (`CLAUDE_CODE_PROMPT_4.md`, rewritten version): full audit and fixes
+
+**This round replaces round 5's "not fixed" rows below.** The user approved the renderer swap (asked
+directly this round: "Swap in matching copy").
+
+### Prompt premise check
+
+The prompt says `index.html` has exactly one `<script>` tag. It doesn't: lines 850-852 load
+`renderer.js`, `skinview.js`, `features.js` (VERIFIED again this round). The symptoms were real
+(empty Discover, dead Discover tab, blank Skins), but the cause was the stale `renderer.js`, not missing tags:
+- duplicate top-level `const`s made the browser reject all of `features.js`;
+- `renderer.js`'s `boot()` crashed on its first line (`$("appSideMods")` is null).
+No script tags needed adding.
+
+### What changed
+
+| file | change |
+|---|---|
+| `src/renderer/renderer.js` | Replaced with the matching version from `Downloads\reminth-launcher-push\` (the file `features.js` was written against). Then re-applied our two changes: Home "time played" = sum of `playTimeMs` across all instances; signed-out gate (`switchPage` refuses all but Home; `applyAccountUI` toggles `#app.signed-out`). Plus Bug #4 below. |
+| `src/main/main.js` | Bug #4: new `ipcMain.handle("window:isMaximized")`. The `ready-to-show` push from round 5 stays. |
+| `src/main/preload.js` | Bug #4: exposes `isMaximized()`. |
+| `src/renderer/styles.css` | (round 5) bigger toggle and trash in `.c-actions`; signed-out sidebar rule `!important`. |
+
+### Part 1 audit (all by script or compiler over the current files, VERIFIED)
+
+1. **Pages vs routing:** `.page` divs = home instance library discover skins hosting plus captures streamer
+   stats settings. `PAGE_META` has exactly the same 11. Every `data-page` and `switchPage("…")` target is in `PAGE_META`.
+   **No dead tabs.** (The old renderer was missing discover/plus/captures/streamer. Fixed by the swap.)
+2. **Script tags vs files:** tags = renderer.js, skinview.js, features.js. Files in `src/renderer/` = the same
+   three. **Nothing unloaded, no tag without a file.**
+3. **ids:** JS reads 154 distinct ids via `$()`/`getElementById`/`querySelector("#…")`. **0 missing from
+   index.html.** Dynamic ids checked by hand: `CONTENT_TABS` list/count/tab ids, the `wireTabs`/`fillGrid` targets, and
+   `progressWrap|log|progressDismiss|progressStage|progressPct|progressFill` × suffix `""`/`"Out"`. All exist.
+   HTML ids no JS reads: `railBrand`, `railNav` (styling hooks), `plusStatus`, `capturesLede` (static text),
+   `accentPicker` (its buttons are wired via `.accent[data-accent]` → `applyAccent` + `saveSetting`). None of these is broken.
+4. **Undefined functions:** `tsc --allowJs --checkJs` over the three renderer scripts in one shared scope:
+   **0 "Cannot find name", 0 duplicate declarations.** `node --check` passes on all three.
+   (Before the swap: 17 undefined names, 3 duplicate consts.)
+5. **IPC:** 78 preload entries (77 + new `isMaximized`). Every `invoke` has an `ipcMain.handle`, every `send`
+   has an `ipcMain.on`. Every `on(...)` listener has a main-side sender (`streamer:status`/`streamer:saved` come from
+   `streamer.js` via `notifyUi`). Every `window.reminth.X` the renderer calls exists in preload. **No dead IPC.**
+   Informational, not bugs:
+   - `catalog:checkUpdates` is an orphan handler (the app uses `content:checkUpdates`).
+   - `rec:*` handlers belong to `recorderPreload.js`.
+   - Preload APIs nothing calls: `skinSetCape`, `skinLibrarySave`, `skinLibraryRename`, `hudBuilds`,
+     `getCatalogProjectVersions`, `getCatalogDependencies`, `catalogWarmStatus`, `catalogWarmStart`.
+     **Ambiguous** (unfinished feature or leftover). Not changed; see open questions.
+
+### Runtime verification (VERIFIED, sandboxed dev run)
+
+How: ran this repo's Electron (`node_modules/electron`) with `USERPROFILE`/`APPDATA` pointed at a scratch
+sandbox holding only copies of `instances.json` and `settings.json` (checked for secrets first; no account file).
+It never touched the real `%APPDATA%\Reminth` or the running installed app. Driven over the Chrome DevTools
+protocol with `--remote-debugging-port`. Signed-in pages were reached by setting `state.signedIn = true`
+renderer-side, because the sandbox has no tokens. After a forced page reload plus all the steps below, **0 uncaught
+exceptions, 0 console errors or warnings, 0 log errors.**
+
+| check | result |
+|---|---|
+| scripts loaded | `switchPage`, `activeInstance`, `selectInstance` = function; `CONTENT_TABS` = object; `SkinViewer` = function |
+| Bug #0 / Discover tab | `switchPage("discover")` gives `discover active=true`. All 11 pages open, each with its own title |
+| Home "Discover mods" | `#discoverGrid` has **8 cards** |
+| Bug #1 Library | tiles: `Quilt 26.3 \| NeoForge 26.3 \| Forge 26.3 \| Reminth \| New instance` |
+| Bug #2 switching | rail has **4 instance buttons**. `selectInstance("forge-26-3-ff87", true)` gives `activeId=forge-26-3-ff87`, hero `Forge 26.3`, Instance page open |
+| Bug #3 counts | `sideInstances` = **4**. Instance page `instMods` = **0** on Forge (correct, it has no mods; was "—") |
+| Bug #4 icon | after reload: icon `wc-max restore`, title `Restore`. Main reports `isMaximized=true` |
+| Skins | 3D viewer renders: `#skinViewport` 338×426, 95 elements, 73 textured faces (CSS-3D, not canvas). "Your skins" shows the "Add a skin" tile. Default skins shows "Not available yet – Play once…", which is correct for the sandbox: it has no Minecraft files. With the real data dir these come from the downloaded game assets. That part is UNTESTED here |
+| sign-out gate | signed out: sign-in card only; rail nav, rail instances, sidebar, top actions all `display:none`; `switchPage("library")` stays on `home` |
+| heroPlaytime | `3m` (sum across instances) |
+| bigger toggles/trash | scoped rule applies (knob computed 24×24; a `.switch` elsewhere stays 44×25). Rendered size not measured, because the mods list was on a hidden page |
+
+`npm test`: 53/53. The other copy's `features.test.js` plus its `minecraft.test.js`, run against our source
+from the scratchpad: 74/75. The one failure is its old 2 GB memory expectation, superseded on purpose in 45882dc.
+
+### Build
+
+New `dist\Reminth-Setup.exe` built 21:56 (exit 0). SHA-256 `d92fee22ca9c27bb2e3a2c3448f2bb96a55baa3cc3c8809bd3b09e2279a796c6`.
+Built via `-c.directories.output=dist/build-round5` (the old `dist\win-unpacked` lock). The packaged `app.asar`
+was checked for: `selectInstance`, no duplicate `MOD_COLOURS`, the signed-out guard, the heroPlaytime sum, the `isMaximized`
+handler, preload and query, and the `.c-actions` sizes. All true. **Not installed**: the installed Reminth was running
+(8 processes), and installing would have closed it.
+
+### Retest (Forge / NeoForge boot, HUD in game)
+
+**UNTESTED, needs a human.** Switching now works, so these are reachable. But launching the game and
+pressing H in-game need someone at the real app. See the checklist below.
+
 ## Round 5 (`CLAUDE_CODE_PROMPT_4.md`): the renderer is the wrong version
 
 ### Bug #0: what's actually going on (VERIFIED, all checked, none guessed)
@@ -232,10 +319,13 @@ so any Minecraft window you see definitely came from Reminth.
 
 ## What's left
 
-- [ ] **First:** swap in the matching `renderer.js` from `Downloads\reminth-launcher-push\` and re-apply
-      the heroPlaytime and signed-out changes (Round 5, Bug #0). Rebuild after that. Until then the manual
-      checklist can't reach Forge/NeoForge at all.
-- [ ] The 5 manual tests above.
+- [x] Swap in the matching `renderer.js` and re-apply the heroPlaytime and signed-out changes (done round 6).
+- [ ] Install the round 6 `dist\Reminth-Setup.exe`, then run the 5 manual tests above. To switch instance,
+      use the rail chips on the left or Library → Instances. Also glance at: the Discover tab, Home
+      "Discover mods" cards, Skins (3D preview and default skins), and the bigger toggles and trash icons in a mods list.
+- [ ] Decide on the 8 unused preload APIs and the orphan `catalog:checkUpdates` handler.
+- [ ] `Downloads\reminth-launcher-push\` is now redundant (its renderer is in the repo). Decide whether to delete it,
+      so there's one working copy.
 - [ ] ReminthHUD for 26.3 and for Forge/NeoForge: no build exists (see Broken or weird #2).
 - [ ] Silent refresh on Play (`refreshSession`'s bare `catch {}` in `main.js`).
 - [ ] Decide on the `PAGE_META` gap, `electron-updater`, and the `brace-expansion` lockfile pins.

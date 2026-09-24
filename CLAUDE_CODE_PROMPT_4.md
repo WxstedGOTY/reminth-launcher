@@ -1,36 +1,89 @@
-New round. Real bugs found by the cloud session driving the actual installed app
-just now — not guesses, verified on disk and in the running UI. Read this whole
-file first.
+New round. Two parts: a full systematic audit (do this first, it's the main
+job this round), then the specific confirmed bugs below as a starting list —
+not the full scope. Read this whole file first.
 
-## Bug #0 (check this FIRST, it may explain everything else): is features.js
-## even loaded?
+## Part 1: full audit, not spot-checks
+
+I can't click through the running app myself from here, so this round needs
+you to do a systematic pass through the CODE that finds dead buttons/tabs the
+same way the bugs below were found — by cross-referencing, not guessing.
+Concretely:
+
+1. List every page id in `index.html` (every element the rail/sidebar links
+   point at — home, discover, library, instance, skins, plus, captures,
+   streamer, settings, whatever else exists) and check each one actually has
+   a working entry in `PAGE_META` (or whatever routes pages) in `renderer.js`.
+   Anything missing = a dead tab, exactly like the Discover tab bug below.
+2. List every `<script>` tag `index.html` actually loads, and cross-check it
+   against every `.js` file in `src/renderer/`. Any file that exists but
+   isn't loaded is either dead code or a real bug — same class of issue as
+   Bug #0 below. Don't stop at features.js/skinview.js if there's a third one.
+3. Grep `index.html` for every `id=` that JS code (`renderer.js`, `features.js`
+   once it's loaded) reads via `$(...)`/`getElementById`/`querySelector`, and
+   flag any id referenced in JS that doesn't exist in the HTML, or vice versa
+   — either one means something silently does nothing.
+4. Grep for every function called anywhere in `src/renderer/*.js` and confirm
+   it's defined somewhere reachable (the same way `activeInstance`/
+   `selectInstance` turned up undefined below). A `ReferenceError` waiting to
+   happen on some code path is a bug even if nobody's hit it live yet.
+5. Check `src/main/preload.js`'s exposed IPC channel names against
+   `ipcMain.handle`/`ipcMain.on` registrations in `src/main/*.js` — any
+   channel the renderer can call that has no matching main-process handler is
+   a dead button too (click does nothing, or throws).
+
+Fix everything you find from steps 1-5, not just log it. If something is
+ambiguous (intentionally unfinished vs. broken), say so in the report instead
+of guessing, but default to fixing anything that's clearly just wired wrong.
+
+## Part 2: confirmed bugs already found live (fix these regardless)
+
+Live-tested on this machine just now, after installing the newest build:
+- Home page "Discover mods" section: header renders, zero cards under it.
+  Always empty.
+- Left rail "Discover" tab (compass icon): clicking it does nothing at all —
+  stays on Home. Completely dead.
+- Skin Selector page: opens, but "Your skins" and "Default skins" are both
+  empty, and there's no 3D avatar/skin preview rendered anywhere on the page.
+  Totally blank apart from headers and the "Load"/"Edit skin" buttons.
+
+All three trace to the same root cause below. This isn't "maybe check if
+this file loads" anymore — it's confirmed the app is missing real,
+user-visible functionality right now. Treat Bug #0 as the main fix this
+round, not a side investigation.
+
+## Bug #0 (fix this FIRST, it explains the above): features.js and
+## skinview.js are not loaded
 
 `src/renderer/index.html` has exactly one `<script>` tag:
 ```
 <script src="renderer.js"></script>
 ```
 There is no `<script src="features.js">` and no `<script src="skinview.js">`
-anywhere in it. But `features.js`'s own header comment says "Loaded after
-renderer.js" and it's full of real functionality (mods/resource
-packs/shaders/data packs UI, Discover, Logs viewer, Skins, Streamer mode).
-It also calls two functions — `activeInstance()` and `selectInstance()` — that
-are not defined anywhere in `renderer.js` or `features.js` itself.
+anywhere in it. `features.js`'s own header comment confirms it owns exactly
+the broken stuff: "2. Home 'Discover mods' cards ... 5. Skins". `skinview.js`
+is the 3D skin preview renderer — also never loaded, which is why the Skin
+Selector page is blank. `features.js` also calls two functions —
+`activeInstance()` and `selectInstance()` — that are not defined anywhere in
+`renderer.js` or `features.js` itself.
 
-Figure out what's actually going on:
-- Is `features.js` genuinely not loaded (dead file), and everything the user
-  sees working (mods tab, etc.) is actually handled by code inside
-  `renderer.js` itself? If so `features.js` may be legacy/abandoned — confirm,
-  and decide whether to delete it or wire it in.
-- Or is it loaded some other way I'm not seeing (dynamically injected,
-  string-templated into index.html at build time, etc.)? Check for that
-  before assuming it's dead.
-- Either way, `activeInstance` / `selectInstance` being called with no
-  definition anywhere is worth chasing down — if that code path is ever hit
-  live, it throws. Find where (if anywhere) those are actually defined, or
-  confirm the calling code is unreachable dead code too.
+This is no longer a "maybe" — the missing `<script>` tags line up exactly
+with the three confirmed-broken symptoms above. Most likely fix: add
+```
+<script src="features.js"></script>
+<script src="skinview.js"></script>
+```
+before the closing `</body>` (after `renderer.js`, matching features.js's own
+"Loaded after renderer.js" comment), then actually run the app and confirm
+Discover mods populates, the Discover tab opens, and the Skin Selector shows
+a real 3D preview and skin list. If adding the script tags alone doesn't
+fully fix it, that's where `activeInstance`/`selectInstance` being undefined
+becomes relevant — chase those down too, they may need to be defined
+somewhere (probably reading `state.instances` similar to other functions in
+renderer.js) rather than assumed to exist.
 
-Report exactly what you find — this may be a big deal or a total non-issue,
-don't guess, check it for real.
+Do not just report findings this round — fix it, reinstall-test it yourself
+as far as you can without live human clicking, and only leave for the manual
+checklist what genuinely needs a human (Forge/NeoForge boot, HUD in-game).
 
 ## Bug #1: Library page only ever shows one instance
 
@@ -97,6 +150,8 @@ reports."
 
 ## Before you finish
 
-Commit and push. Update `REMINTH_STATE.md` with everything above — what
-bug #0 turned out to be, whether #1-#4 got fixed, and the retest results if
-you got that far.
+Commit and push. Update `REMINTH_STATE.md` with everything above — the full
+audit results from Part 1 (every dead page/button/handler found and fixed,
+not just counted), what bug #0 turned out to be, whether #1-#4 got fixed, and
+the retest results if you got that far. If this round runs long, that's fine
+— this is meant to be the thorough pass, not a quick patch.
