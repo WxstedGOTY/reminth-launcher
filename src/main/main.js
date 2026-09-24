@@ -53,7 +53,8 @@ function createWindow() {
   // maximize() call. The custom title bar then shows the restore icon (two
   // overlapping squares) and the window fills the screen - both read as
   // "opens fullscreen by default". Sizing off the actual work area, capped
-  // well under 100% of it, keeps a genuinely windowed launch everywhere.
+  // well under 100% of it, gives a real windowed size to restore down to -
+  // the launcher itself opens maximized (see ready-to-show below).
   const { width: waWidth, height: waHeight } = screen.getPrimaryDisplay().workAreaSize;
   const winWidth = Math.max(1000, Math.min(1320, Math.round(waWidth * 0.85)));
   const winHeight = Math.max(660, Math.min(840, Math.round(waHeight * 0.85)));
@@ -64,6 +65,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 660,
     center: true,
+    show: false, // shown maximized on ready-to-show, so it never flashes windowed first
     backgroundColor: "#07090f",
     frame: false, // custom title bar drawn in renderer, matches the brand's borderless look
     icon: path.join(__dirname, "..", "..", "assets", "icon.png"), // taskbar/alt-tab icon
@@ -96,6 +98,14 @@ function createWindow() {
   // the renderer draws its own and needs to know which icon to show.
   win.on("maximize", () => send("window:maximized", true));
   win.on("unmaximize", () => send("window:maximized", false));
+
+  // Opens maximized. By ready-to-show the renderer has run renderer.js and
+  // is listening, so the "maximize" event above flips the title bar to its
+  // restore icon; restoring drops back to the windowed size set above.
+  win.once("ready-to-show", () => {
+    win.maximize();
+    win.show();
+  });
 }
 
 app.whenReady().then(async () => {

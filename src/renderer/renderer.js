@@ -60,6 +60,11 @@ const PAGE_META = {
 
 function switchPage(page) {
   if (!PAGE_META[page]) return;
+  // Signed out, Home is the only page - it shows the sign-in card instead of
+  // the player's instances. Every other route (rail, tiles, sidebar, hotkeys)
+  // funnels through here, so this one check keeps a shared PC's next user
+  // out of the last player's instances, worlds, mods and servers.
+  if (!state.signedIn && page !== "home") return;
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === page));
   document.querySelectorAll(".rail-btn[data-page]").forEach((b) =>
     b.classList.toggle("active", b.dataset.page === page)
@@ -529,6 +534,12 @@ function applyAccountUI() {
   $("signInHero").hidden = signedIn;
   $("homeMain").hidden = !signedIn;
   $("heroGreeting").textContent = signedIn ? `Welcome back, ${state.username}` : "Ready to play?";
+
+  // The same sign-in card gates the whole app, not just Home: signed out, the
+  // rail, top actions and sidebar are hidden (styles.css, #app.signed-out)
+  // and switchPage refuses every page but Home.
+  $("app").classList.toggle("signed-out", !signedIn);
+  if (!signedIn) switchPage("home");
 
   refreshSkin();
 }

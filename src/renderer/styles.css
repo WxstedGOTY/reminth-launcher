@@ -998,6 +998,13 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* ── sign-in ───────────────────────────────────────────────── */
+/* Signed out: only the sign-in card on Home is left. Nothing that lists or
+   opens the last player's instances, worlds, servers or mods stays on
+   screen (renderer.js applyAccountUI sets the class, switchPage enforces it). */
+#app.signed-out .rail > :not(.rail-brand):not(.rail-spacer),
+#app.signed-out .topbar-actions,
+#app.signed-out .app-side { display: none; }
+
 .signin-wrap { display: grid; place-items: center; min-height: 66vh; }
 .signin-card { width: min(460px, 100%); padding: 38px 34px; text-align: center; }
 .signin-mark {
