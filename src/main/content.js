@@ -587,7 +587,9 @@ async function install(instance, { projectId, kind, world, versionId }, onProgre
     }
     let version;
     if (vid) {
+      // A version the player picked in the version chooser.
       version = await modrinth.getVersion(vid);
+      if (version && version.project_id !== project.id) throw new Error(`That version doesn't belong to ${project.title}.`);
     } else {
       const versions = await modrinth.getProjectVersions(project.id, {
         loaders: loadersFor(k, instance),

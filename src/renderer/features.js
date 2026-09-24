@@ -449,7 +449,7 @@ async function pickWorld(inst) {
  * Installs a project into the active instance. `buttons`: elements that
  * should show progress / the installed state.
  */
-async function installProject({ projectId, projectType, title }, buttons = []) {
+async function installProject({ projectId, projectType, title, versionId }, buttons = []) {
   const inst = activeInstance();
   if (!inst) return false;
   if (projectType === "modpack") return installModpackFlow({ projectId, title });
@@ -471,7 +471,9 @@ async function installProject({ projectId, projectType, title }, buttons = []) {
     b.classList.add("busy");
   }
   try {
-    const result = await window.reminth.installContent(inst.id, { projectId, kind, world });
+    // versionId: set only when the player picked one (chooseModVersion);
+    // otherwise content.install picks the best match itself, as before.
+    const result = await window.reminth.installContent(inst.id, { projectId, kind, world, ...(versionId ? { versionId } : {}) });
     const extra = result.installed.length > 1 ? ` (+${result.installed.length - 1} it needs)` : "";
     toast(`${title || result.installed[0]?.title || "Installed"} added to ${inst.name}${extra}.`);
     await loadContent(inst.id);
@@ -556,6 +558,149 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
 const modpackListeners = new Set();
 window.reminth.onModpackProgress((p) => modpackListeners.forEach((fn) => fn(p)));
 
+/* ------------------------------------------------------------------ *
+ * "Choose version…": the optional slow path next to a mod's Install   *
+ * ------------------------------------------------------------------ */
+// Mirrors content.js loadersFor("mod") so the list only offers versions
+// content.install would accept for this instance.
+function modLoadersFor(inst) {
+  if (inst.loader === "fabric") return ["fabric"];
+  if (inst.loader === "quilt") return ["quilt", "fabric"];
+  if (inst.loader === "forge") return ["forge"];
+  if (inst.loader === "neoforge") return inst.mcVersion === "1.20.1" ? ["neoforge", "forge"] : ["neoforge"];
+  return [];
+}
+// Mirrors content.js pickVersion: newest release, else newest of any kind.
+const defaultVersion = (versions) => versions.find((v) => v.version_type === "release") || versions[0] || null;
+const DEP_LABELS = { required: "Required", optional: "Optional", incompatible: "Incompatible", embedded: "Bundled inside" };
+
+async function chooseModVersion({ projectId, title }, buttons = []) {
+  const inst = activeInstance();
+  if (!inst) return false;
+  const loaders = modLoadersFor(inst);
+  if (!loaders.length) return installProject({ projectId, projectType: "mod", title }, buttons); // shows the vanilla message
+  if (content.instanceId !== inst.id || !content.data) await loadContent(inst.id);
+
+  const body = el("div", "vpick");
+  body.appendChild(el("p", "vpick-note", `Versions that work on ${inst.name} (${loaderLabel(inst)} ${inst.mcVersion}). The highlighted one is what Install picks on its own.`));
+  const list = el("div", "pick-list vpick-list");
+  const depsBox = el("div", "vpick-deps");
+  body.appendChild(list);
+  body.appendChild(depsBox);
+  list.appendChild(el("div", "vpick-empty", "Loading versions…"));
+
+  let chosen = null;
+  let installed = false;
+  // Resolves with whether anything got installed, however the modal closes.
+  let settle;
+  const done = new Promise((resolve) => (settle = resolve));
+  const handle = openModal({
+    title: `Install ${title || "mod"}`,
+    body,
+    wide: true,
+    onClose: () => settle(installed),
+    buttons: [
+      { label: "Cancel", className: "outline" },
+      {
+        label: "Install",
+        className: "primary",
+        icon: "#i-download",
+        onClick: async () => {
+          if (!chosen) return false;
+          installed = await installProject({ projectId, projectType: "mod", title, versionId: chosen.id }, buttons);
+          return installed ? true : false;
+        },
+      },
+    ],
+  });
+  const installBtn = handle.buttons[1];
+  installBtn.disabled = true;
+
+  let versions;
+  let depProjects = new Map();
+  try {
+    const [v, deps] = await Promise.all([
+      window.reminth.getCatalogProjectVersions(projectId, { loaders, gameVersions: [inst.mcVersion] }),
+      window.reminth.getCatalogDependencies(projectId).catch(() => null),
+    ]);
+    versions = Array.isArray(v) ? v : [];
+    for (const p of (deps && deps.projects) || []) depProjects.set(p.id, p);
+  } catch (err) {
+    list.textContent = "";
+    list.appendChild(el("div", "vpick-empty", friendlyError(err.message)));
+    return done;
+  }
+  if (handle.closed) return done;
+  list.textContent = "";
+  if (!versions.length) {
+    list.appendChild(el("div", "vpick-empty", `${title || "This mod"} has no version for Minecraft ${inst.mcVersion} on ${loaderLabel(inst)}.`));
+    return done;
+  }
+
+  const have = installedProjectIds();
+  const paintDeps = async (version) => {
+    depsBox.textContent = "";
+    depsBox.appendChild(el("h4", null, `What ${version.version_number} needs`));
+    const deps = (version.dependencies || []).filter((d) => d.project_id);
+    if (!deps.length) {
+      depsBox.appendChild(el("div", "vpick-empty", "Nothing else. This version stands on its own."));
+      return;
+    }
+    // Names come from the project's dependency list; anything missing
+    // from it (rare) is looked up once.
+    for (const d of deps) {
+      if (depProjects.has(d.project_id)) continue;
+      try {
+        depProjects.set(d.project_id, await window.reminth.getCatalogProject(d.project_id));
+      } catch {
+        /* shown by id */
+      }
+    }
+    if (chosen !== version) return; // selection moved on while looking up
+    const order = { required: 0, optional: 1, embedded: 2, incompatible: 3 };
+    deps.sort((a, b) => (order[a.dependency_type] ?? 9) - (order[b.dependency_type] ?? 9));
+    for (const d of deps) {
+      const p = depProjects.get(d.project_id);
+      const row = el("div", "vpick-dep");
+      row.appendChild(el("b", null, (p && p.title) || d.project_id));
+      row.appendChild(el("span", "tag " + (d.dependency_type === "required" ? "cyan" : d.dependency_type === "incompatible" ? "rose" : "dim"), DEP_LABELS[d.dependency_type] || d.dependency_type));
+      let state;
+      if (d.dependency_type === "incompatible") state = have.has(d.project_id) ? "Installed — they clash" : "Not installed";
+      else if (d.dependency_type === "embedded") state = "Comes inside the mod";
+      else if (have.has(d.project_id)) state = "Already installed";
+      else state = d.dependency_type === "required" ? "Will be installed too" : "Not installed (optional)";
+      row.appendChild(el("span", "vpick-dep-state" + (state === "Will be installed too" ? " add" : ""), state));
+      depsBox.appendChild(row);
+    }
+  };
+
+  const suggested = defaultVersion(versions);
+  const select = (version, item) => {
+    chosen = version;
+    list.querySelectorAll(".pick-item").forEach((x) => x.classList.toggle("selected", x === item));
+    installBtn.disabled = false;
+    paintDeps(version);
+  };
+  for (const v of versions) {
+    const item = el("button", "pick-item vpick-item");
+    item.type = "button";
+    const main = el("div", "vpick-main");
+    const name = el("b", null, v.version_number || v.name);
+    main.appendChild(name);
+    const mc = v.game_versions || [];
+    main.appendChild(el("span", null, `MC ${mc.length > 3 ? mc.slice(0, 3).join(", ") + ` +${mc.length - 3}` : mc.join(", ")} · ${(v.loaders || []).map((l) => LOADER_LABELS[l] || l).join(", ")} · ${formatRelativeTime(v.date_published)}`));
+    item.appendChild(main);
+    const tags = el("div", "vpick-tags");
+    if (v === suggested) tags.appendChild(el("span", "tag emerald", "Default"));
+    tags.appendChild(el("span", "tag " + ({ release: "cyan", beta: "amber", alpha: "rose" }[v.version_type] || "dim"), v.version_type));
+    item.appendChild(tags);
+    item.onclick = () => select(v, item);
+    list.appendChild(item);
+    if (v === suggested) select(v, item);
+  }
+  return done;
+}
+
 /* ================================================================== *
  * 2. home "Discover mods" - flat single-colour icons, box painted     *
  *    in the icon's own colour                                         *
@@ -627,9 +772,14 @@ function discoverCard(mod) {
   }
   const add = el("button", "dcard-add");
   add.type = "button";
-  add.title = "Add to your instance";
+  add.title = "Add to your instance (right-click to choose a version)";
   add.appendChild(icon("#i-plus"));
   add.dataset.project = mod.id;
+  add.addEventListener("contextmenu", async (e) => {
+    e.preventDefault();
+    if (add.classList.contains("done")) return toast(`${mod.name} is already in ${activeInstance().name}.`);
+    if (await chooseModVersion({ projectId: mod.id, title: mod.name }, [add])) markAdded(add);
+  });
   add.onclick = async () => {
     if (add.classList.contains("done")) return toast(`${mod.name} is already in ${activeInstance().name}.`);
     add.classList.add("busy");
@@ -1181,7 +1331,25 @@ function projectRow(p) {
       btn.querySelector("span").textContent = "Installed";
     }
   };
-  side.appendChild(btn);
+  if (type === "mod") {
+    // Install stays one click; the chevron is the optional "pick a version" path.
+    const pick = el("button", "btn outline sm icon-only vpick-btn");
+    pick.type = "button";
+    pick.title = "Choose version…";
+    pick.setAttribute("aria-label", `Choose a version of ${p.title}`);
+    pick.appendChild(icon("#i-chevron"));
+    pick.onclick = async () => {
+      const ok = await chooseModVersion({ projectId: pid, title: p.title }, [btn]);
+      if (ok) {
+        btn.classList.add("installed");
+        btn.querySelector("span").textContent = "Installed";
+      }
+    };
+    const group = el("div", "install-group");
+    group.appendChild(btn);
+    group.appendChild(pick);
+    side.appendChild(group);
+  } else side.appendChild(btn);
   const stats = el("div", "mrow-stats");
   const stat = (iconId, text) => {
     const span = el("span");

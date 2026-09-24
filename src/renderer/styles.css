@@ -1484,6 +1484,23 @@ img.c-ico.pixel { image-rendering: pixelated; }
 .pick-item:hover { border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
 .pick-item img { width: 36px; height: 36px; border-radius: 8px; image-rendering: pixelated; }
 .pick-item span { font-size: 11.5px; color: var(--text-3); display: block; }
+.pick-item.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* mod version chooser (features.js chooseModVersion) */
+.install-group { display: flex; gap: 6px; align-items: center; }
+.vpick-note { margin: 0 0 12px; font-size: 12.5px; color: var(--text-3); }
+.vpick-list { max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.vpick-item { justify-content: space-between; }
+.vpick-main { min-width: 0; }
+.vpick-main b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vpick-tags { display: flex; gap: 6px; flex-shrink: 0; }
+.vpick-empty { font-size: 12.5px; color: var(--text-3); padding: 8px 2px; }
+.vpick-deps { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+.vpick-deps h4 { margin: 0 0 8px; font-size: 12.5px; }
+.vpick-dep { display: flex; align-items: center; gap: 10px; padding: 5px 0; font-size: 12.5px; }
+.vpick-dep b { flex: 1; min-width: 0; font-weight: 650; }
+.vpick-dep-state { color: var(--text-3); font-size: 11.5px; }
+.vpick-dep-state.add { color: var(--accent); }
 
 /* edit-skin modal */
 .edit-skin { display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
