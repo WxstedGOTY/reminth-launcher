@@ -546,14 +546,14 @@ function splitArgs(text) {
 }
 
 /**
- * Pure: the default -Xmx, in MB. 2GB, matching the official launcher - except
- * on a machine with under 5GB total, where 1GB keeps the game and Windows
- * from fighting over the same pages. The Settings slider overrides it.
+ * Pure: the default -Xmx, in MB. Half of total RAM, clamped to [2GB, 6GB] -
+ * never below the official launcher's 2GB, and capped so a big machine
+ * doesn't hand the JVM a heap it will only spend longer collecting. The
+ * Settings slider overrides it.
  */
 function computeDefaultMaxMemoryMb(totalMemBytes) {
-  const totalGb = totalMemBytes / 1024 ** 3;
-  if (totalGb < 5) return 1024;
-  return 2048;
+  const halfMb = Math.floor(totalMemBytes / 1024 ** 2 / 2);
+  return Math.min(6 * 1024, Math.max(2 * 1024, halfMb));
 }
 
 /**
