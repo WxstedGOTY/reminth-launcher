@@ -1669,7 +1669,7 @@ async function loadSkinProfile() {
   }
 }
 
-function skinTile({ dataUrl, variant, label, current, onClick, onDelete }) {
+function skinTile({ dataUrl, variant, label, current, onClick, onRename, onDelete }) {
   const tile = el("div", "skin-tile" + (current ? " current" : ""));
   const vp = el("div");
   tile.appendChild(vp);
@@ -1677,17 +1677,21 @@ function skinTile({ dataUrl, variant, label, current, onClick, onDelete }) {
   viewer.setSkin(dataUrl, variant);
   if (current) tile.appendChild(el("span", "current-badge", "Wearing"));
   tile.appendChild(el("span", "skin-label", label));
-  if (onDelete) {
+  if (onRename || onDelete) {
     const actions = el("div", "tile-actions");
-    const del = el("button");
-    del.type = "button";
-    del.title = "Forget this skin";
-    del.appendChild(icon("#i-trash"));
-    del.onclick = (e) => {
-      e.stopPropagation();
-      onDelete();
+    const action = (title, iconId, fn, cls) => {
+      const b = el("button", cls);
+      b.type = "button";
+      b.title = title;
+      b.appendChild(icon(iconId));
+      b.onclick = (e) => {
+        e.stopPropagation();
+        fn();
+      };
+      actions.appendChild(b);
     };
-    actions.appendChild(del);
+    if (onRename) action("Rename", "#i-edit", onRename);
+    if (onDelete) action("Forget this skin", "#i-trash", onDelete, "danger");
     tile.appendChild(actions);
   }
   tile.onclick = onClick;
@@ -1745,6 +1749,7 @@ async function loadSkinLibrary() {
         label: s.name,
         current: s.id === wearingId,
         onClick: () => openSkinEditor({ dataUrl: s.dataUrl, variant: s.variant, name: s.name, source: s.source }),
+        onRename: () => renameSkinModal(s),
         onDelete: async () => {
           await window.reminth.skinLibraryRemove(s.id);
           loadSkinLibrary();
@@ -1752,6 +1757,46 @@ async function loadSkinLibrary() {
       })
     );
   }
+}
+
+/** Rename a saved skin (skinLibrary.rename caps names at 40 characters). */
+function renameSkinModal(s) {
+  const body = el("div");
+  const field = el("div", "field");
+  field.appendChild(el("label", null, "Name"));
+  const input = el("input");
+  input.type = "text";
+  input.maxLength = 40;
+  input.value = s.name;
+  field.appendChild(input);
+  body.appendChild(field);
+  const save = async () => {
+    const name = input.value.trim();
+    if (!name) {
+      toast("Give it a name first.");
+      return false;
+    }
+    try {
+      await window.reminth.skinLibraryRename(s.id, name);
+    } catch (err) {
+      toast(friendlyError(err.message));
+      return false;
+    }
+    loadSkinLibrary();
+  };
+  const handle = openModal({
+    title: "Rename skin",
+    body,
+    buttons: [
+      { label: "Cancel", className: "outline" },
+      { label: "Rename", className: "primary", onClick: save },
+    ],
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handle.buttons[1].click();
+  });
+  input.focus();
+  input.select();
 }
 
 async function loadDefaultSkins() {
