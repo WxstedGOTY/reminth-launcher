@@ -357,6 +357,20 @@ document.querySelector(".topbar").addEventListener("dblclick", (e) => {
   if (e.target.closest("button")) return;
   window.reminth.maximizeToggle();
 });
+// Auto-update (main/updater.js): downloading -> ready, with a Restart button.
+window.reminth.onUpdateStatus(({ state: updateState, version }) => {
+  $("updateBar").hidden = false;
+  const ready = updateState === "ready";
+  $("updateText").textContent = ready
+    ? `Reminth ${version} is ready. It installs when you restart.`
+    : `Update available (Reminth ${version}), downloading…`;
+  $("updateRestartBtn").hidden = !ready;
+});
+$("updateRestartBtn").onclick = () => {
+  $("updateRestartBtn").disabled = true;
+  window.reminth.installUpdate();
+};
+
 function paintMaxButton(isMaximized) {
   $("maxBtn").querySelector("span").className = isMaximized ? "wc-max restore" : "wc-max";
   $("maxBtn").title = isMaximized ? "Restore" : "Maximize";

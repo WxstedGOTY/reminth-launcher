@@ -846,6 +846,11 @@
 <div class="modal-root" id="modalRoot" hidden></div>
 <div class="tip" id="tip"></div>
 <div class="toast" id="toast"><span id="toastText"></span></div>
+<!-- auto-update: same look as the toast, but it stays up and takes clicks -->
+<div class="toast update-bar" id="updateBar" hidden>
+  <span id="updateText"></span>
+  <button class="btn primary sm" id="updateRestartBtn" hidden>Restart to install</button>
+</div>
 
 <script src="renderer.js"></script>
 <script src="skinview.js"></script>

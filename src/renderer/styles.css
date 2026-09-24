@@ -1037,6 +1037,12 @@ input[type="range"]::-webkit-slider-thumb {
   max-width: 62vw; text-align: center;
 }
 .toast.show { transform: translate(-50%, 0); opacity: 1; }
+/* Update bar: a toast that stays until acted on, sitting above the normal
+   toast so the two never overlap. */
+.toast.update-bar {
+  bottom: 74px; transform: translate(-50%, 0); opacity: 1; pointer-events: auto;
+  display: flex; align-items: center; gap: 14px; padding: 9px 10px 9px 18px;
+}
 
 [hidden] { display: none !important; }
 

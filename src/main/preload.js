@@ -11,6 +11,10 @@ contextBridge.exposeInMainWorld("reminth", {
   onMaximized: on("window:maximized"),
   isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
 
+  // auto-update (updater.js)
+  onUpdateStatus: on("update:status"),
+  installUpdate: () => ipcRenderer.send("update:install"),
+
   // account + skins
   currentAccount: () => ipcRenderer.invoke("auth:current"),
   signIn: () => ipcRenderer.invoke("auth:signIn"),

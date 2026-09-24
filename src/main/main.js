@@ -22,6 +22,7 @@ const serverPing = require("./serverPing");
 const streamer = require("./streamer");
 const entitlements = require("./entitlements");
 const loaders = require("./loaders");
+const updater = require("./updater");
 const { fetchJson } = require("./downloader");
 
 let win;
@@ -125,8 +126,12 @@ app.whenReady().then(async () => {
     // Pull any new logs into the permanent archive for every instance.
     for (const inst of await instances.list()) logs.importInstanceLogs(inst).catch(() => {});
     warmAllCachesIfStale();
+    // After load, so the renderer is listening for "update:status".
+    updater.init({ notify: send });
   });
 });
+
+ipcMain.on("update:install", () => updater.installNow());
 
 app.on("window-all-closed", () => {
   streamer.shutdown();
