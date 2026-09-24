@@ -25,22 +25,16 @@ module.exports = {
   // ships in assets/mods/ (see paths.js).
   REMINTHHUD_UPDATE_MANIFEST_URL: process.env.REMINTH_HUD_MANIFEST_URL || null,
 
-  // Optional open-source Fabric perf mods, bundled alongside ReminthHUD for a
-  // real FPS/stutter improvement (the launcher itself can't change FPS -
-  // this is the only thing that actually does). Pulled straight from each
-  // mod's own GitHub Releases, never Modrinth/CurseForge - Reminth doesn't
-  // depend on either. Best-effort: if a mod hasn't published a build for
-  // MINECRAFT_VERSION yet, ensureInstalled logs it and moves on rather than
-  // failing the whole install (see minecraft.js:downloadPerformanceMods).
-  BUNDLE_PERFORMANCE_MODS: process.env.REMINTH_NO_PERF_MODS ? false : true,
-  PERFORMANCE_MODS: [
-    { owner: "CaffeineMC", repo: "sodium", label: "Sodium" },
-    { owner: "CaffeineMC", repo: "lithium", label: "Lithium" },
-    // Starlight itself (PaperMC/Starlight) is server-side (Paper) only.
-    // ScalableLux is its actual Fabric client port, same lighting-engine
-    // rewrite. See https://github.com/RelativityMC/ScalableLux
-    { owner: "RelativityMC", repo: "ScalableLux", label: "ScalableLux (Starlight's Fabric port)" },
-  ],
+  // Reminth installs exactly two mods: ReminthHUD, and the Fabric API it
+  // needs to load at all. Nothing else.
+  //
+  // Earlier builds also auto-installed a performance pack (Sodium, Lithium,
+  // ScalableLux). That's been removed on purpose: which mods run in a
+  // player's game is the player's decision, not the launcher's - even when
+  // the mods are good ones. minecraft.js:tidyManagedMods also deletes those
+  // jars from instances that already have them, so nobody is left with mods
+  // they never chose. Mods the player installs themselves are never touched.
+  BUNDLE_PERFORMANCE_MODS: false,
 
   // JVM heap ceiling. Overridable per machine; default is picked at runtime
   // from the player's actual RAM (see minecraft.js:computeDefaultMaxMemoryMb)

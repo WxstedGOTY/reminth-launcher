@@ -3,76 +3,852 @@
 <head>
   <meta charset="UTF-8" />
   <title>Reminth</title>
-  <!-- Silences Electron's "Insecure Content-Security-Policy" DevTools
-       warning and adds real defense-in-depth on top of contextIsolation
-       (see main.js). Everything this window loads is local file:// content
-       with no remote page, inline script, or network fetch from the
-       renderer itself, so a tight allowlist costs nothing functionally. -->
-  <!-- img-src includes file: (not just 'self') because icon.png is
-       referenced from two directories up (../../assets/icon.png) -
-       Chromium's file:// origin-matching for 'self' across different
-       directories is inconsistent enough between Electron versions that
-       it's not worth risking a broken logo over; there's no security cost
-       since this app never renders remote or user-supplied images. -->
+  <!-- Everything this window loads is local file:// content with no remote
+       page, inline script, or network fetch from the renderer itself.
+       data: is allowed for images (world/server icons, skins and mod icons
+       arrive as data URLs from the main process). img-src also allows
+       cdn.modrinth.com for catalog icons - <img> only, never fetch/XHR
+       (connect-src stays 'none'). media-src file: is for the player's own
+       clips and screenshots in the Captures tab. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app">
-    <div class="titlebar">
-      <div class="brand"><img class="brand-mark" src="../../assets/icon.png" alt="" /> Reminth <span class="tag">| 1.0.0-dev</span></div>
-      <div class="win-controls">
-        <button id="minBtn" title="Minimize">&#8211;</button>
-        <button id="closeBtn" class="close" title="Close">&#10005;</button>
+
+<!-- Icon sprite. 24px grid, 2px round strokes. -->
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.8 10.4 12 3.8l8.2 6.6"/><path d="M5.8 9v10.2c0 .6.5 1 1 1h3.4v-5.4h3.6v5.4h3.4c.6 0 1-.4 1-1V9"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z"/></symbol>
+  <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 2.9 20.2 7.3v9.4L12 21.1l-8.2-4.4V7.3z"/><path d="M3.9 7.4 12 11.8l8.1-4.4"/><path d="M12 11.8v9.2"/></symbol>
+  <symbol id="i-library" viewBox="0 0 24 24"><path d="M12 3.4 20.6 7.6 12 11.8 3.4 7.6z"/><path d="m3.4 12 8.6 4.2 8.6-4.2"/><path d="m3.4 16.4 8.6 4.2 8.6-4.2"/></symbol>
+  <symbol id="i-skin" viewBox="0 0 24 24"><path d="M9 3.6 4 5.9l1.8 4.4 2.3-.9v10.9c0 .5.4.9.9.9h6c.5 0 .9-.4.9-.9V9.4l2.3.9L20 5.9l-5-2.3a3 3 0 0 1-6 0z"/></symbol>
+  <symbol id="i-hosting" viewBox="0 0 24 24"><rect x="3.6" y="12.6" width="16.8" height="7.4" rx="2"/><path d="M7.4 16.3h.01"/><path d="M8.7 9.3a4.7 4.7 0 0 1 6.6 0"/><path d="M5.9 6.4a8.7 8.7 0 0 1 12.2 0"/></symbol>
+  <symbol id="i-gem" viewBox="0 0 24 24"><path d="M6.6 4.2h10.8l3.6 5L12 20.2 3 9.2z"/><path d="M3.2 9.2h17.6"/><path d="M12 20.2 8.6 9.2 11.2 4.2M12 20.2l3.4-11-2.6-5"/></symbol>
+  <symbol id="i-broadcast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2"/><path d="M16.3 7.7a6.1 6.1 0 0 1 0 8.6M7.7 16.3a6.1 6.1 0 0 1 0-8.6"/><path d="M19.2 4.8a10.2 10.2 0 0 1 0 14.4M4.8 19.2a10.2 10.2 0 0 1 0-14.4"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.2 7.6h2.9l1.6-2.4h6.6l1.6 2.4h2.9c.6 0 1 .4 1 1v9.6c0 .6-.4 1-1 1H4.2c-.6 0-1-.4-1-1V8.6c0-.6.4-1 1-1z"/><circle cx="12" cy="13" r="3.4"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.2"/><path d="M3.4 9.2h17.2M3.4 14.8h17.2M8 5v4M16 5v4M8 15v4M16 15v4"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9.5M18.5 7H20M4 17h3.5M12.5 17H20"/><circle cx="16" cy="7" r="2.3"/><circle cx="10" cy="17" r="2.3"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.1"/><path d="M19.2 14.6a1.5 1.5 0 0 0 .3 1.65l.06.06a1.8 1.8 0 1 1-2.55 2.55l-.06-.06a1.5 1.5 0 0 0-1.65-.3 1.5 1.5 0 0 0-.9 1.37v.17a1.8 1.8 0 0 1-3.6 0v-.09a1.5 1.5 0 0 0-.98-1.37 1.5 1.5 0 0 0-1.65.3l-.06.06a1.8 1.8 0 1 1-2.55-2.55l.06-.06a1.5 1.5 0 0 0 .3-1.65 1.5 1.5 0 0 0-1.37-.9h-.17a1.8 1.8 0 0 1 0-3.6h.09a1.5 1.5 0 0 0 1.37-.98 1.5 1.5 0 0 0-.3-1.65l-.06-.06a1.8 1.8 0 1 1 2.55-2.55l.06.06a1.5 1.5 0 0 0 1.65.3h.07a1.5 1.5 0 0 0 .9-1.37v-.17a1.8 1.8 0 0 1 3.6 0v.09a1.5 1.5 0 0 0 .9 1.37 1.5 1.5 0 0 0 1.65-.3l.06-.06a1.8 1.8 0 1 1 2.55 2.55l-.06.06a1.5 1.5 0 0 0-.3 1.65v.07a1.5 1.5 0 0 0 1.37.9h.17a1.8 1.8 0 0 1 0 3.6h-.09a1.5 1.5 0 0 0-1.37.9z"/></symbol>
+  <symbol id="i-stats" viewBox="0 0 24 24"><path d="M4 20V10M9.3 20V4M14.7 20v-8M20 20V7"/></symbol>
+  <symbol id="i-server" viewBox="0 0 24 24"><rect x="3.2" y="4.2" width="17.6" height="6" rx="1.6"/><rect x="3.2" y="13.8" width="17.6" height="6" rx="1.6"/><path d="M7 7.2h.01M7 16.8h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5 19.5 12 7 19.5z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 6.5h6l2 2.5h9v9.5h-17z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4.5V10h-5.5"/></symbol>
+  <symbol id="i-world" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M3.6 12h16.8M12 3.4a14 14 0 0 1 0 17.2M12 3.4a14 14 0 0 0 0 17.2"/></symbol>
+  <symbol id="i-block" viewBox="0 0 32 32">
+    <path class="blk-top" d="M16 3.5 28 10 16 16.5 4 10z"/>
+    <path class="blk-left" d="M4 10.8 16 17.3v11.2L4 22z"/>
+    <path class="blk-right" d="M28 10.8 28 22 16 28.5V17.3z"/>
+    <path class="blk-pip" d="M12.6 8.9 15.1 10.3 12.6 11.7 10.1 10.3zM19.4 8.9 21.9 10.3 19.4 11.7 16.9 10.3z"/>
+    <path class="blk-edge" d="M16 3.5 28 10 16 16.5 4 10z"/>
+  </symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 7.2V12l3.2 2"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 3 6 13.2h4.8L9.8 21l7.7-10.4h-4.9z"/></symbol>
+  <symbol id="i-pack" viewBox="0 0 24 24"><rect x="3.4" y="4.8" width="17.2" height="14.4" rx="2.2"/><path d="M3.6 15.8l4.6-4.2 3.6 3.2 3.4-3.5 5.4 5"/><circle cx="8.7" cy="9.1" r="1.3"/></symbol>
+  <symbol id="i-realm" viewBox="0 0 24 24"><path d="M7.4 18.6h9.2a3.9 3.9 0 0 0 .5-7.75 5.6 5.6 0 0 0-10.65-1.2 3.99 3.99 0 0 0 .95 8.95z"/></symbol>
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9.2" cy="8.4" r="3.2"/><path d="M3.6 19.4a5.7 5.7 0 0 1 11.2 0"/><path d="M16.4 6.3a3 3 0 0 1 0 5.9"/><path d="M17.6 14.3a5.2 5.2 0 0 1 3.2 4.5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.2 13.8a3.6 3.6 0 0 0 5.2 0l2.8-2.8a3.7 3.7 0 0 0-5.2-5.2l-1.3 1.3"/><path d="M13.8 10.2a3.6 3.6 0 0 0-5.2 0l-2.8 2.8a3.7 3.7 0 0 0 5.2 5.2l1.3-1.3"/></symbol>
+  <symbol id="i-shader" viewBox="0 0 24 24"><path d="M12 3.2c.5 3.4 1.4 5.6 2.6 6.9 1.2 1.2 3.2 2 6.2 2.5-3 .5-5 1.3-6.2 2.5-1.2 1.3-2.1 3.5-2.6 6.9-.5-3.4-1.4-5.6-2.6-6.9-1.2-1.2-3.2-2-6.2-2.5 3-.5 5-1.3 6.2-2.5 1.2-1.3 2.1-3.5 2.6-6.9z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.8"/><path d="M20.2 20.2l-4.6-4.6"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5V15M7.2 10.4 12 15.2l4.8-4.8"/><path d="M4.5 19.5h15"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.2S3.8 15 3.8 9.1A4.4 4.4 0 0 1 12 6.6a4.4 4.4 0 0 1 8.2 2.5c0 5.9-8.2 11.1-8.2 11.1z"/></symbol>
+  <symbol id="i-sort-az" viewBox="0 0 24 24"><path d="M6 4v15.5M3 16.5l3 3 3-3"/><path d="M13.5 10.2 16.2 3.8l2.7 6.4M14.4 8.1h3.6"/><path d="M13.8 13.5h5l-5 6.5h5"/></symbol>
+  <symbol id="i-sort-za" viewBox="0 0 24 24"><path d="M6 20V4.5M3 7.5l3-3 3 3"/><path d="M13.5 10.2 16.2 3.8l2.7 6.4M14.4 8.1h3.6"/><path d="M13.8 13.5h5l-5 6.5h5"/></symbol>
+  <symbol id="i-clock-new" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-8-8"/><path d="M12 7.5V12l3 2"/><path d="M17 3.2v5.3M14.5 6l2.5 2.5L19.5 6"/></symbol>
+  <symbol id="i-clock-old" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-8-8"/><path d="M12 7.5V12l3 2"/><path d="M17 8.5V3.2M14.5 5.7 17 3.2l2.5 2.5"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6.5 9.5 5.5 5.5 5.5-5.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2c.1.6.5 1 1.1 1h7c.6 0 1-.4 1.1-1L17.5 7"/><path d="M10 11v5.5M14 11v5.5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4.5 19.5h4l10-10-4-4-10 10z"/><path d="m13 7 4 4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.6 21.2 19.5H2.8z"/><path d="M12 9.5v4.5M12 16.8h.01"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4.5 5.5h15v10h-8.5L6.5 19.5v-4h-2z"/></symbol>
+  <symbol id="i-log" viewBox="0 0 24 24"><path d="M6 3.5h8.5l4 4v13H6z"/><path d="M14.5 3.5v4h4M9 12h6M9 15.5h6"/></symbol>
+  <symbol id="i-signal" viewBox="0 0 24 24"><path d="M5 19v-3M9.7 19v-6.5M14.3 19V9M19 19V5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.2 10.5V8a3.8 3.8 0 0 1 7.6 0v2.5"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V4M7.2 8.6 12 3.8l4.8 4.8"/><path d="M4.5 19.5h15"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3 12h18M6 9l-3 3 3 3M18 9l3 3-3 3"/></symbol>
+  <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3.5 3.5l17 17"/><path d="M10.2 5.3A9.6 9.6 0 0 1 12 5.1c5.2 0 8.6 4.8 9 6.9-.2.9-.9 2.3-2.1 3.6M6.4 6.9C4.4 8.3 3.2 10.4 3 12c.4 2.1 3.8 6.9 9 6.9 1.6 0 3-.4 4.3-1.1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.2 4.8 11 13"/><path d="M17.5 13.5v5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1h5"/></symbol>
+  <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4 5.5h16l-6.2 7.3v5.7l-3.6 1.9v-7.6z"/></symbol>
+</svg>
+
+<div id="app">
+  <div class="backdrop">
+    <div class="grid-bg"></div>
+    <div class="aurora a1"></div>
+    <div class="aurora a2"></div>
+    <div class="aurora a3"></div>
+  </div>
+
+  <div class="shell">
+
+    <!-- ── icon rail ─────────────────────────────────────────── -->
+    <aside class="rail">
+      <div class="rail-brand" id="railBrand">
+        <img src="../../assets/icon.png" alt="Reminth" />
       </div>
-    </div>
 
-    <div class="content">
-      <!-- signed out: Microsoft device-code sign-in -->
-      <div class="panel" id="signedOutPanel">
-        <img class="logo-mark-img" src="../../assets/icon.png" alt="Reminth" />
-        <div class="logo-mark">Reminth _</div>
-        <div class="subtitle">Fabric + ReminthHUD, sign in and play - nothing else to install</div>
+      <nav class="rail-group" id="railNav">
+        <button class="rail-btn active" data-page="home" data-tip="Home"><svg><use href="#i-home"/></svg></button>
+        <button class="rail-btn" data-page="discover" data-tip="Discover"><svg><use href="#i-compass"/></svg></button>
+        <button class="rail-btn" data-page="library" data-tip="Library"><svg><use href="#i-library"/></svg></button>
+        <button class="rail-btn" data-page="skins" data-tip="Skins"><svg><use href="#i-skin"/></svg></button>
+        <button class="rail-btn" data-page="hosting" data-tip="Reminth Hosting"><svg><use href="#i-hosting"/></svg></button>
+        <button class="rail-btn rail-plus" data-page="plus" data-tip="Reminth+"><svg><use href="#i-gem"/></svg></button>
+      </nav>
 
-        <button class="primary" id="signInBtn">Sign in with Microsoft</button>
-        <div class="trust-note">Opens Microsoft's own sign-in page. Reminth never sees your password.</div>
-        <button class="ghost" id="updateBtnOut">Download / update files</button>
+      <div class="rail-divider"></div>
 
-        <div id="codePanel" hidden>
-          <div class="code-box" id="userCode">----</div>
-          <div class="hint" id="codeHint">
-            Go to <a id="verificationLink" href="#">microsoft.com/link</a> and enter the code above.
-            Sign in with the same Microsoft account you already use for Minecraft.
+      <!-- Instances: one chip each, drawn by renderer.js -->
+      <div class="rail-group rail-instances" id="railInstances"></div>
+      <button class="rail-btn rail-add" id="railAdd" data-tip="New instance"><svg><use href="#i-plus"/></svg></button>
+
+      <!-- Streamer mode tabs - only exist while streamer mode is on -->
+      <div class="rail-streamer" id="railStreamer" hidden>
+        <div class="rail-divider"></div>
+        <button class="rail-btn" data-page="captures" data-tip="Captures"><svg><use href="#i-film"/></svg></button>
+        <button class="rail-btn" data-page="streamer" data-tip="Streamer settings"><svg><use href="#i-sliders"/></svg></button>
+      </div>
+
+      <div class="rail-spacer"></div>
+
+      <button class="rail-btn rail-live" id="streamerToggle" data-tip="Streamer mode: off" aria-pressed="false">
+        <svg><use href="#i-broadcast"/></svg><span class="live-dot"></span>
+      </button>
+      <button class="rail-btn" data-page="settings" data-tip="Settings"><svg><use href="#i-gear"/></svg></button>
+    </aside>
+
+    <!-- ── main ──────────────────────────────────────────────── -->
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-title">
+          <div class="eyebrow" id="topEyebrow">Reminth Launcher</div>
+          <div class="topbar-sub" id="topTitle">Your Minecraft, your way.</div>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="live-pill" id="livePill" data-page="captures" hidden>
+            <span class="live-dot"></span><span id="livePillText">Streamer mode</span>
+          </button>
+          <button class="top-action" data-page="stats" id="statsBtn">
+            <svg><use href="#i-stats"/></svg><span>Player Statistics</span>
+          </button>
+          <button class="top-action" id="hostBtn" data-page="hosting">
+            <svg><use href="#i-server"/></svg><span>Host a server</span><em class="soon">Soon</em>
+          </button>
+        </div>
+
+        <button class="account-chip" id="accountBtn">
+          <span class="avatar" id="topAvatar"><span class="avatar-letter">?</span></span>
+          <span class="account-text">
+            <span class="account-name pii" id="topName">Not signed in</span>
+            <span class="account-state" id="topState">Offline</span>
+          </span>
+        </button>
+
+        <div class="win-controls">
+          <button id="minBtn" title="Minimize" aria-label="Minimize"><span class="wc-min"></span></button>
+          <button id="maxBtn" title="Maximize" aria-label="Maximize"><span class="wc-max"></span></button>
+          <button id="closeBtn" class="close" title="Close" aria-label="Close"><span class="wc-close"></span></button>
+        </div>
+      </header>
+
+      <div class="main-body">
+      <section class="pages" id="pages">
+
+        <!-- ══ HOME ══ -->
+        <div id="home" class="page active">
+
+          <!-- signed out -->
+          <div class="signin-wrap" id="signInHero" hidden>
+            <div class="card signin-card">
+              <div class="signin-mark"><img src="../../assets/icon.png" alt="" /></div>
+              <h1 class="display">Sign in to play</h1>
+              <p class="lede">Reminth signs you in through Microsoft's own page and never sees your password.</p>
+              <button class="btn primary lg" id="signInBtn">Sign in with Microsoft</button>
+
+              <div class="code-panel" id="codePanel" hidden>
+                <div class="code-box" id="userCode">----</div>
+                <p class="hint" id="codeHint">
+                  Go to <a id="verificationLink" href="#" rel="noopener">microsoft.com/link</a> and enter this code.
+                </p>
+              </div>
+
+              <button class="btn ghost" id="updateBtnOut">Download game files without signing in</button>
+              <div class="progress" id="progressWrapOut" hidden>
+                <div class="progress-row">
+                  <span id="progressStageOut">Preparing…</span>
+                  <span class="progress-row-right">
+                    <span id="progressPctOut"></span>
+                    <button class="log-dismiss" id="progressDismissOut" title="Dismiss" aria-label="Dismiss" hidden>&times;</button>
+                  </span>
+                </div>
+                <div class="track"><div class="fill" id="progressFillOut"></div></div>
+              </div>
+              <pre class="log" id="logOut" hidden></pre>
+            </div>
+          </div>
+
+          <!-- signed in -->
+          <div id="homeMain" hidden>
+            <div class="hero card">
+              <div class="hero-glow"></div>
+              <div class="hero-body">
+                <div class="hero-tags">
+                  <span class="tag cyan" id="heroLoader">Fabric</span>
+                  <span class="tag violet" id="heroVersion">—</span>
+                  <span class="tag dim" id="heroInstance">—</span>
+                </div>
+                <h1 class="display" id="heroGreeting">Ready to play?</h1>
+                <p class="lede" id="heroLede">Your instance is set up and ready. One click and you're in.</p>
+                <div class="hero-actions">
+                  <button class="btn primary xl" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+                  <button class="btn outline" data-page="instance">Instance</button>
+                </div>
+              </div>
+              <div class="hero-side">
+                <div class="hero-stat"><span class="k">Time played</span><b id="heroPlaytime">—</b></div>
+                <div class="hero-stat"><span class="k">Last played</span><b id="heroLast">—</b></div>
+              </div>
+              <div class="progress inset" id="progressWrap" hidden>
+                <div class="progress-row">
+                  <span id="progressStage">Preparing…</span>
+                  <span class="progress-row-right">
+                    <span id="progressPct"></span>
+                    <button class="log-dismiss" id="progressDismiss" title="Dismiss" aria-label="Dismiss" hidden>&times;</button>
+                  </span>
+                </div>
+                <div class="track"><div class="fill" id="progressFill"></div></div>
+              </div>
+              <pre class="log" id="log" hidden></pre>
+            </div>
+
+            <div class="stat-row">
+              <div class="card stat s-violet"><span class="stat-k">Mob kills</span><b class="stat-v display" id="statMobKills">—</b><span class="stat-n">Total across your worlds</span></div>
+              <div class="card stat s-amber"><span class="stat-k">Player kills</span><b class="stat-v display" id="statPlayerKills">—</b><span class="stat-n">PvP, total</span></div>
+              <div class="card stat s-rose"><span class="stat-k">Deaths</span><b class="stat-v display" id="statDeaths">—</b><span class="stat-n" id="statDeathsNote">—</span></div>
+              <div class="card stat s-emerald"><span class="stat-k">Blocks placed</span><b class="stat-v display" id="statPlaced">—</b><span class="stat-n">Every block you've set down</span></div>
+              <div class="card stat s-cyan"><span class="stat-k">Blocks broken</span><b class="stat-v display" id="statBroken">—</b><span class="stat-n">Every block you've mined</span></div>
+            </div>
+
+            <section class="block">
+              <div class="block-head">
+                <h2>Jump back in</h2>
+                <span class="block-note" id="recentNote">Your last worlds and servers</span>
+              </div>
+              <div class="recent-grid" id="recentGrid"></div>
+            </section>
+
+            <section class="block">
+              <div class="block-head">
+                <h2>Discover mods</h2>
+                <button class="link-btn" data-page="discover">Browse everything<svg class="i"><use href="#i-chevron"/></svg></button>
+              </div>
+              <div class="discover-grid" id="discoverGrid"></div>
+            </section>
           </div>
         </div>
 
-        <div class="progress-wrap" id="progressWrapOut" hidden>
-          <div class="progress-stage" id="progressStageOut">Preparing&hellip;</div>
-          <div class="progress-track"><div class="progress-fill" id="progressFillOut"></div></div>
+        <!-- ══ INSTANCE ══ -->
+        <div id="instance" class="page">
+          <div class="card instance-hero">
+            <div class="instance-art" id="instArt"><span class="instance-chip xl">R</span></div>
+            <div class="instance-info">
+              <div class="eyebrow">Instance</div>
+              <h2 class="display" id="instName">Reminth</h2>
+              <div class="chips">
+                <span class="tag cyan" id="instLoader">Fabric</span>
+                <span class="tag violet" id="instVersion">—</span>
+                <span class="tag dim" id="instPack" hidden>—</span>
+                <span class="tag emerald" id="instState">Ready</span>
+              </div>
+              <div class="kv-row">
+                <div class="kv"><span>Time played</span><b id="instPlaytime">—</b></div>
+                <div class="kv"><span>Worlds</span><b id="instWorlds">—</b></div>
+                <div class="kv"><span>Mods</span><b id="instMods">—</b></div>
+              </div>
+              <div class="row-actions">
+                <button class="btn primary" id="instPlayBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+                <button class="btn outline" id="instEditBtn"><svg class="i"><use href="#i-edit"/></svg>Version &amp; name</button>
+                <button class="btn outline" id="openGameFolder"><svg class="i"><use href="#i-folder"/></svg>Open folder</button>
+                <button class="btn outline" id="repairBtn"><svg class="i"><use href="#i-refresh"/></svg>Verify files</button>
+                <button class="btn ghost danger" id="instDeleteBtn" hidden><svg class="i"><use href="#i-trash"/></svg>Delete</button>
+              </div>
+            </div>
+          </div>
+
+          <nav class="tabs" id="instanceTabs">
+            <button class="tab active" data-tab="tabMods"><svg><use href="#i-cube"/></svg>Mods<span class="tab-count" id="countMods"></span></button>
+            <button class="tab" data-tab="tabPacks"><svg><use href="#i-pack"/></svg>Resource packs<span class="tab-count" id="countPacks"></span></button>
+            <button class="tab" data-tab="tabShaders"><svg><use href="#i-shader"/></svg>Shaders<span class="tab-count" id="countShaders"></span></button>
+            <button class="tab" data-tab="tabDatapacks"><svg><use href="#i-block"/></svg>Data packs<span class="tab-count" id="countDatapacks"></span></button>
+            <button class="tab" data-tab="tabWorlds"><svg><use href="#i-world"/></svg>Worlds</button>
+            <button class="tab" data-tab="tabServers"><svg><use href="#i-server"/></svg>Servers</button>
+            <button class="tab" data-tab="tabLogs"><svg><use href="#i-log"/></svg>Logs</button>
+          </nav>
+
+          <!-- One toolbar for every content tab: search, sort, update everything -->
+          <div class="content-toolbar" id="contentToolbar">
+            <div class="mod-search compact">
+              <svg class="i"><use href="#i-search"/></svg>
+              <input id="contentSearch" type="text" placeholder="Search this instance…" autocomplete="off" />
+            </div>
+            <div class="sort-dd" id="contentSort"></div>
+            <div class="toolbar-spacer"></div>
+            <button class="pill-btn" id="updateAllBtn"><svg class="i"><use href="#i-download"/></svg><span id="updateAllText">Check for updates</span></button>
+            <button class="btn outline sm" id="addContentBtn"><svg class="i"><use href="#i-plus"/></svg><span>Add content</span></button>
+            <button class="btn outline sm icon-only" id="openContentFolder" title="Open folder"><svg class="i"><use href="#i-folder"/></svg></button>
+          </div>
+          <div class="update-panel" id="updatePanel" hidden></div>
+
+          <div class="tab-pane active" id="tabMods"><div class="mod-grid" id="instManagedMods"></div><div class="content-list" id="listMods"></div></div>
+          <div class="tab-pane" id="tabPacks"><div class="content-list" id="listPacks"></div></div>
+          <div class="tab-pane" id="tabShaders"><div class="content-list" id="listShaders"></div></div>
+          <div class="tab-pane" id="tabDatapacks"><div class="content-list" id="listDatapacks"></div></div>
+
+          <div class="tab-pane" id="tabWorlds">
+            <div class="block-head"><h2>Worlds</h2><span class="block-note" id="worldsNote"></span></div>
+            <p class="lede">Each instance keeps its own worlds, so a world never gets opened in an older version by accident — that's how saves get corrupted.</p>
+            <div class="recent-grid" id="worldGrid"></div>
+          </div>
+
+          <div class="tab-pane" id="tabServers">
+            <div class="block-head"><h2>Servers</h2><span class="block-note" id="instServersNote"></span></div>
+            <p class="lede">This instance's multiplayer list. Servers you add from Discover land here too.</p>
+            <div class="recent-grid" id="instServerGrid"></div>
+          </div>
+
+          <div class="tab-pane" id="tabLogs">
+            <div class="logs-layout">
+              <div class="card logs-list">
+                <div class="logs-list-head"><b>Sessions</b><span class="block-note">Kept forever</span></div>
+                <div id="logSessions" class="log-sessions"></div>
+              </div>
+              <div class="card logs-view">
+                <div class="logs-toolbar">
+                  <div class="log-filters" id="logFilters">
+                    <button class="log-chip important active" data-cat="4"><svg class="i"><use href="#i-alert"/></svg>Important<span id="lcImportant">0</span></button>
+                    <button class="log-chip error active" data-cat="3">Errors<span id="lcError">0</span></button>
+                    <button class="log-chip warn active" data-cat="2">Warnings<span id="lcWarn">0</span></button>
+                    <button class="log-chip chat active" data-cat="1"><svg class="i"><use href="#i-chat"/></svg>Chat<span id="lcChat">0</span></button>
+                    <button class="log-chip info active" data-cat="0">Normal<span id="lcInfo">0</span></button>
+                  </div>
+                  <button class="btn outline sm" id="logOnlyImportant" title="Show only bans, kicks, disconnects and crashes"><svg class="i"><use href="#i-alert"/></svg>Only important</button>
+                  <div class="mod-search compact log-search">
+                    <svg class="i"><use href="#i-search"/></svg>
+                    <input id="logSearch" type="text" placeholder="Search this log…" autocomplete="off" />
+                  </div>
+                  <button class="btn outline sm" id="logCopyBtn" title="Copies the lines you're looking at, with the date - ready to paste into a ticket"><svg class="i"><use href="#i-copy"/></svg>Copy shown</button>
+                </div>
+                <div class="log-meta" id="logMeta">Pick a session on the left.</div>
+                <div class="log-view" id="logView"><div class="log-spacer" id="logSpacer"></div><div class="log-rows" id="logRows"></div></div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="log" id="logOut" hidden></div>
-      </div>
 
-      <!-- signed in: build + play -->
-      <div class="panel" id="mainPanel" hidden>
-        <img class="logo-mark-img" src="../../assets/icon.png" alt="Reminth" />
-        <div class="logo-mark">Reminth _</div>
-        <div class="account-row">Signed in as <span class="name" id="username"></span></div>
+        <!-- ══ LIBRARY ══ -->
+        <div id="library" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Library</div>
+              <h1 class="display">Library</h1>
+              <p class="lede">Every instance, world and server Reminth knows about, in one place.</p>
+            </div>
+          </div>
 
-        <button class="primary" id="playBtn">Play</button>
-        <button class="ghost" id="signOutBtn">Sign out</button>
+          <nav class="tabs" id="libraryTabs">
+            <button class="tab active" data-tab="libInstances"><svg><use href="#i-cube"/></svg>Instances</button>
+            <button class="tab" data-tab="libWorlds"><svg><use href="#i-world"/></svg>Worlds</button>
+            <button class="tab" data-tab="libServers"><svg><use href="#i-server"/></svg>Servers</button>
+          </nav>
 
-        <div class="progress-wrap" id="progressWrap" hidden>
-          <div class="progress-stage" id="progressStage">Preparing&hellip;</div>
-          <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="tab-pane active" id="libInstances">
+            <div class="block-head"><h2>Instances</h2><div class="sort-dd" id="libSort"></div></div>
+            <div class="lib-grid" id="libInstanceGrid"></div>
+          </div>
+          <div class="tab-pane" id="libWorlds">
+            <div class="block-head"><h2>Worlds</h2><span class="block-note" id="libWorldsNote"></span></div>
+            <div class="recent-grid" id="libWorldGrid"></div>
+          </div>
+          <div class="tab-pane" id="libServers">
+            <div class="block-head"><h2>Servers</h2><span class="block-note" id="libServersNote"></span></div>
+            <div class="recent-grid" id="libServerGrid"></div>
+          </div>
         </div>
 
-        <div class="log" id="log" hidden></div>
-      </div>
-    </div>
+        <!-- ══ DISCOVER ══ -->
+        <div id="discover" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Discover</div>
+              <h1 class="display">Find something new</h1>
+              <p class="lede">Modpacks, mods, packs, shaders and servers from Modrinth. Installs go straight into <b id="discoverTarget">your instance</b>.</p>
+            </div>
+            <div class="head-mods">
+              <div class="head-mods-top">
+                <svg class="i"><use href="#i-cube"/></svg>
+                <span class="head-mods-label">In your mods folder</span>
+                <span class="head-mods-count" id="modsFolderNote"></span>
+              </div>
+              <div class="head-mods-list" id="installedMods"></div>
+            </div>
+            <button class="btn outline" id="openModsFolder"><svg class="i"><use href="#i-folder"/></svg>Open mods folder</button>
+          </div>
+
+          <div class="tabs discover-tabs" id="browseTabs">
+            <button class="tab" data-type="modpack"><svg class="i"><use href="#i-library"/></svg>Modpacks</button>
+            <button class="tab active" data-type="mod"><svg class="i"><use href="#i-cube"/></svg>Mods</button>
+            <button class="tab" data-type="resourcepack"><svg class="i"><use href="#i-pack"/></svg>Resource Packs</button>
+            <button class="tab" data-type="datapack"><svg class="i"><use href="#i-block"/></svg>Data Packs</button>
+            <button class="tab" data-type="shader"><svg class="i"><use href="#i-shader"/></svg>Shaders</button>
+            <button class="tab" data-type="server"><svg class="i"><use href="#i-server"/></svg>Servers</button>
+          </div>
+
+          <div class="discover-layout">
+            <div class="discover-main">
+              <div class="mod-search">
+                <svg class="i"><use href="#i-search"/></svg>
+                <input id="browseSearch" type="text" placeholder="Search mods…" autocomplete="off" />
+              </div>
+              <div class="browse-controls">
+                <div class="select-dd" id="browseSortDd"></div>
+                <div class="select-dd" id="browseViewDd"></div>
+                <div class="active-filters" id="activeFilters"></div>
+                <div class="pager compact" id="browsePagerTop"></div>
+              </div>
+              <div class="mod-rows" id="browseGrid"></div>
+              <div class="pager" id="browsePager"></div>
+            </div>
+            <aside class="card filter-panel" id="filterPanel"></aside>
+          </div>
+        </div>
+
+        <!-- ══ SKINS ══ -->
+        <div id="skins" class="page">
+          <div class="skins-layout">
+            <div class="card skin-stage">
+              <div class="skin-stage-head">
+                <div>
+                  <div class="eyebrow">Skin selector</div>
+                  <b class="display skin-player pii" id="skinName">—</b>
+                </div>
+                <span class="tag dim" id="skinModel">—</span>
+              </div>
+              <div class="skin-viewport" id="skinViewport"></div>
+              <div class="skin-stage-foot">
+                <span class="hint-line"><svg class="i"><use href="#i-rotate"/></svg>Drag to rotate</span>
+                <button class="btn outline" id="editSkinBtn"><svg class="i"><use href="#i-edit"/></svg>Edit skin</button>
+              </div>
+            </div>
+
+            <div class="skin-side">
+              <section class="block first">
+                <div class="block-head">
+                  <h2>Your skins</h2>
+                  <div class="field-row compact">
+                    <input id="skinUser" placeholder="Copy a skin by username" autocomplete="off" />
+                    <button class="btn outline sm" id="skinFetchBtn">Load</button>
+                  </div>
+                </div>
+                <div class="skin-grid" id="savedSkins"></div>
+              </section>
+              <section class="block">
+                <div class="block-head"><h2>Default skins</h2><span class="block-note">Minecraft's own nine, straight from your game files</span></div>
+                <div class="skin-grid" id="defaultSkins"></div>
+              </section>
+            </div>
+          </div>
+          <input type="file" id="skinFile" accept="image/png" hidden />
+        </div>
+
+        <!-- ══ REMINTH HOSTING ══ -->
+        <div id="hosting" class="page">
+          <div class="card host-hero">
+            <div class="host-glow"></div>
+            <div class="host-copy">
+              <div class="eyebrow">Reminth Hosting</div>
+              <h1 class="display">Your server, minus the evening of setup</h1>
+              <p class="lede">Make a server from inside Reminth, on the exact mods and version you already play, and send your friends one link. No VPS, no port forwarding, no server.properties.</p>
+              <div class="row-actions">
+                <button class="btn primary is-soon" disabled><svg class="i"><use href="#i-plus"/></svg>Create a server<em class="soon">Soon</em></button>
+                <button class="btn outline" data-page="plus"><svg class="i"><use href="#i-gem"/></svg>Free with Reminth+</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="host-features">
+            <div class="card host-feature f-cyan">
+              <img src="../../assets/hosting/cube.png" alt="" />
+              <b>Your instance, as a server</b>
+              <p>It boots on the same loader and mod list as the instance you made it from. Nothing to upload, nothing to match up by hand.</p>
+            </div>
+            <div class="card host-feature f-amber">
+              <img src="../../assets/hosting/bolt.png" alt="" />
+              <b>Up in under a minute</b>
+              <p>Name it, pick who's allowed in, press create. Friends join from their own Reminth on the right version automatically.</p>
+            </div>
+            <div class="card host-feature f-violet">
+              <img src="../../assets/hosting/anvil.png" alt="" />
+              <b>Tweak it without a panel</b>
+              <p>Gamerules, whitelist, backups and restarts from the same app you launch the game with. No second dashboard to learn.</p>
+            </div>
+          </div>
+          <p class="set-note center">Not live yet — this is what's being built. Reminth+ members get a server included when it launches.</p>
+        </div>
+
+        <!-- ══ REMINTH+ ══ -->
+        <div id="plus" class="page">
+          <div class="card plus-hero">
+            <div class="plus-glow"></div>
+            <div class="plus-copy">
+              <div class="plus-badge"><svg class="i"><use href="#i-gem"/></svg>Reminth+</div>
+              <h1 class="display">Your own server, minus the landlord.</h1>
+              <p class="lede">The launcher is free and stays that way — every version, every loader, all the RAM your PC can spare. Plus is for when you want a server for you and your friends without renting one somewhere else.</p>
+              <div class="row-actions">
+                <button class="btn primary lg is-soon" disabled>Get Reminth+<em class="soon">Soon</em></button>
+                <span class="set-note" id="plusStatus">Not on sale yet — nothing's being charged for.</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="plus-grid">
+            <div class="card plus-perk">
+              <span class="perk-ico p-violet"><svg class="i"><use href="#i-server"/></svg></span>
+              <b>A server, included</b>
+              <p>When Reminth Hosting launches, Plus comes with one. It stays up when you log off, so your friends can keep playing without you.</p>
+            </div>
+            <div class="card plus-perk">
+              <span class="perk-ico p-cyan"><svg class="i"><use href="#i-bolt"/></svg></span>
+              <b>Your instance, on the server</b>
+              <p>Pick an instance and the server gets the same version, loader and mods. No zipping folders, no "which Sodium do you have".</p>
+            </div>
+            <div class="card plus-perk">
+              <span class="perk-ico p-amber"><svg class="i"><use href="#i-heart"/></svg></span>
+              <b>You're funding the next update</b>
+              <p>No ads, no tracking, no selling your data — ever. Plus is how this gets paid for instead.</p>
+            </div>
+          </div>
+
+          <div class="card plus-compare">
+            <div class="cmp-row head"><span></span><b>Free</b><b class="plus-col">Reminth+</b></div>
+            <div class="cmp-row"><span>Every instance, version and modpack</span><b class="yes">✓</b><b class="yes">✓</b></div>
+            <div class="cmp-row"><span>Mods, packs, shaders, servers from Discover</span><b class="yes">✓</b><b class="yes">✓</b></div>
+            <div class="cmp-row"><span>Streamer mode, clips and screenshots</span><b class="yes">✓</b><b class="yes">✓</b></div>
+            <div class="cmp-row"><span>RAM for Minecraft</span><b class="yes">All you can spare</b><b class="yes">All you can spare</b></div>
+            <div class="cmp-row"><span>Hosted server</span><b class="no">—</b><b class="plus-col">Included</b></div>
+          </div>
+        </div>
+
+        <!-- ══ CAPTURES (streamer mode) ══ -->
+        <div id="captures" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Streamer mode</div>
+              <h1 class="display">Captures</h1>
+              <p class="lede" id="capturesLede">Clips and screenshots from your sessions.</p>
+            </div>
+            <div class="row-actions">
+              <button class="btn outline" id="capShotBtn"><svg class="i"><use href="#i-camera"/></svg>Screenshot</button>
+              <button class="btn primary" id="capClipBtn"><svg class="i"><use href="#i-film"/></svg>Save clip</button>
+              <button class="btn outline icon-only" id="capFolderBtn" title="Open captures folder"><svg class="i"><use href="#i-folder"/></svg></button>
+            </div>
+          </div>
+          <div class="card buffer-status" id="bufferStatus"></div>
+          <nav class="tabs" id="captureTabs">
+            <button class="tab active" data-filter="all">Everything</button>
+            <button class="tab" data-filter="clip"><svg><use href="#i-film"/></svg>Clips</button>
+            <button class="tab" data-filter="screenshot"><svg><use href="#i-camera"/></svg>Screenshots</button>
+            <button class="tab" data-filter="game"><svg><use href="#i-cube"/></svg>In-game (F2)</button>
+          </nav>
+          <div class="capture-grid" id="captureGrid"></div>
+        </div>
+
+        <!-- ══ STREAMER SETTINGS ══ -->
+        <div id="streamer" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Streamer mode</div>
+              <h1 class="display">Streamer settings</h1>
+              <p class="lede">While Minecraft runs, Reminth keeps recording the last few minutes of the game window. Hit your clip key and they're saved — nothing else ever is.</p>
+            </div>
+          </div>
+          <div class="settings-stack">
+            <div class="card set">
+              <div class="set-head"><h2>Hotkeys</h2><p>Work while you're in game. Click one, then press the key you want.</p></div>
+              <div class="toggle-row"><div><b>Save a clip</b><span>Saves the replay buffer below.</span></div><button class="key-btn" id="keyClip" data-key="clipKey">F9</button></div>
+              <div class="toggle-row"><div><b>Take a screenshot</b><span>Just the game window, full resolution.</span></div><button class="key-btn" id="keyShot" data-key="screenshotKey">F8</button></div>
+              <p class="set-note warn-note" id="hotkeyNote" hidden></p>
+            </div>
+            <div class="card set">
+              <div class="set-head"><h2>Replay buffer</h2><p>How far back a clip reaches when you press the key.</p></div>
+              <div class="seg-choice" id="clipLengths"></div>
+              <p class="set-note" id="bufferDisk"></p>
+            </div>
+            <div class="card set">
+              <div class="set-head"><h2>Recording</h2></div>
+              <div class="toggle-row"><div><b>Frame rate</b><span>60 looks smoother, 30 is lighter on your PC.</span></div><div class="seg-choice small" id="fpsChoice"></div></div>
+              <div class="toggle-row"><div><b>Quality</b><span>Higher quality means bigger files.</span></div><div class="seg-choice small" id="qualityChoice"></div></div>
+              <div class="toggle-row"><div><b>Record sound</b><span>What you hear — the game plus anything else playing.</span></div><button class="switch" id="toggleAudio" role="switch"></button></div>
+            </div>
+            <div class="card set">
+              <div class="set-head"><h2>On stream</h2></div>
+              <div class="toggle-row"><div><b>Hide personal info</b><span>Blurs your username, email-looking text, server IPs and folder paths in Reminth while streamer mode is on.</span></div><button class="switch" id="toggleHideInfo" role="switch"></button></div>
+              <div class="toggle-row"><div><b>Pop-up when something's saved</b><span>A small Windows notification, so you know the clip took.</span></div><button class="switch" id="toggleNotify" role="switch"></button></div>
+              <div class="toggle-row"><div><b>Where captures go</b><span class="mono pii" id="capturesPath">—</span></div><button class="btn outline sm" id="capFolderBtn2">Open</button></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ PLAYER STATISTICS ══ -->
+        <div id="stats" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Your record</div>
+              <h1 class="display">Player Statistics</h1>
+              <p class="lede">Read straight out of your own save files, across every instance.</p>
+            </div>
+            <button class="btn outline" id="refreshStats"><svg class="i"><use href="#i-refresh"/></svg>Refresh</button>
+          </div>
+          <div id="statsBody"></div>
+        </div>
+
+        <!-- ══ SETTINGS ══ -->
+        <div id="settings" class="page">
+          <div class="page-head">
+            <div>
+              <div class="eyebrow">Configuration</div>
+              <h1 class="display">Settings</h1>
+              <p class="lede">The things that actually change how Reminth runs.</p>
+            </div>
+          </div>
+
+          <div class="settings-stack">
+            <div class="card set">
+              <div class="set-head"><h2>Account</h2></div>
+              <div class="account-row">
+                <span class="avatar lg" id="settingsAvatar"><span class="avatar-letter">?</span></span>
+                <div class="account-meta">
+                  <b class="pii" id="settingsName">Not signed in</b>
+                  <span id="settingsState">Not connected</span>
+                </div>
+                <button class="btn outline" id="settingsAuthBtn">Sign in</button>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head">
+                <h2>Memory</h2>
+                <p>How much RAM Minecraft may use. 2&nbsp;GB is plenty for vanilla and light mod lists; big modpacks want 4–6&nbsp;GB. No limits beyond what this PC has.</p>
+              </div>
+              <div class="slider-row">
+                <div class="slider-head"><span>RAM allocation</span><b id="ramVal">—</b></div>
+                <div class="ram-track">
+                  <input type="range" id="ramRange" min="1" max="8" step="0.5" value="2" />
+                </div>
+                <div class="scale"><span>1 GB</span><span id="ramMidMark">4 GB</span><span id="ramMaxMark">8 GB</span></div>
+                <p class="set-note" id="ramNote"></p>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head"><h2>Game window</h2></div>
+              <div class="toggle-row">
+                <div><b>Start in fullscreen</b><span>Launch Minecraft fullscreen instead of a window.</span></div>
+                <button class="switch" id="toggleFullscreen" role="switch" aria-checked="false"></button>
+              </div>
+              <div class="toggle-row" id="resolutionRow">
+                <div><b>Window size</b><span>Leave blank to let Minecraft use its own last size.</span></div>
+                <div class="res-inputs">
+                  <input type="number" id="gameWidth" min="320" max="7680" placeholder="Width" />
+                  <span class="times">×</span>
+                  <input type="number" id="gameHeight" min="240" max="4320" placeholder="Height" />
+                </div>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head"><h2>Launcher</h2></div>
+              <div class="toggle-row">
+                <div><b>Minimize when the game starts</b><span>Get Reminth out of the way once Minecraft opens.</span></div>
+                <button class="switch" id="toggleLaunchMinimized" role="switch" aria-checked="false"></button>
+              </div>
+              <div class="toggle-row">
+                <div><b>Hardware acceleration</b><span>Uses your GPU to draw the launcher. Restart Reminth to apply.</span></div>
+                <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
+              </div>
+              <div class="toggle-row">
+                <div><b>Accent colour</b><span>Pick the colour used across the launcher.</span></div>
+                <div class="accents" id="accentPicker">
+                  <button class="accent" data-accent="cyan" aria-label="Cyan"></button>
+                  <button class="accent" data-accent="violet" aria-label="Violet"></button>
+                  <button class="accent" data-accent="emerald" aria-label="Emerald"></button>
+                  <button class="accent" data-accent="amber" aria-label="Amber"></button>
+                  <button class="accent" data-accent="rose" aria-label="Rose"></button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head"><h2>Files</h2></div>
+              <div class="toggle-row">
+                <div><b>Active instance folder</b><span id="gameDirPath" class="mono pii">—</span></div>
+                <button class="btn outline sm" id="openGameFolder2">Open</button>
+              </div>
+              <div class="toggle-row">
+                <div><b>Verify and repair</b><span>Re-downloads anything missing or corrupt. Your worlds aren't touched.</span></div>
+                <button class="btn outline sm" id="repairBtn2">Verify files</button>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head">
+                <h2>Advanced</h2>
+                <p>Only touch this if you know what a JVM flag is. Memory is set above, not here.</p>
+              </div>
+              <div class="field-row">
+                <input id="extraJvmArgs" class="mono" placeholder="Extra JVM arguments" />
+                <button class="btn outline" id="saveJvmArgs">Save</button>
+              </div>
+            </div>
+
+            <!-- Written from what the code in this repo actually does, not
+                 from a template. If the app's behaviour changes, this text
+                 has to change with it. -->
+            <div class="card set">
+              <div class="set-head"><h2>Privacy &amp; terms</h2></div>
+              <p class="set-note">The short version: Reminth has no servers of its own, so there is nowhere for
+                your data to be sent. Everything it stores stays on this computer.</p>
+
+              <details class="legal">
+                <summary>Privacy Policy</summary>
+                <div class="legal-body">
+                  <p><b>Last updated: 23 September 2026</b></p>
+
+                  <p><b>What Reminth stores on your computer.</b> Your Microsoft sign-in tokens are saved to
+                    <span class="mono">%APPDATA%\Reminth\account.json</span>, encrypted with your Windows account's
+                    own key (DPAPI, via Electron's safeStorage). Your settings, instances, a cached copy of your
+                    skin, the skins you've saved, a permanent archive of your game logs, and a local catalogue of
+                    public Modrinth listings are stored in the same folder. Clips and screenshots from streamer
+                    mode are saved to <span class="mono">Videos\Reminth</span>. Signing out deletes the stored
+                    account file.</p>
+
+                  <p><b>What Reminth sends, and to whom.</b> Reminth has no backend, collects no analytics, and
+                    contains no telemetry, crash reporting, advertising or tracking. It only talks directly to the
+                    services needed to do its job: Microsoft and Xbox Live to sign in; Mojang and Minecraft
+                    Services to verify your account, download the game and Java, and — only when you press Save
+                    on a skin or cape — change your skin; Fabric, Quilt, Forge and NeoForge for the mod loader you pick; Modrinth's public API for
+                    Discover, installs and update checks; and, when you look at the Servers tab, the servers
+                    themselves, to measure your ping to them the same way the game's multiplayer screen does.</p>
+
+                  <p><b>Your game files.</b> Reminth reads your worlds, server lists, statistics and logs from its
+                    own game folders to fill in the app. That reading is local — none of it is uploaded anywhere.
+                    Streamer mode records only the Minecraft window, only while streamer mode is on and the game
+                    is running, and keeps just the last few minutes on disk until you save a clip.</p>
+
+                  <p><b>Children.</b> A Microsoft account is required to play Minecraft, and Microsoft applies
+                    its own age rules at sign-in. Reminth adds no separate account of its own.</p>
+
+                  <p><b>Deleting your data.</b> Sign out to remove the stored account, or delete the
+                    <span class="mono">%APPDATA%\Reminth</span> folder to remove everything Reminth has ever
+                    written. There is no server-side copy to request, because there is no server.</p>
+                </div>
+              </details>
+
+              <details class="legal">
+                <summary>Terms of Service</summary>
+                <div class="legal-body">
+                  <p><b>Last updated: 23 September 2026</b></p>
+
+                  <p><b>What this is.</b> Reminth is an independent launcher for Minecraft: Java Edition. You need
+                    your own legitimate, paid Minecraft account to use it. Reminth does not give you the game or
+                    any way around paying for it.</p>
+
+                  <p><b>Not affiliated.</b> Reminth is not affiliated with, endorsed by, or connected to Mojang
+                    Studios, Microsoft, Modrinth, or the Fabric, Quilt, Forge or NeoForge projects. "Minecraft" is a trademark of Mojang
+                    Studios. Project and server names, descriptions and icons shown in Discover belong to their
+                    owners and are displayed as published on Modrinth. Your use of Minecraft remains subject to
+                    Minecraft's own EULA and usage guidelines.</p>
+
+                  <p><b>Fair use.</b> Reminth contains no cheats, hacks, exploits or ban-evasion features, and we
+                    don't support using it to break the rules of any server you connect to. What you install into
+                    your instances is your responsibility, as is whatever the server you join makes of it.</p>
+
+                  <p><b>Third-party content.</b> Mods, modpacks, packs and shaders installed through Discover are
+                    made by other people and downloaded from Modrinth. Reminth checks every file against the hash
+                    Modrinth publishes, but doesn't write, review or vouch for them.</p>
+
+                  <p><b>Reminth+.</b> Not on sale yet. When it is, its price and terms will be shown before you
+                    pay anything.</p>
+
+                  <p><b>No warranty.</b> Reminth is provided as-is. It downloads and launches software and writes
+                    files to your computer; you use it at your own risk. To the extent the law allows, the authors
+                    are not liable for lost worlds, corrupted files, or any other damage arising from its use.
+                    Keep backups of worlds you care about.</p>
+                </div>
+              </details>
+            </div>
+
+            <div class="card set about">
+              <div>
+                <b class="display" id="aboutVersion">Reminth</b>
+                <span id="aboutBuild">—</span>
+              </div>
+              <span class="about-note">Built for people who just want to play.</span>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ── global sidebar ── -->
+      <aside class="app-side" id="appSide">
+        <div class="card side-card">
+          <div class="side-head"><span class="eyebrow">Playing as</span></div>
+          <div class="side-account">
+            <span class="avatar lg" id="sideAvatar"><span class="avatar-letter">?</span></span>
+            <div class="account-meta">
+              <b class="pii" id="sideName">—</b>
+              <span id="sideState">—</span>
+            </div>
+          </div>
+          <div class="side-kv">
+            <div class="kv"><span>Worlds</span><b id="sideWorlds">—</b></div>
+            <div class="kv"><span>Servers</span><b id="sideServers">—</b></div>
+            <div class="kv"><span>Instances</span><b id="sideInstances">—</b></div>
+          </div>
+        </div>
+
+        <div class="card side-card side-plus" data-page="plus">
+          <div class="side-head"><span class="eyebrow">Reminth+</span><svg class="i gem"><use href="#i-gem"/></svg></div>
+          <p>A server for you and your friends, included when hosting launches.</p>
+          <span class="link-btn">See what's in it<svg class="i"><use href="#i-chevron"/></svg></span>
+        </div>
+
+        <div class="card side-card side-news">
+          <div class="side-head">
+            <span class="eyebrow">What's new</span>
+            <span class="block-note" id="changelogVersion">—</span>
+          </div>
+          <div class="changelog" id="changelog"></div>
+        </div>
+      </aside>
+      </div><!-- /main-body -->
+    </main>
   </div>
+</div>
 
-  <script src="renderer.js"></script>
+<!-- modal host - every dialog is built into this by renderer.js -->
+<div class="modal-root" id="modalRoot" hidden></div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"><span id="toastText"></span></div>
+
+<script src="renderer.js"></script>
+<script src="skinview.js"></script>
+<script src="features.js"></script>
 </body>
 </html>
