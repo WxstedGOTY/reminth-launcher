@@ -5,6 +5,78 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 9 (`CLAUDE_CODE_PROMPT_7.md`): skin rename, dead handler, mod version picker
+
+Commits: `d3e681a` (job 2) · `aef4266` (job 1) · `4e19a5a` (job 3) · plus this report.
+All live tests ran in the isolated sandbox dev app (repo Electron, `USERPROFILE` pointed at a scratch
+home, driven over Chrome DevTools). They never touched the real `%APPDATA%\Reminth`. `npm test` 53/53.
+The compiler check over the three renderer scripts: 0 undefined names, 0 duplicate declarations.
+
+### Job 2: `catalog:checkUpdates` (**removed**)
+
+Fresh search over `src` and `test` for `catalog:checkUpdates|checkForUpdates|catalogCheckUpdates`:
+- `main.js:484`: the handler itself. **Deleted.**
+- No preload entry and no renderer caller (preload never exposed it; the renderer uses
+  `checkUpdates` → `content:checkUpdates`).
+- `modrinth.checkForUpdates`: **kept**, because it has a live caller: `content.js:685` (inside
+  `content.checkUpdates`, which backs `content:checkUpdates`).
+- `updater.js:63 autoUpdater.checkForUpdates()` is electron-updater's own method, unrelated.
+
+### Job 1: skin rename (VERIFIED live)
+
+`features.js`: `skinTile` takes `onRename`. The tile-actions strip now has **Rename** (`#i-edit`) and
+**Forget this skin** (`#i-trash`), same button style. The trash keeps its rose hover (now class
+`danger`), and the pencil hovers neutral. `renameSkinModal(s)` uses the existing `openModal` with a `.field` text
+input (same markup as the instance dialog's Name field), capped at 40 characters to match `skinLibrary.rename`.
+Enter saves, a blank name is refused (the dialog stays open), and it calls `window.reminth.skinLibraryRename(s.id, name)` then
+`loadSkinLibrary()`. The "Editing skin" modal is untouched.
+
+Live: saved a generated 64×64 skin "Test Skin". Tile actions = `["Rename", "Forget this skin"]`. Rename
+opened pre-filled with "Test Skin", fully selected. Blank kept it open. Typed "Blue Steve (renamed)" + Enter
+closed it and the tile label updated. Switched Home → Skins: still "Blue Steve (renamed)". **Killed and
+relaunched the app**: `skinLibrary()` returned `2692e69f Blue Steve (renamed)`.
+
+### Job 3: mod version picker + dependency preview (VERIFIED live)
+
+Fast path unchanged: Discover's **Install** and Home's **+** still call `installProject` with no version. Tested:
+no modal, 1.6 s.
+
+New, optional path:
+- Discover mod rows: a small **chevron** button ("Choose version…") beside Install.
+- Home "Discover mods" cards: **right-click** the + (tooltip says so).
+
+Both open `chooseModVersion`, a wide `openModal` in the same shape as `installModpackFlow`:
+- Version list from `getCatalogProjectVersions(projectId, { loaders, gameVersions: [mcVersion] })`. `modLoadersFor()`
+  mirrors `content.js loadersFor("mod")` exactly: fabric→`[fabric]`, quilt→`[quilt, fabric]`, forge→`[forge]`,
+  neoforge→`[neoforge]` (+forge on 1.20.1). So it lists only what `content.install` would accept.
+- Each row: version number, MC versions, loaders, relative publish date, release/beta/alpha tag. It preselects
+  and tags **Default** = `content.js pickVersion` (newest release, else newest). So Install without touching anything
+  gives what the plain click gives.
+- Dependency preview for the **selected** version, from that version's own `dependencies` (accurate per version).
+  Names come from `getCatalogDependencies`' `projects`, which is Modrinth's union across all versions, so it isn't
+  used for the list itself; missing names are looked up once. Each dep shows Required/Optional/Bundled/Incompatible
+  and "Already installed" / "Will be installed too" / "Not installed (optional)".
+- Install sends `versionId` through `installContent` to `content.install`, which **already accepted `versionId`**.
+  The only main-process change is a guard in `content.js` rejecting a `versionId` whose `project_id` isn't that project.
+
+Live, on the sandbox Fabric 26.2 instance:
+| test | result |
+|---|---|
+| Quick install Mod Menu (plain path) | no modal; `modmenu-20.0.3.jar` (= default), plus required deps `fabric-api-0.161.0+26.2.jar`, `placeholder-api-3.1.0-beta.1+26.2.jar` |
+| Picker, Zoomify | list: `[x] 2.16.3+26.2 Default release`, `[ ] 2.16.2+26.2 release`, `[ ] 2.16.1+26.2 release`. Deps for 2.16.3: Fabric API Required, Already installed · Fabric Language Kotlin Required, Will be installed too · YACL Required, Will be installed too · Mod Menu Optional, Already installed |
+| Picked the non-default **2.16.2+26.2**, clicked Install | heading switched to "What 2.16.2+26.2 needs". On disk: **`zoomify-2.16.2+26.2.jar`** (not 2.16.3), plus `fabric-language-kotlin-1.14.1+kotlin.2.4.20.jar` and `yet_another_config_lib_v3-3.9.7+26.2-fabric.jar`, which is exactly what the preview promised |
+| Chevron on a real Discover row | row shows `Install/Installed` + `Choose version…`; chevron opens the picker |
+| Escape out of picker | modal closed, **nothing installed** (mod count unchanged) |
+| Right-click Home "Sodium" card | opens "Install Sodium" picker |
+| Quilt 26.3 filter | loaders `[quilt, fabric]`; Mod Menu has 2 versions for 26.3, default `21.0.0`, all list 26.3 |
+
+Note: the chevron also works on a mod that's already installed. That's a way to change its version (`content.install`
+replaces Reminth's earlier copy of the same project). It's intentional and harmless, but the modal still says "Install".
+
+**Installer not rebuilt this round.** The user had just closed Reminth, probably to run the round 8
+`dist\Reminth-Setup.exe`, and overwriting that file mid-install could break it. These three changes need one more
+`npm run dist` + install to reach the installed app.
+
 ## Round 8 (`CLAUDE_CODE_PROMPT_6.md`): Quilt 26.3 HUD crash fix deployed
 
 Cause (from the prompt, user-observed): Quilt Loader 0.30.1 exposes fabric-loader compat **0.19.3**, so
@@ -487,7 +559,10 @@ so any Minecraft window you see definitely came from Reminth.
 - [ ] Verify the auto-updater end to end with a real release (bump version, upload exe + blockmap + latest.yml;
       see round 7, Job 2).
 - [ ] Future project, not tonight: Forge/NeoForge ReminthHUD as a separate mod (round 7, Job 3).
-- [ ] Decide on the 8 unused preload APIs and the orphan `catalog:checkUpdates` handler.
+- [ ] Rebuild (`npm run dist`) and install once more to ship round 9 (skin rename, version picker).
+- [x] Orphan `catalog:checkUpdates` handler removed (round 9). `skinLibraryRename`, `getCatalogProjectVersions` and
+      `getCatalogDependencies` are now used. Still unused preload APIs: `skinSetCape`, `skinLibrarySave` (used only by
+      tests), `hudBuilds`, `catalogWarmStatus`, `catalogWarmStart`.
 - [ ] `Downloads\reminth-launcher-push\` is now redundant (its renderer is in the repo). Decide whether to delete it,
       so there's one working copy.
 - [ ] ReminthHUD for 26.3 and for Forge/NeoForge: no build exists (see Broken or weird #2).
