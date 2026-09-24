@@ -481,7 +481,6 @@ ipcMain.handle("catalog:project", async (_e, idOrSlug) => modrinth.getProject(id
 ipcMain.handle("catalog:projectVersions", async (_e, idOrSlug, filters) => modrinth.getProjectVersions(idOrSlug, filters));
 ipcMain.handle("catalog:dependencies", async (_e, idOrSlug) => modrinth.getProjectDependencies(idOrSlug));
 ipcMain.handle("catalog:tags", async (_e, type) => modrinth.getTags(type));
-ipcMain.handle("catalog:checkUpdates", async (_e, hashes, filters) => modrinth.checkForUpdates(hashes, filters));
 
 // ---- local catalog cache (top-N by downloads, instant + offline-capable) ----
 ipcMain.handle("catalog:browseCached", async (_e, params) => catalogCache.getCached(params));
