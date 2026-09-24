@@ -5,6 +5,125 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 7 (`CLAUDE_CODE_PROMPT_5.md`): CI, auto-updater, ReminthHUD 26.3
+
+Commits: `52635d9` CI · `51836e5` auto-updater · `dc344b9` HUD 26.3 jar · plus this report.
+
+### Job 1: CI (VERIFIED green)
+
+- `.github/workflows/ci.yml`: on push and pull_request to `main`, runs `windows-latest` (Windows-only app;
+  some tests use Windows paths), `actions/checkout@v4`, `actions/setup-node@v4` with `node-version: lts/*`
+  (no `.nvmrc`/`engines` pin exists) and npm cache, `npm ci` with `ELECTRON_SKIP_BINARY_DOWNLOAD=1`
+  (tests stub `electron`), then `npm test`. No build or release steps.
+- Checked the YAML with `js-yaml` locally. Parsed; triggers push/PR on `main`.
+- Run for 52635d9: **completed success**, https://github.com/WxstedGOTY/reminth-launcher/actions/runs/36047378995.
+  Every step succeeded, including `Run npm ci` and `Run npm test` (read from the Actions jobs API).
+- Run for 51836e5 (auto-updater commit): **completed success** (run id 36047715152).
+
+### Job 2: auto-updater
+
+Wiring:
+- `package.json`: `electron-updater ^6.8.9` in `dependencies`. `build.publish = [{ provider: "github",
+  owner: "WxstedGOTY", repo: "reminth-launcher" }]`. No other installer settings touched. NSIS keeps
+  electron-builder's default blockmap, so differential downloads are on (build output has `Reminth-Setup.exe.blockmap`).
+- `src/main/updater.js`: new. Packaged builds only (`app.isPackaged`; a dev run has no `app-update.yml`).
+  One check 10 s after the window's first load, `autoDownload` on, `autoInstallOnAppQuit` on. Events go to
+  `%APPDATA%\Reminth\updater.log`. `update-available` sends `update:status {state:"downloading"}` and
+  `update-downloaded` sends `{state:"ready"}`. Errors are logged only, with no UI.
+- `src/main/main.js`: `updater.init({ notify: send })` in the existing `did-finish-load` hook, plus
+  `ipcMain.on("update:install")` calling `autoUpdater.quitAndInstall()`.
+- `src/main/preload.js`: `onUpdateStatus`, `installUpdate`.
+- UI (`index.html`/`renderer.js`/`styles.css`): `#updateBar` reuses the existing `.toast` styling and the existing
+  `.btn primary sm`. It stays up and takes clicks (the normal toast auto-hides after 3.6 s and ignores clicks, so
+  it can't carry a button). Text: "Update available (Reminth X), downloading…", then "Reminth X is ready. It
+  installs when you restart." with a **Restart to install** button.
+
+Build output (VERIFIED): `win-unpacked/resources/app-update.yml` =
+`owner: WxstedGOTY / repo: reminth-launcher / provider: github`. `latest.yml` written next to the
+installer (`version: 1.1.0`). `electron-updater` is inside `app.asar` (212 entries).
+
+No-update startup test (VERIFIED): ran the **packaged** `win-unpacked\Reminth.exe` in the isolated sandbox
+home against the live GitHub latest release. `updater.log`:
+```
+2026-09-24T19:22:01.907Z checking (current 1.1.0)
+2026-09-24T19:22:02.922Z error: Cannot find latest.yml in the latest release artifacts (https://github.com/WxstedGOTY/reminth-launcher/releases/download/Reminth_v1.1.0/latest.yml): HttpError: 404 
+2026-09-24T19:22:02.922Z check failed: Cannot find latest.yml in the latest release artifacts (https://github.com/WxstedGOTY/reminth-launcher/releases/download/Reminth_v1.1.0/latest.yml): HttpError: 404 
+```
+The app kept running (4 processes after the check). `#updateBar` stayed hidden, with no renderer errors, and `features.js` was loaded.
+The 404 is expected: release `Reminth_v1.1.0` only has `Reminth-Setup.exe`, no `latest.yml`, so it's silent
+"nothing to do". Bar appearance was checked by showing it renderer-side only: 467×52, 74 px from the bottom,
+`pointer-events: auto`, no overlap with the normal toast.
+
+**Needs a real new release to verify end to end (UNTESTED):** download, the ready bar, and Restart to install.
+How:
+1. Bump `version` in `package.json` (e.g. 1.1.1) and run `npm run dist`.
+2. Create a GitHub Release (marked latest) and upload **all three** from `dist\`: `Reminth-Setup.exe`,
+   `Reminth-Setup.exe.blockmap`, `latest.yml`. Without `latest.yml` the updater sees nothing (the 404 above).
+3. Open an installed 1.1.0 build that includes this updater. That means installing today's `dist\Reminth-Setup.exe`
+   first, because the currently installed build predates the updater. Within ~10 s the bar should say downloading,
+   then ready. Click Restart.
+Note: installers built before this round don't contain the updater, so they will never self-update. The first
+updater-enabled build has to be installed by hand once.
+
+### Job 3: ReminthHUD 26.3
+
+Versions, confirmed live on 2026-09-24 from the same sources fabricmc.net/develop reads:
+- `meta.fabricmc.net/v2/versions/game`: 26.3 stable.
+- `meta.fabricmc.net/v2/versions/loader/26.3`: newest stable loader `0.19.5` (unchanged).
+- Modrinth `fabric-api` for 26.3: newest `0.161.0+26.3` (release, 2026-09-18). The prompt's `0.160.5+26.3` is older.
+- Loom kept at `1.17-SNAPSHOT`. It builds 26.3 fine, so no reason to move to 1.18.
+
+Changes in `Downloads\wxhud\wxhud\` (**not a git repo**; originals backed up to the session scratchpad):
+- `gradle.properties`: `minecraft_version=26.3`, `fabric_api_version=0.161.0+26.3`, `version=1.0.0+26.3`
+  (distinct jar name so it can sit beside the 26.2 `reminthhud-1.0.0.jar`). `loader_version=0.19.5` unchanged.
+- `src/main/resources/fabric.mod.json`: `"minecraft": "~26.3"`.
+- `src/client/java/com/wxsted/reminthhud/client/ReminthHudClient.java`: **real API break, fixed.** First build failed:
+  ```
+  ReminthHudClient.java:32: error: cannot find symbol
+  					InputConstants.Type.KEYSYM,
+    symbol:   variable KEYSYM
+    location: class Type
+  ```
+  `javap` on Loom's 26.3 client jar: `InputConstants$Type` is now `KEYBOARD, MOUSE` (26.2 had
+  `KEYSYM, SCANCODE, MOUSE`). The `KeyMapping(String, Type, int, Category)` constructor and `InputConstants.KEY_H`
+  are unchanged. Changed `KEYSYM` to `KEYBOARD`. Second build: `BUILD SUCCESSFUL`, no warnings or errors printed.
+- Output `build/libs/reminthhud-1.0.0+26.3.jar` (9,124 bytes). Contents checked: `fabric.mod.json` version
+  `1.0.0+26.3`, `"minecraft": "~26.3"`, class file major version 69 (Java 25). The compiled client class references
+  `KEYBOARD`, not `KEYSYM`.
+
+Packaging decision: **two jars, not one range.** Each jar is compiled against one Minecraft version's code (26.3
+already broke a 26.2 API), so a `~26.2 || ~26.3` range on a single jar would be an untested runtime guess.
+The launcher already supports this. `bundledReminthHudBuilds()` reads every `assets/mods/reminthhud-*.jar`'s own
+`fabric.mod.json` range, and `findReminthHudFor(mc)` picks the match. Checked against our source in the sandbox:
+`26.2`/`26.2.1` gets `reminthhud-1.0.0.jar`, `26.3`/`26.3.1` gets `reminthhud-1.0.0+26.3.jar`, and `26.4`/`26.1.2` get none.
+Both jars are inside the new build's `app.asar`.
+
+Gate: new instances already default the HUD on when `hud:supports(mcVersion)` finds a build (the create/edit
+dialog's ReminthHUD switch). So new 26.3 Fabric/Quilt instances get it automatically. The existing
+`quilt-26-3-49e0` had been saved with `hud:false`, because no 26.3 build existed when it was created. I flipped it
+through the launcher's own `instances.update(id, { hud: true })` (validated write; `instances.json` backed up first).
+Now: reminth fabric 26.2 hud=true · forge 26.3 hud=false · neoforge 26.3 hud=false · **quilt 26.3 hud=true**.
+There's no Fabric 26.3 instance on this machine.
+
+In-game (UNTESTED, needs a human): the currently installed Reminth predates this jar. After installing the new
+`dist\Reminth-Setup.exe`, pressing Play on Quilt 26.3 should put `reminthhud-1.0.0+26.3.jar` and Fabric API 26.3 into
+`instances\quilt-26-3-49e0\mods\`, and H should toggle the overlay. Also re-check H on Fabric 26.2 (same 26.2 jar as before).
+
+**Forge / NeoForge: out of scope, on purpose.** I checked both `reminth-launcher` and `wxhud` for `mods.toml`,
+`neoforge.mods.toml`, `@Mod(`, `net.neoforged` and `net.minecraftforge`: nothing. All three jars in `assets/mods`
+carry only `fabric.mod.json`. A Forge/NeoForge ReminthHUD would be a **separate mod project**: its own Gradle
+setup (ForgeGradle / NeoGradle or ModDevGradle), its own `mods.toml` metadata, its own event-bus registration
+for the key mapping and the HUD render layer. Realistically that means another module or repo, with its own build
+per Minecraft version and its own testing, so it's measured in days, not a config change. The launcher side is
+already shaped for it (it would need a second jar-metadata reader for `mods.toml` and dropping the
+`loader === "fabric" || loader === "quilt"` gate). No stub code was written.
+
+### Build
+
+`dist\Reminth-Setup.exe` rebuilt 22:26 with the updater and both HUD jars. SHA-256
+`668c5340c171f65d1bf0d67514fa93b03fb6ed44a264e7667b740047cb361b6f`. `dist\latest.yml` and `.blockmap` sit alongside.
+`npm test` 53/53. Not installed, because the installed Reminth was running.
+
 ## Round 6 (`CLAUDE_CODE_PROMPT_4.md`, rewritten version): full audit and fixes
 
 **This round replaces round 5's "not fixed" rows below.** The user approved the renderer swap (asked
@@ -323,6 +442,11 @@ so any Minecraft window you see definitely came from Reminth.
 - [ ] Install the round 6 `dist\Reminth-Setup.exe`, then run the 5 manual tests above. To switch instance,
       use the rail chips on the left or Library → Instances. Also glance at: the Discover tab, Home
       "Discover mods" cards, Skins (3D preview and default skins), and the bigger toggles and trash icons in a mods list.
+- [ ] Install the round 7 build (it has the updater and the 26.3 HUD). Then: Quilt 26.3, press Play, press H
+      in-game. Fabric 26.2, press H.
+- [ ] Verify the auto-updater end to end with a real release (bump version, upload exe + blockmap + latest.yml;
+      see round 7, Job 2).
+- [ ] Future project, not tonight: Forge/NeoForge ReminthHUD as a separate mod (round 7, Job 3).
 - [ ] Decide on the 8 unused preload APIs and the orphan `catalog:checkUpdates` handler.
 - [ ] `Downloads\reminth-launcher-push\` is now redundant (its renderer is in the repo). Decide whether to delete it,
       so there's one working copy.
