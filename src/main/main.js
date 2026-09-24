@@ -99,12 +99,15 @@ function createWindow() {
   win.on("maximize", () => send("window:maximized", true));
   win.on("unmaximize", () => send("window:maximized", false));
 
-  // Opens maximized. By ready-to-show the renderer has run renderer.js and
-  // is listening, so the "maximize" event above flips the title bar to its
-  // restore icon; restoring drops back to the windowed size set above.
+  // Opens maximized; restoring drops back to the windowed size set above.
+  // maximize() on a still-hidden window doesn't reliably emit "maximize" on
+  // Windows, which left the title bar showing the maximize icon on a
+  // maximized window - so send the real state once it's on screen instead
+  // of relying on the event. By ready-to-show renderer.js is listening.
   win.once("ready-to-show", () => {
     win.maximize();
     win.show();
+    send("window:maximized", win.isMaximized());
   });
 }
 

@@ -5,6 +5,65 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 5 (`CLAUDE_CODE_PROMPT_4.md`): the renderer is the wrong version
+
+### Bug #0: what's actually going on (VERIFIED, all checked, none guessed)
+
+- **`features.js` *is* referenced.** `src/renderer/index.html:850-852` has
+  `<script src="renderer.js">`, `<script src="skinview.js">`, `<script src="features.js">`. It has been in
+  the repo since 8fedbcc, and the installed app's `app.asar` (my 20:25 build) has the same three tags.
+  The cloud session's "exactly one script tag" premise doesn't hold for the pushed repo.
+- **But `features.js` never runs.** `renderer.js` and `features.js` both declare the top-level
+  `const MOD_COLOURS`, `const MANAGED_JAR`, `const DISCOVER_MODS` (renderer.js:1033/1039/1228,
+  features.js:177/248/563). Classic scripts share one global lexical scope, so the browser rejects
+  the whole second script at load with `SyntaxError: Identifier 'MOD_COLOURS' has already been declared`.
+  Found with `tsc --allowJs --checkJs` over the three files: TS2451 on those three names.
+- **`features.js` also calls 17 helpers the committed `renderer.js` doesn't define** (TS2304):
+  `activeInstance` (18 calls), `selectInstance`, `loadInstances`, `instanceById`, `icon` (19), `button`,
+  `openModal`, `confirmModal`, `makeDropdown`, `localGet`, `localSet`, `formatBytes`, `loaderLabel`,
+  `sortItems`, `SORT_OPTIONS`, `currentPage`, `getVersions`. The only `activeInstance` in the repo is an
+  async **main-process** function (`src/main/main.js:265`) that the renderer can't see.
+- **The committed `renderer.js` is the version from before `features.js` was split out.** Its own header
+  still says multiple instances are "labelled Soon". It uses 11 element ids that don't exist in the current
+  `index.html` (`appSideMods skinBody instPacks hostTiles openModsFolder2 openPacksFolder tabFilesBtn
+  newServerBtn linkServerBtn heroMods ramMax`). `$()` is `document.getElementById`, so these are
+  null and throw a TypeError. The first line of `boot()` is `$("appSideMods").style.display = "none"`, so
+  **`boot()` dies immediately**, and `switchPage` throws partway through every page change. Its
+  `PAGE_META` also lacks discover/plus/captures/streamer (round 3's "Broken or weird #3").
+- **The matching `renderer.js` exists on this machine**, in a second working copy:
+  `C:\Users\kolijos\Downloads\reminth-launcher-push\` (a clone of GitHub at 446dbdf with uncommitted
+  edits; it does *not* contain `fe297f7`/`39b1a4c` either). Its `src/renderer/renderer.js`
+  (69,549 bytes, 11:08 today):
+  - with the same `features.js` (byte-identical, 86,602 bytes) and `skinview.js`: **0 undefined names,
+    0 duplicate declarations** under the same tsc check;
+  - uses 150 element ids, **0 missing** from the current `index.html`;
+  - defines `activeInstance`, `instanceById`, `loadInstances`, `selectInstance`, `renderRail`, and a real
+    `renderLibraryInstances` (one tile per `state.instances` entry, click = `selectInstance(id, true)`,
+    plus a "New instance" tile), and sets `sideInstances` from `state.instances.length`. It has the full `PAGE_META`.
+  - Every other source file in that copy is identical to 8fedbcc, except `styles.css` (head-mods panel height,
+    ours is newer) and tests (it has `test/features.test.js` plus `splitArgs`/`substituteTokens` tests, and
+    an older memory test).
+- So Bugs #1, #2 and #3 are what the old renderer looks like: hardcoded Library tile, no rail or
+  instance switcher, and nothing ever sets `sideInstances`. The code that fixes them already exists
+  in the matching renderer.
+
+### What got fixed this round
+
+| item | status |
+|---|---|
+| Bug #0 | Diagnosed (above). **Not fixed yet**: the fix is to replace `src/renderer/renderer.js` with the `reminth-launcher-push` copy, then re-apply our two renderer changes (heroPlaytime sum across instances, and the signed-out `switchPage` guard with the `#app.signed-out` toggle in `applyAccountUI`). My attempt to copy the file was **refused by the local permission guard**, so it's waiting on the user. |
+| Bug #1 Library shows one tile | Not fixed. Fixed by the renderer swap (that version's `renderLibraryInstances` is data-driven). |
+| Bug #2 no instance switcher | Confirmed: in the committed renderer there is none. Its rail has no instance buttons, and Library is one hardcoded tile. That's why Forge/NeoForge couldn't be reached. The matching renderer has two switchers (rail instance chips and Library tiles). Fixed by the swap. |
+| Bug #3 sidebar Instances "—", Instance page Mods "—" | Not fixed. The committed renderer never writes `sideInstances`, and `boot()` dies before any stats load. The matching renderer sets `sideInstances`. The Mods count comes from `features.js`, which will run once it can load. Re-check after the swap. |
+| Bug #4 maximize icon wrong | **Fixed in code** (`src/main/main.js`). `maximize()` on the still-hidden (`show:false`) window doesn't reliably emit `maximize` on Windows, so the icon never flipped. Now `ready-to-show` sends `window:maximized` with `win.isMaximized()` after `show()`. UNTESTED live. |
+| Bigger toggles and trash icons | **Done** (`styles.css`, `.c-actions` only). Switch 54×30 (was a 44×25 at scale .9), knob 24px. Trash button 43px (was 32), icon 22px (was 16). Real sizes, not transforms, so the row makes room. UNTESTED visually. |
+| `#app.signed-out .app-side` | Now `!important`, because the matching renderer's `switchPage` sets the sidebar's display inline. |
+
+### Retest
+
+**Not done.** The prompt says to retest only once #1/#2 are fixed, and they aren't until the renderer swap lands.
+Launching Forge/NeoForge and pressing H also need someone clicking through the real app.
+
 ## Round 4: build
 
 VERIFIED: a new `dist\Reminth-Setup.exe` was built at 2026-09-24 20:25 local time. Size 83,118,625 bytes,
@@ -173,6 +232,9 @@ so any Minecraft window you see definitely came from Reminth.
 
 ## What's left
 
+- [ ] **First:** swap in the matching `renderer.js` from `Downloads\reminth-launcher-push\` and re-apply
+      the heroPlaytime and signed-out changes (Round 5, Bug #0). Rebuild after that. Until then the manual
+      checklist can't reach Forge/NeoForge at all.
 - [ ] The 5 manual tests above.
 - [ ] ReminthHUD for 26.3 and for Forge/NeoForge: no build exists (see Broken or weird #2).
 - [ ] Silent refresh on Play (`refreshSession`'s bare `catch {}` in `main.js`).

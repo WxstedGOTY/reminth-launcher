@@ -1003,7 +1003,7 @@ input[type="range"]::-webkit-slider-thumb {
    screen (renderer.js applyAccountUI sets the class, switchPage enforces it). */
 #app.signed-out .rail > :not(.rail-brand):not(.rail-spacer),
 #app.signed-out .topbar-actions,
-#app.signed-out .app-side { display: none; }
+#app.signed-out .app-side { display: none !important; } /* beats switchPage's inline display */
 
 .signin-wrap { display: grid; place-items: center; min-height: 66vh; }
 .signin-card { width: min(460px, 100%); padding: 38px 34px; text-align: center; }
@@ -1317,7 +1317,14 @@ img.c-ico.pixel { image-rendering: pixelated; }
 .c-sub { font-size: 11.5px; color: var(--text-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, Consolas, monospace; }
 .c-sub .warn { color: var(--amber); font-family: "Inter", sans-serif; }
 .c-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.c-actions .switch { transform: scale(.9); }
+/* Content rows: toggle and trash are ~35% bigger than the stock sizes they
+   had here (a .9-scaled 44x25 switch, a 32px button with a 16px icon) -
+   sized for real rather than transformed, so the row makes room for them. */
+.c-actions .switch { width: 54px; height: 30px; }
+.c-actions .switch::after { top: 3px; left: 3px; width: 24px; height: 24px; }
+.c-actions .switch.on::after { transform: translateX(24px); }
+.c-actions .icon-btn { width: 43px; height: 43px; border-radius: 11px; }
+.c-actions .icon-btn .i { width: 22px; height: 22px; }
 .icon-btn { width: 32px; height: 32px; border-radius: 9px; border: 1px solid transparent; background: transparent; color: var(--text-3); display: grid; place-items: center; cursor: pointer; }
 .icon-btn .i { width: 16px; height: 16px; }
 .icon-btn:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
