@@ -5,6 +5,45 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 8 (`CLAUDE_CODE_PROMPT_6.md`): Quilt 26.3 HUD crash fix deployed
+
+Cause (from the prompt, user-observed): Quilt Loader 0.30.1 exposes fabric-loader compat **0.19.3**, so
+round 7's jar (`"fabricloader": ">=0.19.5"`) stopped Minecraft from starting:
+"ReminthHUD requires at least version 0.19.5 or any newer version of fabricloader, but only a different version is present: 0.19.3."
+The source fix (`"fabricloader": "*"`) had already been saved in `wxhud\wxhud\src\main\resources\fabric.mod.json` (22:47).
+
+| step | result |
+|---|---|
+| 1. Rebuild | VERIFIED. `gradlew build` gave `BUILD SUCCESSFUL`. `build\libs\reminthhud-1.0.0+26.3.jar` is 9,118 bytes, 22:50:09 (newer than the 22:47 source edit). SHA-256 `5701ab654ac31bb15056abdd1ddae714812d1e2854c49f14f14c91859ac5659a` |
+| 2. Fix inside the jar | VERIFIED. Unzipped `fabric.mod.json`: `"version": "1.0.0+26.3"`, `"fabricloader": "*"`, `"minecraft": "~26.3"` |
+| 3a. `reminth-launcher\assets\mods\reminthhud-1.0.0+26.3.jar` | VERIFIED updated (same SHA-256; `"fabricloader": "*"`). Committed in `89e6cf2` |
+| 3b. `%APPDATA%\Reminth\instances\quilt-26-3-49e0\mods\reminthhud-1.0.0+26.3.jar` | VERIFIED updated (same SHA-256; `"fabricloader": "*"`). Before copying I checked that the running `javaw` was **not** this instance: its `--gameDir` was `…\Reminth\instance\game`, `--version reminth-26.2` (Fabric 26.2) |
+| 4. Live retest (Quilt 26.3 boot + H, Fabric 26.2 relaunch) | **UNTESTED.** Needs the user in game. Also blocked on step 5, see below |
+| 5. Installer | Rebuilt: `dist\Reminth-Setup.exe`, 22:51, SHA-256 `863d564e6117d821944aa56d059d18e02d51c38c502500d6d61b8135419b012d` (built to `dist\build-round8\`, exit 0, no errors). Its bundled 26.3 jar was checked: `"fabricloader": "*"`. **Not installed.** The user chose to install it themselves, because Reminth was running with a Fabric 26.2 game open |
+
+**Important, and it contradicts the prompt's "step 3 is what actually matters":** the in-place copy (3b) does
+**not** survive pressing Play in the currently installed app. `src/main/minecraft.js:148-149` rewrites the HUD
+jar into the instance's `mods` folder from the app's **bundled** copy on every install/launch:
+```
+hudJar = path.basename(hudBuild.file);
+await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
+```
+And the installed app (`AppData\Local\Programs\Reminth\resources\app.asar`, from the 22:26 build) still bundles
+`\assets\mods\reminthhud-1.0.0+26.3.jar` with `"fabricloader": ">=0.19.5"` (VERIFIED by extracting it).
+So Play on Quilt 26.3 **before reinstalling** puts the broken jar back and crashes again. **Install the 22:51
+`dist\Reminth-Setup.exe` first, then retest.**
+
+Retest to do (user), in this order:
+1. Close Minecraft and Reminth, then run `dist\Reminth-Setup.exe`.
+2. Quilt 26.3 → Play. There should be no "Minecraft failed to launch" dialog, and it should reach the title screen.
+   Enter a world and press H: the HUD toggles. Afterwards `instances\quilt-26-3-49e0\mods\reminthhud-1.0.0+26.3.jar`
+   should still say `"fabricloader": "*"`.
+3. Fabric 26.2 → Play once. It should still boot and H should still work. It uses the untouched `reminthhud-1.0.0.jar`.
+
+Side note: the 26.2 jar still declares `"fabricloader": ">=0.19.5"`. That's fine on Fabric 26.2 (loader 0.19.5).
+But a **Quilt 26.2** instance would hit the same crash. There's no such instance today. If one gets created, the 26.2 jar needs the same
+`"*"` rebuild, which would mean building the wxhud project at `minecraft_version=26.2` again.
+
 ## Round 7 (`CLAUDE_CODE_PROMPT_5.md`): CI, auto-updater, ReminthHUD 26.3
 
 Commits: `52635d9` CI · `51836e5` auto-updater · `dc344b9` HUD 26.3 jar · plus this report.
@@ -442,8 +481,9 @@ so any Minecraft window you see definitely came from Reminth.
 - [ ] Install the round 6 `dist\Reminth-Setup.exe`, then run the 5 manual tests above. To switch instance,
       use the rail chips on the left or Library → Instances. Also glance at: the Discover tab, Home
       "Discover mods" cards, Skins (3D preview and default skins), and the bigger toggles and trash icons in a mods list.
-- [ ] Install the round 7 build (it has the updater and the 26.3 HUD). Then: Quilt 26.3, press Play, press H
-      in-game. Fabric 26.2, press H.
+- [ ] Install the **round 8** build (22:51; it has the updater and the fixed 26.3 HUD). Then: Quilt 26.3, press Play,
+      press H in-game. Fabric 26.2, press Play once, press H. (Don't press Play on Quilt 26.3 in the old install:
+      it re-copies the broken jar. See round 8.)
 - [ ] Verify the auto-updater end to end with a real release (bump version, upload exe + blockmap + latest.yml;
       see round 7, Job 2).
 - [ ] Future project, not tonight: Forge/NeoForge ReminthHUD as a separate mod (round 7, Job 3).
