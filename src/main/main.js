@@ -3,6 +3,7 @@ const { app, BrowserWindow, ipcMain, shell, screen } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
+const { spawn: spawnProcess } = require("child_process");
 
 const minecraft = require("./minecraft");
 const msAuth = require("./msAuth");
@@ -569,6 +570,45 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
     running.delete(inst.id); // never leave Play wedged behind a failed launch
     throw err;
   }
+});
+
+/**
+ * Force-stops whatever Reminth thinks is running for an instance - both the
+ * normal case (a real java process, killed outright) and the stuck case
+ * (the bookkeeping in `running` says an instance is playing but the process
+ * behind it is already gone - a crash dialog dismissed in an unexpected way,
+ * a process killed from Task Manager, anything that skipped the child's own
+ * "exit"/"error" listeners). Either way the Play button has to unstick, so
+ * this always clears the entry and tells the renderer, even when there was
+ * nothing left alive to actually kill.
+ */
+ipcMain.handle("play:stop", async (_e, options = {}) => {
+  const inst = options.instanceId ? await instances.require(options.instanceId) : await activeInstance();
+  const session = running.get(inst.id);
+  if (!session) return { stopped: false, wasRunning: false };
+
+  let killedReal = false;
+  if (session.child && session.child.pid) {
+    killedReal = true;
+    try {
+      session.child.kill();
+    } catch {
+      // already gone - fine, still cleaned up below
+    }
+    // spawn() with detached:true on Windows starts its own process group;
+    // a plain .kill() doesn't reliably reach that whole tree. taskkill /t
+    // does, and this is best-effort - if the process is already dead this
+    // just fails quietly.
+    if (process.platform === "win32") {
+      spawnProcess("taskkill", ["/pid", String(session.child.pid), "/t", "/f"], {
+        stdio: "ignore",
+        windowsHide: true,
+      }).on("error", () => {});
+    }
+  }
+
+  finishSession(inst, killedReal);
+  return { stopped: true, wasRunning: true };
 });
 
 async function startGame(inst, join) {

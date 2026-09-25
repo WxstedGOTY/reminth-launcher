@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld("reminth", {
 
   // play / install
   play: (options) => ipcRenderer.invoke("play:run", options || {}),
+  stopGame: (options) => ipcRenderer.invoke("play:stop", options || {}),
   install: (instanceId) => ipcRenderer.invoke("install:run", instanceId),
 
   // launcher + instance info

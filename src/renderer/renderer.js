@@ -745,6 +745,15 @@ function paintPlayButtons() {
     btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
     label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : "Play";
   }
+  // Only shows up once something is actually (or stuck) "running" - lets a
+  // player unstick the Play button themselves instead of relaunching
+  // Reminth every time a crash or an odd exit leaves it wedged on "Playing".
+  for (const id of ["stopBtn", "instStopBtn"]) {
+    const btn = $(id);
+    if (!btn) continue;
+    btn.hidden = !runningNow;
+    btn.disabled = false;
+  }
 }
 
 /* ---- the create / edit instance dialog, with the version picker ---- */
@@ -1198,6 +1207,32 @@ async function runInstall(instanceId) {
 
 $("playBtn").onclick = () => runPlay();
 $("instPlayBtn").onclick = () => runPlay();
+
+async function stopGame() {
+  const inst = activeInstance();
+  if (!inst) return;
+  for (const id of ["stopBtn", "instStopBtn"]) {
+    const btn = $(id);
+    if (btn) btn.disabled = true;
+  }
+  try {
+    await window.reminth.stopGame({ instanceId: inst.id });
+    // The backend clears its own state and fires play:exited right away
+    // (it doesn't wait on the process' real exit event) - reflect that here
+    // immediately too instead of waiting for the round trip.
+    state.running.delete(inst.id);
+    paintPlayButtons();
+    toast(`Stopped ${inst.name}.`);
+  } catch (err) {
+    toast(friendlyError(err.message));
+    for (const id of ["stopBtn", "instStopBtn"]) {
+      const btn = $(id);
+      if (btn) btn.disabled = false;
+    }
+  }
+}
+$("stopBtn").onclick = () => stopGame();
+$("instStopBtn").onclick = () => stopGame();
 $("updateBtnOut").onclick = () => runInstall();
 $("repairBtn").onclick = () => {
   switchPage("home");
