@@ -137,31 +137,41 @@ async function ensureInstalled(instance, onProgress) {
   // a HUD build for this exact Minecraft version is bundled. Putting a HUD
   // built for another version in would stop the game from starting.
   const wantsHud = instance.hud === true && (loader === "fabric" || loader === "quilt");
-  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is
-  // on by default for every Fabric/Quilt instance - a player has to
-  // explicitly opt out (instance.performanceMods === false), not opt in.
+  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is on
+  // by default, opt-out via instance.performanceMods === false - but Fabric
+  // only, never Quilt. Quilt versions its own loader independently of the
+  // "Fabric loader" compatibility number it reports to Fabric-API mods (Quilt
+  // Loader 0.30.x can still report a much older Fabric-compat version), so a
+  // mod's real minimum-loader requirement can be unmet on Quilt even on a
+  // fully up to date install, with no reliable way to predict it per release.
+  // Bundling blind onto Quilt is how a player ends up with "Minecraft failed
+  // to launch" from a mod they never chose to install. Fabric only.
   const wantsPerfMods =
-    config.BUNDLE_PERFORMANCE_MODS &&
-    instance.performanceMods !== false &&
-    (loader === "fabric" || loader === "quilt");
-  if (wantsHud || wantsPerfMods) {
-    await fsp.mkdir(modsDir, { recursive: true });
-    let fabricApiJar = null;
-    let hudJar = null;
-    if (wantsHud) {
-      const hudBuild = await findReminthHudFor(mcVersion);
-      if (hudBuild) {
-        report("Installing Fabric API", 0, 1);
-        fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
-        report("Installing ReminthHUD", 0, 1);
-        hudJar = path.basename(hudBuild.file);
-        await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
-      }
+    config.BUNDLE_PERFORMANCE_MODS && instance.performanceMods !== false && loader === "fabric";
+  const wantsModsDir = wantsHud || wantsPerfMods;
+  if (wantsModsDir) await fsp.mkdir(modsDir, { recursive: true });
+  let fabricApiJar = null;
+  let hudJar = null;
+  if (wantsHud) {
+    const hudBuild = await findReminthHudFor(mcVersion);
+    if (hudBuild) {
+      report("Installing Fabric API", 0, 1);
+      fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
+      report("Installing ReminthHUD", 0, 1);
+      hudJar = path.basename(hudBuild.file);
+      await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
     }
-    if (wantsPerfMods) {
-      report("Installing performance mods", 0, 1);
-      performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1));
-    }
+  }
+  if (wantsPerfMods) {
+    report("Installing performance mods", 0, 1);
+    performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1));
+  }
+  // Runs whenever the game has a mods folder at all, not just when Reminth
+  // wants something installed right now - an instance that used to qualify
+  // for the performance pack (e.g. an existing Quilt instance from before
+  // this fix) still needs those jars swept out on the very next launch,
+  // not left there forever because nothing here asked for the tidy pass.
+  if (wantsModsDir || (await fsp.access(modsDir).then(() => true).catch(() => false))) {
     report("Tidying mods folder", 0, 1);
     removed = await tidyManagedMods(modsDir, [fabricApiJar, hudJar, ...performanceModsInstalled], {
       dropHud: wantsHud && !hudJar,

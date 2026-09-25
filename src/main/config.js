@@ -25,14 +25,15 @@ module.exports = {
   // ships in assets/mods/ (see paths.js).
   REMINTHHUD_UPDATE_MANIFEST_URL: process.env.REMINTH_HUD_MANIFEST_URL || null,
 
-  // Reminth ships a default performance pack on every Fabric/Quilt instance:
-  // players shouldn't have to know Sodium/Lithium exist to get a smooth
-  // game. Each entry is fetched straight from the project's own GitHub
-  // Releases (see minecraft.js:downloadPerformanceMods /
-  // fetchLatestGithubAssetForVersion) - never Modrinth/CurseForge, so
-  // Reminth has no runtime dependency on either. A missing build for the
-  // current MINECRAFT_VERSION, or any network/parse failure, is logged and
-  // skipped per-mod rather than failing the whole install.
+  // Reminth ships a default performance pack on every Fabric instance (never
+  // Quilt - see minecraft.js:ensureInstalled for why): players shouldn't
+  // have to know Sodium/Lithium exist to get a smooth game. Each entry is
+  // fetched straight from the project's own GitHub Releases (see
+  // minecraft.js:downloadPerformanceMods / fetchLatestGithubAssetForVersion)
+  // - never Modrinth/CurseForge, so Reminth has no runtime dependency on
+  // either. A missing build for the instance's actual Minecraft version, or
+  // any network/parse failure, is logged and skipped per-mod rather than
+  // failing the whole install.
   //
   // Per-instance opt-out lives on the instance itself (instance.performanceMods
   // === false); when a player turns it off, minecraft.js:tidyManagedMods
