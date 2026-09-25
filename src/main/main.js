@@ -238,7 +238,6 @@ ipcMain.handle("skin:apply", async (_e, { dataUrl, variant, name, source, capeId
   return { ok: true, entry };
 });
 
-ipcMain.handle("skin:setCape", async (_e, capeId) => skin.setCape(await freshAccount(), capeId || null));
 ipcMain.handle("skin:library", async () => skinLibrary.list());
 ipcMain.handle("skin:librarySave", async (_e, { dataUrl, variant, name, source }) =>
   skinLibrary.add({ png: pngFromDataUrl(dataUrl), variant, name, source, used: false })
@@ -397,10 +396,6 @@ ipcMain.handle("loaders:versions", async (_e, loader, mc) => {
   return (await loaders.loaderVersions(loader, mc)).slice(0, 400);
 });
 
-/** Which Minecraft versions have a bundled ReminthHUD build. */
-ipcMain.handle("hud:builds", async () =>
-  (await minecraft.bundledReminthHudBuilds()).map((b) => ({ version: b.version, minecraft: b.minecraft }))
-);
 ipcMain.handle("hud:supports", async (_e, mc) => Boolean(await minecraft.findReminthHudFor(String(mc))));
 
 // ---- content (mods, packs, shaders, data packs) ----
@@ -510,15 +505,6 @@ ipcMain.handle("catalog:tags", async (_e, type) => modrinth.getTags(type));
 // ---- local catalog cache (top-N by downloads, instant + offline-capable) ----
 ipcMain.handle("catalog:browseCached", async (_e, params) => catalogCache.getCached(params));
 ipcMain.handle("catalog:bySlugs", async (_e, projectType, slugs) => catalogCache.getBySlugs(projectType, slugs));
-ipcMain.handle("catalog:warmStatus", async (_e, projectType) => catalogCache.getWarmStatus(projectType));
-ipcMain.handle("catalog:warmStart", async (_e, projectType, targetCount) => {
-  // Each 100 of targetCount is one request to Modrinth - clamp it.
-  const requested = Number(targetCount);
-  const target = Number.isFinite(requested) ? Math.min(20000, Math.max(100, Math.round(requested))) : 1000;
-  if (!CATALOG_PROJECT_TYPES.includes(projectType)) throw new Error(`Unknown catalog type: ${projectType}`);
-  return catalogCache.warmCatalog(projectType, { targetCount: target, onProgress: (status) => send("catalog:warmProgress", status) });
-});
-
 // Every Browse tab's project type, warmed one after another in the
 // background once a day (a single paced request stream, never several).
 const CATALOG_PROJECT_TYPES = ["mod", "modpack", "resourcepack", "datapack", "shader"];

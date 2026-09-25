@@ -22,7 +22,6 @@ contextBridge.exposeInMainWorld("reminth", {
   skin: () => ipcRenderer.invoke("auth:skin"),
   skinProfile: () => ipcRenderer.invoke("skin:profile"),
   skinApply: (req) => ipcRenderer.invoke("skin:apply", req),
-  skinSetCape: (capeId) => ipcRenderer.invoke("skin:setCape", capeId),
   skinLibrary: () => ipcRenderer.invoke("skin:library"),
   skinLibrarySave: (req) => ipcRenderer.invoke("skin:librarySave", req),
   skinLibraryRename: (id, name) => ipcRenderer.invoke("skin:libraryRename", id, name),
@@ -37,7 +36,6 @@ contextBridge.exposeInMainWorld("reminth", {
   deleteInstance: (id) => ipcRenderer.invoke("instances:delete", id),
   versions: () => ipcRenderer.invoke("versions:list"),
   loaderVersions: (loader, mc) => ipcRenderer.invoke("loaders:versions", loader, mc),
-  hudBuilds: () => ipcRenderer.invoke("hud:builds"),
   hudSupports: (mc) => ipcRenderer.invoke("hud:supports", mc),
   installModpack: (req) => ipcRenderer.invoke("modpack:install", req),
 
@@ -93,8 +91,6 @@ contextBridge.exposeInMainWorld("reminth", {
   getCatalogTags: (type) => ipcRenderer.invoke("catalog:tags", type),
   browseCachedCatalog: (params) => ipcRenderer.invoke("catalog:browseCached", params),
   catalogBySlugs: (projectType, slugs) => ipcRenderer.invoke("catalog:bySlugs", projectType, slugs),
-  catalogWarmStatus: (projectType) => ipcRenderer.invoke("catalog:warmStatus", projectType),
-  catalogWarmStart: (projectType, targetCount) => ipcRenderer.invoke("catalog:warmStart", projectType, targetCount),
   onCatalogWarmProgress: on("catalog:warmProgress"),
 
   // events
