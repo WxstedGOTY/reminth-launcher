@@ -653,3 +653,11 @@ Current as of round 10 (2026-09-25). This replaces the older lists above.
 - [x] Forge 26.3 and NeoForge 26.3 launch (round 10) · `PAGE_META` complete (round 6, re-checked round 10) ·
       refresh errors logged (round 10) · `wxhud-1.0.0.jar` and stale `instance\mods` removed (round 10) ·
       plain `npm run dist` works again · skin rename + version picker shipped in the 1.1.1 build.
+
+## Round 11 (automated, no keyboard): mrpack symlink-traversal fix committed and
+pushed (extract-zip GHSA-jmr9-qjv8-65gv / GHSA-7pqw-9j4j-h8q3, the one runtime-
+relevant open npm audit finding - now closed). Release v1.1.1 published:
+https://github.com/WxstedGOTY/reminth-launcher/releases/tag/v1.1.1 - 3 assets attached.
+Still needs a human: watch an older installed build pick up this release via
+the in-app auto-updater (download, "restart to install", relaunch as 1.1.1,
+check updater.log).
