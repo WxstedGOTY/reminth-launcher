@@ -1,6 +1,6 @@
 {
   "name": "reminth-launcher",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Reminth - a custom Minecraft launcher",
   "main": "src/main/main.js",
   "author": "Reminth",
