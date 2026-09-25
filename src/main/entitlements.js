@@ -13,8 +13,11 @@ const os = require("os");
 
 // Windows plus the launcher itself need roughly this much to stay usable.
 const RESERVED_FOR_SYSTEM_MB = 2048;
-// Past ~16 GB a Minecraft heap only makes GC pauses longer, even on huge packs.
-const MAX_USEFUL_RAM_MB = 16384;
+// Hard ceiling regardless of how much RAM the machine has. Past 8GB a
+// Minecraft heap stops helping and just makes GC pauses longer, and a
+// player on a shared or lower-spec PC shouldn't have the slider (or an
+// admin/default) hand the whole box to one game.
+const MAX_USEFUL_RAM_MB = 8192;
 const MIN_RAM_MB = 1024;
 
 function hasPlus() {

@@ -409,8 +409,21 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
   // G1GC tuning: the launcher can't touch actual FPS, but a heap sized to
   // the player's real RAM plus G1's low-pause flags cuts GC-driven stutter,
   // which is the one thing under our control here.
+  //
+  // -Xms matches -Xmx on purpose: without it the JVM starts small and grows
+  // the heap on demand, and each resize is a stop-the-world pause. Left
+  // unset, that pause tends to land exactly during a burst of allocation -
+  // particles, entities, hit detection, sound - which is why it reads as
+  // "smooth normally, but I drop frames the second a fight starts" instead
+  // of a constant low framerate. Pre-sizing the heap removes that pause
+  // entirely; it costs a slightly slower JVM boot, not runtime FPS.
+  // G1MixedGCCountTarget/InitiatingHeapOccupancyPercent are the two Aikar's
+  // Flags tweaks that matter most for a client (vs. a server): they make G1
+  // start collecting old-gen garbage earlier and spread it over more, smaller
+  // pauses instead of one big one hitting mid-fight.
   const baseJvm = [
     `-Xmx${maxMemoryMb}M`,
+    `-Xms${maxMemoryMb}M`,
     "-XX:+UseG1GC",
     "-XX:+ParallelRefProcEnabled",
     "-XX:MaxGCPauseMillis=200",
@@ -418,6 +431,10 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
     "-XX:G1NewSizePercent=20",
     "-XX:G1ReservePercent=20",
     "-XX:G1HeapRegionSize=32M",
+    "-XX:G1MixedGCCountTarget=4",
+    "-XX:InitiatingHeapOccupancyPercent=15",
+    "-XX:G1MixedGCLiveThresholdPercent=90",
+    "-XX:SurvivorRatio=32",
     // Log4Shell. Mojang's patched logging config (loggingArg) covers the
     // affected versions too; this flag is the belt to that pair of braces
     // now that any old version can be launched.

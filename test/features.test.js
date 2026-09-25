@@ -300,8 +300,8 @@ test("entitlements: RAM is capped by the machine, not a plan", () => {
   const GB = 1024 ** 3;
   assert.equal(ent.ramCapMb(4 * GB), 2048);
   assert.equal(ent.ramCapMb(8 * GB), 6144);
-  assert.equal(ent.ramCapMb(16 * GB), 14336);
-  assert.equal(ent.ramCapMb(64 * GB), 16384);
+  assert.equal(ent.ramCapMb(16 * GB), 8192, "a big machine is still capped at 8GB");
+  assert.equal(ent.ramCapMb(64 * GB), 8192, "no runaway heap on a workstation");
   assert.equal(ent.ramCapMb(2 * GB), 1024);
 });
 
