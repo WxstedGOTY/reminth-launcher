@@ -5,6 +5,91 @@ round 4 (`CLAUDE_CODE_PROMPT_3.md`: rebuild, NeoForge investigation, manual chec
 Every claim is labelled VERIFIED (ran it, saw it), ASSUMED, or UNTESTED.
 "User ran it live" means the user tested it personally on this machine and reported the result.
 
+## Round 10 (`CLAUDE_CODE_PROMPT_8.md`): final cleanup
+
+Commits: `acef3ac` (job 3) · `1405ae1` (job 4) · `384033a` (job 5, version 1.1.1) · plus this report.
+Jobs 1 and 2 needed no code change (see each). `npm test`: **89/89** (53 before, +36 from `features.test.js`).
+
+### Job 1: Forge 26.3 and NeoForge 26.3 launch (VERIFIED, both pass to the fully loaded first screen)
+
+How: a harness (`scratchpad/launch-harness.js`) runs the launcher's **own** `minecraft.ensureInstalled()` and
+`minecraft.launch()` for the real instance entries, with `USERPROFILE`/`APPDATA` pointed at the scratch sandbox
+(it refuses to run if `os.homedir()` isn't the sandbox). Real Mojang, Forge, NeoForge and Adoptium downloads.
+The account is a **fake offline identity** (`SandboxTester`, access token `"0"`), never the user's session.
+Offline tokens are fine for singleplayer and menus, but can't reach online services.
+
+| | NeoForge `neoforge-26-3-0050` | Forge `forge-26-3-ff87` |
+|---|---|---|
+| Loader | NeoForge 26.3.0.16-beta on MC 26.3 | Forge 66.0.3 on MC 26.3 (MCP 20260918.230105) |
+| Install | fresh sandbox, 75 s: loader installer, Java (java-runtime-epsilon 25.0.1), client jar, libraries, "Patching Minecraft", assets. No errors | 17 s (shared files already present). No errors |
+| Main class | `net.neoforged.fml.startup.Client` | `net.minecraftforge.bootstrap.ForgeBootstrap` |
+| Process | pid 35416 alive, ~1.2 GB, window **"Minecraft NeoForge\* 26.3"** | pid 10676 alive, ~1.2 GB, window **"Minecraft\* Forge 26.3"** |
+| Log | `NeoForge mod loading, version 26.3.0.16-beta, for MC 26.3` → `Setting user: SandboxTester` → `Sound engine started` → all texture atlases `Created` → `Loaded 0 entity animations` | `Forge mod loading, version 66.0.3, for MC 26.3` → `Setting user: SandboxTester` → `Sound engine started` → `Created: 2048x2048x4 minecraft:textures/atlas/blocks.png-atlas` |
+| Crash | none; no `crash-reports/` | none; no `crash-reports/` |
+| Screen (window screenshot) | fully rendered "Welcome to Minecraft!" first-launch screen (Narrator / Accessibility / Continue). It is shown only after loading completes, directly before the title screen | the same, rendered |
+
+Expected errors, not failures (caused by the fake offline account): `Failed to fetch user properties …
+InvalidCredentialsException: Status: 401` (path `/player/attributes`) and `Failed to fetch Realms feature flags …
+Failed to parse into SignedJWT: 0`. With a real signed-in account these calls succeed.
+**Not tested:** creating/joining a world, and anything online. The harness stops at the loaded first screen. Both games were
+closed afterwards (only the sandbox PIDs).
+This also answers round 4's NeoForge question: the loader works. The earlier "pass" simply never came from this instance.
+
+### Job 2: `PAGE_META` (no change needed; the prompt's premise is out of date)
+
+Fresh check: `PAGE_META` in `renderer.js` has **all 11** pages, including `discover`, `plus`, `captures`, `streamer`.
+They have been there since the round 6 renderer swap (the missing entries were a property of the old stale renderer), and
+round 6's live check opened all 11. None are stubs:
+- `discover`: `pageHooks.discover`, catalog browsing and install (round 9 picker).
+- `plus`: an info page. Its purchase button already uses the existing Soon pattern (`btn … is-soon` + `<em class="soon">Soon</em>`).
+- `captures`: `loadCaptures`/`renderCaptures`, `pageHooks.captures`, `streamer:captures` IPC, capture/clip/folder buttons.
+- `streamer`: hotkeys, clip lengths, buffer disk, fps/quality, toggles; `applyStreamerUi`/`saveStreamer`, `pageHooks.streamer`.
+  Captures and Streamer rail buttons only show while Streamer mode is on (`#railStreamer`), by design.
+So every page got a real entry; none needed the "Soon" treatment.
+
+### Job 3: silent refresh logging (`acef3ac`)
+
+`freshAccount()` in `main.js` swallowed `msAuth.refreshSession` errors with a bare `catch {}`. Behaviour is unchanged (it still
+carries on with the cached session), but the error is now written to **`%APPDATA%\Reminth\auth.log`** as one timestamped line:
+`2026-…Z session refresh failed: <message>`. Why not `minecraft.js`'s log: `minecraft.js` has no append-style error log. Its
+`launch-logs\<id>.txt` is reopened with `"w"` on every launch, so an entry there would be wiped by the next Play. The existing
+append pattern is `updater.js`'s `updater.log`, so `auth.log` matches that. Because this is auth, the line is **scrubbed**
+first: JWTs (`eyJ….….…`), `M.C…` refresh tokens and any 40+ character opaque blob become `<REDACTED>`. Checked against
+samples: a normal `invalid_grant` message stays readable, and an embedded JWT and an `M.C534_…` token are redacted. The file resets past 256 KB.
+
+### Job 4: cleanup
+
+| item | result |
+|---|---|
+| `assets/mods/wxhud-1.0.0.jar` | **Deleted** (`1405ae1`). Nothing loads it: `bundledReminthHudBuilds()` reads only `reminthhud-*.jar`. The only other mention is `test/zip.test.js`, which writes its *own* fake `wxhud-1.0.0.jar` into a temp dir |
+| `%APPDATA%\Reminth\instance\mods\` (singular) | **Contents deleted**: `fabric-api-0.160.0+26.2.jar`, `lithium-0.25.3+mc26.2-api.jar`, `wxhud-1.0.0.jar`. Nothing reads it: `paths.MODS_DIR` = `instance\game\mods`, and per-instance mods are `<gameDir>\mods` (`minecraft.js:132`, `content.js`). The real `instance\game\mods` is untouched (16 jars incl. ReminthHUD). The empty folder was left, as asked |
+| `Downloads\reminth-launcher-push\` | **Safe for the user to delete by hand** (not deleted by me). Every file under `src/` was diffed with line endings ignored. Each line present only in that copy is one the repo deliberately superseded: the old maximize listener and `heroPlaytime` (renderer.js), the old memory default (minecraft.js), the removed `catalog:checkUpdates` handler and the old refresh `catch` (main.js), the pre-rename/pre-picker `skinTile`/`installProject`/`side.appendChild` lines (features.js), and the old smaller toggle/head-mods/hover CSS. The **only** file unique to it was `test/features.test.js`. It passes 36/36 against this repo and is now committed here (`1405ae1`) |
+| `brace-expansion` | **There is no pin** to remove: `package.json` has no `overrides`/`resolutions`. The "pin" in earlier notes was the lockfile keeping 1.1.18 / 2.1.4 / 5.0.9 (npm latest: 1.1.21 / 2.1.7 / 5.0.12) after the round 1 merge. `npm audit` does **not** flag `brace-expansion` at any of those versions, so nothing to change. (No comment was added to `package.json`: JSON has no comments, and there's no pin to explain.) |
+
+**Found by `npm audit`, not fixed (needs a decision):** 14 advisories (13 high, 1 critical).
+- Almost all are **build-time** (`electron-builder` 25 chain: `tar` critical, `node-gyp`, `cacache`…). The fix is `electron-builder` 26 (major).
+- `electron` 33.4.11: several highs (ASAR integrity bypass <35.7.5, among others). The fix is a major Electron upgrade (44.x).
+- **`extract-zip` 2.0.1 is the one that matters most. It's a runtime dependency with no fixed release** (2.0.1 is the latest,
+  last published 2023). GHSA-jmr9-qjv8-65gv and GHSA-7pqw-9j4j-h8q3: symlink entries can write outside the target dir.
+  `src/main/mrpack.js:133` uses it to unpack **modpacks downloaded from Modrinth**, which is untrusted input. `java.js:141` and
+  `minecraft.js:857` use it on Adoptium/Mojang archives (lower risk). On Windows, creating a symlink needs Developer Mode or admin,
+  which limits exploitation, but it isn't zero. Recommended next step: pre-scan each `.mrpack` with the repo's own
+  `zipread.js` and refuse symlink or `..` entries before extracting, or replace `extract-zip` for `mrpack.js`.
+
+### Job 5: release 1.1.1 (built; **upload is the user's**)
+
+- `package.json`/`package-lock.json`: `1.1.0 → 1.1.1` (`npm version patch --no-git-tag-version`), committed `384033a`.
+- `npm run dist` (plain; the old `win-unpacked` lock is gone): exit 0. `dist\latest.yml` = `version: 1.1.1`, and its sha512 and
+  `size: 83434240` VERIFIED to match `dist\Reminth-Setup.exe`.
+- There's no `gh` CLI and no `GH_TOKEN` on this machine. The user chose to upload by hand. Steps:
+  1. GitHub → Releases → **Draft a new release**. Tag **`v1.1.1`** on `main`, title `Reminth v1.1.1`, **Set as the latest release**.
+  2. Upload **all three** from `dist\`: `Reminth-Setup.exe`, `Reminth-Setup.exe.blockmap`, `latest.yml` (names unchanged).
+  3. Publish. (The site's download button uses `releases/latest/download/Reminth-Setup.exe`, so it switches to 1.1.1 automatically.)
+- **Still needs a human to watch (UNTESTED):** open an installed **1.1.0 build that contains the updater**. That's any
+  installer from round 7 onward (2026-09-24 22:26 or later); the original v1.1.0 release has no updater and will never self-update.
+  Within ~10 s the bottom bar should show "Update available (Reminth 1.1.1), downloading…", then "…is ready" with
+  **Restart to install**. Clicking it should relaunch as 1.1.1. `%APPDATA%\Reminth\updater.log` records each step.
+
 ## Round 9 (`CLAUDE_CODE_PROMPT_7.md`): skin rename, dead handler, mod version picker
 
 Commits: `d3e681a` (job 2) · `aef4266` (job 1) · `4e19a5a` (job 3) · plus this report.
@@ -549,23 +634,22 @@ so any Minecraft window you see definitely came from Reminth.
 
 ## What's left
 
-- [x] Swap in the matching `renderer.js` and re-apply the heroPlaytime and signed-out changes (done round 6).
-- [ ] Install the round 6 `dist\Reminth-Setup.exe`, then run the 5 manual tests above. To switch instance,
-      use the rail chips on the left or Library → Instances. Also glance at: the Discover tab, Home
-      "Discover mods" cards, Skins (3D preview and default skins), and the bigger toggles and trash icons in a mods list.
-- [ ] Install the **round 8** build (22:51; it has the updater and the fixed 26.3 HUD). Then: Quilt 26.3, press Play,
-      press H in-game. Fabric 26.2, press Play once, press H. (Don't press Play on Quilt 26.3 in the old install:
-      it re-copies the broken jar. See round 8.)
-- [ ] Verify the auto-updater end to end with a real release (bump version, upload exe + blockmap + latest.yml;
-      see round 7, Job 2).
-- [ ] Future project, not tonight: Forge/NeoForge ReminthHUD as a separate mod (round 7, Job 3).
-- [ ] Rebuild (`npm run dist`) and install once more to ship round 9 (skin rename, version picker).
-- [x] Orphan `catalog:checkUpdates` handler removed (round 9). `skinLibraryRename`, `getCatalogProjectVersions` and
-      `getCatalogDependencies` are now used. Still unused preload APIs: `skinSetCape`, `skinLibrarySave` (used only by
-      tests), `hudBuilds`, `catalogWarmStatus`, `catalogWarmStart`.
-- [ ] `Downloads\reminth-launcher-push\` is now redundant (its renderer is in the repo). Decide whether to delete it,
-      so there's one working copy.
-- [ ] ReminthHUD for 26.3 and for Forge/NeoForge: no build exists (see Broken or weird #2).
-- [ ] Silent refresh on Play (`refreshSession`'s bare `catch {}` in `main.js`).
-- [ ] Decide on the `PAGE_META` gap, `electron-updater`, and the `brace-expansion` lockfile pins.
-- [ ] Once the Claude desktop app releases it, delete the stale `dist\win-unpacked\` so plain `npm run dist` works again.
+Current as of round 10 (2026-09-25). This replaces the older lists above.
+
+- [ ] **Publish v1.1.1**: GitHub release tag `v1.1.1`, marked latest, with `Reminth-Setup.exe`,
+      `Reminth-Setup.exe.blockmap` and `latest.yml` from `dist\` (round 10, Job 5).
+- [ ] **Watch the auto-update happen**: open an installed updater-enabled 1.1.0 build (any installer from round 7 on),
+      see the bar go downloading → ready, click Restart to install, confirm it comes back as 1.1.1. Needs a human.
+- [ ] **Decide on `extract-zip`** (unpacks untrusted Modrinth modpacks, no fixed release exists). Suggested: refuse
+      symlink/`..` entries via `zipread.js` before extracting in `mrpack.js` (round 10, Job 4).
+- [ ] Decide on the major upgrades `npm audit` wants: `electron-builder` 26 (build-time chain incl. critical `tar`)
+      and `electron` 44.
+- [ ] In-game checks still owed to a human: ReminthHUD **H** on Quilt 26.3 and Fabric 26.2 with the fixed jar
+      (round 8). Forge/NeoForge in a real world with a real account (round 10 stopped at the loaded first screen, offline).
+- [ ] Delete `Downloads\reminth-launcher-push\` by hand. Everything in it is now in this repo (round 10, Job 4).
+- [ ] Future project: a Forge/NeoForge ReminthHUD as a separate mod (round 7, Job 3).
+- [ ] Unused preload APIs, keep or remove: `skinSetCape`, `hudBuilds`, `catalogWarmStatus`, `catalogWarmStart`
+      (`skinLibrarySave` is used by tests).
+- [x] Forge 26.3 and NeoForge 26.3 launch (round 10) · `PAGE_META` complete (round 6, re-checked round 10) ·
+      refresh errors logged (round 10) · `wxhud-1.0.0.jar` and stale `instance\mods` removed (round 10) ·
+      plain `npm run dist` works again · skin rename + version picker shipped in the 1.1.1 build.
