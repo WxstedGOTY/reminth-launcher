@@ -47,9 +47,17 @@ module.exports = {
     // the one that actually kills the "new chunks loading = stutter" spike,
     // not Sodium/Lithium (those don't touch lighting).
     { owner: "RelativityMC", repo: "ScalableLux", label: "ScalableLux" },
-    // Parallelizes chunk generation/loading across threads - targets the
-    // "just opened N chunks of render distance" case specifically.
-    { owner: "RelativityMC", repo: "C2ME-fabric", label: "C2ME" },
+    // C2ME (RelativityMC/C2ME-fabric) was in this list and pulled back out:
+    // live report of a real hard hang on "Preparing world" the first time
+    // anyone actually created a new world with it installed. The only
+    // release that exists for this Minecraft version is a beta
+    // (0.4.1-beta.1) - C2ME's async chunk-gen parallelism is exactly the
+    // kind of thing that deadlocks on unstable builds, and world creation
+    // is exactly when that code path runs. Shipping beta software as a
+    // silent default, for a feature meant to reduce stutter, is a worse
+    // trade than the stutter it was meant to fix. Sodium/Lithium/ScalableLux
+    // are all stable releases and stay; this one goes back to opt-in only,
+    // available by hand from the mod browser for anyone who wants the risk.
     // FerriteCore (malte0811/FerriteCore) was in this list and never
     // installed for anyone - confirmed by hand that the repo has zero
     // GitHub Releases published (it ships elsewhere, not through GitHub's
