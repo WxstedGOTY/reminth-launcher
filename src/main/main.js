@@ -176,10 +176,35 @@ async function freshAccount() {
   try {
     cachedAccount = await msAuth.refreshSession(cachedAccount.msRefreshToken);
     await store.saveAccount(cachedAccount);
-  } catch {
-    // use what we have; Mojang will say if it's really dead
+  } catch (err) {
+    // Use what we have; Mojang will say if it's really dead. But leave a
+    // trace, so a "why won't it sign in" report has something to go on.
+    logAuth(`session refresh failed: ${err && err.message ? err.message : String(err)}`);
   }
   return cachedAccount;
+}
+
+/**
+ * One timestamped line to %APPDATA%\Reminth\auth.log (same pattern as
+ * updater.log). Anything token-shaped is scrubbed first - an error from the
+ * auth chain can echo a response body, and this file must never hold a
+ * credential.
+ */
+const AUTH_LOG = path.join(paths.ROOT, "auth.log");
+function logAuth(line) {
+  const clean = String(line)
+    .split("\n")[0]
+    .replace(/eyJ[\w-]+\.[\w-]+\.[\w-]+/g, "<REDACTED>") // JWTs (Xbox/Minecraft tokens)
+    .replace(/\b(M\.C\d+_[\w.!*$-]+|[\w+/=-]{40,})/g, "<REDACTED>") // MS refresh tokens, long opaque blobs
+    .slice(0, 500);
+  try {
+    // Keep it small: start over past 256 KB rather than growing forever.
+    if (fs.existsSync(AUTH_LOG) && fs.statSync(AUTH_LOG).size > 256 * 1024) fs.rmSync(AUTH_LOG, { force: true });
+    fs.mkdirSync(paths.ROOT, { recursive: true });
+    fs.appendFileSync(AUTH_LOG, `${new Date().toISOString()} ${clean}\n`);
+  } catch {
+    // logging must never break a launch
+  }
 }
 
 // ---- skins ----
