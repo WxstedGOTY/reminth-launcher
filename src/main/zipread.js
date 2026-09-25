@@ -49,9 +49,10 @@ async function readCentralDirectory(fh, size) {
     const nameLen = cd.readUInt16LE(p + 28);
     const extraLen = cd.readUInt16LE(p + 30);
     const commentLen = cd.readUInt16LE(p + 32);
+    const externalAttrs = cd.readUInt32LE(p + 38);
     const localOffset = cd.readUInt32LE(p + 42);
     const name = cd.toString("utf8", p + 46, p + 46 + nameLen);
-    entries.set(name, { method, compSize, rawSize, localOffset });
+    entries.set(name, { method, compSize, rawSize, localOffset, externalAttrs });
     p += 46 + nameLen + extraLen + commentLen;
   }
   return entries;
@@ -66,6 +67,15 @@ async function openZip(file) {
     return {
       names: () => [...entries.keys()],
       has: (name) => entries.has(name),
+      // { name, isSymlink }[] - the unix file-mode bits live in the top 16
+      // bits of the central-directory "external attributes" field (only
+      // meaningful when the entry was made on a unix-like host, "version
+      // made by" high byte 3; non-unix entries never set the symlink bit).
+      list: () =>
+        [...entries.entries()].map(([name, e]) => ({
+          name,
+          isSymlink: ((e.externalAttrs >>> 16) & 0xf000) === 0xa000,
+        })),
       async read(name) {
         const e = entries.get(name);
         if (!e) return null;

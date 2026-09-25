@@ -39,6 +39,22 @@ function loaderFromDependencies(deps) {
   return { loader: "vanilla", loaderVersion: null, mcVersion };
 }
 
+/** Pure: true if a zip entry name could write outside the extraction dir (absolute, drive letter, or a ".." segment). */
+function isUnsafeEntryName(name) {
+  const n = String(name || "").replace(/\\/g, "/");
+  if (!n || n.startsWith("/") || /^[a-zA-Z]:/.test(n)) return true;
+  return n.split("/").some((seg) => seg === "..");
+}
+
+/** Throws if the pack contains anything extract-zip could be tricked into writing outside its target dir. */
+function assertNoUnsafeEntries(entryList) {
+  const bad = entryList.filter((e) => e.isSymlink || isUnsafeEntryName(e.name));
+  if (bad.length) {
+    const sample = bad.slice(0, 5).map((e) => e.name).join(", ");
+    throw new Error(`This pack contains unsafe archive entries (symlinks or paths that escape the pack): ${sample}. Refusing to install it.`);
+  }
+}
+
 function assertPackUrl(url) {
   const parsed = new URL(String(url));
   if (parsed.protocol !== "https:" || !ALLOWED_PACK_HOSTS.some((re) => re.test(parsed.hostname))) {
@@ -129,8 +145,19 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
 
     // 2. overrides/ then client-overrides/ (the second wins on conflicts, per spec).
     report("Copying pack settings", 0, 1);
+    // extract-zip (GHSA-jmr9-qjv8-65gv / GHSA-7pqw-9j4j-h8q3) can be tricked
+    // by a symlink entry into writing later entries outside extractDir, so
+    // the archive is pre-scanned and rejected before extract-zip ever runs.
+    const zipForScan = await zipread.openZip(packPath);
+    let entryList;
+    try {
+      entryList = zipForScan.list();
+    } finally {
+      await zipForScan.close();
+    }
+    assertNoUnsafeEntries(entryList);
     const extractDir = path.join(tmpDir, "x");
-    const extractZip = require("extract-zip"); // refuses entries that climb out of extractDir
+    const extractZip = require("extract-zip");
     await extractZip(packPath, { dir: extractDir });
     for (const folder of ["overrides", "client-overrides"]) {
       await copyTree(path.join(extractDir, folder), gameDir);
@@ -176,4 +203,4 @@ async function copyTree(src, destRoot) {
   }
 }
 
-module.exports = { installModpack, loaderFromDependencies, resolveVersion };
+module.exports = { installModpack, loaderFromDependencies, resolveVersion, isUnsafeEntryName, assertNoUnsafeEntries };
