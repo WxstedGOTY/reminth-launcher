@@ -455,6 +455,14 @@ async function installProject({ projectId, projectType, title, versionId }, butt
   if (projectType === "modpack") return installModpackFlow({ projectId, title });
   const kind = { mod: "mod", resourcepack: "resourcepack", shader: "shader", datapack: "datapack" }[projectType];
   if (!kind) return false;
+  if (pendingInstalls.has(projectId)) {
+    // A second click landed while the first install for this project was
+    // still in flight - the caller's own "done" check can't catch this,
+    // since that class isn't set until the first install finishes. Refuse
+    // the duplicate instead of sending it to the instance twice.
+    toast(`${title || "That"} is already being added to ${inst.name}…`);
+    return false;
+  }
   if ((kind === "mod" || kind === "shader") && inst.loader === "vanilla") {
     toast(`${inst.name} is a vanilla instance — ${kind === "mod" ? "mods" : "shaders"} need a loader. Edit it and pick Fabric, Quilt, Forge or NeoForge first.`);
     return false;
