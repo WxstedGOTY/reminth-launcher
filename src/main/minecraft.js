@@ -131,25 +131,41 @@ async function ensureInstalled(instance, onProgress) {
   await fsp.mkdir(gameDir, { recursive: true });
   const modsDir = path.join(gameDir, "mods");
   let removed = [];
+  let performanceModsInstalled = [];
   // ReminthHUD (+ the Fabric API it needs) goes into instances that have it
   // switched on - the original Reminth instance by default - and only when
   // a HUD build for this exact Minecraft version is bundled. Putting a HUD
   // built for another version in would stop the game from starting.
   const wantsHud = instance.hud === true && (loader === "fabric" || loader === "quilt");
-  if (wantsHud) {
-    const hudBuild = await findReminthHudFor(mcVersion);
+  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is
+  // on by default for every Fabric/Quilt instance - a player has to
+  // explicitly opt out (instance.performanceMods === false), not opt in.
+  const wantsPerfMods =
+    config.BUNDLE_PERFORMANCE_MODS &&
+    instance.performanceMods !== false &&
+    (loader === "fabric" || loader === "quilt");
+  if (wantsHud || wantsPerfMods) {
     await fsp.mkdir(modsDir, { recursive: true });
     let fabricApiJar = null;
     let hudJar = null;
-    if (hudBuild) {
-      report("Installing Fabric API", 0, 1);
-      fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
-      report("Installing ReminthHUD", 0, 1);
-      hudJar = path.basename(hudBuild.file);
-      await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
+    if (wantsHud) {
+      const hudBuild = await findReminthHudFor(mcVersion);
+      if (hudBuild) {
+        report("Installing Fabric API", 0, 1);
+        fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
+        report("Installing ReminthHUD", 0, 1);
+        hudJar = path.basename(hudBuild.file);
+        await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
+      }
+    }
+    if (wantsPerfMods) {
+      report("Installing performance mods", 0, 1);
+      performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1));
     }
     report("Tidying mods folder", 0, 1);
-    removed = await tidyManagedMods(modsDir, [fabricApiJar, hudJar], { dropHud: !hudJar });
+    removed = await tidyManagedMods(modsDir, [fabricApiJar, hudJar, ...performanceModsInstalled], {
+      dropHud: wantsHud && !hudJar,
+    });
     if (removed.length) report(`Removed ${removed.length} mod(s) Reminth no longer installs`, 0, 1);
   }
 
@@ -159,6 +175,7 @@ async function ensureInstalled(instance, onProgress) {
     clientJarPath,
     libraries: libs,
     removedMods: removed,
+    performanceModsInstalled,
     javaPath,
     nativesDir,
     assets,
@@ -1002,6 +1019,8 @@ const LEGACY_AUTO_INSTALLED = [
   /^lithium[-_.]/i,
   /^scalablelux[-_.]/i,
   /^starlight[-_.]/i,
+  /^c2me[-_.]/i,
+  /^ferritecore[-_.]/i,
   /^wxhud[-_.]/i, // ReminthHUD's pre-rename filename
 ];
 
@@ -1016,29 +1035,28 @@ function latestMatchingMavenVersion(xml, mcVersion) {
  * Best-effort install of open-source Fabric performance mods (see
  * config.PERFORMANCE_MODS) straight from each project's own GitHub
  * Releases - never Modrinth/CurseForge, Reminth doesn't depend on either.
- * A missing build for the current MINECRAFT_VERSION, or any network/parse
- * failure, is logged via onProgress and skipped rather than failing the
- * whole install: Fabric API and ReminthHUD are required, these are a bonus.
+ * A missing build for mcVersion, or any network/parse failure, is logged
+ * via onProgress and skipped rather than failing the whole install: Fabric
+ * API and ReminthHUD are required, these are a bonus. Returns the filenames
+ * actually written, for tidyManagedMods' keep list - not the labels, which
+ * wouldn't match anything on disk.
  */
-async function downloadPerformanceMods(modsDir, onProgress) {
+async function downloadPerformanceMods(modsDir, mcVersion, onProgress) {
   if (!config.BUNDLE_PERFORMANCE_MODS) return [];
   const installed = [];
-  for (const mod of config.PERFORMANCE_MODS) {
+  for (const mod of config.PERFORMANCE_MODS || []) {
     try {
-      const found = await fetchLatestGithubAssetForVersion(
-        mod.owner,
-        mod.repo,
-        config.MINECRAFT_VERSION
-      );
+      const found = await fetchLatestGithubAssetForVersion(mod.owner, mod.repo, mcVersion);
       if (!found) {
-        onProgress && onProgress(`No ${mod.label} build for ${config.MINECRAFT_VERSION} yet - skipped`);
+        onProgress && onProgress(`No ${mod.label} build for ${mcVersion} yet - skipped`);
         continue;
       }
       // GitHub's Releases API doesn't publish a per-asset checksum the way
       // Maven does, so (like the bundled-Java download in java.js) this
       // relies on TLS + the official upstream repo rather than a hash pin.
       await downloadFile(found.url, path.join(modsDir, found.filename), null);
-      installed.push(mod.label);
+      onProgress && onProgress(`Installed ${mod.label}`);
+      installed.push(found.filename);
     } catch (err) {
       onProgress && onProgress(`${mod.label} failed to install (${err.message}) - skipped`);
     }
