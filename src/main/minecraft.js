@@ -137,41 +137,31 @@ async function ensureInstalled(instance, onProgress) {
   // a HUD build for this exact Minecraft version is bundled. Putting a HUD
   // built for another version in would stop the game from starting.
   const wantsHud = instance.hud === true && (loader === "fabric" || loader === "quilt");
-  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is on
-  // by default, opt-out via instance.performanceMods === false - but Fabric
-  // only, never Quilt. Quilt versions its own loader independently of the
-  // "Fabric loader" compatibility number it reports to Fabric-API mods (Quilt
-  // Loader 0.30.x can still report a much older Fabric-compat version), so a
-  // mod's real minimum-loader requirement can be unmet on Quilt even on a
-  // fully up to date install, with no reliable way to predict it per release.
-  // Bundling blind onto Quilt is how a player ends up with "Minecraft failed
-  // to launch" from a mod they never chose to install. Fabric only.
+  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is
+  // on by default for every Fabric/Quilt instance - a player has to
+  // explicitly opt out (instance.performanceMods === false), not opt in.
   const wantsPerfMods =
-    config.BUNDLE_PERFORMANCE_MODS && instance.performanceMods !== false && loader === "fabric";
-  const wantsModsDir = wantsHud || wantsPerfMods;
-  if (wantsModsDir) await fsp.mkdir(modsDir, { recursive: true });
-  let fabricApiJar = null;
-  let hudJar = null;
-  if (wantsHud) {
-    const hudBuild = await findReminthHudFor(mcVersion);
-    if (hudBuild) {
-      report("Installing Fabric API", 0, 1);
-      fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
-      report("Installing ReminthHUD", 0, 1);
-      hudJar = path.basename(hudBuild.file);
-      await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
+    config.BUNDLE_PERFORMANCE_MODS &&
+    instance.performanceMods !== false &&
+    (loader === "fabric" || loader === "quilt");
+  if (wantsHud || wantsPerfMods) {
+    await fsp.mkdir(modsDir, { recursive: true });
+    let fabricApiJar = null;
+    let hudJar = null;
+    if (wantsHud) {
+      const hudBuild = await findReminthHudFor(mcVersion);
+      if (hudBuild) {
+        report("Installing Fabric API", 0, 1);
+        fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
+        report("Installing ReminthHUD", 0, 1);
+        hudJar = path.basename(hudBuild.file);
+        await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
+      }
     }
-  }
-  if (wantsPerfMods) {
-    report("Installing performance mods", 0, 1);
-    performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1));
-  }
-  // Runs whenever the game has a mods folder at all, not just when Reminth
-  // wants something installed right now - an instance that used to qualify
-  // for the performance pack (e.g. an existing Quilt instance from before
-  // this fix) still needs those jars swept out on the very next launch,
-  // not left there forever because nothing here asked for the tidy pass.
-  if (wantsModsDir || (await fsp.access(modsDir).then(() => true).catch(() => false))) {
+    if (wantsPerfMods) {
+      report("Installing performance mods", 0, 1);
+      performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1));
+    }
     report("Tidying mods folder", 0, 1);
     removed = await tidyManagedMods(modsDir, [fabricApiJar, hudJar, ...performanceModsInstalled], {
       dropHud: wantsHud && !hudJar,
@@ -1054,11 +1044,19 @@ function latestMatchingMavenVersion(xml, mcVersion) {
 async function downloadPerformanceMods(modsDir, mcVersion, onProgress) {
   if (!config.BUNDLE_PERFORMANCE_MODS) return [];
   const installed = [];
+  // These messages used to only ever exist as a flash of text in the
+  // install progress bar - gone the moment the next stage message replaced
+  // it, with no way to go back and check "did Sodium actually install, and
+  // if not, why" after the fact. Written next to the mods it's about so
+  // it's easy to find without knowing this exists.
+  const logLines = [`=== performance mods install, ${new Date().toISOString()}, mcVersion=${mcVersion} ===`];
   for (const mod of config.PERFORMANCE_MODS || []) {
     try {
       const found = await fetchLatestGithubAssetForVersion(mod.owner, mod.repo, mcVersion);
       if (!found) {
-        onProgress && onProgress(`No ${mod.label} build for ${mcVersion} yet - skipped`);
+        const msg = `No ${mod.label} build for ${mcVersion} yet - skipped`;
+        onProgress && onProgress(msg);
+        logLines.push(msg);
         continue;
       }
       // GitHub's Releases API doesn't publish a per-asset checksum the way
@@ -1066,10 +1064,18 @@ async function downloadPerformanceMods(modsDir, mcVersion, onProgress) {
       // relies on TLS + the official upstream repo rather than a hash pin.
       await downloadFile(found.url, path.join(modsDir, found.filename), null);
       onProgress && onProgress(`Installed ${mod.label}`);
+      logLines.push(`Installed ${mod.label}: ${found.filename} (release ${found.version})`);
       installed.push(found.filename);
     } catch (err) {
-      onProgress && onProgress(`${mod.label} failed to install (${err.message}) - skipped`);
+      const msg = `${mod.label} failed to install (${err.message}) - skipped`;
+      onProgress && onProgress(msg);
+      logLines.push(msg);
     }
+  }
+  try {
+    await fsp.writeFile(path.join(path.dirname(modsDir), "reminth-performance-mods.log"), logLines.join("\n") + "\n");
+  } catch {
+    // Best-effort - a missing log is annoying to debug, not worth failing the install over.
   }
   return installed;
 }
@@ -1103,11 +1109,22 @@ async function fetchLatestGithubAssetForVersion(owner, repo, mcVersion) {
   return null;
 }
 
-/** Pure: does this GitHub release's tag/name reference mcVersion (e.g. "mc26.1.2-0.9.2" contains "26.1.2")? */
+/**
+ * Pure: does this GitHub release reference mcVersion? Checked in three
+ * places, in order of how much they should be trusted: the tag (e.g.
+ * "mc26.1.2-0.9.2" contains "26.1.2"), the release name/title, and - some
+ * projects (ScalableLux confirmed: tags and names are bare mod versions
+ * like "0.2.1", the Minecraft version only ever appears in the changelog
+ * text, e.g. "ScalableLux 0.2.1 for Minecraft 26.2 is released") - the
+ * release body. The body check is last and loosest on purpose: it's prose,
+ * not a version field, so it only kicks in once the two structured fields
+ * have already said no.
+ */
 function releaseMatchesVersion(release, mcVersion) {
   const tag = release.tag_name || "";
   const name = release.name || "";
-  return tag.includes(mcVersion) || name.includes(mcVersion);
+  const body = release.body || "";
+  return tag.includes(mcVersion) || name.includes(mcVersion) || body.includes(mcVersion);
 }
 
 /**
