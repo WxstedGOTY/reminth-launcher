@@ -425,6 +425,7 @@ ipcMain.handle("content:install", async (_e, id, request) => {
   const inst = await instances.require(id);
   return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }));
 });
+ipcMain.handle("content:creators", async (_e, id) => content.lookupCreators((await instances.require(id)).gameDir));
 ipcMain.handle("content:checkUpdates", async (_e, id) => content.checkUpdates(await instances.require(id)));
 ipcMain.handle("content:applyUpdates", async (_e, id, updates) => {
   if (running.has(id)) throw new Error("Close the game first - Windows won't let files in use be replaced.");

@@ -34,8 +34,10 @@ function readRateLimitHeaders(res) {
   if (reset !== null) rateLimit.resetSeconds = Number(reset);
 }
 
-async function request(path, { method = "GET", body, query } = {}) {
-  const url = new URL(BASE_URL + path);
+const BASE_URL_V3 = "https://api.modrinth.com/v3";
+
+async function request(path, { method = "GET", body, query, base = BASE_URL } = {}) {
+  const url = new URL(base + path);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined || value === null) continue;
@@ -199,6 +201,17 @@ async function getProjects(ids) {
   return request("/projects", { query: { ids: JSON.stringify(ids) } });
 }
 
+/** Team members for many teams at once -> [[member, ...], ...]. v3 because
+ *  only v3 says which member is the owner (is_owner). */
+async function getTeams(ids) {
+  return request("/teams", { query: { ids: JSON.stringify(ids) }, base: BASE_URL_V3 });
+}
+
+/** Organizations (a group that owns projects instead of one person) - v3 only. */
+async function getOrganizations(ids) {
+  return request("/organizations", { query: { ids: JSON.stringify(ids) }, base: BASE_URL_V3 });
+}
+
 async function getProjectVersions(idOrSlug, { loaders, gameVersions } = {}) {
   return request(`/project/${encodeURIComponent(idOrSlug)}/version`, {
     query: {
@@ -263,6 +276,8 @@ module.exports = {
   getProjectDependencies,
   checkForUpdates,
   getVersionsFromHashes,
+  getTeams,
+  getOrganizations,
   getTags,
   rateLimitStatus,
 };

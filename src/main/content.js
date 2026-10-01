@@ -157,7 +157,22 @@ function parseModsToml(text) {
     version: get(block, "version"),
     description: get(block, "description"),
     icon: get(block, "logoFile") || get(head, "logoFile"),
+    authors: get(block, "authors") || get(head, "authors"),
   };
+}
+
+/**
+ * Pure: the first listed author from whatever shape the loader's metadata
+ * uses - fabric's ["a", {name: "b"}], mcmod.info's authorList, a toml
+ * "a, b and c" string, or quilt's contributor keys. Shown under the mod's
+ * name in the instance content list.
+ */
+function firstAuthor(authors) {
+  let first = null;
+  if (Array.isArray(authors)) first = authors.find((a) => (typeof a === "string" && a.trim()) || (a && typeof a.name === "string"));
+  else if (typeof authors === "string") first = authors.split(/,|\band\b|&/i)[0];
+  if (first && typeof first === "object") first = first.name;
+  return typeof first === "string" && first.trim() ? first.trim().slice(0, 60) : null;
 }
 
 /** Pure: Implementation-Version from a jar manifest (what Forge's ${file.jarVersion} means). */
@@ -191,7 +206,7 @@ async function readJarMeta(full, stat) {
             try {
               const parsed = JSON.parse(info.toString("utf8").replace(/^﻿/, ""));
               const first = Array.isArray(parsed) ? parsed[0] : parsed && Array.isArray(parsed.modList) ? parsed.modList[0] : null;
-              if (first) json = { id: first.modid, name: first.name, version: first.version, description: first.description, icon: first.logoFile };
+              if (first) json = { id: first.modid, name: first.name, version: first.version, description: first.description, icon: first.logoFile, authors: first.authorList || first.authors };
             } catch {
               // malformed mcmod.info - list by file name
             }
@@ -201,7 +216,7 @@ async function readJarMeta(full, stat) {
       }
       if (json && json.quilt_loader) {
         const q = json.quilt_loader;
-        json = { id: q.id, name: q.metadata && q.metadata.name, version: q.version, icon: q.metadata && q.metadata.icon, description: q.metadata && q.metadata.description };
+        json = { id: q.id, name: q.metadata && q.metadata.name, version: q.version, icon: q.metadata && q.metadata.icon, description: q.metadata && q.metadata.description, authors: q.metadata && q.metadata.contributors ? Object.keys(q.metadata.contributors) : null };
       }
       if (json) {
         let iconPath = json.icon;
@@ -221,6 +236,7 @@ async function readJarMeta(full, stat) {
           name: typeof json.name === "string" ? json.name.slice(0, 80) : null,
           version: typeof json.version === "string" ? json.version.slice(0, 40) : null,
           description: typeof json.description === "string" ? json.description.slice(0, 200) : null,
+          author: firstAuthor(json.authors),
           icon,
         };
       }
@@ -300,6 +316,7 @@ async function listFolder(gameDir, kind, world, manifest) {
         item.icon = meta.icon;
         item.modId = meta.modId;
         item.description = meta.description;
+        item.author = meta.author || null;
       }
     }
     out.push(item);
@@ -780,6 +797,181 @@ async function applyUpdates(instance, updates, onProgress) {
   return { applied, failed };
 }
 
+
+/* ---- who made it: real Modrinth creator name + profile picture ---- */
+
+const CREATORS_FILE = path.join(require("os").homedir(), "AppData", "Roaming", "Reminth", "creators-cache.json");
+const CREATORS_TTL_MS = 7 * 24 * 60 * 60 * 1000; // a week - avatars and owners rarely change
+const NOT_ON_MODRINTH_TTL_MS = 24 * 60 * 60 * 1000; // re-ask once a day about files Modrinth didn't know
+const sha1Cache = new Map(); // full path -> { size, mtimeMs, sha1 }
+let creatorsDisk = null;
+
+async function cachedSha1(full) {
+  const stat = await fsp.stat(full);
+  const hit = sha1Cache.get(full);
+  if (hit && hit.size === stat.size && hit.mtimeMs === stat.mtimeMs) return hit.sha1;
+  const sha1 = await sha1File(full);
+  sha1Cache.set(full, { size: stat.size, mtimeMs: stat.mtimeMs, sha1 });
+  return sha1;
+}
+
+async function loadCreatorsDisk() {
+  if (creatorsDisk) return creatorsDisk;
+  try {
+    creatorsDisk = JSON.parse(await fsp.readFile(CREATORS_FILE, "utf8")) || {};
+  } catch {
+    creatorsDisk = {};
+  }
+  return creatorsDisk;
+}
+
+async function saveCreatorsDisk() {
+  try {
+    await fsp.writeFile(CREATORS_FILE, JSON.stringify(creatorsDisk));
+  } catch {
+    // cache only - losing it just means asking Modrinth again next time
+  }
+}
+
+/** Pure: an https image URL we're willing to hand the renderer, else null. */
+function httpsImage(url) {
+  try {
+    const u = new URL(String(url || ""));
+    return u.protocol === "https:" ? u.href : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Pure: the member shown as a project's creator - the owner, else the first listed. */
+function pickOwner(members) {
+  const list = (Array.isArray(members) ? members : []).filter((m) => m && m.user);
+  return (
+    list.find((m) => m.is_owner === true) ||
+    list.find((m) => /^owner$/i.test(String(m.role || ""))) ||
+    list.slice().sort((a, b) => (a.ordering ?? 0) - (b.ordering ?? 0))[0] ||
+    null
+  );
+}
+
+const chunk = (arr, n) => Array.from({ length: Math.ceil(arr.length / n) }, (_, i) => arr.slice(i * n, i * n + n));
+
+/**
+ * { "kind/world/file": { author, avatar, title, iconUrl, projectId } } for
+ * every file in the instance Modrinth recognises (looked up by sha1, the
+ * same way the Modrinth app does). Organisation-owned projects show the
+ * organisation; everything else shows the project owner. Never throws -
+ * offline or rate-limited just means fewer entries, and the list falls
+ * back to the name read out of the jar.
+ */
+async function lookupCreators(gameDir) {
+  const all = await listAll(gameDir);
+  const disk = await loadCreatorsDisk();
+  const now = Date.now();
+  const byHash = new Map(); // sha1 -> [key, ...]
+  for (const kind of ["mod", "resourcepack", "shader", "datapack"]) {
+    for (const item of all[kind] || []) {
+      if (!item.valid || item.folder) continue;
+      try {
+        const sha1 = await cachedSha1(path.join(folderFor(gameDir, kind, item.world), item.file));
+        const key = `${kind}/${item.world || ""}/${item.file}`;
+        if (!byHash.has(sha1)) byHash.set(sha1, []);
+        byHash.get(sha1).push(key);
+      } catch {
+        // locked or vanished mid-read - skip it this time
+      }
+    }
+  }
+
+  const stale = [...byHash.keys()].filter((h) => {
+    const c = disk[h];
+    if (!c) return true;
+    if (!c.none && c.v !== 2) return true; // older cache entries lack categories / dependencies
+    return now - c.at > (c.none ? NOT_ON_MODRINTH_TTL_MS : CREATORS_TTL_MS);
+  });
+
+  if (stale.length) {
+    try {
+      const versions = {};
+      for (const part of chunk(stale, 200)) Object.assign(versions, (await modrinth.getVersionsFromHashes(part, "sha1")) || {});
+      const projectIds = [...new Set(Object.values(versions).map((v) => v && v.project_id).filter(Boolean))];
+      const projects = new Map();
+      for (const part of chunk(projectIds, 100)) for (const p of (await modrinth.getProjects(part)) || []) projects.set(p.id, p);
+
+      const teamIds = [...new Set([...projects.values()].filter((p) => !p.organization && p.team).map((p) => p.team))];
+      const orgIds = [...new Set([...projects.values()].map((p) => p.organization).filter(Boolean))];
+      const owners = new Map(); // team id -> member
+      for (const part of chunk(teamIds, 100)) {
+        try {
+          for (const members of (await modrinth.getTeams(part)) || []) {
+            const owner = pickOwner(members);
+            const teamId = owner ? owner.team_id : Array.isArray(members) && members[0] && members[0].team_id;
+            if (teamId && owner) owners.set(teamId, owner);
+          }
+        } catch {
+          // no owners this round - names still come from the jar
+        }
+      }
+      const orgs = new Map();
+      for (const part of chunk(orgIds, 100)) {
+        try {
+          for (const o of (await modrinth.getOrganizations(part)) || []) if (o && o.id) orgs.set(o.id, o);
+        } catch {
+          // fall back to the team owner below
+        }
+      }
+
+      for (const hash of stale) {
+        const v = versions[hash];
+        const p = v && projects.get(v.project_id);
+        if (!p) {
+          disk[hash] = { at: now, none: true };
+          continue;
+        }
+        const org = p.organization && orgs.get(p.organization);
+        const owner = owners.get(p.team);
+        disk[hash] = {
+          v: 2,
+          at: now,
+          projectId: p.id,
+          slug: typeof p.slug === "string" ? p.slug.slice(0, 80) : null,
+          categories: (Array.isArray(p.categories) ? p.categories : []).filter((c) => typeof c === "string").slice(0, 12),
+          requires: (Array.isArray(v.dependencies) ? v.dependencies : [])
+            .filter((d) => d && d.dependency_type === "required" && typeof d.project_id === "string")
+            .map((d) => d.project_id)
+            .slice(0, 30),
+          title: typeof p.title === "string" ? p.title.slice(0, 80) : null,
+          iconUrl: httpsImage(p.icon_url),
+          author: org ? String(org.name || "").slice(0, 60) || null : owner ? String(owner.user.username || "").slice(0, 60) || null : null,
+          avatar: org ? httpsImage(org.icon_url) : owner ? httpsImage(owner.user.avatar_url) : null,
+        };
+      }
+      await saveCreatorsDisk();
+    } catch {
+      // offline / rate-limited: use whatever's cached
+    }
+  }
+
+  const out = {};
+  for (const [hash, keys] of byHash) {
+    const c = disk[hash];
+    if (!c || c.none) continue;
+    for (const key of keys) {
+      out[key] = {
+        author: c.author,
+        avatar: c.avatar,
+        title: c.title,
+        iconUrl: c.iconUrl,
+        projectId: c.projectId,
+        slug: c.slug || null,
+        categories: c.categories || [],
+        requires: c.requires || [],
+      };
+    }
+  }
+  return out;
+}
+
 module.exports = {
   KINDS,
   listAll,
@@ -790,6 +982,8 @@ module.exports = {
   install,
   checkUpdates,
   applyUpdates,
+  lookupCreators,
+  pickOwner,
   downloadWithHash,
   readManifest,
   writeManifest,

@@ -1,0 +1,6 @@
+# Netlify builds the website from site/ only.
+# Skip the build (and its 15 credits) when a commit does not touch the website,
+# so launcher-only commits stop using up the free plan.
+[build]
+  publish = "site"
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- site/ netlify.toml"

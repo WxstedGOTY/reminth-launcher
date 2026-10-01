@@ -148,11 +148,20 @@ async function ensureInstalled(instance, onProgress) {
     await fsp.mkdir(modsDir, { recursive: true });
     let fabricApiJar = null;
     let hudJar = null;
+    // Fabric API is a hard dependency of the performance pack too (Sodium/
+    // Lithium/ScalableLux won't load without it), not just ReminthHUD - it
+    // used to only be fetched inside the wantsHud branch, which meant
+    // turning the HUD off on a Fabric/Quilt instance left `keep[0]` null on
+    // the next launch and tidyManagedMods deleted the already-installed
+    // Fabric API jar as "stale", silently breaking every perf mod that
+    // depends on it. Fetch/keep it whenever either wants it installed.
+    if (wantsHud || wantsPerfMods) {
+      report("Installing Fabric API", 0, 1);
+      fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
+    }
     if (wantsHud) {
       const hudBuild = await findReminthHudFor(mcVersion);
       if (hudBuild) {
-        report("Installing Fabric API", 0, 1);
-        fabricApiJar = await downloadFabricApi(modsDir, mcVersion).catch(() => null);
         report("Installing ReminthHUD", 0, 1);
         hudJar = path.basename(hudBuild.file);
         await fsp.writeFile(path.join(modsDir, hudJar), await fsp.readFile(hudBuild.file));
@@ -164,7 +173,12 @@ async function ensureInstalled(instance, onProgress) {
     }
     report("Tidying mods folder", 0, 1);
     removed = await tidyManagedMods(modsDir, [fabricApiJar, hudJar, ...performanceModsInstalled], {
-      dropHud: wantsHud && !hudJar,
+      // Drop the ReminthHUD jar whenever the player doesn't currently want
+      // it - not just when they want it but the build lookup failed. Before
+      // this fix, switching the HUD off in Edit only stopped Reminth from
+      // reinstalling a fresh copy; the jar already on disk was never
+      // touched and kept loading every launch.
+      dropHud: !wantsHud,
     });
     if (removed.length) report(`Removed ${removed.length} mod(s) Reminth no longer installs`, 0, 1);
   }

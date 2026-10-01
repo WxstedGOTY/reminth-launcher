@@ -11,7 +11,7 @@
        (connect-src stays 'none'). media-src file: is for the player's own
        clips and screenshots in the Captures tab. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com https://avatars.githubusercontent.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -256,29 +256,36 @@
 
         <!-- ══ INSTANCE ══ -->
         <div id="instance" class="page">
-          <div class="card instance-hero">
-            <div class="instance-art" id="instArt"><span class="instance-chip xl">R</span></div>
-            <div class="instance-info">
-              <div class="eyebrow">Instance</div>
-              <h2 class="display" id="instName">Reminth</h2>
-              <div class="chips">
-                <span class="tag cyan" id="instLoader">Fabric</span>
-                <span class="tag violet" id="instVersion">—</span>
-                <span class="tag dim" id="instPack" hidden>—</span>
-                <span class="tag emerald" id="instState">Ready</span>
+          <!-- Compact header: icon, name, one line of facts, then Play / settings / more -->
+          <div class="instance-bar">
+            <div class="instance-art" id="instArt"><span class="instance-chip">R</span></div>
+            <div class="ib-info">
+              <h2 id="instName">Reminth</h2>
+              <div class="ib-meta">
+                <span class="ib-m"><svg class="i"><use href="#i-cube"/></svg><span id="instLoader">Fabric</span><span id="instVersion">—</span></span>
+                <span class="ib-dot"></span>
+                <span class="ib-m"><svg class="i"><use href="#i-clock"/></svg><span id="instPlaytime">—</span></span>
+                <span class="ib-dot"></span>
+                <span class="ib-m"><svg class="i"><use href="#i-clock-old"/></svg><span id="instLastPlayed">Never played</span></span>
+                <span class="ib-dot"></span>
+                <span class="ib-m"><svg class="i"><use href="#i-world"/></svg><span id="instWorlds">—</span>worlds</span>
+                <span class="ib-dot"></span>
+                <span class="ib-m"><span id="instMods">—</span>mods on</span>
+                <span class="ib-m ib-pack" id="instPack" hidden>—</span>
+                <span class="ib-state" id="instState">Ready</span>
               </div>
-              <div class="kv-row">
-                <div class="kv"><span>Time played</span><b id="instPlaytime">—</b></div>
-                <div class="kv"><span>Worlds</span><b id="instWorlds">—</b></div>
-                <div class="kv"><span>Mods</span><b id="instMods">—</b></div>
-              </div>
-              <div class="row-actions">
-                <button class="btn primary" id="instPlayBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
-                <button class="btn primary danger-fill" id="instStopBtn" hidden><svg class="i"><use href="#i-x"/></svg>Stop</button>
-                <button class="btn outline" id="instEditBtn"><svg class="i"><use href="#i-edit"/></svg>Version &amp; name</button>
-                <button class="btn outline" id="openGameFolder"><svg class="i"><use href="#i-folder"/></svg>Open folder</button>
-                <button class="btn outline" id="repairBtn"><svg class="i"><use href="#i-refresh"/></svg>Verify files</button>
-                <button class="btn ghost danger" id="instDeleteBtn" hidden><svg class="i"><use href="#i-trash"/></svg>Delete</button>
+            </div>
+            <div class="ib-actions">
+              <button class="btn primary ib-play" id="instPlayBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+              <button class="btn primary danger-fill ib-play" id="instStopBtn" hidden><svg class="i"><use href="#i-x"/></svg>Stop</button>
+              <button class="ib-round" id="instEditBtn" title="Version &amp; name"><svg class="i"><use href="#i-gear"/></svg></button>
+              <div class="sort-dd ib-more" id="instMore">
+                <button class="ib-round ib-kebab" id="instMoreBtn" title="More"><span class="kebab"></span></button>
+                <div class="dd-menu right">
+                  <button class="dd-item" id="openGameFolder"><svg class="i"><use href="#i-folder"/></svg><span>Open folder</span></button>
+                  <button class="dd-item" id="repairBtn"><svg class="i"><use href="#i-refresh"/></svg><span>Verify files</span></button>
+                  <button class="dd-item danger" id="instDeleteBtn" hidden><svg class="i"><use href="#i-trash"/></svg><span>Delete instance</span></button>
+                </div>
               </div>
             </div>
           </div>
@@ -295,15 +302,20 @@
 
           <!-- One toolbar for every content tab: search, sort, update everything -->
           <div class="content-toolbar" id="contentToolbar">
-            <div class="mod-search compact">
-              <svg class="i"><use href="#i-search"/></svg>
-              <input id="contentSearch" type="text" placeholder="Search this instance…" autocomplete="off" />
+            <div class="ct-row">
+              <div class="mod-search ct-search">
+                <svg class="i"><use href="#i-search"/></svg>
+                <input id="contentSearch" type="text" placeholder="Search this instance…" autocomplete="off" />
+              </div>
+              <button class="btn outline ct-btn" id="openContentFolder"><svg class="i"><use href="#i-folder"/></svg><span>Open folder</span></button>
+              <button class="btn primary ct-btn" id="addContentBtn"><svg class="i"><use href="#i-compass"/></svg><span>Browse content</span></button>
             </div>
-            <div class="sort-dd" id="contentSort"></div>
-            <div class="toolbar-spacer"></div>
-            <button class="pill-btn" id="updateAllBtn"><svg class="i"><use href="#i-download"/></svg><span id="updateAllText">Check for updates</span></button>
-            <button class="btn outline sm" id="addContentBtn"><svg class="i"><use href="#i-plus"/></svg><span>Add content</span></button>
-            <button class="btn outline sm icon-only" id="openContentFolder" title="Open folder"><svg class="i"><use href="#i-folder"/></svg></button>
+            <div class="ct-row">
+              <div class="sort-dd" id="contentSort"></div>
+              <div class="toolbar-spacer"></div>
+              <button class="ct-link" id="updateAllBtn"><svg class="i"><use href="#i-download"/></svg><span id="updateAllText">Check for updates</span></button>
+              <button class="ct-link plain" id="contentRefresh"><svg class="i"><use href="#i-refresh"/></svg><span>Refresh</span></button>
+            </div>
           </div>
           <div class="update-panel" id="updatePanel" hidden></div>
 
@@ -385,34 +397,37 @@
 
         <!-- ══ DISCOVER ══ -->
         <div id="discover" class="page">
-          <div class="page-head">
-            <div>
-              <div class="eyebrow">Discover</div>
-              <h1 class="display">Find something new</h1>
-              <p class="lede">Modpacks, mods, packs, shaders and servers from Modrinth. Installs go straight into <b id="discoverTarget">your instance</b>.</p>
-            </div>
-            <div class="head-mods">
-              <div class="head-mods-top">
-                <svg class="i"><use href="#i-cube"/></svg>
-                <span class="head-mods-label">In your mods folder</span>
-                <span class="head-mods-count" id="modsFolderNote"></span>
-              </div>
-              <div class="head-mods-list" id="installedMods"></div>
-            </div>
-            <button class="btn outline" id="openModsFolder"><svg class="i"><use href="#i-folder"/></svg>Open mods folder</button>
-          </div>
-
-          <div class="tabs discover-tabs" id="browseTabs">
-            <button class="tab" data-type="modpack"><svg class="i"><use href="#i-library"/></svg>Modpacks</button>
-            <button class="tab active" data-type="mod"><svg class="i"><use href="#i-cube"/></svg>Mods</button>
-            <button class="tab" data-type="resourcepack"><svg class="i"><use href="#i-pack"/></svg>Resource Packs</button>
-            <button class="tab" data-type="datapack"><svg class="i"><use href="#i-block"/></svg>Data Packs</button>
-            <button class="tab" data-type="shader"><svg class="i"><use href="#i-shader"/></svg>Shaders</button>
-            <button class="tab" data-type="server"><svg class="i"><use href="#i-server"/></svg>Servers</button>
-          </div>
-
           <div class="discover-layout">
             <div class="discover-main">
+            <div class="page-head">
+              <div>
+                <div class="eyebrow">Discover</div>
+                <h1 class="display">Find something new</h1>
+                <p class="lede">Modpacks, mods, packs, shaders and servers from Modrinth.</p>
+                <!-- Which instance Install puts things into - switchable right here. -->
+                <div class="install-target"><span>Installing into</span><div class="sort-dd target-dd" id="discoverTargetDd"></div><b id="discoverTarget" hidden></b></div>
+              </div>
+              <!-- "In your mods folder" panel - hidden from the UI on purpose; the
+                   code that fills it still runs, it just isn't shown. -->
+              <div class="head-mods" hidden>
+                <div class="head-mods-top">
+                  <svg class="i"><use href="#i-cube"/></svg>
+                  <span class="head-mods-label">In your mods folder</span>
+                  <span class="head-mods-count" id="modsFolderNote"></span>
+                </div>
+                <div class="head-mods-list" id="installedMods"></div>
+              </div>
+              <button class="btn outline" id="openModsFolder"><svg class="i"><use href="#i-folder"/></svg>Open mods folder</button>
+            </div>
+
+            <div class="tabs discover-tabs" id="browseTabs">
+              <button class="tab" data-type="modpack"><svg class="i"><use href="#i-library"/></svg>Modpacks</button>
+              <button class="tab active" data-type="mod"><svg class="i"><use href="#i-cube"/></svg>Mods</button>
+              <button class="tab" data-type="resourcepack"><svg class="i"><use href="#i-pack"/></svg>Resource Packs</button>
+              <button class="tab" data-type="datapack"><svg class="i"><use href="#i-block"/></svg>Data Packs</button>
+              <button class="tab" data-type="shader"><svg class="i"><use href="#i-shader"/></svg>Shaders</button>
+              <button class="tab" data-type="server"><svg class="i"><use href="#i-server"/></svg>Servers</button>
+            </div>
               <div class="mod-search">
                 <svg class="i"><use href="#i-search"/></svg>
                 <input id="browseSearch" type="text" placeholder="Search mods…" autocomplete="off" />
@@ -470,34 +485,76 @@
 
         <!-- ══ REMINTH HOSTING ══ -->
         <div id="hosting" class="page">
-          <div class="card host-hero">
-            <div class="host-glow"></div>
-            <div class="host-copy">
-              <div class="eyebrow">Reminth Hosting</div>
+          <div class="host-v2">
+            <div class="hv-copy">
+              <div class="hv-eyebrow"><span>Reminth Hosting</span><em class="soon">Soon</em></div>
               <h1 class="display">Your server, minus the evening of setup</h1>
               <p class="lede">Make a server from inside Reminth, on the exact mods and version you already play, and send your friends one link. No VPS, no port forwarding, no server.properties.</p>
+              <div class="hv-features">
+                <div class="hv-feat">
+                  <span class="perk-ico perk-tile t-cyan"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
+                  <div><b>Your instance, as a server</b><p>Boots on the same loader and mod list you already play. Nothing to upload or match up by hand.</p></div>
+                </div>
+                <div class="hv-feat">
+                  <span class="perk-ico perk-tile t-amber"><img class="perk-art" src="../../assets/hosting/bolt-icon.svg" alt="" /></span>
+                  <div><b>Up in under a minute</b><p>Name it, pick who's allowed in, press create. Friends join from their own Reminth on the right version.</p></div>
+                </div>
+                <div class="hv-feat">
+                  <span class="perk-ico perk-tile t-violet"><img class="perk-art" src="../../assets/hosting/anvil-icon.svg" alt="" /></span>
+                  <div><b>Tweak it without a panel</b><p>Gamerules, whitelist, backups and restarts from the app you launch the game with.</p></div>
+                </div>
+              </div>
               <div class="row-actions">
                 <button class="btn primary is-soon" disabled><svg class="i"><use href="#i-plus"/></svg>Create a server<em class="soon">Soon</em></button>
                 <button class="btn outline" data-page="plus"><svg class="i"><use href="#i-gem"/></svg>Free with Reminth+</button>
               </div>
             </div>
-          </div>
 
-          <div class="host-features">
-            <div class="card host-feature f-cyan">
-              <img src="../../assets/hosting/cube.png" alt="" />
-              <b>Your instance, as a server</b>
-              <p>It boots on the same loader and mod list as the instance you made it from. Nothing to upload, nothing to match up by hand.</p>
-            </div>
-            <div class="card host-feature f-amber">
-              <img src="../../assets/hosting/bolt.png" alt="" />
-              <b>Up in under a minute</b>
-              <p>Name it, pick who's allowed in, press create. Friends join from their own Reminth on the right version automatically.</p>
-            </div>
-            <div class="card host-feature f-violet">
-              <img src="../../assets/hosting/anvil.png" alt="" />
-              <b>Tweak it without a panel</b>
-              <p>Gamerules, whitelist, backups and restarts from the same app you launch the game with. No second dashboard to learn.</p>
+            <!-- Illustrative preview of what hosting will look like - not interactive, labelled as a preview. -->
+            <div class="hv-stage" aria-label="Preview of Reminth Hosting">
+              <span class="hv-preview-tag">Preview</span>
+              <div class="hp-server">
+                <div class="hp-srv-top">
+                  <span class="hp-srv-ico"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
+                  <div class="hp-srv-name"><b>Friday Night SMP</b><span><i class="hp-live"></i>Online · join code <code>RMN-4F2K</code></span></div>
+                </div>
+                <div class="hp-srv-stats">
+                  <div><span>Players</span><b>3<small>/10</small></b><div class="hp-minis"><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#7a2e1a"/><rect x="0" y="1" width="1" height="1" fill="#7a2e1a"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#7a2e1a"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#7c3aed"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#7c3aed"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#1c1c1c"/><rect x="0" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="2" y="1" width="4" height="1" fill="#c69c7b"/><rect x="6" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span></div></div>
+                  <div><span>Instance</span><b>Fabric 26.2</b><small class="hp-sub">27 mods in sync</small></div>
+                  <div><span>Performance</span><b>20.0 <small>TPS</small></b><div class="hp-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+                </div>
+              </div>
+              <div class="hp-invite">
+                <div class="hp-inv-head"><svg class="i"><use href="#i-people"/></svg><b>Invite friends</b></div>
+                <div class="hp-inv-search"><svg class="i"><use href="#i-search"/></svg><span>Minecraft username…</span><span class="hp-add"><svg class="i"><use href="#i-plus"/></svg>Add</span></div>
+                <div class="hp-inv-list">
+                  <div class="hp-friend">
+                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="2" height="1" fill="#e8e8e8"/><rect x="2" y="1" width="4" height="1" fill="#8d5a3b"/><rect x="6" y="1" width="2" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="3" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#8d5a3b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="0" y="5" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="0" y="7" width="8" height="1" fill="#8d5a3b"/></svg><i class="hp-dot online"></i></span>
+                    <span class="hp-fname">Kiraxx<small>Online</small></span>
+                    <span class="hp-btn">Invite</span>
+                  </div>
+                  <div class="hp-friend">
+                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg><i class="hp-dot ingame"></i></span>
+                    <span class="hp-fname">blockbuster_<small>In game</small></span>
+                    <span class="hp-btn done"><svg class="i"><use href="#i-check"/></svg>Invited</span>
+                  </div>
+                  <div class="hp-friend">
+                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#5a3a1c"/><rect x="0" y="1" width="1" height="1" fill="#5a3a1c"/><rect x="1" y="1" width="6" height="1" fill="#e0b48f"/><rect x="7" y="1" width="1" height="1" fill="#5a3a1c"/><rect x="0" y="2" width="8" height="1" fill="#e0b48f"/><rect x="0" y="3" width="8" height="1" fill="#e0b48f"/><rect x="0" y="4" width="1" height="1" fill="#e0b48f"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#22c55e"/><rect x="3" y="4" width="2" height="1" fill="#e0b48f"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#22c55e"/><rect x="7" y="4" width="1" height="1" fill="#e0b48f"/><rect x="0" y="5" width="8" height="1" fill="#e0b48f"/><rect x="0" y="6" width="2" height="1" fill="#e0b48f"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#e0b48f"/><rect x="0" y="7" width="8" height="1" fill="#e0b48f"/></svg><i class="hp-dot online"></i></span>
+                    <span class="hp-fname">NovaPvP<small>Online</small></span>
+                    <span class="hp-btn">Invite</span>
+                  </div>
+                  <div class="hp-friend off">
+                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#3b3b8f"/><rect x="0" y="1" width="2" height="1" fill="#3b3b8f"/><rect x="2" y="1" width="4" height="1" fill="#8d5a3b"/><rect x="6" y="1" width="2" height="1" fill="#3b3b8f"/><rect x="0" y="2" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="3" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#7c3aed"/><rect x="3" y="4" width="2" height="1" fill="#8d5a3b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#7c3aed"/><rect x="7" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="0" y="5" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="0" y="7" width="8" height="1" fill="#8d5a3b"/></svg><i class="hp-dot offline"></i></span>
+                    <span class="hp-fname">TheRealMoss<small>Offline</small></span>
+                    <span class="hp-btn">Invite</span>
+                  </div>
+                </div>
+                <div class="hp-inv-link"><span>reminth://join/RMN-4F2K</span><svg class="i"><use href="#i-copy"/></svg></div>
+              </div>
+              <div class="hp-toast">
+                <span class="hp-head lg"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#1c1c1c"/><rect x="0" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="2" y="1" width="4" height="1" fill="#c69c7b"/><rect x="6" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg><i class="hp-dot online"></i></span>
+                <div class="hp-toast-text"><b>Steve_77</b> invited you to <b>Friday Night SMP</b><div class="hp-toast-btns"><span class="hp-btn accept">Join</span><span class="hp-btn">Later</span></div></div>
+              </div>
             </div>
           </div>
           <p class="set-note center">Not live yet — this is what's being built. Reminth+ members get a server included when it launches.</p>
@@ -520,17 +577,17 @@
 
           <div class="plus-grid">
             <div class="card plus-perk">
-              <span class="perk-ico p-violet"><svg class="i"><use href="#i-server"/></svg></span>
+              <span class="perk-ico perk-tile t-cyan"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
               <b>A server, included</b>
               <p>When Reminth Hosting launches, Plus comes with one. It stays up when you log off, so your friends can keep playing without you.</p>
             </div>
             <div class="card plus-perk">
-              <span class="perk-ico p-cyan"><svg class="i"><use href="#i-bolt"/></svg></span>
+              <span class="perk-ico perk-tile t-amber"><img class="perk-art" src="../../assets/hosting/bolt-icon.svg" alt="" /></span>
               <b>Your instance, on the server</b>
               <p>Pick an instance and the server gets the same version, loader and mods. No zipping folders, no "which Sodium do you have".</p>
             </div>
             <div class="card plus-perk">
-              <span class="perk-ico p-amber"><svg class="i"><use href="#i-heart"/></svg></span>
+              <span class="perk-ico perk-tile t-violet"><img class="perk-art" src="../../assets/hosting/anvil-icon.svg" alt="" /></span>
               <b>You're funding the next update</b>
               <p>No ads, no tracking, no selling your data — ever. Plus is how this gets paid for instead.</p>
             </div>
@@ -723,74 +780,86 @@
                  has to change with it. -->
             <div class="card set">
               <div class="set-head"><h2>Privacy &amp; terms</h2></div>
-              <p class="set-note">The short version: Reminth has no servers of its own, so there is nowhere for
-                your data to be sent. Everything it stores stays on this computer.</p>
+              <p class="set-note">The short version: Reminth has no servers of its own, collects no analytics and
+                shows no third-party ads. Reminth is just a launcher — it is not responsible for any ban from Mojang,
+                Microsoft, Minecraft or any server. Paid features (when they launch) are not refundable, except where
+                the law gives you a right we can't take away.</p>
+              <p class="set-note"><b>NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR
+                MICROSOFT.</b></p>
 
               <details class="legal">
                 <summary>Privacy Policy</summary>
                 <div class="legal-body">
-                  <p><b>Last updated: 23 September 2026</b></p>
+                  <p><b>Last updated: 1 October 2026 · Version 3.</b> This is a summary. The full policy is at
+                    <a href="https://reminth-launcher.netlify.app/privacy.html" target="_blank">reminth-launcher.netlify.app/privacy.html</a>
+                    and is what applies.</p>
 
-                  <p><b>What Reminth stores on your computer.</b> Your Microsoft sign-in tokens are saved to
+                  <p><b>Who's responsible.</b> Reminth is run by Lefteris Psilopanagiotis, an individual developer in
+                    Greece, who is the data controller under the GDPR. Contact: reminthsupport@gmail.com.</p>
+
+                  <p><b>What stays on your computer.</b> Your Microsoft sign-in tokens are saved to
                     <span class="mono">%APPDATA%\Reminth\account.json</span>, encrypted with your Windows account's
-                    own key (DPAPI, via Electron's safeStorage). Your settings, instances, a cached copy of your
-                    skin, the skins you've saved, a permanent archive of your game logs, and a local catalogue of
-                    public Modrinth listings are stored in the same folder. Clips and screenshots from streamer
-                    mode are saved to <span class="mono">Videos\Reminth</span>. Signing out deletes the stored
-                    account file.</p>
+                    own key (DPAPI). Your settings, instances, skins, game-log archive, update log, and caches of public
+                    Modrinth information are stored in the same folder. Streamer mode keeps a short rolling recording
+                    buffer of the Minecraft window there and saves clips and screenshots to
+                    <span class="mono">Videos\Reminth</span>. None of this is ever sent to us.</p>
 
-                  <p><b>What Reminth sends, and to whom.</b> Reminth has no backend, collects no analytics, and
-                    contains no telemetry, crash reporting, advertising or tracking. It only talks directly to the
-                    services needed to do its job: Microsoft and Xbox Live to sign in; Mojang and Minecraft
-                    Services to verify your account, download the game and Java, and — only when you press Save
-                    on a skin or cape — change your skin; Fabric, Quilt, Forge and NeoForge for the mod loader you pick; Modrinth's public API for
-                    Discover, installs and update checks; and, when you look at the Servers tab, the servers
-                    themselves, to measure your ping to them the same way the game's multiplayer screen does.</p>
+                  <p><b>What Reminth sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
+                    tracking. The launcher talks directly to: Microsoft and Xbox Live (sign-in); Mojang and Minecraft
+                    Services (licence check, game and Java downloads, skins and capes); Fabric, Quilt, Forge and
+                    NeoForge (the loader you pick, and Fabric API); GitHub (Reminth updates, and the Sodium, Lithium and
+                    ScalableLux performance mods); Modrinth (Discover, installs and updates, including the
+                    <b>SHA-1 file fingerprints</b> of your installed content, which identify files, not you);
+                    cdn.modrinth.com and avatars.githubusercontent.com (icons and creator pictures); and Minecraft
+                    servers you look at (status and ping). Each can see your IP address, as with any internet request.</p>
 
-                  <p><b>Your game files.</b> Reminth reads your worlds, server lists, statistics and logs from its
-                    own game folders to fill in the app. That reading is local — none of it is uploaded anywhere.
-                    Streamer mode records only the Minecraft window, only while streamer mode is on and the game
-                    is running, and keeps just the last few minutes on disk until you save a clip.</p>
+                  <p><b>What reaches us.</b> Only what you choose to send, such as an email. We delete support
+                    conversations 12 months after they end.</p>
 
-                  <p><b>Children.</b> A Microsoft account is required to play Minecraft, and Microsoft applies
-                    its own age rules at sign-in. Reminth adds no separate account of its own.</p>
-
-                  <p><b>Deleting your data.</b> Sign out to remove the stored account, or delete the
-                    <span class="mono">%APPDATA%\Reminth</span> folder to remove everything Reminth has ever
-                    written. There is no server-side copy to request, because there is no server.</p>
+                  <p><b>Your rights.</b> You can ask to access, correct or delete your data, or object to how it's used,
+                    by emailing reminthsupport@gmail.com. You can complain to the Hellenic Data Protection Authority
+                    (<a href="https://www.dpa.gr" target="_blank">dpa.gr</a>) or your own country's authority. To remove
+                    everything the launcher stored, sign out, then delete <span class="mono">%APPDATA%\Reminth</span>
+                    (and <span class="mono">Videos\Reminth</span>). Back up your worlds first.</p>
                 </div>
               </details>
 
               <details class="legal">
                 <summary>Terms of Service</summary>
                 <div class="legal-body">
-                  <p><b>Last updated: 23 September 2026</b></p>
+                  <p><b>Last updated: 1 October 2026 · Version 3.</b> This is a summary. The full terms are at
+                    <a href="https://reminth-launcher.netlify.app/terms.html" target="_blank">reminth-launcher.netlify.app/terms.html</a>
+                    and are what applies.</p>
 
-                  <p><b>What this is.</b> Reminth is an independent launcher for Minecraft: Java Edition. You need
-                    your own legitimate, paid Minecraft account to use it. Reminth does not give you the game or
-                    any way around paying for it.</p>
+                  <p><b>What this is.</b> Reminth is an independent launcher for Minecraft: Java Edition, run by
+                    Lefteris Psilopanagiotis (Greece). You need your own legitimate Minecraft licence, and you must
+                    follow the Minecraft EULA, the Minecraft Usage Guidelines and the Microsoft Services Agreement.
+                    Under 18? You need a parent or guardian's permission.</p>
 
-                  <p><b>Not affiliated.</b> Reminth is not affiliated with, endorsed by, or connected to Mojang
-                    Studios, Microsoft, Modrinth, or the Fabric, Quilt, Forge or NeoForge projects. "Minecraft" is a trademark of Mojang
-                    Studios. Project and server names, descriptions and icons shown in Discover belong to their
-                    owners and are displayed as published on Modrinth. Your use of Minecraft remains subject to
-                    Minecraft's own EULA and usage guidelines.</p>
+                  <p><b>Bans and server rules: Reminth is just a launcher.</b> We have no control over Mojang,
+                    Microsoft, Xbox, Minecraft, mod authors, or any server, its staff or its anti-cheat. <b>We are not
+                    responsible or liable for any ban, suspension, kick, mute, account restriction or other penalty</b>
+                    from any of them, including ones related to a mod, pack, shader or setting you used through Reminth
+                    or a mod Reminth installed for you. Check and follow every server's rules. We won't appeal, reverse
+                    or compensate for any ban, and a ban is never grounds for a refund.</p>
 
-                  <p><b>Fair use.</b> Reminth contains no cheats, hacks, exploits or ban-evasion features, and we
-                    don't support using it to break the rules of any server you connect to. What you install into
-                    your instances is your responsibility, as is whatever the server you join makes of it.</p>
+                  <p><b>Fair play.</b> No cheats, hacks, exploits or ban evasion. Don't use Reminth to break any
+                    server's rules or the EULA. Don't resell Reminth or distribute modified copies of it.</p>
 
-                  <p><b>Third-party content.</b> Mods, modpacks, packs and shaders installed through Discover are
-                    made by other people and downloaded from Modrinth. Reminth checks every file against the hash
-                    Modrinth publishes, but doesn't write, review or vouch for them.</p>
+                  <p><b>Mods Reminth installs.</b> Fabric API (from Fabric), ReminthHUD, and a performance pack (Sodium,
+                    Lithium and ScalableLux, from their own GitHub releases), which you can turn off per instance.
+                    Third-party content from Discover is made by other people and hosted by Modrinth; Reminth checks
+                    each file's checksum but doesn't vouch for it.</p>
 
-                  <p><b>Reminth+.</b> Not on sale yet. When it is, its price and terms will be shown before you
-                    pay anything.</p>
+                  <p><b>Paid features and refunds.</b> Reminth+ and Reminth Hosting aren't available yet; previews may
+                    change and show made-up names. When they launch, they start immediately and <b>we don't give
+                    refunds</b>. Your legal rights still apply: in the EU, EEA and UK you can withdraw from a
+                    subscription within 14 days of your first purchase and get a refund minus the time you used, and
+                    you're always entitled to a remedy if something doesn't work as described.</p>
 
-                  <p><b>No warranty.</b> Reminth is provided as-is. It downloads and launches software and writes
-                    files to your computer; you use it at your own risk. To the extent the law allows, the authors
-                    are not liable for lost worlds, corrupted files, or any other damage arising from its use.
-                    Keep backups of worlds you care about.</p>
+                  <p><b>No warranty.</b> The launcher is provided as-is. Keep backups of worlds you care about. Nothing
+                    in these terms limits liability that the law doesn't allow to be limited, or your rights as a
+                    consumer. Greek law applies, plus any mandatory consumer law of the country where you live.</p>
                 </div>
               </details>
             </div>

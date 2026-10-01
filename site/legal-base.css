@@ -56,6 +56,7 @@ a:hover { text-decoration: underline; }
   color: var(--text); letter-spacing: -0.01em;
 }
 .brand:hover { text-decoration: none; }
+.brand-logo { width: 32px; height: 32px; display: block; filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.5)); }
 .brand-mark {
   width: 28px; height: 28px; border-radius: 8px;
   display: grid; place-items: center;

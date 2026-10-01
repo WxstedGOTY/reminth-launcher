@@ -112,6 +112,17 @@ function prettyId(id) {
 }
 
 /** Only let an <img> point at Modrinth's CDN, a local file we ship, or a data: image. */
+/** Creator profile pictures: Modrinth's CDN, or GitHub for accounts linked to it. */
+function safeAvatarUrl(url) {
+  try {
+    const parsed = new URL(String(url || ""));
+    if (parsed.protocol === "https:" && /^(cdn\.modrinth\.com|avatars\.githubusercontent\.com)$/.test(parsed.hostname)) return parsed.href;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function safeIconUrl(url) {
   if (typeof url !== "string" || !url) return null;
   if (/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(url)) return url;
@@ -422,7 +433,9 @@ function switchPage(page) {
   $("statsBtn").classList.toggle("active", page === "stats");
   $("hostBtn").classList.toggle("active", page === "hosting");
   // Discover has its own filter column in the space the sidebar uses.
-  $("appSide").style.display = page === "discover" || page === "skins" || page === "instance" ? "none" : "flex";
+  // The instance page keeps the side column too (news, Reminth+, your
+  // profile) - same as Home - instead of stretching the mod list across it.
+  $("appSide").style.display = page === "discover" || page === "skins" ? "none" : "flex";
   $("topEyebrow").textContent = PAGE_META[page][0];
   $("topTitle").textContent = PAGE_META[page][1];
   $("pages").scrollTop = 0;
@@ -430,6 +443,8 @@ function switchPage(page) {
   if (page === "instance") renderInstancePage();
   if (page === "home" || page === "library") loadRecent();
   if (page === "library") renderLibraryInstances();
+  // Announced before the page's own hook runs, so a hook that fails can't swallow it.
+  document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
   if (pageHooks[page]) pageHooks[page]();
 }
 
@@ -1094,6 +1109,14 @@ function openInstanceModal(existing) {
 }
 
 $("railAdd").onclick = () => openInstanceModal(null);
+$("instMoreBtn").onclick = (e) => {
+  e.stopPropagation();
+  const wrap = $("instMore");
+  const open = !wrap.classList.contains("dd-open");
+  document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
+  wrap.classList.toggle("dd-open", open);
+};
+$("instMore").querySelectorAll(".dd-item").forEach((b) => b.addEventListener("click", () => $("instMore").classList.remove("dd-open")));
 $("instEditBtn").onclick = () => {
   const inst = activeInstance();
   if (inst) openInstanceModal(inst);
@@ -1128,11 +1151,13 @@ async function renderInstancePage() {
   art.appendChild(instanceChip(inst, true));
   $("instName").textContent = inst.name;
   $("instLoader").textContent = loaderLabel(inst);
-  $("instLoader").className = loaderTag(inst);
-  $("instVersion").textContent = "Minecraft " + inst.mcVersion;
+  $("instVersion").textContent = inst.mcVersion;
+  $("instLastPlayed").textContent = inst.lastPlayed ? "Last played " + formatRelativeTime(inst.lastPlayed) : "Never played";
   $("instPack").hidden = !inst.modpack;
   if (inst.modpack) $("instPack").textContent = `${inst.modpack.title}${inst.modpack.versionNumber ? " " + inst.modpack.versionNumber : ""}`;
-  $("instState").textContent = state.running.has(inst.id) ? "Running" : state.installing.has(inst.id) ? "Installing" : "Ready";
+  const instStatus = state.running.has(inst.id) ? "Running" : state.installing.has(inst.id) ? "Installing" : "Ready";
+  $("instState").textContent = instStatus;
+  $("instState").dataset.state = instStatus.toLowerCase();
   $("instDeleteBtn").hidden = inst.id === "reminth";
   $("instPlaytime").textContent = inst.playTimeMs ? formatPlaytime(msToTicks(inst.playTimeMs)) : "—";
   paintPlayButtons();

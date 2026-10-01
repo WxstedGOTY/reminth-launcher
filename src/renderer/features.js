@@ -30,7 +30,29 @@ const content = {
   sort: localGet("sort.content", "az"),
   updates: null, // null = not checked; [] = none
   updating: false,
+  selected: new Set(), // itemKey()s ticked in the list
+  creators: {}, // itemKey() -> { author, avatar, title, iconUrl } from Modrinth
+  creatorsFor: null, // instance id the creators map belongs to
+  creatorsBusy: false,
 };
+
+/** Real creator names + profile pictures, looked up on Modrinth in the
+ *  background so the list never waits on the network. */
+async function loadCreators(id) {
+  if (content.creatorsBusy) return;
+  content.creatorsBusy = true;
+  try {
+    const found = await window.reminth.contentCreators(id);
+    if (id !== content.instanceId) return;
+    content.creators = found || {};
+    content.creatorsFor = id;
+    if (currentPage === "instance" && CONTENT_TABS[content.tab]) renderContentTab();
+  } catch {
+    // offline - the names read out of the jars stay
+  } finally {
+    content.creatorsBusy = false;
+  }
+}
 
 const contentSortDd = makeDropdown($("contentSort"), {
   options: SORT_OPTIONS,
@@ -45,6 +67,7 @@ void contentSortDd;
 
 wireTabs("instanceTabs", (tab) => {
   content.tab = tab;
+  content.selected.clear();
   const isContent = Boolean(CONTENT_TABS[tab]);
   $("contentToolbar").hidden = !isContent;
   $("updatePanel").hidden = !isContent || !content.updates || !content.updates.length;
@@ -57,6 +80,7 @@ $("contentSearch").addEventListener("input", (e) => {
   content.search = e.target.value;
   renderContentTab();
 });
+$("contentRefresh").onclick = () => loadContent(content.instanceId || state.activeId);
 $("openContentFolder").onclick = () => openFolder(CONTENT_TABS[content.tab] ? CONTENT_TABS[content.tab].folder : "game");
 $("addContentBtn").onclick = () => {
   const t = CONTENT_TABS[content.tab];
@@ -74,6 +98,9 @@ async function loadContent(instanceId) {
   }
   if (id !== content.instanceId) {
     content.updates = null;
+    content.selected.clear();
+    content.creators = {};
+    content.creatorsFor = null;
     $("updatePanel").hidden = true;
   }
   content.instanceId = id;
@@ -85,6 +112,7 @@ async function loadContent(instanceId) {
   $("instMods").textContent = String((data.mod || []).filter((i) => i.valid && i.enabled).length);
   if (currentPage === "instance") renderContentTab();
   if (id === state.activeId) renderHeadMods(data.mod || []);
+  loadCreators(id);
   paintUpdateButton();
   refreshInstalledMarks();
 }
@@ -99,12 +127,17 @@ function installedProjectIds() {
   return out;
 }
 
+const itemKey = (item) => `${item.kind}/${item.world || ""}/${item.file}`;
+const creatorOf = (item) => content.creators[itemKey(item)] || null;
+
 function itemName(item) {
-  return item.title || item.name || item.file.replace(/\.(jar|zip)(\.disabled)?$/i, "");
+  const c = creatorOf(item);
+  return item.title || (c && c.title) || item.name || item.file.replace(/\.(jar|zip)(\.disabled)?$/i, "");
 }
 
 function contentIcon(item) {
-  const src = safeIconUrl(item.iconUrl) || safeIconUrl(item.icon);
+  const c = creatorOf(item);
+  const src = safeIconUrl(item.iconUrl) || safeIconUrl(c && c.iconUrl) || safeIconUrl(item.icon);
   if (src) {
     const img = el("img", "c-ico" + (src.startsWith("data:") ? " pixel" : ""));
     img.src = src;
@@ -121,41 +154,186 @@ function contentIcon(item) {
   return el("div", "c-ico", itemName(item).slice(0, 1).toUpperCase());
 }
 
-function contentRow(item, updatesByFile) {
-  const row = el("div", "content-row" + (item.enabled ? "" : " disabled") + (item.valid ? "" : " invalid"));
-  const project = el("div", "c-project");
-  project.appendChild(contentIcon(item));
-  const main = el("div", "c-main");
-  main.appendChild(el("div", "c-name", itemName(item)));
-  project.appendChild(main);
-  row.appendChild(project);
+const itemRef = (item) => ({ kind: item.kind, world: item.world, file: item.file });
 
-  // Middle column, laid out like Modrinth's own install list: version
-  // number on top, filename + size underneath - instead of everything
-  // crammed into one line under the mod's name.
-  const verCol = el("div", "c-version");
-  if (item.problem) {
-    verCol.appendChild(el("div", "warn ver-num", item.problem));
-    verCol.appendChild(el("div", "ver-file", item.file));
-  } else {
-    const version = item.versionNumber || item.modVersion;
-    const showVersion = version && !item.file.includes(version) ? version : null;
-    if (showVersion) verCol.appendChild(el("div", "ver-num", showVersion));
-    const metaLine = [item.file, item.size ? formatBytes(item.size) : null].filter(Boolean).join(" · ");
-    verCol.appendChild(el("div", "ver-file", metaLine));
+/** The creator's real profile picture, or a round letter mark without one. */
+function authorMark(name, avatarUrl) {
+  const letter = () => {
+    const d = el("span", "c-avatar", name.slice(0, 1).toUpperCase());
+    let h = 0;
+    for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 360;
+    d.style.setProperty("--ah", String(h));
+    return d;
+  };
+  const src = safeAvatarUrl(avatarUrl);
+  if (!src) return letter();
+  const img = el("img", "c-avatar");
+  img.src = src;
+  img.alt = "";
+  img.loading = "lazy";
+  img.referrerPolicy = "no-referrer";
+  img.addEventListener("error", () => img.replaceWith(letter()));
+  return img;
+}
+
+function rowMenu(item) {
+  const wrap = el("div", "sort-dd c-more");
+  const btn = el("button", "icon-btn");
+  btn.type = "button";
+  btn.title = "More";
+  btn.appendChild(el("span", "kebab"));
+  const menu = el("div", "dd-menu right");
+  const add = (label, ico, fn) => {
+    const it = el("button", "dd-item");
+    it.type = "button";
+    it.appendChild(icon(ico));
+    it.appendChild(el("span", null, label));
+    it.onclick = (e) => {
+      e.stopPropagation();
+      wrap.classList.remove("dd-open");
+      fn();
+    };
+    menu.appendChild(it);
+  };
+  const t = Object.values(CONTENT_TABS).find((x) => x.kind === item.kind);
+  add("Open folder", "#i-folder", () => openFolder(t ? t.folder : "game"));
+  add("Copy file name", "#i-copy", () => {
+    navigator.clipboard.writeText(item.file).then(() => toast("File name copied."), () => {});
+  });
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    const open = !wrap.classList.contains("dd-open");
+    document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
+    wrap.classList.toggle("dd-open", open);
+  };
+  wrap.appendChild(btn);
+  wrap.appendChild(menu);
+  return wrap;
+}
+
+/* ---- grouping: what each mod is for ---- */
+const CONTENT_GROUPS = [
+  { id: "problem", label: "Needs a look", color: "var(--amber)" },
+  { id: "perf", label: "Performance", color: "var(--emerald)" },
+  { id: "pvp", label: "PvP & HUD", color: "var(--rose)" },
+  { id: "visual", label: "Visual", color: "#a78bfa" },
+  { id: "utility", label: "Utility", color: "var(--cyan)" },
+  { id: "gameplay", label: "Gameplay", color: "var(--amber)" },
+  { id: "lib", label: "Libraries", color: "#94a3b8" },
+  { id: "other", label: "Other", color: "#64748b" },
+  { id: "off", label: "Off", color: "#475569" },
+];
+const PVP_WORDS = /hud|pvp|crystal|totem|combat|hurt ?cam|keystroke|\bcps\b|hit ?box|hit ?colou?r|\bzoom|armou?r ?status|potion ?timer|low ?fire|shield ?status/i;
+const PERF_WORDS = /sodium|lithium|ferrite|entity ?culling|modernfix|c2me|scalablelux|immediatelyfast|more ?culling|krypton|lazydfu|starlight|nvidium|optimi[sz]|fps|performance|anchor ?optimizer/i;
+const LIB_WORDS = /\bapi\b|\blib\b|library|config|kotlin|\bcore\b|architectury|fabric-api/i;
+const SHADER_WORDS = /\biris\b|oculus|shader/i;
+const VISUAL_WORDS = /animation|particle|\bskins?\b|\bcapes?\b|texture|cosmetic|visual|lighting/i;
+
+/** Pure-ish: which section a content item sits in. */
+function groupOf(item) {
+  if (!item.valid) return "problem";
+  if (!item.enabled) return "off";
+  if (item.kind !== "mod") return "other";
+  const c = creatorOf(item);
+  const cats = new Set((c && c.categories) || []);
+  const text = [itemName(item), c && c.slug, item.file].filter(Boolean).join(" ");
+  if (cats.has("library") || (!cats.size && LIB_WORDS.test(text))) return "lib";
+  if (SHADER_WORDS.test(text)) return "visual";
+  if (cats.has("optimization") || PERF_WORDS.test(text)) return "perf";
+  if (PVP_WORDS.test(text)) return "pvp";
+  if (cats.has("decoration") || VISUAL_WORDS.test(text)) return "visual";
+  if (["utility", "management", "storage", "social", "transportation"].some((x) => cats.has(x))) return "utility";
+  if (cats.size) return "gameplay";
+  return "other";
+}
+
+/** Which mods need this one: project id -> [names of mods that require it]. */
+function neededByMap(items) {
+  const map = new Map();
+  for (const item of items) {
+    const c = creatorOf(item);
+    if (!c || !item.enabled) continue;
+    for (const req of c.requires || []) {
+      if (!map.has(req)) map.set(req, []);
+      map.get(req).push(itemName(item));
+    }
   }
-  row.appendChild(verCol);
+  return map;
+}
+
+function contentRow(item, ctx) {
+  const key = itemKey(item);
+  const group = CONTENT_GROUPS.find((g) => g.id === ctx.group);
+  const row = el("div", "content-row" + (item.enabled ? "" : " disabled") + (item.valid ? "" : " invalid") + (content.selected.has(key) ? " picked" : ""));
+  row.dataset.key = key;
+  row.style.setProperty("--gc", group ? group.color : "var(--line)");
+  row.title = [item.file.replace(/\.disabled$/i, ""), item.size ? formatBytes(item.size) : null].filter(Boolean).join(" · ");
+  row.addEventListener("click", (e) => {
+    if (e.target.closest("button, input, a, .dd-menu")) return;
+    pickRow(key, e.shiftKey);
+  });
+
+  row.appendChild(contentIcon(item));
+
+  const main = el("div", "c-main");
+  const top = el("div", "c-top");
+  top.appendChild(el("span", "c-name", itemName(item)));
+  const version = item.versionNumber || item.modVersion;
+  if (version && item.valid) top.appendChild(el("span", "c-ver", version));
+  main.appendChild(top);
+
+  const sub = el("div", "c-author");
+  const creator = creatorOf(item);
+  const author = (creator && creator.author) || item.author;
+  if (author) {
+    sub.appendChild(authorMark(author, creator && creator.avatar));
+    sub.appendChild(el("span", "c-by", author));
+  }
+  if (item.problem) sub.appendChild(el("span", "c-note warn", item.problem));
+  else if (item.world && item.kind === "datapack") sub.appendChild(el("span", "c-note", item.world));
+  if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Reminth-managed"));
+  const needers = creator && ctx.neededBy.get(creator.projectId);
+  if (needers && needers.length) {
+    const others = needers.filter((n) => n !== itemName(item));
+    if (others.length) sub.appendChild(el("span", "c-note", `Needed by ${others[0]}${others.length > 1 ? ` +${others.length - 1}` : ""}`));
+  }
+  if (sub.childNodes.length) main.appendChild(sub);
+  row.appendChild(main);
 
   const actions = el("div", "c-actions");
-  const up = updatesByFile.get(item.world + "/" + item.file);
-  if (up) actions.appendChild(el("span", "update-chip", `Update → ${up.next.versionNumber}`));
+  const up = ctx.updatesByFile.get(item.world + "/" + item.file);
+  if (up) {
+    const ub = el("button", "c-update");
+    ub.type = "button";
+    ub.title = "Update just this one";
+    ub.appendChild(icon("#i-download"));
+    ub.appendChild(el("span", null, `${version || "?"} → ${up.next.versionNumber}`));
+    ub.onclick = async () => {
+      const id = content.instanceId;
+      if (state.running.has(id)) return toast("Close the game first — Windows won't let files in use be replaced.");
+      ub.disabled = true;
+      try {
+        const result = await window.reminth.applyUpdates(id, [up]);
+        if (result.failed.length) toast(`Couldn't update ${itemName(item)}: ${result.failed[0].error}`);
+        else toast(`${itemName(item)} updated to ${up.next.versionNumber}.`);
+        content.updates = (content.updates || []).filter((u) => u !== up);
+        paintUpdateButton();
+        renderUpdatePanel();
+      } catch (err) {
+        toast(friendlyError(err.message));
+      } finally {
+        await loadContent(id);
+      }
+    };
+    actions.appendChild(ub);
+  }
   if (item.valid) {
     const sw = el("button", "switch" + (item.enabled ? " on" : ""));
     sw.type = "button";
     sw.title = item.enabled ? "Turn off" : "Turn on";
     sw.onclick = async () => {
       try {
-        await window.reminth.setContentEnabled(content.instanceId, { kind: item.kind, world: item.world, file: item.file }, !item.enabled);
+        await window.reminth.setContentEnabled(content.instanceId, itemRef(item), !item.enabled);
         await loadContent(content.instanceId);
       } catch (err) {
         toast(friendlyError(err.message));
@@ -171,16 +349,107 @@ function contentRow(item, updatesByFile) {
     const ok = await confirmModal(`Remove ${itemName(item)}?`, "It goes to the Recycle Bin, so you can get it back if you change your mind.", "Remove", true);
     if (!ok) return;
     try {
-      await window.reminth.removeContent(content.instanceId, { kind: item.kind, world: item.world, file: item.file });
+      await window.reminth.removeContent(content.instanceId, itemRef(item));
       toast(`${itemName(item)} moved to the Recycle Bin.`);
+      content.selected.delete(key);
       await loadContent(content.instanceId);
     } catch (err) {
       toast(friendlyError(err.message));
     }
   };
   actions.appendChild(del);
+  actions.appendChild(rowMenu(item));
   row.appendChild(actions);
   return row;
+}
+
+/* ---- picking rows: click to pick, shift-click for a range, then act on them together ---- */
+function pickRow(key, range) {
+  const order = content.order || [];
+  if (range && content.lastPicked && order.includes(content.lastPicked)) {
+    const a = order.indexOf(content.lastPicked);
+    const b = order.indexOf(key);
+    for (const k of order.slice(Math.min(a, b), Math.max(a, b) + 1)) content.selected.add(k);
+  } else if (content.selected.has(key)) {
+    content.selected.delete(key);
+  } else {
+    content.selected.add(key);
+  }
+  content.lastPicked = key;
+  document.querySelectorAll(".content-row[data-key]").forEach((r) => r.classList.toggle("picked", content.selected.has(r.dataset.key)));
+  paintSelection();
+}
+
+function visibleItems() {
+  const t = CONTENT_TABS[content.tab];
+  if (!t || !content.data) return [];
+  const q = content.search.trim().toLowerCase();
+  let items = content.data[t.kind] || [];
+  if (q) items = items.filter((i) => itemName(i).toLowerCase().includes(q) || i.file.toLowerCase().includes(q));
+  return items;
+}
+
+function paintSelection() {
+  const bar = document.querySelector(".content-list .c-bulk");
+  if (!bar) return;
+  const picked = visibleItems().filter((i) => content.selected.has(itemKey(i)));
+  bar.classList.toggle("show", picked.length > 0);
+  const n = bar.querySelector(".c-bulk-n");
+  if (n) n.textContent = `${picked.length} selected`;
+}
+
+async function bulkApply(op) {
+  const id = content.instanceId;
+  const picked = visibleItems().filter((i) => content.selected.has(itemKey(i)));
+  if (!picked.length) return;
+  if (op === "remove") {
+    const ok = await confirmModal(`Remove ${picked.length} item${picked.length === 1 ? "" : "s"}?`, "They go to the Recycle Bin, so you can get them back if you change your mind.", "Remove", true);
+    if (!ok) return;
+  }
+  let failed = 0;
+  for (const item of picked) {
+    try {
+      if (op === "remove") await window.reminth.removeContent(id, itemRef(item));
+      else if (item.valid && item.enabled !== (op === "on")) await window.reminth.setContentEnabled(id, itemRef(item), op === "on");
+    } catch {
+      failed++;
+    }
+  }
+  content.selected.clear();
+  if (failed) toast(`${failed} couldn't be changed — is the game still running?`);
+  await loadContent(id);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && content.selected.size && currentPage === "instance") {
+    content.selected.clear();
+    renderContentTab();
+  }
+});
+
+function groupSection(group, rows, kind) {
+  const collapsed = new Set(localGet("content.collapsed", []));
+  const id = kind + ":" + group.id;
+  const sec = el("section", "c-group" + (collapsed.has(id) ? " collapsed" : ""));
+  sec.style.setProperty("--gc", group.color);
+  const head = el("button", "c-group-head");
+  head.type = "button";
+  head.appendChild(icon("#i-chevron", "i chev"));
+  head.appendChild(el("span", "c-group-dot"));
+  head.appendChild(el("span", "c-group-name", group.label));
+  head.appendChild(el("span", "c-group-count", String(rows.length)));
+  head.onclick = () => {
+    const now = new Set(localGet("content.collapsed", []));
+    if (now.has(id)) now.delete(id);
+    else now.add(id);
+    localSet("content.collapsed", [...now]);
+    sec.classList.toggle("collapsed", now.has(id));
+  };
+  sec.appendChild(head);
+  const body = el("div", "c-group-body");
+  rows.forEach((r) => body.appendChild(r));
+  sec.appendChild(body);
+  return sec;
 }
 
 const MOD_COLOURS = { HUD: "var(--cyan)", Library: "var(--emerald)" };
@@ -238,26 +507,58 @@ function renderContentTab() {
     }
     return renderEmpty(list, `No ${t.label} yet`, `Find some in Discover, or drop files into the ${t.folder} folder — they show up here the moment they land.`);
   }
-  // Column header, like Modrinth's own install list: Project / Version / Actions.
-  const head = el("div", "content-head");
-  head.appendChild(el("span", null, "Project"));
-  head.appendChild(el("span", null, "Version"));
-  head.appendChild(el("span", "ch-actions", "Actions"));
-  list.appendChild(head);
-
-  const updatesByFile = new Map((content.updates || []).map((u) => [u.world + "/" + u.file, u]));
+  const ctx = {
+    updatesByFile: new Map((content.updates || []).map((u) => [u.world + "/" + u.file, u])),
+    neededBy: neededByMap(content.data[t.kind] || []),
+    managed: Boolean(inst && inst.loader !== "vanilla"),
+  };
+  const sections = [];
   if (t.kind === "datapack") {
-    let lastWorld = null;
-    for (const item of sortItems(items, content.sort, (i) => i.world + " " + itemName(i), (i) => i.addedAt)) {
-      if (item.world !== lastWorld) {
-        lastWorld = item.world;
-        list.appendChild(el("div", "world-group", item.world));
-      }
-      list.appendChild(contentRow(item, updatesByFile));
+    // Data packs belong to a world - one section per world.
+    const worlds = [...new Set(items.map((i) => i.world))];
+    for (const world of worlds) {
+      sections.push({ group: { id: "w-" + world, label: world, color: "var(--cyan)" }, items: items.filter((i) => i.world === world) });
     }
   } else {
-    items.forEach((item) => list.appendChild(contentRow(item, updatesByFile)));
+    for (const g of CONTENT_GROUPS) {
+      const inGroup = items.filter((i) => groupOf(i) === g.id);
+      if (inGroup.length) sections.push({ group: g, items: inGroup });
+    }
   }
+  content.order = [];
+  // Packs and shaders don't have categories - one plain list (plus "Off") reads better than one lone heading.
+  const plain = t.kind !== "mod" && t.kind !== "datapack" && sections.length === 1;
+  for (const { group, items: groupItems } of sections) {
+    const rows = groupItems.map((item) => {
+      content.order.push(itemKey(item));
+      return contentRow(item, { ...ctx, group: group.id });
+    });
+    if (plain) {
+      const body = el("div", "c-group-body plain");
+      rows.forEach((r) => body.appendChild(r));
+      list.appendChild(body);
+    } else list.appendChild(groupSection(group, rows, t.kind));
+  }
+
+  // Floating bar for picked rows.
+  const bulk = el("div", "c-bulk");
+  bulk.appendChild(el("span", "c-bulk-n"));
+  bulk.appendChild(el("span", "c-bulk-hint", "Shift-click picks a range · Esc clears"));
+  for (const [label, op, cls] of [["Turn on", "on", "outline"], ["Turn off", "off", "outline"], ["Remove", "remove", "danger"]]) {
+    const b = el("button", "btn sm " + cls, label);
+    b.type = "button";
+    b.onclick = () => bulkApply(op);
+    bulk.appendChild(b);
+  }
+  const clear = el("button", "btn sm ghost", "Clear");
+  clear.type = "button";
+  clear.onclick = () => {
+    content.selected.clear();
+    renderContentTab();
+  };
+  bulk.appendChild(clear);
+  list.appendChild(bulk);
+  paintSelection();
 }
 
 /* ---- the "Head" panel on Discover: what's in the active instance's mods folder ---- */
@@ -465,8 +766,8 @@ async function pickWorld(inst) {
  * Installs a project into the active instance. `buttons`: elements that
  * should show progress / the installed state.
  */
-async function installProject({ projectId, projectType, title, versionId }, buttons = []) {
-  const inst = activeInstance();
+async function installProject({ projectId, projectType, title, versionId, instanceId }, buttons = []) {
+  const inst = instanceId ? instanceById(instanceId) : activeInstance();
   if (!inst) return false;
   if (projectType === "modpack") return installModpackFlow({ projectId, title });
   const kind = { mod: "mod", resourcepack: "resourcepack", shader: "shader", datapack: "datapack" }[projectType];
@@ -500,7 +801,11 @@ async function installProject({ projectId, projectType, title, versionId }, butt
     const result = await window.reminth.installContent(inst.id, { projectId, kind, world, ...(versionId ? { versionId } : {}) });
     const extra = result.installed.length > 1 ? ` (+${result.installed.length - 1} it needs)` : "";
     toast(`${title || result.installed[0]?.title || "Installed"} added to ${inst.name}${extra}.`);
-    await loadContent(inst.id);
+    // Green check until the player leaves this page, then grey for good.
+    freshAdds.add(`${inst.id}:${projectId}`);
+    // Keep the open lists pointed at the active instance even when installing elsewhere.
+    await loadContent(state.activeId);
+    if (window.loadPresence) window.loadPresence();
     return true;
   } catch (err) {
     toast(friendlyError(err.message));
@@ -794,24 +1099,30 @@ function discoverCard(mod) {
       }
     });
   }
+  // Top-right controls: + / check (opens the "which instance?" panel) and a bin
+  // to remove it from the active instance.
+  const ctl = el("div", "dcard-ctl");
   const add = el("button", "dcard-add");
   add.type = "button";
-  add.title = "Add to your instance (right-click to choose a version)";
-  add.appendChild(icon("#i-plus"));
   add.dataset.project = mod.id;
   add.addEventListener("contextmenu", async (e) => {
     e.preventDefault();
     if (add.classList.contains("done")) return toast(`${mod.name} is already in ${activeInstance().name}.`);
-    if (await chooseModVersion({ projectId: mod.id, title: mod.name }, [add])) markAdded(add);
+    if (await chooseModVersion({ projectId: mod.id, title: mod.name }, [add])) paintHomeCards();
   });
-  add.onclick = async () => {
-    if (add.classList.contains("done")) return toast(`${mod.name} is already in ${activeInstance().name}.`);
-    add.classList.add("busy");
-    const ok = await installProject({ projectId: mod.id, projectType: "mod", title: mod.name }, [add]);
-    add.classList.remove("busy");
-    if (ok) markAdded(add);
+  add.onclick = (e) => {
+    e.stopPropagation();
+    pickInstanceFor({ id: mod.id, name: mod.name, type: "mod" }, add);
   };
-  art.appendChild(add);
+  const del = el("button", "dcard-del");
+  del.type = "button";
+  del.hidden = true;
+  del.appendChild(icon("#i-trash"));
+  del.onclick = () => removeFromInstance(mod, activeInstance());
+  ctl.appendChild(add);
+  ctl.appendChild(del);
+  homeCards.push({ mod, add, del });
+  art.appendChild(ctl);
   card.appendChild(art);
   const body = el("div", "dcard-body");
   const head = el("div", "dcard-head");
@@ -831,12 +1142,181 @@ function discoverCard(mod) {
   return card;
 }
 
-function markAdded(btn) {
-  btn.classList.add("done");
-  btn.textContent = "";
-  btn.appendChild(icon("#i-check"));
-  btn.title = "In your instance";
+/* ---- Home "Discover mods": which instances each card's mod is in ---- */
+const homeCards = []; // { mod, add, del }
+const freshAdds = new Set(); // `${instanceId}:${projectId}` added on this visit - green until you leave the page, then grey
+let presence = new Map(); // instanceId -> Map(projectId -> content item)
+let presenceLoading = null;
+let cardMenu = null;
+
+const PRESENCE_KINDS = ["mod", "resourcepack", "shader", "datapack"];
+
+/** The content item (mod, pack, shader or datapack) for project `pid` in instance `instId`, or null. */
+function itemFor(instId, pid) {
+  if (instId === content.instanceId && content.data) {
+    for (const kind of PRESENCE_KINDS) {
+      const hit = (content.data[kind] || []).find((i) => i.projectId === pid || (creatorOf(i) && creatorOf(i).projectId === pid));
+      if (hit) return hit;
+    }
+    return null;
+  }
+  const m = presence.get(instId);
+  return (m && m.get(pid)) || null;
 }
+
+async function loadPresence() {
+  if (presenceLoading) return presenceLoading;
+  presenceLoading = (async () => {
+    const next = new Map();
+    for (const inst of state.instances || []) {
+      let data = null;
+      if (content.data && content.instanceId === inst.id) data = content.data;
+      else {
+        try {
+          data = await window.reminth.content(inst.id);
+        } catch {
+          data = null;
+        }
+      }
+      const m = new Map();
+      for (const kind of PRESENCE_KINDS) for (const item of (data && data[kind]) || []) if (item.projectId) m.set(item.projectId, item);
+      next.set(inst.id, m);
+    }
+    presence = next;
+  })();
+  try {
+    await presenceLoading;
+  } finally {
+    presenceLoading = null;
+  }
+  paintHomeCards();
+  if (cardMenu) renderCardMenu();
+}
+window.loadPresence = loadPresence;
+
+function paintHomeCards() {
+  const inst = activeInstance();
+  for (const { mod, add, del } of homeCards) {
+    const installed = Boolean(inst && itemFor(inst.id, mod.id));
+    const fresh = installed && freshAdds.has(`${inst.id}:${mod.id}`);
+    if (add.classList.contains("busy")) continue;
+    add.classList.toggle("done", installed);
+    add.classList.toggle("fresh", fresh);
+    add.textContent = "";
+    add.appendChild(icon(installed ? "#i-check" : "#i-plus"));
+    add.title = installed ? `In ${inst.name} - click to add it to another instance` : "Pick an instance to add it to (right-click to choose a version)";
+    del.hidden = !installed;
+    del.title = inst ? `Remove from ${inst.name}` : "Remove";
+  }
+}
+
+async function removeFromInstance(mod, inst) {
+  if (!inst) return;
+  const item = itemFor(inst.id, mod.id);
+  if (!item) return toast(`${mod.name} isn't in ${inst.name}.`);
+  const ok = await confirmModal(`Remove ${mod.name} from ${inst.name}?`, "It goes to the Recycle Bin, so you can get it back if you change your mind.", "Remove", true);
+  if (!ok) return;
+  try {
+    await window.reminth.removeContent(inst.id, itemRef(item));
+    freshAdds.delete(`${inst.id}:${mod.id}`);
+    toast(`${mod.name} removed from ${inst.name}.`);
+  } catch (err) {
+    toast(friendlyError(err.message));
+  }
+  await loadContent(state.activeId);
+  await loadPresence();
+}
+
+/* the per-instance menu - a floating panel so the card doesn't clip it */
+function closeCardMenu() {
+  if (cardMenu) cardMenu.remove();
+  cardMenu = null;
+}
+/**
+ * The "which instance?" panel behind every + / Install button. `project`:
+ * { id, name, type }. One instance and not installed yet → just installs.
+ */
+async function pickInstanceFor(project, anchor) {
+  if (cardMenu && cardMenu.dataset.project === project.id && cardMenu._anchor === anchor) return closeCardMenu();
+  const list = state.instances || [];
+  if (list.length === 1 && !itemFor(list[0].id, project.id)) {
+    closeCardMenu();
+    const ok = await installProject({ projectId: project.id, projectType: project.type || "mod", title: project.name, instanceId: list[0].id }, [anchor]);
+    if (ok) await loadPresence();
+    return;
+  }
+  openCardMenu(project, anchor);
+}
+function openCardMenu(mod, anchor) {
+  closeCardMenu();
+  cardMenu = el("div", "dd-menu dcard-pop");
+  cardMenu.dataset.project = mod.id;
+  cardMenu._mod = mod;
+  cardMenu._anchor = anchor;
+  cardMenu.addEventListener("click", (e) => e.stopPropagation());
+  document.body.appendChild(cardMenu);
+  renderCardMenu();
+  loadPresence();
+}
+function renderCardMenu() {
+  if (!cardMenu) return;
+  const mod = cardMenu._mod;
+  cardMenu.textContent = "";
+  const type = mod.type || "mod";
+  cardMenu.appendChild(el("div", "dcp-title", `Add ${mod.name} to…`));
+  for (const inst of state.instances || []) {
+    const row = el("div", "dcp-row" + (inst.id === state.activeId ? " current" : ""));
+    const name = el("div", "dcp-name");
+    name.appendChild(el("b", null, inst.name));
+    name.appendChild(el("small", null, `${loaderLabel(inst)} ${inst.mcVersion}`));
+    row.appendChild(name);
+    const item = itemFor(inst.id, mod.id);
+    if (item) {
+      const have = el("span", "dcp-have" + (freshAdds.has(`${inst.id}:${mod.id}`) ? " fresh" : ""));
+      have.appendChild(icon("#i-check"));
+      have.appendChild(document.createTextNode("Installed"));
+      row.appendChild(have);
+      const bin = el("button", "icon-btn danger dcp-bin");
+      bin.type = "button";
+      bin.title = `Remove from ${inst.name}`;
+      bin.appendChild(icon("#i-trash"));
+      bin.onclick = () => removeFromInstance(mod, inst);
+      row.appendChild(bin);
+    } else if (inst.loader === "vanilla" && (type === "mod" || type === "shader")) {
+      row.appendChild(el("span", "dcp-na", "Needs a mod loader"));
+    } else {
+      const go = el("button", "btn sm outline dcp-install");
+      go.type = "button";
+      go.appendChild(icon("#i-plus"));
+      go.appendChild(el("span", null, "Install"));
+      go.onclick = async () => {
+        // The button that opened the panel shows progress too when it's for the active instance.
+        const btns = inst.id === state.activeId && cardMenu._anchor ? [go, cardMenu._anchor] : [go];
+        const ok = await installProject({ projectId: mod.id, projectType: type, title: mod.name, instanceId: inst.id }, btns);
+        if (ok) await loadPresence();
+      };
+      row.appendChild(go);
+    }
+    cardMenu.appendChild(row);
+  }
+  const r = cardMenu._anchor.getBoundingClientRect();
+  cardMenu.style.display = "flex";
+  const w = cardMenu.offsetWidth;
+  cardMenu.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
+  cardMenu.style.top = r.bottom + 6 + "px";
+}
+document.addEventListener("click", closeCardMenu);
+$("pages").addEventListener("scroll", closeCardMenu, { passive: true });
+
+// Leaving the page turns this visit's green checks grey for good.
+document.addEventListener("reminth:page", (e) => {
+  closeCardMenu();
+  if (freshAdds.size) {
+    freshAdds.clear();
+    refreshInstalledMarks();
+  }
+  if (e.detail === "home") loadPresence();
+});
 
 async function buildDiscover() {
   const grid = $("discoverGrid");
@@ -857,6 +1337,7 @@ async function buildDiscover() {
     }
   }
   grid.textContent = "";
+  homeCards.length = 0; // cards are rebuilt from scratch below
   for (const mod of DISCOVER_MODS) {
     const hit = found[mod.slug];
     grid.appendChild(discoverCard({ ...mod, id: (hit && hit.id) || mod.id, icon_url: hit && hit.icon_url }));
@@ -865,17 +1346,26 @@ async function buildDiscover() {
 }
 
 function refreshInstalledMarks() {
+  paintHomeCards();
   const ids = installedProjectIds();
   document.querySelectorAll("[data-project]").forEach((b) => {
     const installed = ids.has(b.dataset.project);
     if (b.classList.contains("dcard-add")) {
-      if (installed && !b.classList.contains("done")) markAdded(b);
-    } else if (b.dataset.installable === "1") {
-      b.classList.toggle("installed", installed);
-      const label = b.querySelector("span");
-      if (label && !b.classList.contains("busy")) label.textContent = installed ? "Installed" : "Install";
-    }
+      // painted by paintHomeCards() below
+    } else if (b.dataset.installable === "1") paintInstallButton(b, installed);
   });
+}
+
+/** Install button in a Discover row: + Install → ✓ Installed (green this visit, grey after). */
+function paintInstallButton(b, installed) {
+  if (b.classList.contains("busy")) return;
+  b.classList.toggle("installed", installed);
+  b.classList.toggle("fresh", installed && freshAdds.has(`${state.activeId}:${b.dataset.project}`));
+  const label = b.querySelector("span");
+  if (label) label.textContent = installed ? "Installed" : "Install";
+  const want = installed ? "#i-check" : "#i-plus";
+  const svg = b.querySelector("svg");
+  if (svg && svg.querySelector("use").getAttribute("href") !== want) svg.replaceWith(icon(want));
 }
 
 /* ================================================================== *
@@ -1346,15 +1836,23 @@ function projectRow(p) {
   const installed = installedProjectIds().has(pid);
   const btn = button("btn outline sm pill-like" + (installed ? " installed" : ""), type === "modpack" ? "Install" : installed ? "Installed" : "Install", installed ? "#i-check" : "#i-plus");
   btn.dataset.project = pid;
-  if (type !== "modpack") btn.dataset.installable = "1";
-  btn.onclick = async () => {
-    if (btn.classList.contains("installed")) return toast(`${p.title} is already in ${activeInstance().name}.`);
-    const ok = await installProject({ projectId: pid, projectType: type, title: p.title }, [btn]);
-    if (ok && type !== "modpack") {
-      btn.classList.add("installed");
-      btn.querySelector("span").textContent = "Installed";
-    }
-  };
+  if (type !== "modpack") {
+    btn.dataset.installable = "1";
+    // Always names the current target, even if it was switched after this row was drawn.
+    btn.addEventListener("mouseenter", () => {
+      btn.title = "Pick which instance to add it to";
+    });
+  }
+  if (type === "modpack") {
+    btn.onclick = () => installProject({ projectId: pid, projectType: type, title: p.title }, [btn]);
+  } else {
+    if (installed) paintInstallButton(btn, true);
+    // Opens the "which instance?" panel (or installs straight away with only one instance).
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      pickInstanceFor({ id: pid, name: p.title, type }, btn);
+    };
+  }
   if (type === "mod") {
     // Install stays one click; the chevron is the optional "pick a version" path.
     const pick = el("button", "btn outline sm icon-only vpick-btn");
@@ -1362,13 +1860,7 @@ function projectRow(p) {
     pick.title = "Choose version…";
     pick.setAttribute("aria-label", `Choose a version of ${p.title}`);
     pick.appendChild(icon("#i-chevron"));
-    pick.onclick = async () => {
-      const ok = await chooseModVersion({ projectId: pid, title: p.title }, [btn]);
-      if (ok) {
-        btn.classList.add("installed");
-        btn.querySelector("span").textContent = "Installed";
-      }
-    };
+    pick.onclick = () => chooseModVersion({ projectId: pid, title: p.title }, [btn]);
     const group = el("div", "install-group");
     group.appendChild(btn);
     group.appendChild(pick);
@@ -1653,7 +2145,33 @@ async function playServer(s, btn) {
   }
 }
 
+/** "Installing into [instance ▾]" on Discover. Picking another instance makes it the
+ *  active one, so the compatibility filter, the "Installed" marks and Install itself
+ *  all follow it - before, Discover only ever used whichever instance was opened last. */
+function renderInstallTarget() {
+  const box = $("discoverTargetDd");
+  if (!box) return;
+  const list = state.instances || [];
+  if (!list.length) {
+    box.textContent = "";
+    return;
+  }
+  makeDropdown(box, {
+    options: list.map((i) => {
+      const what = `${loaderLabel(i)} ${i.mcVersion}`;
+      return { value: i.id, label: i.name.toLowerCase().includes(String(i.mcVersion).toLowerCase()) ? i.name : `${i.name} · ${what}` };
+    }),
+    value: state.activeId,
+    onChange: (id) => {
+      selectInstance(id, false);
+      const inst = instanceById(id);
+      if (inst) toast(`Installs from Discover now go into ${inst.name}.`);
+    },
+  });
+}
+
 pageHooks.discover = () => {
+  renderInstallTarget();
   if (!sortDd) setDiscoverType(disc.type);
   else renderFilterPanel();
 };
@@ -2507,6 +3025,9 @@ pageHooks.streamer = () => {
 window.onInstancesChanged = () => {
   const inst = activeInstance();
   if (!inst) return;
+  renderInstallTarget();
+  paintHomeCards();
+  loadPresence();
   $("gameDirPath").textContent = inst.gameDir || "—";
   loadContent(inst.id);
   if (currentPage === "discover") renderFilterPanel().then(() => runBrowse());
