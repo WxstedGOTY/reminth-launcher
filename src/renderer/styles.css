@@ -1121,7 +1121,10 @@ body.privacy .pii { filter: blur(6px); }
 }
 .rail-streamer { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
 .rail-streamer[hidden] { display: none; }
-.rail-plus:not(.active) { color: #e9d5ff; }
+/* No permanent tint here - it used to colour the gem purple whenever it
+   wasn't the active page, which made it look lit/active even after you'd
+   navigated away to a different tab. It now behaves like every other rail
+   icon: plain grey when inactive, accent-coloured only while .active. */
 .rail-live { position: relative; }
 .rail-live .live-dot { display: none; }
 .rail-live.on {
