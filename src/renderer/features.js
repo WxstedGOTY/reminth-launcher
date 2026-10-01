@@ -123,19 +123,28 @@ function contentIcon(item) {
 
 function contentRow(item, updatesByFile) {
   const row = el("div", "content-row" + (item.enabled ? "" : " disabled") + (item.valid ? "" : " invalid"));
-  row.appendChild(contentIcon(item));
+  const project = el("div", "c-project");
+  project.appendChild(contentIcon(item));
   const main = el("div", "c-main");
   main.appendChild(el("div", "c-name", itemName(item)));
-  const sub = el("div", "c-sub");
+  project.appendChild(main);
+  row.appendChild(project);
+
+  // Middle column, laid out like Modrinth's own install list: version
+  // number on top, filename + size underneath - instead of everything
+  // crammed into one line under the mod's name.
+  const verCol = el("div", "c-version");
   if (item.problem) {
-    sub.appendChild(el("span", "warn", item.problem));
-    sub.appendChild(document.createTextNode(" · " + item.file));
+    verCol.appendChild(el("div", "warn ver-num", item.problem));
+    verCol.appendChild(el("div", "ver-file", item.file));
   } else {
     const version = item.versionNumber || item.modVersion;
-    sub.textContent = [item.file, version && !item.file.includes(version) ? version : null, item.size ? formatBytes(item.size) : null].filter(Boolean).join(" · ");
+    const showVersion = version && !item.file.includes(version) ? version : null;
+    if (showVersion) verCol.appendChild(el("div", "ver-num", showVersion));
+    const metaLine = [item.file, item.size ? formatBytes(item.size) : null].filter(Boolean).join(" · ");
+    verCol.appendChild(el("div", "ver-file", metaLine));
   }
-  main.appendChild(sub);
-  row.appendChild(main);
+  row.appendChild(verCol);
 
   const actions = el("div", "c-actions");
   const up = updatesByFile.get(item.world + "/" + item.file);
@@ -206,12 +215,12 @@ function renderContentTab() {
   const list = $(t.list);
   const inst = instanceById(content.instanceId);
   if (t.kind === "mod") {
+    // The ReminthHUD/Fabric API "managed mod" cards used to render here,
+    // above the player's own mod list. Purely cosmetic clutter - ReminthHUD
+    // and Fabric API are still installed and managed exactly as before
+    // (see minecraft.js) - this just stops drawing the two boxes for them.
     const grid = $("instManagedMods");
     grid.textContent = "";
-    if (inst && inst.hud && (inst.loader === "fabric" || inst.loader === "quilt") && state.info) {
-      state.info.managedMods.forEach((m) => grid.appendChild(managedModCard(m)));
-      grid.style.marginBottom = "14px";
-    }
   }
   const q = content.search.trim().toLowerCase();
   let items = content.data[t.kind] || [];
@@ -229,6 +238,13 @@ function renderContentTab() {
     }
     return renderEmpty(list, `No ${t.label} yet`, `Find some in Discover, or drop files into the ${t.folder} folder — they show up here the moment they land.`);
   }
+  // Column header, like Modrinth's own install list: Project / Version / Actions.
+  const head = el("div", "content-head");
+  head.appendChild(el("span", null, "Project"));
+  head.appendChild(el("span", null, "Version"));
+  head.appendChild(el("span", "ch-actions", "Actions"));
+  list.appendChild(head);
+
   const updatesByFile = new Map((content.updates || []).map((u) => [u.world + "/" + u.file, u]));
   if (t.kind === "datapack") {
     let lastWorld = null;
