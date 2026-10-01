@@ -78,6 +78,14 @@ function createWindow() {
     },
   });
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+  // Closing the main window must quit the whole app. Streamer mode keeps a
+  // hidden recorder BrowserWindow alive, so "window-all-closed" never fired
+  // and Reminth.exe kept running invisibly - which is what made the
+  // installer loop on "Reminth cannot be closed".
+  win.on("closed", () => {
+    streamer.shutdown();
+    app.quit();
+  });
 
   // The window is frameless: no back button, no address bar. If anything
   // navigated it away from index.html the launcher would be dead until it

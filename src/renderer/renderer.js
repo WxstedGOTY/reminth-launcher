@@ -409,7 +409,16 @@ function switchPage(page) {
   currentPage = page;
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === page));
   document.querySelectorAll(".rail-btn[data-page]").forEach((b) => b.classList.toggle("active", b.dataset.page === page));
-  document.querySelectorAll(".rail-btn.instance-btn").forEach((b) => b.classList.toggle("active", page === "instance" && b.dataset.instance === state.activeId));
+  document.querySelectorAll(".rail-btn.instance-btn").forEach((b) => {
+    // `selected` used to be set once in renderRail() and never touched again,
+    // so the last-opened instance kept its ring lit forever - on Discover,
+    // Skins, Plus, Settings, anywhere - instead of only while its own
+    // instance page is actually open. Recompute both classes here, every
+    // page switch, so leaving to any other tab actually clears it.
+    const isActiveInstance = b.dataset.instance === state.activeId;
+    b.classList.toggle("active", page === "instance" && isActiveInstance);
+    b.classList.toggle("selected", page === "instance" && isActiveInstance);
+  });
   $("statsBtn").classList.toggle("active", page === "stats");
   $("hostBtn").classList.toggle("active", page === "hosting");
   // Discover has its own filter column in the space the sidebar uses.
@@ -691,7 +700,12 @@ function renderRail() {
   const rail = $("railInstances");
   rail.textContent = "";
   for (const inst of state.instances) {
-    const btn = el("button", "rail-btn instance-btn" + (inst.id === state.activeId ? " selected" : ""));
+    // Only start it selected/ringed if we're actually rebuilding the rail
+    // while sat on that instance's own page - otherwise this baked a stale
+    // ring into every other tab too. The per-switch toggle below (and in
+    // switchPage) keeps it correct from here on.
+    const startsSelected = currentPage === "instance" && inst.id === state.activeId;
+    const btn = el("button", "rail-btn instance-btn" + (startsSelected ? " active selected" : ""));
     btn.type = "button";
     btn.dataset.instance = inst.id;
     btn.dataset.tip = `${inst.name} · ${loaderLabel(inst)} ${inst.mcVersion}`;
@@ -701,7 +715,11 @@ function renderRail() {
     bindTip(btn);
     rail.appendChild(btn);
   }
-  document.querySelectorAll(".rail-btn.instance-btn").forEach((b) => b.classList.toggle("active", currentPage === "instance" && b.dataset.instance === state.activeId));
+  document.querySelectorAll(".rail-btn.instance-btn").forEach((b) => {
+    const isActiveInstance = b.dataset.instance === state.activeId;
+    b.classList.toggle("active", currentPage === "instance" && isActiveInstance);
+    b.classList.toggle("selected", currentPage === "instance" && isActiveInstance);
+  });
 }
 
 async function selectInstance(id, open) {
