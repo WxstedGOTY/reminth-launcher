@@ -22,8 +22,8 @@ function packet(id, payload) {
   const body = Buffer.concat([varint(id), payload]);
   return Buffer.concat([varint(body.length), body]);
 }
-function statusPacket() {
-  const json = Buffer.from(JSON.stringify({ version: { name: "Paper 26.2", protocol: 800 }, players: { online: 4, max: 50 } }));
+function statusPacket(text) {
+  const json = Buffer.from(text || JSON.stringify({ version: { name: "Paper 26.2", protocol: 800 }, players: { online: 4, max: 50 } }));
   return packet(0x00, Buffer.concat([varint(json.length), json]));
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -51,7 +51,7 @@ async function fakeServer(opts) {
           gotStatusRequest = true;
           await sleep(opts.statusDelay || 0);
           if (opts.closeBeforeStatus) return sock.destroy();
-          sock.write(statusPacket());
+          sock.write(statusPacket(opts.statusText));
         } else if (id === 0x01) {
           const i = pings++;
           const answer = opts.pong ? opts.pong(i, body.subarray(1)) : { delay: 0, payload: body.subarray(1) };
@@ -141,6 +141,18 @@ test("serverPing: three pings -> the median", async () => {
     const r = await serverPing.ping(srv.address);
     assert.equal(r.latencyKind, "ping");
     assert.ok(r.latencyMs >= 30 && r.latencyMs < 70, `latency ${r.latencyMs}`);
+  } finally {
+    await srv.close();
+  }
+});
+
+test("serverPing: a status answer of plain null is still an answer (online, no player numbers)", async () => {
+  const srv = await fakeServer({ statusText: "null" });
+  try {
+    const r = await serverPing.ping(srv.address);
+    assert.equal(r.online, true);
+    assert.equal(r.latencyKind, "ping");
+    assert.equal(r.playersOnline, null);
   } finally {
     await srv.close();
   }

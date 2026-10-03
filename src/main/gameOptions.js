@@ -289,10 +289,14 @@ function rewriteOptions(text, changes, value) {
   for (const line of lines) {
     const i = line.indexOf(":");
     const key = i > 0 ? line.slice(0, i) : null;
-    if (key && byKey.has(key) && !done.has(key)) {
-      done.add(key);
-      const v = value(byKey.get(key));
-      if (v !== null) out.push(`${key}:${v}`);
+    if (key && byKey.has(key)) {
+      // A key written twice: the game reads the last one, so the new value
+      // goes where the first one was and the repeats go.
+      if (!done.has(key)) {
+        done.add(key);
+        const v = value(byKey.get(key));
+        if (v !== null) out.push(`${key}:${v}`);
+      }
       continue;
     }
     out.push(line);

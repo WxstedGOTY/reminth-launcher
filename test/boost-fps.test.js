@@ -83,6 +83,10 @@ test("rewriteOptions: only the listed keys change, line endings and order kept",
   assert.equal(out, OWNER.replace("renderDistance:16", "renderDistance:12") + "newKey:x\r\n");
   const removed = gameOptions.rewriteOptions("a:1\nb:2\n", [{ key: "a", from: null }], (c) => c.from);
   assert.equal(removed, "b:2\n");
+  // a key written twice (the game reads the last): one line with the new value, where the first was
+  const twice = gameOptions.rewriteOptions("renderDistance:16\nao:true\nrenderDistance:20\n", [{ key: "renderDistance", to: "12" }], (c) => c.to);
+  assert.equal(twice, "renderDistance:12\nao:true\n");
+  assert.equal(gameOptions.planBoost("renderDistance:8\nrenderDistance:20\n", { worldVersion: V1_21_1 })[0].from, "20");
 });
 
 async function instanceWith(text) {

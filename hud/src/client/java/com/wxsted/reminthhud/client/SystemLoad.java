@@ -16,6 +16,11 @@ final class SystemLoad {
 	/** False once the GPU number turned out to be unavailable on this PC: the bar leaves it out. */
 	static volatile boolean gpuAvailable = true;
 	static volatile boolean cpuAvailable = true;
+	/** When the bar last asked for the numbers (System.nanoTime). */
+	static volatile long lastWanted = System.nanoTime() - 10_000_000_000L;
+	// Hidden HUD (H), F3 open, no world: nobody reads the numbers, so Windows
+	// isn't asked for them either.
+	private static final long IDLE_AFTER_NS = 3_000_000_000L;
 
 	private static Thread thread;
 
@@ -61,6 +66,10 @@ final class SystemLoad {
 		int cpuN = 0;
 		try {
 			while (!Thread.currentThread().isInterrupted()) {
+				if (System.nanoTime() - lastWanted > IDLE_AFTER_NS) {
+					Thread.sleep(1000);
+					continue;
+				}
 				if (os != null) {
 					double load = os.getCpuLoad();
 					if (load >= 0) {

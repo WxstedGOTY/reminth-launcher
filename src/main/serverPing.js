@@ -254,7 +254,8 @@ async function ping(address) {
             if (!strLen) throw new Error("unexpected reply");
             const json = JSON.parse(p.body.toString("utf8", strLen[1], strLen[1] + strLen[0]));
             statusMs = msSince(sentAt);
-            status = json;
+            // Never null from here on: "status is in" is what the rest checks.
+            status = json && typeof json === "object" ? json : {};
             // A server that never answers pings shouldn't hold the row at
             // "pinging" for the whole timeout.
             pingTimer = setTimeout(finishWithStatus, PING_PHASE_MS);

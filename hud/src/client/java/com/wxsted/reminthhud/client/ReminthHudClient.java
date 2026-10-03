@@ -111,12 +111,18 @@ public class ReminthHudClient implements ClientModInitializer {
 		if (player == null) {
 			return;
 		}
+		// F3's own screen shows all of this, in the same corner.
+		if (client.debugEntries.isOverlayVisible()) {
+			return;
+		}
 
 		// Everything sits in the top-right corner: the top-left is where
 		// minimap mods (Xaero's, JourneyMap) draw.
 		int y = barTop(player);
 		y = renderBar(graphics, client, player, y);
-		if (config.coords) {
+		// A server that hides coordinates (the reducedDebugInfo rule, which
+		// hides them in F3 too) doesn't get them from us either.
+		if (config.coords && !player.isReducedDebugInfo()) {
 			renderCoords(graphics, client, player, y);
 		}
 	}
@@ -173,8 +179,9 @@ public class ReminthHudClient implements ClientModInitializer {
 
 	/**
 	 * The game draws effect icons in the top-right corner: good ones in a row
-	 * at the very top, bad ones in a second row under them. The bar goes
-	 * under whichever rows are there instead of on top of them.
+	 * at y 1-25, bad ones ALWAYS in the row at y 27-51 (even with no good
+	 * ones). The bar and the coordinates line (about 32 px together) go under
+	 * every row that's there instead of on top of it.
 	 */
 	private static int barTop(LocalPlayer player) {
 		boolean good = false;
@@ -184,11 +191,12 @@ public class ReminthHudClient implements ClientModInitializer {
 			if (effect.getEffect().value().isBeneficial()) good = true;
 			else bad = true;
 		}
-		if (!good) return 3;
-		return bad ? 53 : 27;
+		if (bad) return 53;
+		return good ? 27 : 3;
 	}
 
 	private static void rebuild(Minecraft client, LocalPlayer player) {
+		SystemLoad.lastWanted = System.nanoTime();
 		Font font = client.font;
 		int n = 0;
 		if (config.fps) {
