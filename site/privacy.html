@@ -116,7 +116,9 @@
         remove its own copies without touching yours; which performance-pack mods you switched off or
         removed (so they are not put back) and what happened to each at the last Play; and, if you picked a
         performance profile for a new instance, a note that Reminth wrote a starting
-        <code>options.txt</code> (see section 10).</li>
+        <code>options.txt</code> (see section 10); and, when you press &ldquo;Update mods to fit&rdquo;, a
+        copy of each mod file it replaced (in <code>.reminth\replaced-mods</code>, the newest five batches
+        are kept) so you can put the old file back.</li>
       <li><b>Skins</b>: a cached copy of your current skin and any skins you save to your library.</li>
       <li><b>Caches of public information</b>: a catalogue of public Modrinth listings, and which Modrinth
         project each of your installed files is and who made it (creator name, profile picture address, icon);
@@ -179,7 +181,8 @@
         exists for your Minecraft version and loader (the mod's name, the version and the loader, nothing
         else) and downloads that build from cdn.modrinth.com.</li>
       <li><b>GitHub</b> (api.github.com and GitHub's release download servers): to check for and download
-        Reminth updates, and, only when Modrinth cannot be reached and nothing is remembered from it, to
+        Reminth updates (when the launcher starts and then every six hours while it stays open, or when you press
+        &ldquo;Check for updates&rdquo; in Settings), and, only when Modrinth cannot be reached and nothing is remembered from it, to
         download Sodium, Lithium and ScalableLux from each project's own GitHub releases on Fabric and Quilt
         instances.</li>
       <li><b>Modpack file hosts</b>: a modpack lists where each of its files is downloaded from. Reminth only
@@ -282,7 +285,8 @@
       <li><b>Version 6, 3 October 2026</b>: the performance pack now comes from Modrinth (stable builds only,
         checksum-checked) with GitHub only as a fallback, and has more mods and Forge/NeoForge support; added
         process priority, starting <code>options.txt</code> files for performance profiles, the graphics-card
-        help, and the new bookkeeping and cache files.</li>
+        help, the &ldquo;Update mods to fit&rdquo; button and its copies of replaced mods, the six-hour update
+        check, and the new bookkeeping and cache files.</li>
       <li><b>Version 5, 2 October 2026</b>: listed every service the launcher contacts (including modpack
         file hosts and the compatibility check's file fingerprints) and every file it keeps on your PC
         (including its logs); corrected the checksum statement and said that streamer mode's sound is
