@@ -2341,7 +2341,9 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .gate-skip { width: 100%; margin-top: 12px; align-items: center; }
 
 /* "Pick a Minecraft version for my mods": the help line, the best match, what happens to each mod. */
+.adv-intro { margin: 0 0 4px; font-size: 13px; color: var(--text); }
 .adv-help { margin: 0 0 6px; font-size: 12px; color: var(--text-3); }
+.gate-dead { margin: 10px 0 0; color: var(--amber); }
 .adv-best { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--emerald); background: color-mix(in srgb, var(--emerald) 10%, transparent); border: 1px solid color-mix(in srgb, var(--emerald) 28%, transparent); }
 .adv-more { align-self: flex-start; margin-top: 2px; }
 .adv-groups { margin-top: 14px; }

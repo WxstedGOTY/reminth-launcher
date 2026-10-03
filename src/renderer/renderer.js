@@ -2226,7 +2226,7 @@ function renderLibraryInstances() {
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
   "Before Play, Reminth checks your mods and says which ones won't load — and fixes them in one click.",
-  "\"Which Minecraft version should I use?\" finds the version all your mods have builds for, and copies your instance to it.",
+  "\"Pick a Minecraft version for my mods\" shows what happens to each mod first, then switches your instance or makes a new one.",
   "Servers show which versions they take. Play finds, or makes, an instance that fits.",
   "Safer saves: settings, instances and downloads are written so a crash or power cut can't leave a half-written file.",
   "Performance: Java settings chosen for your Java version, a bigger performance pack from Modrinth (stable builds only, now on Forge and NeoForge too), and optional Max FPS and Far view profiles for new instances.",

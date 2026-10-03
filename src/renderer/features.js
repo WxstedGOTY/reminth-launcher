@@ -334,7 +334,7 @@ function contentRow(item, ctx) {
   if (item.problem) sub.appendChild(el("span", "c-note warn", item.problem));
   else if (!item.enabled && item.offReason) sub.appendChild(el("span", "c-note", `Turned off by Reminth: ${item.offReason}`));
   else if (item.world && item.kind === "datapack") sub.appendChild(el("span", "c-note", item.world));
-  if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Reminth-managed"));
+  if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Added by Reminth"));
   else if (item.kind === "mod" && isPackFile(content.instanceId, item.file)) {
     const badge = el("span", "c-badge", "Performance pack");
     badge.title = "Kept up to date by Reminth. Switch it off here and Reminth leaves it off.";
@@ -3760,7 +3760,7 @@ pageHooks.streamer = () => {
  * fixes them in one click (main/compat.js does the judging):          *
  *   - the panel above an instance's mod list                          *
  *   - the question in front of Play when the game can't start         *
- *   - "Which Minecraft version should I use?" + the copy it offers    *
+ *   - "Pick a Minecraft version for my mods": switch or new instance  *
  *   - what a server takes, and what to do when no instance fits       *
  * ================================================================== */
 const compatUi = {
@@ -4106,7 +4106,7 @@ function renderCompatPanel() {
     all.onclick = () => compatFixFromPanel(id, result.issues, { includeDisable: false, busyButton: all, all: true });
     actions.appendChild(all);
   }
-  const advise = button("btn outline sm", "Find a version that fits everything");
+  const advise = button("btn outline sm", "Pick a version that fits my mods");
   advise.onclick = () => openVersionAdvisor(id);
   actions.appendChild(advise);
   head.appendChild(actions);
@@ -4200,6 +4200,17 @@ async function compatBeforePlay(inst) {
     const list = el("div", "cp-list");
     blocked.forEach((issue) => list.appendChild(compatIssueRow(issue, { showFixText: true })));
     body.appendChild(list);
+    // Mods with no version for this Minecraft or any newer one: picking another
+    // version can't help them (short of going back) - say so in one line.
+    const dead = el("p", "set-note gate-dead");
+    dead.hidden = true;
+    body.appendChild(dead);
+    explainNoNewer(inst, blocked).then((line) => {
+      if (line) {
+        dead.textContent = line;
+        dead.hidden = false;
+      }
+    });
     const note = el("div", "cp-note");
     note.hidden = true;
     body.appendChild(note);
@@ -4260,6 +4271,35 @@ async function compatBeforePlay(inst) {
       ],
     });
   });
+}
+
+/**
+ * The Play question's one line for mods that have no version for this
+ * Minecraft or any newer one (Modrinth asked per mod, a few at most), or
+ * null. Never throws; a mod that can't be looked up just isn't named.
+ */
+async function explainNoNewer(inst, issues) {
+  const ask = issues.filter((i) => i.file && i.projectId && i.reason === "wrong-mc" && i.fix && i.fix.type === "disable").slice(0, 8);
+  if (!ask.length) return null;
+  const names = [];
+  await Promise.all(
+    ask.map(async (i) => {
+      try {
+        const support = await window.reminth.compatSupport(inst.id, i.projectId);
+        const here = (support && Array.isArray(support.here) && support.here) || [];
+        const sameOrNewer = (v) => {
+          const c = window.ReminthPure.compareMc(v, inst.mcVersion);
+          return c !== null && c >= 0;
+        };
+        if (!here.some(sameOrNewer)) names.push(i.title);
+      } catch {
+        // not named
+      }
+    })
+  );
+  if (!names.length) return null;
+  const n = names.length;
+  return `${nameList(names)} ${n === 1 ? "has" : "have"} no version for Minecraft ${inst.mcVersion} or anything newer, so picking another version won't help ${n === 1 ? "it" : "them"} — ${n === 1 ? "it has" : "they have"} to be turned off to play (Fix and play does that).`;
 }
 
 /**
@@ -4391,7 +4431,7 @@ async function compatAfterEdit(id, mcVersion) {
   toast(n === 1 ? `1 mod needs its ${mcVersion} build — open Mods to fix it in one click.` : `${n} mods need their ${mcVersion} builds — open Mods to fix them in one click.`);
 }
 
-/* ---- "Which Minecraft version should I use?" ---- */
+/* ---- "Pick a Minecraft version for my mods" ---- */
 
 // The game refused to start and said which mods (main.js noteLaunchReport):
 // look again now, so the panel and "Update mods to fit" know them.
@@ -4440,6 +4480,7 @@ function openVersionAdvisor(instanceId, options = {}) {
   const body = el("div", "adv");
   /* step 1: pick */
   const pickView = el("div");
+  pickView.appendChild(el("p", "adv-intro", "See what happens to each of your mods on another Minecraft version. Nothing changes until you confirm."));
   pickView.appendChild(el("p", "adv-help", 'A "build" is the version of a mod made for one Minecraft version.'));
   const context = el("p", "vpick-note");
   pickView.appendChild(context);
@@ -4493,7 +4534,7 @@ function openVersionAdvisor(instanceId, options = {}) {
   let handle = null;
   const done = new Promise((resolve) => {
     handle = openModal({
-      title: "Which Minecraft version should I use?",
+      title: "Pick a Minecraft version for my mods",
       body,
       wide: true,
       // Not while the copy runs: it would carry on behind a closed dialog.
@@ -5030,21 +5071,21 @@ async function explainNoBuild(inst, projectId, title) {
       "p",
       null,
       here.length
-        ? `${name} has no ${loader} build for ${mc}. It has builds for ${here.slice(0, 3).join(", ")}${here.length > 3 ? ` (+${here.length - 3} more)` : ""}.`
-        : `${name} has no ${loader} build for ${mc}, or for any other version.`
+        ? `${name} has no version for Minecraft ${mc} with ${loader}. It has versions for ${here.slice(0, 3).join(", ")}${here.length > 3 ? ` (+${here.length - 3} more)` : ""}.`
+        : `${name} has no version for Minecraft ${mc} with ${loader}, or for any other Minecraft version.`
     )
   );
   const others = support.otherLoaders || [];
   if (others.length) body.appendChild(el("p", null, `For ${mc} it only exists for ${sentenceList(others)}.`));
   closeCardMenu(); // the "which instance?" panel this install came from
-  if (here.length) body.appendChild(el("p", "set-note", `Reminth can work out which version has builds of everything in ${inst.name}, and make a copy of it on that version.`));
+  if (here.length) body.appendChild(el("p", "set-note", `Reminth can show which Minecraft version fits all the mods in ${inst.name}, then switch it to that version or make a new instance on it.`));
   openModal({
     title: `No ${mc} build of ${name}`,
     body,
     buttons: [
       { label: "Close", className: "outline" },
       {
-        label: "Find a version that fits everything",
+        label: "Pick a version that fits my mods",
         className: "primary",
         onClick: () => {
           // After this dialog has closed, so the two never stack.
@@ -5645,7 +5686,7 @@ function askAboutNoBuild(id, mcVersion, noBuild, appliedCount) {
     buttons: [
       { label: noBuild.length === 1 ? "Leave it" : "Leave them", className: "outline" },
       {
-        label: "Find a version that fits everything",
+        label: "Pick a version that fits my mods",
         className: "outline",
         onClick: () => {
           setTimeout(() => openVersionAdvisor(id), 0);
