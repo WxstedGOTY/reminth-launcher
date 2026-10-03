@@ -227,6 +227,9 @@ function rowMenu(item) {
     menu.appendChild(it);
   };
   const t = Object.values(CONTENT_TABS).find((x) => x.kind === item.kind);
+  // Known on Modrinth: its page (section 10); Back comes back here.
+  const pid = item.projectId || (creatorOf(item) && creatorOf(item).projectId);
+  if (pid && item.valid) add("Open project page", "#i-compass", () => openProject(pid, { title: itemName(item) }));
   add("Open folder", "#i-folder", () => openFolder(t ? t.folder : "game", content.instanceId));
   add("Copy file name", "#i-copy", () => {
     navigator.clipboard.writeText(item.file).then(() => toast("File name copied."), () => {});
@@ -2268,6 +2271,21 @@ function projectRow(p) {
   stats.appendChild(stat("#i-clock", formatRelativeTime(p.date_modified)));
   side.appendChild(stats);
   row.appendChild(side);
+  // The card itself opens the project's page - anywhere but its buttons.
+  row.classList.add("openable");
+  row.tabIndex = 0;
+  row.setAttribute("role", "link");
+  row.setAttribute("aria-label", `${p.title} - open its page`);
+  const open = () => openProject(pid, { title: p.title, icon: src, author: p.author, summary: p.description, type });
+  row.addEventListener("click", (e) => {
+    if (e.target.closest("button, a, input, .dd-menu")) return;
+    open();
+  });
+  row.addEventListener("keydown", (e) => {
+    if (e.target !== row || e.key !== "Enter") return;
+    e.preventDefault();
+    open();
+  });
   return row;
 }
 
@@ -5351,6 +5369,457 @@ $("heroSyncBtn").onclick = () => {
 };
 
 /* ================================================================== *
+ * 10. the project page in Discover                                    *
+ *                                                                     *
+ * A click on a result opens the whole project: description, gallery,  *
+ * versions, links - from catalog:projectPage (main/projectPage.js,    *
+ * which also parses the description with markdown.js). The result list *
+ * stays in place underneath, so Back finds the search, filters, page  *
+ * and scroll position exactly as they were.                           *
+ * ================================================================== */
+const projUi = { open: false, id: null, req: 0, scroll: 0, data: null, tab: "description", hint: null, versionsShown: 30 };
+const PV_TABS = [
+  ["description", "Description"],
+  ["gallery", "Gallery"],
+  ["versions", "Versions"],
+  ["links", "Links"],
+];
+const CHANNEL_TAGS = { release: ["Release", "emerald"], beta: ["Beta", "amber"], alpha: ["Alpha", "rose"] };
+
+/** Opens a link from a project page in the default browser (main.js checks it again). */
+function openProjectLink(href) {
+  window.reminth.openLink(href).catch((err) => toast(friendlyError(err.message)));
+}
+
+/**
+ * Opens a project's page. `hint` (from the search result, if there is one)
+ * fills the header straight away while the rest loads.
+ */
+function openProject(projectId, hint = {}) {
+  if (!projectId) return;
+  // Opened from somewhere else (an installed mod's menu): Back goes there.
+  if (!projUi.open) projUi.from = currentPage !== "discover" ? { page: currentPage, scroll: $("pages").scrollTop } : null;
+  if (currentPage !== "discover") switchPage("discover");
+  if (!projUi.open) projUi.scroll = $("pages").scrollTop;
+  projUi.open = true;
+  projUi.id = projectId;
+  projUi.hint = hint;
+  projUi.data = null;
+  projUi.tab = "description";
+  projUi.versionsShown = 30;
+  $("discover").classList.add("showing-project");
+  $("projectView").hidden = false;
+  $("pages").scrollTop = 0;
+  renderProjectView();
+  loadProjectPage(projectId);
+}
+
+async function loadProjectPage(projectId) {
+  const req = ++projUi.req;
+  projUi.error = null;
+  try {
+    const data = await window.reminth.projectPage(projectId);
+    // Gone back, or another project opened meanwhile: this answer is old.
+    if (req !== projUi.req || !projUi.open || projUi.id !== projectId) return;
+    projUi.data = data;
+  } catch (err) {
+    if (req !== projUi.req || !projUi.open || projUi.id !== projectId) return;
+    projUi.error = friendlyError(err.message);
+  }
+  renderProjectView();
+}
+
+/** Back to the results, exactly as they were. */
+function closeProject() {
+  if (!projUi.open) return;
+  projUi.open = false;
+  projUi.req++; // whatever is still loading is now stale
+  $("discover").classList.remove("showing-project");
+  $("projectView").hidden = true;
+  $("projectView").textContent = "";
+  if (projUi.from && PAGE_META[projUi.from.page]) {
+    const from = projUi.from;
+    projUi.from = null;
+    switchPage(from.page);
+    $("pages").scrollTop = from.scroll;
+    return;
+  }
+  $("pages").scrollTop = projUi.scroll;
+  // the card that was opened gets the focus back
+  const card = [...document.querySelectorAll("#browseGrid .mod-row.openable")].find((r) => r.querySelector(`[data-project="${CSS.escape(String(projUi.id))}"]`));
+  if (card) card.focus({ preventScroll: true });
+}
+
+// Esc and the mouse's own Back button go back too (a dialog or menu open on top answers Esc first).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !projUi.open || currentPage !== "discover") return;
+  if (modalStack.length || document.querySelector(".dd-open") || cardMenu) return;
+  closeProject();
+});
+window.addEventListener("mouseup", (e) => {
+  if (e.button !== 3 || !projUi.open || currentPage !== "discover" || modalStack.length) return;
+  e.preventDefault();
+  closeProject();
+});
+
+function pvAvatar(person) {
+  if (person.avatar) {
+    const img = el("img", "pv-avatar");
+    img.src = person.avatar;
+    img.alt = "";
+    img.loading = "lazy";
+    img.addEventListener("error", () => img.replaceWith(el("span", "pv-avatar", (person.name || "?").slice(0, 1).toUpperCase())));
+    return img;
+  }
+  return el("span", "pv-avatar", (person.name || "?").slice(0, 1).toUpperCase());
+}
+
+/** The Install controls: the same paths (and guards) as the result cards. */
+function pvInstallControls(project) {
+  const type = project.type;
+  const box = el("div", "pv-install");
+  if (type === "plugin" || !DTYPES[type] || type === "server") return box;
+  const fit = { id: project.id, name: project.title, type, versions: project.gameVersions, loaders: project.loaders };
+  const installed = installedProjectIds().has(project.id);
+  const btn = button("btn primary pill-like" + (installed ? " installed" : ""), type === "modpack" ? "Install" : installed ? "Installed" : "Install", installed ? "#i-check" : "#i-plus");
+  btn.dataset.project = project.id;
+  if (type === "modpack") btn.onclick = () => installModpackFlow({ projectId: project.id, title: project.title });
+  else {
+    btn.dataset.installable = "1";
+    btn.title = installTip(installed);
+    if (installed) paintInstallButton(btn, true);
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      pickInstanceFor(fit, btn);
+    };
+  }
+  if (type === "mod") {
+    const pick = el("button", "btn outline icon-only vpick-btn");
+    pick.type = "button";
+    pick.title = "Choose version…";
+    pick.setAttribute("aria-label", `Choose a version of ${project.title}`);
+    pick.appendChild(icon("#i-chevron"));
+    pick.onclick = () => chooseModVersion({ projectId: project.id, title: project.title, instanceId: state.activeId }, [btn]);
+    const group = el("div", "install-group");
+    group.appendChild(btn);
+    group.appendChild(pick);
+    box.appendChild(group);
+  } else box.appendChild(btn);
+  return box;
+}
+
+function renderProjectView() {
+  const view = $("projectView");
+  if (!projUi.open) return;
+  const scroll = $("pages").scrollTop;
+  view.textContent = "";
+  const top = el("div", "pv-top");
+  const backTo = projUi.from ? (projUi.from.page === "instance" && activeInstance() ? activeInstance().name : (PAGE_META[projUi.from.page] || ["the last page"])[0]) : "results";
+  const back = button("btn outline sm pv-back", `Back to ${backTo}`, "#i-chevron");
+  back.onclick = () => closeProject();
+  top.appendChild(back);
+  view.appendChild(top);
+
+  const data = projUi.data;
+  const hint = projUi.hint || {};
+  const p = data ? data.project : null;
+
+  // ---- header
+  const head = el("div", "card pv-head");
+  const iconSrc = (p && p.icon) || hint.icon;
+  if (iconSrc) {
+    const img = el("img", "pv-icon");
+    img.src = iconSrc;
+    img.alt = "";
+    head.appendChild(img);
+  } else head.appendChild(el("div", "pv-icon", ((p && p.title) || hint.title || "?").slice(0, 1)));
+  const info = el("div", "pv-info");
+  info.appendChild(el("h2", "pv-title", (p && p.title) || hint.title || "Loading…"));
+  const summary = (p && p.summary) || hint.summary;
+  if (summary) info.appendChild(el("p", "pv-summary", summary));
+  const by = el("div", "pv-by");
+  if (data && data.people.length) {
+    by.appendChild(el("span", "pv-by-k", "By"));
+    for (const person of data.people.slice(0, 5)) {
+      const chip = el("a", "pv-person");
+      chip.href = person.url || "#";
+      chip.title = person.role ? `${person.name} - ${person.role}` : person.name;
+      chip.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (person.url) openProjectLink(person.url);
+      });
+      chip.appendChild(pvAvatar(person));
+      chip.appendChild(el("span", null, person.name));
+      by.appendChild(chip);
+    }
+  } else if (hint.author) by.appendChild(el("span", "pv-by-k", `By ${hint.author}`));
+  info.appendChild(by);
+  if (p) {
+    const facts = el("div", "pv-facts sep-list");
+    const fact = (iconId, text) => {
+      const span = el("span", "pv-fact");
+      span.appendChild(icon(iconId));
+      span.appendChild(document.createTextNode(text));
+      return span;
+    };
+    facts.appendChild(fact("#i-download", `${formatCount(p.downloads) || 0} downloads`));
+    facts.appendChild(fact("#i-heart", `${formatCount(p.followers) || 0} followers`));
+    if (p.updated) facts.appendChild(fact("#i-clock", `Updated ${formatRelativeTime(p.updated)}`));
+    info.appendChild(facts);
+    const tags = el("div", "pv-tags");
+    const side = p.clientSide && p.serverSide ? (p.serverSide === "unsupported" ? "Client" : p.clientSide === "unsupported" ? "Server" : "Client and server") : null;
+    if (side) tags.appendChild(el("span", "tag dim", side));
+    for (const c of p.categories.filter((c) => !["fabric", "forge", "neoforge", "quilt", "iris", "optifine", "canvas", "vanilla", "datapack", "minecraft"].includes(c)).slice(0, 8)) tags.appendChild(el("span", "tag dim", prettyTag(c)));
+    if (p.license && (p.license.name || p.license.id)) {
+      const lic = el("span", "tag dim pv-license", `License: ${p.license.name || p.license.id}`);
+      if (p.license.url) {
+        lic.title = p.license.url;
+        lic.classList.add("is-link");
+        clickable(lic, () => openProjectLink(p.license.url));
+      }
+      tags.appendChild(lic);
+    }
+    info.appendChild(tags);
+  }
+  head.appendChild(info);
+  const right = el("div", "pv-right");
+  if (p) right.appendChild(pvInstallControls(p));
+  head.appendChild(right);
+  view.appendChild(head);
+
+  if (projUi.error) {
+    const err = el("div", "card pv-error");
+    err.appendChild(el("b", null, "Couldn't load this project"));
+    err.appendChild(el("p", null, projUi.error));
+    const retry = button("btn primary sm", "Retry", "#i-refresh");
+    retry.onclick = () => {
+      projUi.error = null;
+      renderProjectView();
+      loadProjectPage(projUi.id);
+    };
+    err.appendChild(retry);
+    view.appendChild(err);
+    return;
+  }
+  if (!data) {
+    // skeleton while it loads (Back works the whole time)
+    const sk = el("div", "pv-skeleton");
+    for (const w of [70, 92, 85, 40, 88, 76]) {
+      const line = el("div", "pv-sk-line");
+      line.style.width = w + "%";
+      sk.appendChild(line);
+    }
+    view.appendChild(sk);
+    return;
+  }
+
+  // ---- fits / support
+  const support = el("div", "card pv-support");
+  const inst = activeInstance();
+  const fitState = window.ReminthPure.fitsInstance(p.type, data.builds, inst);
+  if (fitState.text) {
+    const line = el("div", "pv-fit " + fitState.state);
+    line.appendChild(icon(fitState.state === "fits" ? "#i-check" : "#i-alert"));
+    line.appendChild(el("span", null, fitState.text));
+    support.appendChild(line);
+  }
+  const loaders = p.loaders.filter((l) => !["minecraft", "datapack"].includes(l));
+  if (loaders.length) {
+    const row = el("div", "pv-sup-row");
+    row.appendChild(el("span", "pv-sup-k", "Loaders"));
+    for (const l of loaders) row.appendChild(el("span", "tag " + ({ fabric: "cyan", quilt: "violet", forge: "amber", neoforge: "rose" }[l] || "dim"), prettyTag(l)));
+    support.appendChild(row);
+  }
+  const versions = window.ReminthPure.collapseVersions(p.gameVersions);
+  if (versions.ranges.length || versions.other) {
+    const row = el("div", "pv-sup-row");
+    row.appendChild(el("span", "pv-sup-k", "Minecraft"));
+    for (const r of versions.ranges.slice(0, 14)) row.appendChild(el("span", "tag dim", r));
+    if (versions.ranges.length > 14) row.appendChild(el("span", "pv-sup-more", `+${versions.ranges.length - 14} older`));
+    if (versions.other) row.appendChild(el("span", "pv-sup-more", `+ ${versions.other} snapshot${versions.other === 1 ? "" : "s"}`));
+    support.appendChild(row);
+  }
+  view.appendChild(support);
+
+  // ---- tabs
+  const counts = { gallery: p.gallery.length, versions: data.builds ? data.builds.length : 0, links: p.links.length + (p.modrinthUrl ? 1 : 0) };
+  const tabs = el("nav", "tabs pv-tabs");
+  for (const [id, label] of PV_TABS) {
+    const t = el("button", "tab" + (projUi.tab === id ? " active" : ""));
+    t.type = "button";
+    t.appendChild(document.createTextNode(label));
+    if (counts[id]) t.appendChild(el("span", "tab-count", String(counts[id])));
+    t.onclick = () => {
+      projUi.tab = id;
+      renderProjectView();
+    };
+    tabs.appendChild(t);
+  }
+  view.appendChild(tabs);
+  const body = el("div", "pv-body");
+  if (projUi.tab === "description") body.appendChild(pvDescription(data));
+  else if (projUi.tab === "gallery") body.appendChild(pvGallery(p));
+  else if (projUi.tab === "versions") body.appendChild(pvVersions(p, data.builds));
+  else body.appendChild(pvLinks(p));
+  view.appendChild(body);
+  $("pages").scrollTop = scroll;
+}
+
+function pvDescription(data) {
+  const box = el("div", "card pv-desc");
+  box.appendChild(el("p", "pv-credit", "Description by the project's author, shown from Modrinth."));
+  const tree = data.body;
+  if (!tree || !tree.c || !tree.c.length) {
+    box.appendChild(el("p", "set-note", "The author hasn't written a description."));
+    return box;
+  }
+  box.appendChild(window.ReminthMarkdown.toDom(tree, { onLink: openProjectLink, fullUrl: data.project.modrinthUrl }));
+  return box;
+}
+
+function pvGallery(p) {
+  const box = el("div", "pv-gallery");
+  if (!p.gallery.length) {
+    box.appendChild(el("p", "set-note", "No pictures in this project's gallery."));
+    return box;
+  }
+  for (const g of p.gallery) {
+    const fig = el("figure", "card pv-shot");
+    if (g.url) {
+      const img = el("img");
+      img.src = g.url;
+      img.alt = g.title || "Gallery picture";
+      img.loading = "lazy";
+      img.decoding = "async";
+      if (g.full) {
+        img.title = "Open full size in your browser";
+        clickable(img, () => g.link && openProjectLink(g.link));
+      }
+      fig.appendChild(img);
+    } else {
+      const ph = el("div", "md-imgblocked pv-shot-ph");
+      ph.appendChild(el("span", "md-imgblocked-t", "Image hosted elsewhere"));
+      if (g.link) {
+        const a = button("btn outline sm", "Open in browser", "#i-external");
+        a.onclick = () => openProjectLink(g.link);
+        ph.appendChild(a);
+      }
+      fig.appendChild(ph);
+    }
+    if (g.title || g.description) {
+      const cap = el("figcaption");
+      if (g.title) cap.appendChild(el("b", null, g.title));
+      if (g.description) cap.appendChild(el("span", null, g.description));
+      fig.appendChild(cap);
+    }
+    box.appendChild(fig);
+  }
+  return box;
+}
+
+function pvVersions(p, builds) {
+  const box = el("div", "card pv-versions");
+  if (!builds) {
+    box.appendChild(el("p", "set-note", "Couldn't read the list of versions - try again in a moment."));
+    return box;
+  }
+  if (!builds.length) {
+    box.appendChild(el("p", "set-note", "No versions published yet."));
+    return box;
+  }
+  const inst = activeInstance();
+  const kind = p.type;
+  for (const b of builds.slice(0, projUi.versionsShown)) box.appendChild(pvVersionRow(p, b, kind, inst));
+  if (builds.length > projUi.versionsShown) {
+    const more = button("btn outline sm pv-more", `Show more (${builds.length - projUi.versionsShown} older)`);
+    more.onclick = () => {
+      projUi.versionsShown += 50;
+      renderProjectView();
+    };
+    box.appendChild(more);
+  }
+  return box;
+}
+
+function pvVersionRow(p, b, kind, inst) {
+  const row = el("details", "pv-ver");
+  const sum = el("summary", "pv-ver-sum");
+  const name = el("div", "pv-ver-name");
+  name.appendChild(el("b", null, b.number || b.name || "?"));
+  if (b.name && b.name !== b.number) name.appendChild(el("span", null, b.name));
+  sum.appendChild(name);
+  const [label, colour] = CHANNEL_TAGS[b.type] || CHANNEL_TAGS.release;
+  sum.appendChild(el("span", "tag " + colour, label));
+  const mc = window.ReminthPure.collapseVersions(b.mc);
+  sum.appendChild(el("span", "pv-ver-mc", mc.ranges.slice(0, 3).join(", ") + (mc.ranges.length > 3 ? ` +${mc.ranges.length - 3}` : "") || "—"));
+  sum.appendChild(el("span", "pv-ver-ld", b.loaders.map(prettyTag).join(", ")));
+  sum.appendChild(el("span", "pv-ver-date", b.date ? formatRelativeTime(b.date) : ""));
+  sum.appendChild(el("span", "pv-ver-dl", formatCount(b.downloads) || "0"));
+  // "Install this version" into the instance Discover is showing (fixed at the click)
+  if (kind !== "plugin" && DTYPES[kind]) {
+    const go = button("btn outline sm pv-ver-install", "Install", "#i-download");
+    const fitsHere = kind === "modpack" || (inst && window.ReminthPure.fitsInstance(kind, [{ ...b, type: "release" }], inst).state === "fits");
+    if (!fitsHere) {
+      go.disabled = true;
+      go.title = inst ? `Not for ${inst.name} (${loaderLabel(inst)} ${inst.mcVersion})` : "";
+    } else go.title = kind === "modpack" ? "Install as a new instance" : `Install this version into ${inst.name}`;
+    go.onclick = async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const target = activeInstance();
+      const question = window.ReminthPure.buildConfirmText(b);
+      // Never a beta or alpha without an explicit yes that names it.
+      if (question && !(await confirmModal(`Install ${b.type === "alpha" ? "an" : "a"} ${b.type} build?`, question, `Install the ${b.type}`, true))) return;
+      if (kind === "modpack") return installModpackFlow({ projectId: p.id, versionId: b.id, title: p.title });
+      if (!target) return;
+      installProject({ projectId: p.id, projectType: kind, title: p.title, versionId: b.id, instanceId: target.id }, [go]);
+    };
+    sum.appendChild(go);
+  }
+  row.appendChild(sum);
+  // The changelog is only read when the row is opened.
+  row.addEventListener(
+    "toggle",
+    () => {
+      if (!row.open || row.dataset.filled) return;
+      row.dataset.filled = "1";
+      const body = el("div", "pv-ver-body");
+      if (typeof b.changelog === "string" && b.changelog.trim()) {
+        body.appendChild(window.ReminthMarkdown.toDom(window.ReminthMarkdown.parse(b.changelog), { onLink: openProjectLink }));
+        if (b.changelogCut) body.appendChild(el("p", "set-note", "The rest of this changelog is on Modrinth."));
+      } else body.appendChild(el("p", "set-note", b.changelog === undefined ? "Changelogs are shown for the newest 50 versions." : "No changelog for this version."));
+      row.appendChild(body);
+    },
+    { passive: true }
+  );
+  return row;
+}
+
+function pvLinks(p) {
+  const box = el("div", "card pv-links");
+  const all = [...p.links];
+  if (p.modrinthUrl) all.push({ kind: "modrinth", label: "View on Modrinth", href: p.modrinthUrl });
+  if (!all.length) {
+    box.appendChild(el("p", "set-note", "No links."));
+    return box;
+  }
+  for (const l of all) {
+    const row = el("button", "pv-link");
+    row.type = "button";
+    row.title = l.href;
+    row.appendChild(icon(l.kind === "modrinth" ? "#i-compass" : "#i-link"));
+    const text = el("span", "pv-link-text");
+    text.appendChild(el("b", null, l.label));
+    text.appendChild(el("span", "pv-link-href", l.href));
+    row.appendChild(text);
+    row.appendChild(icon("#i-external", "i pv-link-ext"));
+    row.onclick = () => openProjectLink(l.href);
+    box.appendChild(row);
+  }
+  return box;
+}
+
+/* ================================================================== *
  * wiring that depends on instances                                    *
  * ================================================================== */
 window.onInstancesChanged = () => {
@@ -5373,6 +5842,8 @@ window.onInstancesChanged = () => {
   const fit = `${inst.id}|${inst.name}|${inst.loader}|${inst.mcVersion}`;
   const changed = fit !== disc.fit;
   disc.fit = fit;
+  // An open project page's "Fits your instance" line is about this instance.
+  if (changed && projUi.open && projUi.data) renderProjectView();
   if (changed && currentPage === "discover") {
     disc.page = 1;
     renderFilterPanel().then(() => runBrowse());
