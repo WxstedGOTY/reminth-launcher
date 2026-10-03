@@ -2012,8 +2012,10 @@ function recentCard(entry, { showInstance } = {}) {
     tile.appendChild(img);
   } else glyph();
   art.appendChild(tile);
-  const body = el("div", "recent-body");
-  body.appendChild(el("div", "recent-name", entry.name));
+  // The text strip: the words on the left (they shrink and wrap), Play on the right.
+  const body = el("div", "recent-body has-play");
+  const text = el("div", "recent-text");
+  text.appendChild(el("div", "recent-name", entry.name));
   const meta = el("div", "recent-meta");
   const bits = [];
   if (entry.subtitle) bits.push([entry.subtitle]);
@@ -2028,11 +2030,12 @@ function recentCard(entry, { showInstance } = {}) {
   if (when) bits.push([when]);
   // The "·" between them is drawn by CSS (.sep-list), so a line never starts or ends with one.
   meta.classList.add("sep-list");
-  bits.forEach(([text, cls]) => meta.appendChild(el("span", cls || null, text)));
-  body.appendChild(meta);
+  bits.forEach(([words, cls]) => meta.appendChild(el("span", cls || null, words)));
+  text.appendChild(meta);
+  body.appendChild(text);
+  body.appendChild(recentPlayButton(entry));
   card.appendChild(art);
   card.appendChild(body);
-  card.appendChild(recentPlayButton(entry));
   return card;
 }
 
