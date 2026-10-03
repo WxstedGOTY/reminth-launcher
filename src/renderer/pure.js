@@ -24,6 +24,17 @@
   }
 
   /**
+   * Home's "Time played": the lifetime counter main.js keeps in settings
+   * (totalPlayTimeMs - every instance, deleted ones included). Before it has
+   * been seeded (or when it's junk), the sum of the instances' own times.
+   */
+  function homePlayTime(settings, instances) {
+    const t = settings && settings.totalPlayTimeMs;
+    if (typeof t === "number" && Number.isFinite(t) && t >= 0) return Math.floor(t);
+    return (Array.isArray(instances) ? instances : []).reduce((sum, i) => sum + (i && Number(i.playTimeMs) > 0 ? Number(i.playTimeMs) : 0), 0);
+  }
+
+  /**
    * The instance list with `instanceId` marked as played at `at` (ms), so
    * Home's hero can move to it the moment its game starts, before the list
    * is read again. A newer lastPlayed already there is kept. Returns a new
@@ -389,7 +400,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

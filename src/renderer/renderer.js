@@ -1153,10 +1153,16 @@ function renderHero() {
   paintPlayButtons();
 }
 
-/** Time played and Last played on the hero: the hero's own instance, like the rest of the hero. */
+/**
+ * The hero's Time played is the player's whole time through Reminth (every
+ * instance, deleted ones too - main.js keeps the counter); Last played is
+ * about the hero instance, like the rest of the hero.
+ */
 function paintHeroStats() {
   const inst = heroInstance();
-  $("heroPlaytime").textContent = inst && inst.playTimeMs ? formatPlaytime(msToTicks(inst.playTimeMs)) : "—";
+  const total = window.ReminthPure.homePlayTime(state.settings, state.instances);
+  $("heroPlaytime").textContent = total ? formatPlaytime(msToTicks(total)) : "—";
+  $("heroPlaytime").title = "All your time in Minecraft through Reminth, across every instance - including ones you deleted.";
   $("heroLast").textContent = inst && inst.lastPlayed ? formatWhen(inst.lastPlayed) : "Never";
 }
 
@@ -2385,6 +2391,11 @@ window.reminth.onPlayStarted(({ instanceId, startedAt }) => {
   paintPlayButtons();
   if (currentPage === "instance") renderInstancePage();
   loadInstances();
+});
+// A game ended: the lifetime Time played on Home grew.
+window.reminth.onTotalPlayTime(({ totalPlayTimeMs }) => {
+  state.settings = { ...(state.settings || {}), totalPlayTimeMs };
+  paintHeroStats();
 });
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);

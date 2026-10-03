@@ -135,6 +135,7 @@ contextBridge.exposeInMainWorld("reminth", {
   onCrashCulprit: on("play:crashCulprit"),
   onPlayStarted: on("play:started"),
   onPlayExited: on("play:exited"),
+  onTotalPlayTime: on("play:totalTime"),
   onSafeMode: on("play:safeMode"),
   onContentChanged: on("content:changed"),
   onContentProgress: on("content:progress"),

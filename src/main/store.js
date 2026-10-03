@@ -260,9 +260,40 @@ const DANGEROUS_JVM_FLAGS = [
  * should be told why their setting didn't stick); non-strict just drops it
  * (the disk path, where throwing would mean the app won't start at all).
  */
-function sanitizeSettings(partial, { strict = false } = {}) {
+/** The lifetime play-time counter's ceiling: 200 years of playing - anything above is junk. */
+const MAX_TOTAL_PLAY_MS = 200 * 365 * 24 * 3600 * 1000;
+
+/** Pure: a stored lifetime counter, or null when it isn't one (absent, negative, not a number, too big). */
+function cleanTotalPlayTime(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > MAX_TOTAL_PLAY_MS) return null;
+  return Math.floor(value);
+}
+
+/** Pure: the counter after the one-time seeding - never seeded twice, never lowered. */
+function seededTotal(current, instancesSum) {
+  const now = cleanTotalPlayTime(current);
+  if (now !== null) return now;
+  return cleanTotalPlayTime(Math.max(0, Number(instancesSum) || 0)) || 0;
+}
+
+/** Pure: the counter after one session of `ms` (nothing for a session that didn't run). */
+function addedTotal(current, ms) {
+  const now = cleanTotalPlayTime(current) || 0;
+  const add = Number.isFinite(ms) && ms > 0 ? Math.floor(ms) : 0;
+  return Math.min(MAX_TOTAL_PLAY_MS, now + add);
+}
+
+function sanitizeSettings(partial, { strict = false, counters = false } = {}) {
   const clean = {};
   if (!partial || typeof partial !== "object") return clean;
+
+  // The lifetime "Time played" counter is only ever read from the file here;
+  // it changes through seedPlayTime / addPlayTime, never through a settings
+  // save from the page.
+  if (counters) {
+    const total = cleanTotalPlayTime(partial.totalPlayTimeMs);
+    if (total !== null) clean.totalPlayTimeMs = total;
+  }
 
   const clamp = (value, min, max) => {
     if (value === null) return null;
@@ -363,7 +394,7 @@ async function readSettingsFile() {
 
 function settingsFrom(parsed) {
   if (!parsed) return { ...DEFAULT_SETTINGS };
-  const clean = sanitizeSettings(parsed);
+  const clean = sanitizeSettings(parsed, { counters: true });
   return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed.streamer) };
 }
 
@@ -388,7 +419,51 @@ async function saveSettings(partial) {
   });
 }
 
+/**
+ * Home's lifetime "Time played" (settings.json totalPlayTimeMs): all the time
+ * played through Reminth, across every instance - it doesn't shrink when an
+ * instance is deleted, which a sum of the instances would.
+ *
+ * seedPlayTime(sumOfInstances): once, when there's no counter yet (or only
+ * junk), it starts from what the instances have recorded so far. A counter
+ * already there is never recomputed or lowered.
+ */
+async function seedPlayTime(sumOfInstances) {
+  return atomic.withLock("store:settings", async () => {
+    const parsed = await readSettingsFile();
+    if (parsed && cleanTotalPlayTime(parsed.totalPlayTimeMs) !== null) return parsed.totalPlayTimeMs;
+    const sum = typeof sumOfInstances === "function" ? await sumOfInstances() : sumOfInstances;
+    const current = settingsFrom(parsed);
+    const total = seededTotal(null, sum);
+    await atomic.writeJsonAtomic(paths.SETTINGS_FILE, { ...current, totalPlayTimeMs: total }, { space: 2, backup: true });
+    return total;
+  });
+}
+
+/**
+ * One finished session's time onto the counter (same lock as every settings
+ * write). No counter yet: it's seeded first from `sumOfInstances` - which
+ * already includes this session, recorded just before - so it isn't added twice.
+ */
+async function addPlayTime(ms, sumOfInstances) {
+  if (!(Number.isFinite(ms) && ms > 0)) return null;
+  return atomic.withLock("store:settings", async () => {
+    const parsed = await readSettingsFile();
+    const current = settingsFrom(parsed);
+    let total;
+    if (parsed && cleanTotalPlayTime(parsed.totalPlayTimeMs) !== null) total = addedTotal(parsed.totalPlayTimeMs, ms);
+    else total = seededTotal(null, typeof sumOfInstances === "function" ? await sumOfInstances() : sumOfInstances || ms);
+    await atomic.writeJsonAtomic(paths.SETTINGS_FILE, { ...current, totalPlayTimeMs: total }, { space: 2, backup: true });
+    return total;
+  });
+}
+
 module.exports = {
+  seedPlayTime,
+  addPlayTime,
+  cleanTotalPlayTime,
+  seededTotal,
+  addedTotal,
   saveAccount,
   loadAccount,
   clearAccount,

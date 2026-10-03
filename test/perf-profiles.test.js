@@ -1038,3 +1038,21 @@ test("main: Undo after Reminth made an instance only while it was never played a
     INSTANCE = saved;
   }
 });
+
+test("main: a finished session adds its time to the lifetime counter and tells the page", async () => {
+  const store = require("../src/main/store");
+  const paths = require("../src/main/paths");
+  await store.seedPlayTime(0);
+  const before = (await store.loadSettings()).totalPlayTimeMs;
+  install = { promise: Promise.resolve({ removedMods: [] }) };
+  await call("play:run", { instanceId: "i1" });
+  await tick(30);
+  const from = toRenderer.length;
+  lastChild.emit("exit", 0, null);
+  for (let i = 0; i < 200 && !toRenderer.slice(from).some(([c]) => c === "play:totalTime"); i++) await tick(10);
+  const told = toRenderer.slice(from).find(([c]) => c === "play:totalTime");
+  assert.ok(told, "the page was told");
+  const after = JSON.parse(await fsp.readFile(paths.SETTINGS_FILE, "utf8")).totalPlayTimeMs;
+  assert.ok(after > before, `counter grew: ${before} -> ${after}`);
+  assert.equal(told[1].totalPlayTimeMs, after);
+});

@@ -182,6 +182,13 @@ app.whenReady().then(async () => {
   // The copy that lost the lock is already quitting - no window, no hotkeys,
   // no updater, nothing written.
   if (!gotInstanceLock) return;
+  // Home's lifetime "Time played" starts from what the instances recorded so
+  // far - once, before the page can show it (store.seedPlayTime never seeds twice).
+  try {
+    await store.seedPlayTime(sumOfInstancePlayTime);
+  } catch (err) {
+    logCrash("seedPlayTime", err); // shown as the instances' sum until it works
+  }
   cachedSettings = await store.loadSettings();
   streamer.init({ notify: send });
   createWindow();
@@ -1339,6 +1346,11 @@ function readLogStart(logPath) {
   }
 }
 
+/** The time every instance has recorded (what the lifetime counter starts from). */
+async function sumOfInstancePlayTime() {
+  return (await instances.list()).reduce((sum, i) => sum + (Number(i.playTimeMs) || 0), 0);
+}
+
 /**
  * Ends `session` - and only that one. The old game's "exit" can arrive
  * after Stop and a quick new Play; without the check it deleted the NEW
@@ -1348,7 +1360,24 @@ function finishSession(inst, played, session) {
   if (!session || running.get(inst.id) !== session) return;
   running.delete(inst.id);
   if (session.child) streamer.gameStopped();
-  if (played) instances.recordSession(inst.id, session.startedAt, Date.now()).catch(() => {});
+  if (played) {
+    const endedAt = Date.now();
+    const ms = Math.max(0, endedAt - (session.startedAt || endedAt));
+    // The instance's own time, then the lifetime counter - in that order, so
+    // a counter that still has to be seeded counts this session once. A
+    // failed write here never gets in the way of the exit handling.
+    instances
+      .recordSession(inst.id, session.startedAt, endedAt)
+      .catch(() => {})
+      .then(() => store.addPlayTime(ms, sumOfInstancePlayTime))
+      .then((total) => {
+        if (total !== null && total !== undefined) {
+          cachedSettings = { ...cachedSettings, totalPlayTimeMs: total };
+          send("play:totalTime", { totalPlayTimeMs: total });
+        }
+      })
+      .catch(() => {});
+  }
   // Crash reports appear right away; the session's log is rolled by the
   // game on its next start and archived then.
   setTimeout(() => logs.importInstanceLogs(inst).catch(() => {}), 1500);
