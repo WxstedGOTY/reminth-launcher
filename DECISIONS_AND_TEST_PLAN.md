@@ -4,20 +4,35 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 6** (the window repair the real Win32
-  state showed was needed). Prompts 4 and 5 are also done; nothing of 4-6 is tested on Windows yet.
-- **`main` is at:** `cda41a3` (plus this file's commit). **`npm test`: 517 pass** on Linux (512 after
-  prompt 5, 502 after prompt 4).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 7** (update-status wording). The
+  desktop window set the version to **1.4.0** (`0e5d688`); prompt 7 is not needed for that release.
+- **`main` is at:** `170bab6` (plus this file's commit). **`npm test`: 519 pass** on Linux (517 after
+  prompt 6, 512 after prompt 5, 502 after prompt 4).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
   parser, not the real IPC, real Modrinth answers, real pictures loading, or `shell.openExternal`.
 - Prompt 3's desktop tests (section 4, steps 26-41) have not been reported yet - they are still open.
-- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1. No version bump, no build was done.
+- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1. The cloud session did no version bump and no build.
 
 ---
 
 ## 1. What changed
+
+### Prompt 7 (Settings > Check for updates showed the wrong number)
+
+The packaged 1.4.0 said "You're on the latest version (1.1.1)": the up-to-date state carried the newest
+version in GitHub's feed (the only published release is 1.1.1). Now it carries the **running** version
+(`app.getVersion()`), whatever the feed says (newer → still "Downloading <new>…" as before; equal, older or
+missing → "You're on the latest version (<running>)"). The feed's number is kept as `feedVersion` (not shown,
+for diagnostics; the updater log still writes it). Settings now prefers `currentVersion`. Every other state
+and message is unchanged.
+
+| Files | |
+|---|---|
+| `src/main/updater.js` | `update-not-available` → `version: app.getVersion()`, `feedVersion` |
+| `src/renderer/renderer.js` | the "up-to-date" Settings line prefers `currentVersion` |
+| `test/updater.test.js` | +2 tests: feed equal / older / missing / no version → running version; feed newer → downloading the new one |
 
 ### Prompt 6 (window still small after a fullscreen game)
 
@@ -222,6 +237,12 @@ P8. Two instances running at once: Reminth is only put back after the **second**
 43. With a game running: "Restart and update" disabled; quitting Reminth leaves the game running.
 44. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`); an older installed copy finds
     it. Re-upload `site/` if the privacy text changed.
+
+### Prompt 7 (packaged app only - "Check for updates" says "Updates only work in the installed app." in a dev run)
+U1. Installed 1.4.0 (or newer), GitHub's newest release older or equal → Settings → **Check for updates** →
+    "You're on the latest version (**1.4.0**)" - the running version, never 1.1.1.
+U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for updates → "Downloading 1.4.0…"
+    then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
 45. PASS/FAIL per step (P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
