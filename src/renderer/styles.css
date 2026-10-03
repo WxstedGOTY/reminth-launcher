@@ -2377,6 +2377,7 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .adv-off-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .adv-off-text span { font-size: 11.5px; color: var(--text-3); }
 .adv-off .btn { flex-shrink: 0; }
+.modal-foot .btn.adv-play { height: 46px; padding: 0 30px; font-size: 15px; }
 
 /* A gradient on a box with a see-through border used to wrap around under
    that border, drawing a thin line of the gradient's other end along the

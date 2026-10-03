@@ -332,6 +332,7 @@ function contentRow(item, ctx) {
     sub.appendChild(el("span", "c-by", author));
   }
   if (item.problem) sub.appendChild(el("span", "c-note warn", item.problem));
+  else if (!item.enabled && item.offReason) sub.appendChild(el("span", "c-note", `Turned off by Reminth: ${item.offReason}`));
   else if (item.world && item.kind === "datapack") sub.appendChild(el("span", "c-note", item.world));
   if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Reminth-managed"));
   else if (item.kind === "mod" && isPackFile(content.instanceId, item.file)) {
@@ -4546,6 +4547,7 @@ function openVersionAdvisor(instanceId, options = {}) {
     secondary.hidden = false;
     secondary.disabled = copying;
     primary.disabled = copying;
+    primary.classList.toggle("adv-play", step === "done");
     if (step === "pick") {
       setLabel(secondary, "Close");
       setLabel(primary, chosen ? `Next: Minecraft ${chosen.version}` : "Pick a version");
@@ -4946,14 +4948,61 @@ function openVersionAdvisor(instanceId, options = {}) {
     const row = el("div", "adv-off");
     const text = el("div", "adv-off-text");
     text.appendChild(el("b", null, m.title));
-    text.appendChild(el("span", null, m.why || "No version for this Minecraft"));
+    text.appendChild(el("span", null, m.why || "no version made for this Minecraft"));
     row.appendChild(text);
+    const target = result && result.instance;
+    // Another mod that does the same job, on Discover, for this instance.
+    const find = button("btn outline sm", "Find a replacement", "#i-search");
+    find.onclick = () => {
+      if (!target) return;
+      const id = target.id; // fixed at the click
+      handle.close();
+      discoverSearchFor(id, m.title);
+    };
+    row.appendChild(find);
+    if (doing === "switch" && m.file) {
+      const on = button("btn outline sm", "Turn on anyway");
+      on.title = "The game may not start with it";
+      let busy = false;
+      on.onclick = async () => {
+        if (busy || !target) return;
+        const id = target.id;
+        if (state.running.has(id)) return toast("Close the game first — Windows won't let files in use be renamed.");
+        busy = true;
+        on.disabled = true;
+        try {
+          await window.reminth.setContentEnabled(id, { kind: "mod", world: null, file: `${m.file}.disabled` }, true);
+          toast(`${m.title} is on again. If the game doesn't start, turn it off in the Mods tab.`);
+          on.querySelector("span").textContent = "Turned on";
+          if (content.instanceId === id) await loadContent(id);
+          runCompatCheck(id, true);
+        } catch (err) {
+          toast(friendlyError(err.message));
+          on.disabled = false;
+        } finally {
+          busy = false;
+        }
+      };
+      row.appendChild(on);
+    }
     return row;
   }
 
   paintButtons();
   load();
   return done;
+}
+
+/** Discover's mod search for `text`, showing what fits instance `id` ("Find a replacement"). */
+async function discoverSearchFor(id, text) {
+  if (instanceById(id) && state.activeId !== id) await selectInstance(id, false);
+  if (projUi.open) closeProject();
+  switchPage("discover");
+  if (disc.type !== "mod") setDiscoverType("mod");
+  const box = $("browseSearch");
+  box.value = text;
+  box.dispatchEvent(new Event("input"));
+  box.focus();
 }
 
 /* ---- a mod with no build for this instance ---- */
