@@ -142,3 +142,9 @@ dist
 _to_delete/
 publish-log.txt
 npm-test-*.txt
+
+# ReminthHUD (the in-game overlay mod): build outputs are never committed
+hud/build/
+hud/.gradle/
+hud/run/
+hud/.idea/

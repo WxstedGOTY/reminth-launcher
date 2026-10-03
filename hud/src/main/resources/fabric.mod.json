@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "reminthhud",
+	"version": "${version}",
+	"name": "ReminthHUD",
+	"description": "A lightweight custom HUD overlay: FPS, coordinates, and facing direction. Toggle with H.",
+	"authors": [
+		"Wxsted"
+	],
+	"contact": {},
+	"license": "CC0-1.0",
+	"icon": "assets/reminthhud/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"com.wxsted.reminthhud.ReminthHud"
+		],
+		"client": [
+			"com.wxsted.reminthhud.client.ReminthHudClient"
+		]
+	},
+	"depends": {
+		"fabricloader": "*",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
