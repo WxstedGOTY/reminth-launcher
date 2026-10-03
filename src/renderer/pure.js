@@ -141,6 +141,23 @@
     return `Reminth will make a new instance: ${name} - Minecraft ${mcVersion} ${names[loader] || loader || ""}`.trim() + ". Your other instances are not changed.";
   }
 
+  /**
+   * Pure: `name`, or "name (2)", "name (3)"… when an instance with that name,
+   * Minecraft version and loader already exists (case and outer spaces don't
+   * count). main/instances.js uses this same rule when it makes one.
+   */
+  function uniqueInstanceName(name, all, mcVersion, loader) {
+    const base = String(name || "Instance").trim().slice(0, 48) || "Instance";
+    const taken = new Set((all || []).filter((i) => i && i.mcVersion === mcVersion && i.loader === loader).map((i) => String(i.name).trim().toLowerCase()));
+    if (!taken.has(base.toLowerCase())) return base;
+    for (let n = 2; n < 1000; n++) {
+      const tail = ` (${n})`;
+      const candidate = base.slice(0, 48 - tail.length) + tail;
+      if (!taken.has(candidate.toLowerCase())) return candidate;
+    }
+    return base;
+  }
+
   /** Pure: an instance already on this version and loader (the first in the player's order), or null. */
   function reusableInstance(instances, { mcVersion, loader, excludeId = null } = {}) {
     return (Array.isArray(instances) ? instances : []).find((i) => i && i.id !== excludeId && i.mcVersion === mcVersion && i.loader === loader) || null;
@@ -372,7 +389,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

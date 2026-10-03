@@ -159,3 +159,32 @@ test("summary: worlds and bytes, links not followed, stops at the time limit", a
   const capped = await instances.summary(made.id, { timeMs: 5, now: () => (t += 10) });
   assert.equal(capped.capped, true);
 });
+
+test("every place that makes an instance asks first (an audit of the renderer's calls)", () => {
+  // createInstance / copyInstanceToVersion may only be called from:
+  //  - the New instance dialog (the player asked for exactly that), or
+  //  - a function that goes through confirmNewInstance (the one question), or
+  //  - the version picker, whose new-instance card IS that question (it shows
+  //    createSentence and "Use <instance>" before the button that makes it).
+  const allowed = {
+    openInstanceModal: "the New instance dialog",
+    openVersionAdvisor: "the version picker's confirm card",
+  };
+  const sources = ["renderer.js", "features.js"].map((f) => [f, fs.readFileSync(path.join(__dirname, "..", "src", "renderer", f), "utf8")]);
+  let calls = 0;
+  for (const [file, text] of sources) {
+    for (const m of text.matchAll(/window\.reminth\.(createInstance|copyInstanceToVersion)\(/g)) {
+      calls++;
+      // the function this call is in: the nearest top-level "function name(" before it
+      const before = text.slice(0, m.index);
+      const fns = [...before.matchAll(/^(?:async )?function (\w+)\(/gm)];
+      const fn = fns.length ? fns[fns.length - 1] : null;
+      assert.ok(fn, `${file}: a ${m[1]} call outside any function`);
+      const body = text.slice(fn.index, m.index);
+      const ok = allowed[fn[1]] || /confirmNewInstance\(/.test(body);
+      assert.ok(ok, `${file}: ${fn[1]}() calls ${m[1]} without asking first (confirmNewInstance)`);
+      if (fn[1] === "openVersionAdvisor") assert.match(text.slice(fn.index), /createSentence|Reminth will make a new instance/, "the picker's card says what will be made");
+    }
+  }
+  assert.ok(calls >= 3, `found ${calls} creation calls - the audit is looking at the wrong files`);
+});

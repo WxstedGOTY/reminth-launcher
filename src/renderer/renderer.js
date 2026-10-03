@@ -48,6 +48,74 @@ function icon(id, className = "i") {
   return svg;
 }
 
+/** A toast with one button (e.g. "Undo") that stays up `ms` (about 10 s); the button works once. */
+function toastWithAction(message, label, onAction, ms = 10000) {
+  toast(message);
+  const b = $("toastAction");
+  b.textContent = label;
+  b.hidden = false;
+  b.disabled = false;
+  b.onclick = async () => {
+    if (b.disabled) return;
+    b.disabled = true;
+    $("toast").classList.remove("show");
+    try {
+      await onAction();
+    } catch (err) {
+      toast(friendlyError(err.message));
+    }
+  };
+  clearTimeout(window._toast);
+  window._toast = setTimeout(() => {
+    $("toast").classList.remove("show");
+    b.hidden = true;
+  }, ms);
+}
+
+/**
+ * Before Reminth makes an instance the player didn't ask for in the New
+ * instance dialog: ONE question, the same everywhere. When an instance is
+ * already on that version and loader it is offered first. Resolves
+ * { action: "create", name } | { action: "use", instance } | null (cancel).
+ */
+function confirmNewInstance({ name, mcVersion, loader, title }) {
+  const finalName = window.ReminthPure.uniqueInstanceName(name, state.instances, mcVersion, loader);
+  const existing = window.ReminthPure.reusableInstance(state.instances, { mcVersion, loader });
+  return new Promise((resolve) => {
+    let answer = null;
+    const body = el("div");
+    body.appendChild(el("p", null, window.ReminthPure.createSentence({ name: finalName, mcVersion, loader })));
+    if (finalName !== String(name || "").trim().slice(0, 48)) body.appendChild(el("p", "set-note", `You already have one called ${String(name).trim()}, so this one is ${finalName}.`));
+    if (existing) body.appendChild(el("p", "set-note", `${existing.name} is already on Minecraft ${mcVersion}${loader === "vanilla" ? "" : " with " + (LOADER_LABELS[loader] || loader)} - you can use it instead.`));
+    const buttons = [{ label: "Cancel", className: "outline" }];
+    if (existing) {
+      buttons.push({ label: "Make a new one", className: "outline", onClick: () => ((answer = { action: "create", name: finalName }), true) });
+      buttons.push({ label: `Use ${existing.name}`, className: "primary", onClick: () => ((answer = { action: "use", instance: existing }), true) });
+    } else {
+      buttons.push({ label: "Create", className: "primary", onClick: () => ((answer = { action: "create", name: finalName }), true) });
+    }
+    openModal({ title: title || "Make a new instance?", body, onClose: () => resolve(answer), buttons });
+  });
+}
+
+/**
+ * "Undo" after Reminth made an instance by itself: offered only while it was
+ * never played and holds no world (main.js checks it again).
+ */
+function offerUndoCreate(inst, message) {
+  if (!inst || inst.lastPlayed) return toast(message);
+  toastWithAction(message, "Undo", async () => {
+    await window.reminth.undoCreateInstance(inst.id);
+    await loadInstances();
+    if (!instanceById(state.activeId)) {
+      const next = heroInstance();
+      if (next) await selectInstance(next.id, false);
+      if (currentPage === "instance") switchPage("home");
+    }
+    toast(`${inst.name} removed.`);
+  });
+}
+
 function button(className, label, iconId) {
   const b = el("button", className);
   b.type = "button";
@@ -58,6 +126,8 @@ function button(className, label, iconId) {
 
 function toast(message) {
   $("toastText").textContent = message;
+  $("toastAction").hidden = true;
+  $("toastAction").onclick = null;
   $("toast").classList.add("show");
   clearTimeout(window._toast);
   // Long messages (an error with its reason) get longer to be read.
@@ -2025,9 +2095,9 @@ async function renderInstancePage() {
   const instStatus = state.running.has(inst.id) ? "Running" : state.installing.has(inst.id) ? "Installing" : "Ready";
   $("instState").textContent = instStatus;
   $("instState").dataset.state = instStatus.toLowerCase();
-  // Why Reminth made it by itself ("For Hypixel", "Copy of Survival").
+  // Why Reminth made it by itself: "Made for Hypixel" (a server) or "Copy of Survival".
   $("instMadeFor").hidden = !inst.madeFor;
-  $("instMadeFor").textContent = inst.madeFor ? `Made for: ${inst.madeFor}` : "";
+  $("instMadeFor").textContent = !inst.madeFor ? "" : /^Copy of /.test(inst.madeFor) ? inst.madeFor : `Made for ${inst.madeFor}`;
   $("instPlaytime").textContent = inst.playTimeMs ? formatPlaytime(msToTicks(inst.playTimeMs)) : "—";
   paintPlayButtons();
   if (window.onInstancePageOpen) window.onInstancePageOpen(inst);

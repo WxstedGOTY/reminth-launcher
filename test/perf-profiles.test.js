@@ -1013,3 +1013,28 @@ test("main: after a crash in play, the mod named by the crash report is remember
     INSTANCE = saved;
   }
 });
+
+test("main: Undo after Reminth made an instance only while it was never played and has no world; never the main one", async () => {
+  const realRemove = instances.remove;
+  const removed = [];
+  instances.remove = async (id) => removed.push(id);
+  const saved = INSTANCE;
+  const gameDir = path.join(HOME, "undo-inst");
+  try {
+    await fsp.mkdir(gameDir, { recursive: true });
+    INSTANCE = { ...saved, id: "i1", gameDir, lastPlayed: 123 };
+    await assert.rejects(call("instances:undoCreate", "i1"), /has been played or has a world/);
+    INSTANCE = { ...saved, id: "i1", gameDir, lastPlayed: null };
+    await fsp.mkdir(path.join(gameDir, "saves", "New World"), { recursive: true });
+    await assert.rejects(call("instances:undoCreate", "i1"), /has been played or has a world/);
+    await fsp.rm(path.join(gameDir, "saves"), { recursive: true, force: true });
+    assert.deepEqual(await call("instances:undoCreate", "i1"), { ok: true });
+    assert.deepEqual(removed, ["i1"]);
+    INSTANCE = { ...saved, id: "reminth", gameDir, lastPlayed: null };
+    await assert.rejects(call("instances:undoCreate", "reminth"), /main Reminth instance can't be deleted/);
+    assert.deepEqual(removed, ["i1"]);
+  } finally {
+    instances.remove = realRemove;
+    INSTANCE = saved;
+  }
+});

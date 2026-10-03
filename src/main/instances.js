@@ -474,22 +474,8 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
   });
 }
 
-/**
- * Pure: `name`, or "name (2)", "name (3)"… when an instance with that name,
- * Minecraft version and loader already exists (names are compared the way
- * the player reads them: case and outer spaces don't count).
- */
-function uniqueName(name, all, mcVersion, loader) {
-  const base = String(name || "Instance").trim().slice(0, 48) || "Instance";
-  const taken = new Set((all || []).filter((i) => i && i.mcVersion === mcVersion && i.loader === loader).map((i) => String(i.name).trim().toLowerCase()));
-  if (!taken.has(base.toLowerCase())) return base;
-  for (let n = 2; n < 1000; n++) {
-    const tail = ` (${n})`;
-    const candidate = base.slice(0, 48 - tail.length) + tail;
-    if (!taken.has(candidate.toLowerCase())) return candidate;
-  }
-  return base;
-}
+/** Pure: no two instances with the same name, version and loader - the rule is in renderer/pure.js, shared with the page. */
+const uniqueName = (name, all, mcVersion, loader) => require("../renderer/pure").uniqueInstanceName(name, all, mcVersion, loader);
 
 /**
  * The rail's order: `ids` must be exactly the instances there are, each

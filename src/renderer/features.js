@@ -2600,23 +2600,27 @@ async function prepareAndPlayServer(s) {
       });
       return;
     }
-  } else {
-    const ok = await confirmModal(
-      `Make an instance for ${s.title}?`,
-      [`${s.title} runs Minecraft ${version}, and none of your instances are on it. Reminth can make a vanilla ${version} instance and join straight away.`],
-      "Create and play"
-    );
-    if (!ok) return;
   }
+  // A vanilla instance for the server: the one question every automatic
+  // creation asks (an instance already on that version is offered first).
+  const answer = await confirmNewInstance({ name: `${s.title}`.slice(0, 40), mcVersion: version, loader: "vanilla", title: `Make an instance for ${s.title}?` });
+  if (!answer) return;
+  if (answer.action === "use") return void runPlay({ instanceId: answer.instance.id, join });
+  if (serverCreating) return;
+  serverCreating = true;
   try {
-    const inst = await window.reminth.createInstance({ name: `${s.title}`.slice(0, 40), mcVersion: version, loader: "vanilla" });
+    const inst = await window.reminth.createInstance({ name: answer.name, mcVersion: version, loader: "vanilla", madeFor: s.title });
     await loadInstances();
     await selectInstance(inst.id, false);
+    // It is played straight away, so there's nothing to undo: Delete is in its menu.
     runPlay({ instanceId: inst.id, join });
   } catch (err) {
     toast(friendlyError(err.message));
+  } finally {
+    serverCreating = false;
   }
 }
+let serverCreating = false;
 
 /** "Showing what fits [instance ▾]" on Discover. Picking another instance makes it the
  *  active one, so the compatibility filter and the "Installed" marks follow it.
@@ -4529,6 +4533,7 @@ function openVersionAdvisor(instanceId, options = {}) {
   // An instance already on that version and loader: offered instead of making another one.
   const existingOn = (v) => state.instances.find((i) => i.id !== inst.id && i.mcVersion === v && i.loader === inst.loader) || null;
   let action = "switch"; // "switch" this instance, or "copy" to a new one
+  let madeNew = false; // a new instance was made (not switched, not an existing one used)
   let result = null; // what the switch or copy did
 
   let handle = null;
@@ -4547,6 +4552,9 @@ function openVersionAdvisor(instanceId, options = {}) {
         if (copied && playAfter) {
           if (server && server.play) server.play(copied);
           else runPlay({ instanceId: copied.id });
+        } else if (copied && madeNew) {
+          // Made by Reminth and not played: easy to take back.
+          offerUndoCreate(instanceById(copied.id) || copied, `${copied.name} was made.`);
         }
       },
       buttons: [
@@ -4841,7 +4849,7 @@ function openVersionAdvisor(instanceId, options = {}) {
       )
     );
     const copyExtra = el("div", "adv-choice-extra");
-    copyExtra.appendChild(el("span", null, `Reminth will make a new instance: ${newName()} — Minecraft ${v} ${loader}. Your other instances are not changed.`));
+    copyExtra.appendChild(el("span", null, window.ReminthPure.createSentence({ name: newName(), mcVersion: v, loader: inst.loader })));
     cards.appendChild(card("copy", `Keep this one as it is and make a new instance on ${v}`, "Nothing here changes. It uses more disk space; worlds are not copied.", action === "copy" ? copyExtra : null));
     stepView.appendChild(cards);
 
@@ -4924,6 +4932,7 @@ function openVersionAdvisor(instanceId, options = {}) {
       } else {
         result = await window.reminth.copyInstanceToVersion(instanceId, { mcVersion: target.version, name });
         copied = result.instance;
+        madeNew = true;
         await loadInstances();
         await selectInstance(copied.id, options.open !== false);
       }
