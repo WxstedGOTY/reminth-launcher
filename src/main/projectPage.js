@@ -121,17 +121,20 @@ function shapePeople(team, org) {
  * and the version list are best effort (the page says when they're missing).
  */
 async function getProjectPage(idOrSlug, deps = {}) {
-  const key = String(idOrSlug || "").toLowerCase();
-  if (!/^[a-z0-9_-]{1,64}$/.test(key)) throw new Error("That project isn't valid.");
+  // Modrinth ids are case-sensitive (base62: "AANobbMI"), so Modrinth is
+  // asked with the id exactly as given; only the cache key is lower case.
+  const asked = String(idOrSlug || "");
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(asked)) throw new Error("That project isn't valid.");
+  const key = asked.toLowerCase();
   const now = deps.now || Date.now;
   const hit = cache.get(key);
   if (hit && now() - hit.at < CACHE_MS) return hit.value;
   const api = deps.modrinth || require("./modrinth");
 
   const [raw, versions] = await Promise.all([
-    api.getProject(key),
+    api.getProject(asked),
     Promise.resolve()
-      .then(() => api.getProjectVersions(key, {}))
+      .then(() => api.getProjectVersions(asked, {}))
       .catch(() => null),
   ]);
   if (!raw || typeof raw !== "object") throw new Error("Modrinth didn't send that project.");

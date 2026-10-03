@@ -169,6 +169,17 @@ test("getProjectPage: no version list or team still gives a page; organisations 
   for (const bad of ["../etc", "a b", "", "x".repeat(65), null]) await assert.rejects(page.getProjectPage(bad, { modrinth: api }), /isn't valid/);
 });
 
+test("getProjectPage: Modrinth is asked with the id's own case (ids are case-sensitive), the cache ignores case", async () => {
+  page.clearCache();
+  const asked = [];
+  const api = fakeModrinth();
+  const spy = { ...api, getProject: async (id) => (asked.push(id), api.getProject(id)), getProjectVersions: async (id) => (asked.push(id), api.getProjectVersions(id)) };
+  await page.getProjectPage("AANobbMI", { modrinth: spy });
+  assert.deepEqual(asked, ["AANobbMI", "AANobbMI"]);
+  await page.getProjectPage("aanobbmi", { modrinth: spy });
+  assert.equal(asked.length, 2, "second ask came from the cache");
+});
+
 /* ---------------- the page's own rules ---------------- */
 
 const fab = { id: "f", name: "Survival", loader: "fabric", mcVersion: "1.21.4" };
