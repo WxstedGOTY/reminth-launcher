@@ -4,10 +4,9 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 12** (lifetime Time played on Home, and
-  three fixes from the desktop test). Prompts 10 and 11 are done too; none of 10-12 is tested on Windows yet.
-- **`main` is at:** `b042bfe` (plus this file's commit). **`npm test`: 563 pass** on Linux (554 after prompt 10,
-  545 after prompt 11).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 13** (the version picker's "already fit"
+  sentence must be true of the installed files). Prompts 10-12 are done too; none of 10-13 is tested on Windows yet.
+- **`main` is at:** `b509ea1` (plus this file's commit). **`npm test`: 564 pass** on Linux (563 after prompt 12).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +17,35 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 13 ("Your mods already fit" was false for a real instance - blocks release 1.4.1)
+
+Prompt 12 job 2 said "Your mods already fit Minecraft X - there is nothing you need to change." whenever Modrinth
+had a build of every checked mod for X. On a Fabric 1.21.1 instance holding 26.2 mod files that told a newcomer
+to do nothing while the Mods panel said "28 mods will stop Minecraft from starting". Now the picker separates
+**(a) builds exist** from **(b) the installed files fit** (the compatibility result - the same data as the Mods
+panel and the yellow button; blocked, "may not work" and "crashed the game" all count):
+
+| (a) builds for the current version | (b) installed files | the picker says |
+|---|---|---|
+| all mods have one | no compatibility result yet | grey **"Checking your installed mods..."** - decided when it arrives, never the happy sentence |
+| all mods have one | none blocked / may not work / crashed | green **"Your mods already fit Minecraft X - there is nothing you need to change."** |
+| all mods have one | N files are for another version | amber **"Builds exist for Minecraft X for all your mods, but N of the files in this instance are made for another version. Press "Update mods to fit" to swap them."** + that button **inside the dialog** (the yellow button's own operation, progress and result toast; the line is then worked out again) |
+| all mods have one | problems the button can't fix (it already left them) | amber, no button: "…but N mods in this instance won't load or may not work. The Mods tab says which, and what to do." |
+| some mods have none | (anything) | today's best-match line and ranked list (the case the owner originally asked for) |
+
+The "Other versions that also fit" list is shown as before in the first four rows (no "Best match" badge, no
+pre-selected row). N in the amber line is the yellow button's own number. Only `openVersionAdvisor` and its
+pure helpers changed. The prompt-12 test for the green sentence now passes clean file data (it was asserting
+the sentence with no file data at all - the bug); tests: `pickerView`/`filesSummary` for all four (a)x(b)
+combinations, no result yet, and blocked + may-not-work + crashed counts.
+
+| Files | |
+|---|---|
+| `src/renderer/pure.js` | `filesSummary`, `pickerView` (states fits / files / checking / best) |
+| `src/renderer/features.js` | `openVersionAdvisor`: reads/awaits the compatibility result, the amber line + in-dialog button, repaint |
+| `src/renderer/styles.css` | `.adv-best.warn`, `.adv-best.neutral`, `.adv-fix` |
+| `test/version-flow.test.js` | +1 test, 1 updated |
 
 ### Prompt 12 (Time played on Home + three fixes from the desktop test)
 
@@ -160,6 +188,9 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P13-1. **The in-dialog "Update mods to fit" can open the usual "No <v> build yet" window on top of the picker** when
+   some mods have no stable build (same as the yellow button). **Recommend: keep** - one behaviour everywhere.
+
 P12-1. **The lifetime counter can't be changed from the page** (no reset button, a settings save ignores it).
    If the owner wants a "Reset" later, it's one store function. **Recommend: keep** (it's the "official" total).
 P12-2. **The picker's confirm step waits for the exact preview before Switch can be pressed** (a few seconds on a
@@ -292,9 +323,26 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **563 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **564 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
+
+### Prompt 13 (test these first - it blocks 1.4.1)
+W1. A throwaway **Fabric 1.21.1** instance holding the mod files of a 26.2 instance (copy its `mods` folder). Open
+    its Mods tab (the panel says "N mods will stop Minecraft from starting"; the yellow button shows a number).
+    Open **"Pick a version that fits my mods"** → briefly "Checking your installed mods..." (grey) if the check
+    hasn't run yet, then the **amber** line "Builds exist for Minecraft 1.21.1 for all your mods, but N of the files
+    in this instance are made for another version. Press "Update mods to fit" to swap them." with an
+    "Update mods to fit 1.21.1" button inside the dialog. N equals the yellow button's number. The list below is
+    titled "Other versions that also fit", no "Best match" badge, no row selected. **The green sentence is NOT shown.**
+W2. Press the button inside the dialog → progress, the usual result toast ("Updated N mods…"), and the amber line
+    turns into the **green** "Your mods already fit Minecraft 1.21.1 - there is nothing you need to change." The
+    yellow button and the Mods panel behind it agree (hidden / no red panel). Mods with no stable build (if any)
+    are listed in the "No 1.21.1 build yet" window and the line stays amber without a button.
+W3. A **26.2 instance holding 26.2 files** (e.g. the Reminth copy after M2): the green sentence, no amber line.
+W4. An instance where some mod has **no build for its own version**: the best-match line and the ranked list as
+    before prompt 12 (green "Best match: …" or "Fits most: …").
+W5. An instance with a mod that crashed the game last time (M9's finding present): the green sentence is NOT shown.
 
 ### Prompt 12 (test these first)
 T1. Note Home's **Time played** before installing this build, and the sum of every instance page's time. After the
@@ -520,7 +568,7 @@ U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for 
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
-45. PASS/FAIL per step (T1-T8, I1-I10, V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (W1-W5, T1-T8, I1-I10, V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
