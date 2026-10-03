@@ -325,6 +325,19 @@
     return out;
   }
 
+  /**
+   * The "Update mods to fit (N)" number. The mods a run of the button just
+   * couldn't fix (no stable build, not on Modrinth - `leftAlone`, remembered
+   * with the switched-on mods' fingerprint it was for) don't count again while
+   * the mods are the same: pressing it again can't help them, and a number
+   * that never goes down reads as stale. `isCandidate` is the button's rule.
+   */
+  function syncButtonCount(result, leftAlone, isCandidate) {
+    if (!result || !Array.isArray(result.issues)) return 0;
+    const skip = leftAlone && leftAlone.modSet && leftAlone.modSet === result.modSet ? new Set(leftAlone.files || []) : new Set();
+    return result.issues.filter((i) => i && i.file && isCandidate(i) && !skip.has(i.file)).length;
+  }
+
   /* ---------------- the Play warning ---------------- */
 
   /**
@@ -449,7 +462,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, previewGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, previewGroups, syncButtonCount, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -5601,14 +5601,22 @@ pageHooks.settings = () => {
 const syncUi = {
   busy: null, // instance id being updated
   notice: null, // { id, mcVersion } - the one-time notice after an edit
+  leftAlone: new Map(), // instance id -> { modSet, files } its last run couldn't fix
 };
 // After a crash: the mod it was in (main.js noteCrashReport). notice: { id, file, name }
 const crashUi = { notice: null, busy: false };
 
-/** How many mods the button is about, from a compat answer. Mirrors modsSync.syncCandidates. */
-function syncCount(result) {
-  if (!result || !Array.isArray(result.issues)) return 0;
-  return result.issues.filter((i) => i && i.file && ((i.reason === "wrong-mc" && (i.severity === "blocked" || i.listedElsewhere === true)) || i.reason === "wrong-loader")).length;
+/** The button's rule for one issue. Mirrors modsSync.syncCandidates. */
+const isSyncCandidate = (i) => (i.reason === "wrong-mc" && (i.severity === "blocked" || i.listedElsewhere === true)) || i.reason === "wrong-loader";
+
+/**
+ * How many mods the button can still do something about, from a compat
+ * answer: not the ones its last run had to leave (no stable build), while
+ * the mods are the same (syncUi.leftAlone, per instance).
+ */
+function syncCount(result, id) {
+  const leftAlone = id ? syncUi.leftAlone.get(id) : null;
+  return window.ReminthPure.syncButtonCount(result, leftAlone, isSyncCandidate);
 }
 
 /** Why the button can't run for an instance right now, or null. */
@@ -5626,7 +5634,7 @@ function paintSyncButtons() {
   const inst = activeInstance();
   const id = inst && inst.id;
   const modded = Boolean(inst && inst.loader !== "vanilla");
-  const n = modded ? syncCount(compatUi.results.get(id)) : 0;
+  const n = modded ? syncCount(compatUi.results.get(id), id) : 0;
   const busyHere = modded && syncUi.busy === id;
   // Hidden while the game runs or installs, or another change is under way.
   // The instance page's button is about the open instance; Home's about the
@@ -5639,7 +5647,7 @@ function paintSyncButtons() {
     if (!btn) continue;
     const wid = who && who.id;
     const wModded = Boolean(who && who.loader !== "vanilla");
-    const wn = wModded ? syncCount(compatUi.results.get(wid)) : 0;
+    const wn = wModded ? syncCount(compatUi.results.get(wid), wid) : 0;
     const wBusy = wModded && syncUi.busy === wid;
     btn.hidden = !(wBusy || (wn > 0 && !syncBlocked(wid)));
     btn.disabled = wBusy;
@@ -5694,9 +5702,19 @@ async function runModsSync(id) {
     toast(friendlyError(err.message));
   } finally {
     syncUi.busy = null;
+    // The old answer is about the mods before the run: dropped, and the
+    // button repainted (hidden) at once, so its old "(N)" never shows again.
+    compatUi.results.delete(id);
+    paintSyncButtons();
     // Fresh lists for the instance on screen; the check for the one updated.
     if (content.instanceId === id) await loadContent(id);
-    await runCompatCheck(id, true);
+    const fresh = await runCompatCheck(id, true);
+    // What this run couldn't fix doesn't count again until the mods change.
+    if (r && fresh && fresh.modSet) {
+      const left = [...(r.noBuild || []), ...(r.failed || [])].map((m) => m.file).filter(Boolean);
+      if (left.length) syncUi.leftAlone.set(id, { modSet: fresh.modSet, files: left });
+      else syncUi.leftAlone.delete(id);
+    }
     paintSyncButtons();
   }
   if (!r) return;

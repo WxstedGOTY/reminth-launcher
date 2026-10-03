@@ -333,3 +333,22 @@ test("previewSwitch: the confirm step's 'will be turned off' list is exactly wha
   assert.deepEqual(done.turnedOff.map((t) => [t.title, t.why]), preview.turnedOff.map((t) => [t.title, t.why]));
   assert.deepEqual(await filesIn(gameDir), ["csc-1.0.jar.disabled", "jei.jar.disabled"]);
 });
+
+test("syncButtonCount: after a run, the mods it couldn't fix don't count again until the mods change", () => {
+  const isC = (i) => (i.reason === "wrong-mc" && (i.severity === "blocked" || i.listedElsewhere === true)) || i.reason === "wrong-loader";
+  const result = {
+    modSet: "a".repeat(40),
+    issues: [
+      { file: "anchor.jar", reason: "wrong-mc", severity: "warn", listedElsewhere: true },
+      { file: "jei.jar", reason: "wrong-mc", severity: "blocked" },
+      { file: "x.jar", reason: "missing-dep", severity: "warn" },
+    ],
+  };
+  assert.equal(pure.syncButtonCount(result, null, isC), 2, "before any run");
+  // the run left both (no stable build): the button has nothing left to do -> hidden
+  assert.equal(pure.syncButtonCount(result, { modSet: "a".repeat(40), files: ["anchor.jar", "jei.jar"] }, isC), 0);
+  assert.equal(pure.syncButtonCount(result, { modSet: "a".repeat(40), files: ["anchor.jar"] }, isC), 1);
+  // the mods changed since (a new jar, one switched on…): everything counts again
+  assert.equal(pure.syncButtonCount(result, { modSet: "b".repeat(40), files: ["anchor.jar", "jei.jar"] }, isC), 2);
+  assert.equal(pure.syncButtonCount(null, null, isC), 0);
+});
