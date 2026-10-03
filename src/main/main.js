@@ -31,6 +31,8 @@ const perfProfiles = require("./perfProfiles");
 const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
 const atomic = require("./atomic");
+const projectPage = require("./projectPage");
+const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
 let win;
@@ -849,6 +851,18 @@ ipcMain.handle("servers:add", async (_e, id, server) => gameData.addServer((awai
 // The renderer never talks to api.modrinth.com directly - connect-src stays 'none'.
 ipcMain.handle("catalog:search", async (_e, params) => modrinth.searchProjects(params));
 ipcMain.handle("catalog:project", async (_e, idOrSlug) => modrinth.getProject(idOrSlug));
+// The project page in Discover: project + people + builds + the description
+// already parsed (projectPage.js), cached for a few minutes.
+ipcMain.handle("catalog:projectPage", async (_e, idOrSlug) => projectPage.getProjectPage(idOrSlug));
+// A link from a project page: always the player's default browser, never
+// this window. Checked again here whatever the page said - https only, no
+// user name or password in it, length capped (markdown.safeLink).
+ipcMain.handle("link:open", async (_e, url) => {
+  const href = markdown.safeLink(url);
+  if (!href) throw new Error("Only https links can be opened.");
+  await shell.openExternal(href);
+  return { ok: true };
+});
 ipcMain.handle("catalog:projectVersions", async (_e, idOrSlug, filters) => modrinth.getProjectVersions(idOrSlug, filters));
 ipcMain.handle("catalog:dependencies", async (_e, idOrSlug) => modrinth.getProjectDependencies(idOrSlug));
 ipcMain.handle("catalog:tags", async (_e, type) => modrinth.getTags(type));

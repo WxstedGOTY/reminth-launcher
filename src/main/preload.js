@@ -111,6 +111,8 @@ contextBridge.exposeInMainWorld("reminth", {
   // Modrinth catalog - the renderer never reaches api.modrinth.com itself.
   searchCatalog: (params) => ipcRenderer.invoke("catalog:search", params),
   getCatalogProject: (idOrSlug) => ipcRenderer.invoke("catalog:project", idOrSlug),
+  projectPage: (idOrSlug) => ipcRenderer.invoke("catalog:projectPage", idOrSlug),
+  openLink: (url) => ipcRenderer.invoke("link:open", url),
   getCatalogProjectVersions: (idOrSlug, filters) => ipcRenderer.invoke("catalog:projectVersions", idOrSlug, filters),
   getCatalogDependencies: (idOrSlug) => ipcRenderer.invoke("catalog:dependencies", idOrSlug),
   getCatalogTags: (type) => ipcRenderer.invoke("catalog:tags", type),

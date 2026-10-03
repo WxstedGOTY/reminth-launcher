@@ -764,3 +764,19 @@ test("main: Play from a Home card opens the world only when it is a real world o
     INSTANCE = saved;
   }
 });
+
+test("main: link:open opens only checked https links in the default browser", async () => {
+  const opened = [];
+  const real = fakeElectron.shell.openExternal;
+  fakeElectron.shell.openExternal = async (url) => opened.push(url);
+  try {
+    assert.deepEqual(await call("link:open", "https://modrinth.com/mod/sodium"), { ok: true });
+    await call("link:open", "/mod/iris");
+    for (const bad of ["javascript:alert(1)", "file:///C:/Windows", "http://example.com", "//evil.example", "https://u:p@evil.example", "ms-settings:display", "", null, { href: "https://x.y" }]) {
+      await assert.rejects(call("link:open", bad), /Only https links can be opened/, String(bad));
+    }
+    assert.deepEqual(opened, ["https://modrinth.com/mod/sodium", "https://modrinth.com/mod/iris"]);
+  } finally {
+    fakeElectron.shell.openExternal = real;
+  }
+});

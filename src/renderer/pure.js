@@ -53,7 +53,100 @@
     return p === null ? null : { host: m[1], port: p, ipv6: false };
   }
 
-  const api = { heroInstance, parseServerAddress };
+  /* ---------------- the project page ---------------- */
+
+  const LOADER_NAMES = { fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge", vanilla: "Vanilla" };
+
+  /**
+   * Which Modrinth loader names a build needs to have to work in this
+   * instance, per kind of content (the same lists as content.loadersFor).
+   * Empty = can't go into this instance at all.
+   */
+  function wantedLoaders(kind, inst) {
+    if (!inst) return [];
+    if (kind === "mod") {
+      if (inst.loader === "fabric") return ["fabric"];
+      if (inst.loader === "quilt") return ["quilt", "fabric"];
+      if (inst.loader === "forge") return ["forge"];
+      if (inst.loader === "neoforge") return inst.mcVersion === "1.20.1" ? ["neoforge", "forge"] : ["neoforge"];
+      return [];
+    }
+    if (kind === "shader") return inst.loader === "vanilla" ? [] : ["iris", "optifine"];
+    if (kind === "resourcepack") return ["minecraft"];
+    if (kind === "datapack") return ["datapack"];
+    return [];
+  }
+
+  /**
+   * Does this project have a build for the instance picked in Discover?
+   * builds: [{ type, mc: [...], loaders: [...] }] (projectPage.js), or null
+   * when the version list couldn't be read. Returns
+   * { state: "fits" | "beta-only" | "no-build" | "needs-loader" | "unknown" | "not-for-instance", text }.
+   */
+  function fitsInstance(projectType, builds, inst) {
+    if (projectType === "modpack") return { state: "not-for-instance", text: "Installs as a new instance of its own." };
+    if (!inst) return { state: "unknown", text: "" };
+    const loaders = wantedLoaders(projectType, inst);
+    const where = `${inst.mcVersion}${projectType === "mod" || projectType === "shader" ? " " + (LOADER_NAMES[inst.loader] || inst.loader) : ""}`;
+    if (!loaders.length) {
+      return { state: "needs-loader", text: `${inst.name} is a vanilla instance - ${projectType === "shader" ? "shaders" : "mods"} need Fabric, Quilt, Forge or NeoForge.` };
+    }
+    if (!Array.isArray(builds)) return { state: "unknown", text: "Couldn't check which versions it has builds for." };
+    const fitting = builds.filter((b) => b && Array.isArray(b.mc) && b.mc.includes(inst.mcVersion) && (b.loaders || []).some((l) => loaders.includes(l)));
+    if (!fitting.length) return { state: "no-build", text: `No build for ${where} yet.` };
+    if (!fitting.some((b) => b.type === "release")) {
+      return { state: "beta-only", text: `Only a ${fitting.some((b) => b.type === "beta") ? "beta" : "alpha"} build fits ${inst.name} (${where}).` };
+    }
+    return { state: "fits", text: `Fits your instance ${inst.name} (${where}).` };
+  }
+
+  const mcParts = (v) => {
+    const m = /^(\d+)\.(\d+)(?:\.(\d+))?$/.exec(String(v || ""));
+    return m ? [Number(m[1]), Number(m[2]), m[3] === undefined ? 0 : Number(m[3])] : null;
+  };
+
+  /**
+   * Many game versions as a few ranges, newest first: releases grouped by
+   * their family (1.21, 1.20, 26...) - "1.21-1.21.4", "26.1-26.3" - instead
+   * of 300 chips. Snapshots and other odd ids are only counted.
+   * Returns { ranges: [text], other: count }.
+   */
+  function collapseVersions(list) {
+    const families = new Map(); // "1.21" -> [[1,21,4], ...]
+    let other = 0;
+    for (const v of new Set(Array.isArray(list) ? list : [])) {
+      const p = mcParts(v);
+      if (!p) {
+        other++;
+        continue;
+      }
+      // 1.x versions group by their minor (1.20, 1.21...); the year-style
+      // ones (26.1, 26.2...) by their year.
+      const key = p[0] === 1 ? `${p[0]}.${p[1]}` : `${p[0]}`;
+      if (!families.has(key)) families.set(key, []);
+      families.get(key).push(p);
+    }
+    const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    const text = (p) => (p[2] ? `${p[0]}.${p[1]}.${p[2]}` : `${p[0]}.${p[1]}`);
+    const ranges = [...families.values()]
+      .map((ps) => ps.sort(cmp))
+      .sort((a, b) => cmp(b[b.length - 1], a[a.length - 1]))
+      .map((ps) => (ps.length === 1 ? text(ps[0]) : `${text(ps[0])}–${text(ps[ps.length - 1])}`));
+    return { ranges, other };
+  }
+
+  /**
+   * "Install this version": a beta or alpha is never installed silently -
+   * the player confirms a sentence that names the channel. null = no
+   * question needed (a release).
+   */
+  function buildConfirmText(build) {
+    if (!build || build.type === "release" || !["beta", "alpha"].includes(build.type)) return null;
+    const what = build.type === "beta" ? "a beta" : "an alpha";
+    return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
+  }
+
+  const api = { heroInstance, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);
