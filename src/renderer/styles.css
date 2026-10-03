@@ -1414,6 +1414,11 @@ input:focus-visible, .mod-search input:focus-visible, .modal:focus-visible { out
 .c-group-count { font-size: 12px; font-weight: 750; color: var(--text-3); padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, .06); }
 .c-group-head:hover .c-group-name { color: #fff; }
 .c-group-body { display: flex; flex-direction: column; gap: 6px; }
+/* The fold button and, for "Safe to delete", its Delete all button on one line. */
+.c-group-top { display: flex; align-items: center; gap: 10px; }
+.c-group-top .c-group-head { flex: 1; min-width: 0; }
+.c-del-all { flex-shrink: 0; margin-bottom: 7px; }
+.del-list { margin: 0 0 4px 18px; padding: 0; max-height: 260px; overflow-y: auto; font-size: 12.5px; color: var(--text-2); line-height: 1.6; overflow-wrap: anywhere; }
 .c-group.collapsed .c-group-body { display: none; }
 
 .content-row {
@@ -1429,7 +1434,9 @@ input:focus-visible, .mod-search input:focus-visible, .modal:focus-visible { out
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .content-row.disabled .c-ico, .content-row.disabled .c-main { opacity: .5; }
-.content-row.invalid .c-name { font-style: italic; }
+/* Italic leans past the box it is measured in: without the padding the last
+   letter was cut off ("New folde"). */
+.content-row.invalid .c-name { font-style: italic; padding-right: .25em; }
 
 .c-ico { width: 48px; height: 48px; border-radius: 12px; font-size: 20px; flex-shrink: 0; object-fit: cover; image-rendering: auto; background: rgba(255, 255, 255, .05); display: grid; place-items: center; font-family: "Pixelify Sans", sans-serif; font-weight: 700; color: var(--text-2); }
 img.c-ico.pixel { image-rendering: pixelated; }

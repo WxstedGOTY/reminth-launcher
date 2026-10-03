@@ -737,6 +737,91 @@ async function remove(gameDir, { kind, world, file }, trash) {
 }
 
 /* ------------------------------------------------------------------ */
+/* "Safe to delete": files Minecraft ignores                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pure: does changing content of this kind change the mods folder? Mods
+ * can't change under a running game (the jars are open and the change
+ * would only half apply); resource packs, shaders and data packs can -
+ * Minecraft reloads those in game.
+ */
+function touchesMods(kind) {
+  return kind === "mod";
+}
+
+/**
+ * Pure: the items a content list shows under "Safe to delete" for one kind -
+ * everything listFolder marked invalid (in mods: folders and anything that
+ * isn't a .jar; elsewhere: anything that isn't a .zip or a folder). A real
+ * mod or pack is never in it. `all` is a listAll result.
+ */
+function invalidItems(all, kind) {
+  if (!KINDS[kind] || !all || !Array.isArray(all[kind])) return [];
+  return all[kind].filter((i) => i && i.valid === false && typeof i.file === "string");
+}
+
+const MAX_COUNTED_FILES = 1000;
+
+/** How many files a folder holds (all levels), stopping at `cap`. Never throws. */
+async function countFiles(dir, cap = MAX_COUNTED_FILES) {
+  let count = 0;
+  const stack = [dir];
+  while (stack.length && count < cap) {
+    const here = stack.pop();
+    let entries;
+    try {
+      entries = await fsp.readdir(here, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      if (e.isDirectory() && !e.isSymbolicLink()) stack.push(path.join(here, e.name));
+      else count++;
+      if (count >= cap) break;
+    }
+  }
+  return { files: Math.min(count, cap), more: count >= cap };
+}
+
+/** What "Delete all" would move, for its confirmation: [{ file, world, folder, size, files, more }]. */
+async function invalidDetails(gameDir, kind) {
+  const out = [];
+  for (const item of invalidItems(await listAll(gameDir), kind).slice(0, MAX_INVALID_REMOVED)) {
+    const row = { file: item.file, world: item.world || null, folder: item.folder === true, size: item.size, files: null, more: false };
+    if (row.folder) Object.assign(row, await countFiles(within(folderFor(gameDir, kind, item.world), safeFileName(item.file))));
+    out.push(row);
+  }
+  return out;
+}
+
+const MAX_INVALID_REMOVED = 200;
+
+/**
+ * "Delete all" under Safe to delete: the folder is read again HERE and only
+ * what is invalid in it now is moved - never a list of names from the
+ * screen, so a stale or tampered page can't take a real mod or pack with
+ * it. `trash(full)` moves one path to the Recycle Bin (main.js:
+ * shell.trashItem); nothing is deleted for good.
+ * Returns { total, moved: [file], failed: [{ file, error }] }.
+ */
+async function removeInvalid(gameDir, kind, trash) {
+  if (!KINDS[kind]) throw new Error("That kind of content can't be cleaned up here.");
+  const items = invalidItems(await listAll(gameDir), kind).slice(0, MAX_INVALID_REMOVED);
+  const moved = [];
+  const failed = [];
+  for (const item of items) {
+    try {
+      await trash(within(folderFor(gameDir, kind, item.world), safeFileName(item.file)));
+      moved.push(item.file);
+    } catch (err) {
+      failed.push({ file: item.file, error: String((err && err.message) || err) });
+    }
+  }
+  return { total: items.length, moved, failed };
+}
+
+/* ------------------------------------------------------------------ */
 /* downloading                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -1220,7 +1305,7 @@ async function removeReplaced(files, keep, title) {
  * `warnings` being things that went wrong without failing the install (an
  * old file that couldn't be removed while the game is running).
  */
-async function install(instance, { projectId, kind, world, versionId }, onProgress) {
+async function install(instance, { projectId, kind, world, versionId }, onProgress, { noModChanges = false } = {}) {
   const report = (stage, current = 0, total = 1) => onProgress && onProgress({ stage, current, total });
   if (!KINDS[kind]) throw new Error("That kind of content can't be installed into an instance.");
   if (kind === "mod" && !loadersFor("mod", instance).length) {
@@ -1245,6 +1330,11 @@ async function install(instance, { projectId, kind, world, versionId }, onProgre
       } catch {
         has = false;
       }
+    }
+    // The game is running (main.js): a shader pack may go in, but the mod it
+    // needs may not - mods can't change under a running game.
+    if (!has && noModChanges) {
+      throw new Error("Shader packs need Iris (or Oculus), which can't be added while the game is running - close the game first.");
     }
     for (const id of has ? [] : candidates) {
       const versions = await modrinth.getProjectVersions(id, { loaders: loadersFor("mod", instance), gameVersions: [instance.mcVersion] });
@@ -1700,7 +1790,11 @@ module.exports = {
   sha1File,
   primaryFile,
   readJarMeta,
+  invalidDetails,
+  removeInvalid,
   // pure, for tests
+  touchesMods,
+  invalidItems,
   parseLooseJson,
   safeFileName,
   loadersFor,

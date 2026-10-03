@@ -240,9 +240,18 @@ function rowMenu(item) {
   return wrap;
 }
 
+/* ---- a running game's mods can't change (main.js refuses too) ---- */
+const MODS_LOCKED_LINE = "Close Minecraft to change mods.";
+/** Pure-ish: are this instance's MODS locked right now? Packs, shaders and data packs never are. */
+function modsLocked(id) {
+  return Boolean(id) && (state.running.has(id) || state.stopping.has(id));
+}
+
 /* ---- grouping: what each mod is for ---- */
 const CONTENT_GROUPS = [
-  { id: "problem", label: "Needs a look", color: "var(--amber)" },
+  // Files Minecraft ignores (folders and non-.jar files in mods; anything
+  // that isn't a .zip or a folder elsewhere) - never a real mod or pack.
+  { id: "problem", label: "Safe to delete", color: "var(--amber)" },
   { id: "perf", label: "Performance", color: "var(--emerald)" },
   { id: "pvp", label: "PvP & HUD", color: "var(--rose)" },
   { id: "visual", label: "Visual", color: "#a78bfa" },
@@ -507,11 +516,97 @@ function groupSection(group, rows, kind) {
     localSet("content.collapsed", [...now]);
     sec.classList.toggle("collapsed", now.has(id));
   };
-  sec.appendChild(head);
+  // The header is a button (it folds the group), so anything else in that
+  // line sits next to it, not inside it.
+  const top = el("div", "c-group-top");
+  top.appendChild(head);
+  if (group.id === "problem" && rows.length) top.appendChild(deleteAllInvalidButton(kind));
+  sec.appendChild(top);
   const body = el("div", "c-group-body");
   rows.forEach((r) => body.appendChild(r));
   sec.appendChild(body);
   return sec;
+}
+
+/* ---- "Safe to delete" -> Delete all ---- */
+const invalidBusy = new Set(); // "instanceId|kind" being cleaned up
+
+/** One line per item for the confirmation: name, and its size or how many files a folder holds. */
+function invalidDetailLine(d) {
+  const what = d.folder ? (d.files === 0 ? "empty folder" : `folder, ${d.more ? `${d.files}+` : d.files} ${d.files === 1 && !d.more ? "file" : "files"}`) : d.size !== null && d.size !== undefined ? formatBytes(d.size) : "file";
+  return `${d.world ? d.world + " / " : ""}${d.file} — ${what}`;
+}
+
+function deleteAllInvalidButton(kind) {
+  const b = button("btn sm danger c-del-all", "Delete all", "#i-trash");
+  b.title = "Move everything in this group to the Recycle Bin";
+  const id = content.instanceId;
+  if (kind === "mod" && modsLocked(id)) {
+    b.disabled = true;
+    b.title = MODS_LOCKED_LINE;
+  }
+  b.onclick = async (e) => {
+    e.stopPropagation();
+    const key = `${id}|${kind}`;
+    if (b.disabled || invalidBusy.has(key)) return;
+    if (kind === "mod" && modsLocked(id)) return toast(MODS_LOCKED_LINE);
+    invalidBusy.add(key);
+    b.disabled = true;
+    try {
+      let details;
+      try {
+        details = await window.reminth.invalidContentDetails(id, kind);
+      } catch (err) {
+        return toast(friendlyError(err.message));
+      }
+      if (!details || !details.length) {
+        toast("Nothing to delete here any more.");
+        if (content.instanceId === id) await loadContent(id);
+        return;
+      }
+      const body = el("div");
+      body.appendChild(el("p", null, "Minecraft ignores these. They go to the Windows Recycle Bin, so you can get them back."));
+      if (details.some((d) => d.folder && (d.files > 0 || d.more))) {
+        body.appendChild(el("p", "warn-note", "One or more folders contain files - check that none is a backup you want to keep."));
+      }
+      const list = el("ul", "del-list pii");
+      for (const d of details) list.appendChild(el("li", null, invalidDetailLine(d)));
+      body.appendChild(list);
+      const ok = await new Promise((resolve) => {
+        let answered = false;
+        openModal({
+          title: `Delete ${details.length} ${details.length === 1 ? "item" : "items"}?`,
+          body,
+          wide: true,
+          focusCancel: true,
+          buttons: [
+            { label: "Cancel", className: "outline" },
+            { label: "Move to Recycle Bin", className: "primary danger-fill", icon: "#i-trash", onClick: () => { answered = true; resolve(true); } },
+          ],
+          onClose: () => { if (!answered) resolve(false); },
+        });
+      });
+      if (!ok) return;
+      if (kind === "mod" && modsLocked(id)) return toast(MODS_LOCKED_LINE);
+      try {
+        const r = await window.reminth.removeInvalidContent(id, kind);
+        const failed = r.failed || [];
+        if (!failed.length) toast(`Moved ${r.moved.length} to the Recycle Bin.`);
+        else {
+          const inUse = failed.filter((f) => /EBUSY|EPERM|EACCES|in use/i.test(f.error)).length;
+          const why = inUse === failed.length ? `${failed.length} ${failed.length === 1 ? "is" : "are"} in use` : `${failed[0].file}: ${friendlyError(failed[0].error)}`;
+          toast(`Moved ${r.moved.length} of ${r.total}; ${why}.`);
+        }
+      } catch (err) {
+        toast(friendlyError(err.message));
+      }
+      if (content.instanceId === id) await loadContent(id);
+    } finally {
+      invalidBusy.delete(key);
+      if (b.isConnected) b.disabled = kind === "mod" && modsLocked(id);
+    }
+  };
+  return b;
 }
 
 const MOD_COLOURS = { HUD: "var(--cyan)", Library: "var(--emerald)" };
@@ -589,7 +684,8 @@ function renderContentTab() {
   }
   content.order = [];
   // Packs and shaders don't have categories - one plain list (plus "Off") reads better than one lone heading.
-  const plain = t.kind !== "mod" && t.kind !== "datapack" && sections.length === 1;
+  // ("Safe to delete" always keeps its heading: its Delete all button lives there.)
+  const plain = t.kind !== "mod" && t.kind !== "datapack" && sections.length === 1 && sections[0].group.id !== "problem";
   for (const { group, items: groupItems } of sections) {
     const rows = groupItems.map((item) => {
       content.order.push(itemKey(item));

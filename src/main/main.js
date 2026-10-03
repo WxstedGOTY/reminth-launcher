@@ -609,15 +609,36 @@ async function watchActiveInstance() {
 }
 
 ipcMain.handle("content:list", async (_e, id) => content.listAll((await instances.require(id)).gameDir));
-ipcMain.handle("content:setEnabled", async (_e, id, item, enabled) =>
-  content.setEnabled((await instances.require(id)).gameDir, item, Boolean(enabled))
-);
-ipcMain.handle("content:remove", async (_e, id, item) =>
-  content.remove((await instances.require(id)).gameDir, item, (full) => shell.trashItem(full))
-);
+// Mods can't change under a running game: its jars are open, and a change
+// would only half apply. The folder an action touches follows from its kind
+// (content.folderFor), so checking the kind here is the real guard - a page
+// that calls a mod something else can only ever reach the pack folders.
+// Resource packs, shaders and data packs stay allowed: Minecraft reloads them.
+const MODS_LOCKED = "Close the game first - that instance is running.";
+function refuseModChangeWhileRunning(id, kind) {
+  if (running.has(id) && content.touchesMods(kind)) throw new Error(MODS_LOCKED);
+}
+ipcMain.handle("content:setEnabled", async (_e, id, item, enabled) => {
+  refuseModChangeWhileRunning(id, item && item.kind);
+  return content.setEnabled((await instances.require(id)).gameDir, item, Boolean(enabled));
+});
+ipcMain.handle("content:remove", async (_e, id, item) => {
+  refuseModChangeWhileRunning(id, item && item.kind);
+  return content.remove((await instances.require(id)).gameDir, item, (full) => shell.trashItem(full));
+});
 ipcMain.handle("content:install", async (_e, id, request) => {
+  const kind = request && request.kind;
+  refuseModChangeWhileRunning(id, kind);
   const inst = await instances.require(id);
-  return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }));
+  // A shader pack may go into a running instance, but not the Iris it may need.
+  return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }), { noModChanges: running.has(id) });
+});
+// "Safe to delete" -> Delete all. The main process works out what is invalid
+// itself (content.removeInvalid) - it never takes file names from the page.
+ipcMain.handle("content:invalidDetails", async (_e, id, kind) => content.invalidDetails((await instances.require(id)).gameDir, kind));
+ipcMain.handle("content:removeInvalid", async (_e, id, kind) => {
+  refuseModChangeWhileRunning(id, kind);
+  return content.removeInvalid((await instances.require(id)).gameDir, kind, (full) => shell.trashItem(full));
 });
 // "Update mods to fit <version>": every enabled mod built for another
 // version or loader goes to its newest stable build for this one (see
