@@ -189,6 +189,8 @@ app.whenReady().then(async () => {
   } catch (err) {
     logCrash("seedPlayTime", err); // shown as the instances' sum until it works
   }
+  // The FPS | GPU | CPU | LAT bar is on for every Fabric/Quilt instance (once).
+  await require("./hudDefault").turnOnOnce({ dir: paths.ROOT, list: instances.list, update: instances.update }).catch(() => 0);
   cachedSettings = await store.loadSettings();
   streamer.init({ notify: send });
   createWindow();
