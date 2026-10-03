@@ -95,6 +95,7 @@
       { id: "rename", label: "Rename…", disabled: running, why: running ? closeFirst : null },
       { id: "folder", label: "Open folder", disabled: false, why: null },
       { id: "verify", label: "Verify files", disabled: running || busy, why: running ? closeFirst : null },
+      { id: "boost", label: "Boost FPS…", disabled: running, why: running ? closeFirst : null },
       { id: "up", label: "Move up", disabled: first, why: null, separator: true },
       { id: "down", label: "Move down", disabled: last, why: null },
       { id: "top", label: "Move to top", disabled: first, why: null },

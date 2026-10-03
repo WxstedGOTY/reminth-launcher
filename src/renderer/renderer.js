@@ -1059,6 +1059,7 @@ async function loadInstances() {
     state.instancesError = friendlyError(err.message) || "unknown error";
   }
   state.running = new Set(state.instances.filter((i) => i.running).map((i) => i.id));
+  paintGameRunning();
   if (!instanceById(state.activeId)) state.activeId = state.instances[0] ? state.instances[0].id : "reminth";
   renderRail();
   renderHero();
@@ -1237,7 +1238,7 @@ const LOADER_CHOICES = [
 // Shown until window.reminth.perfProfiles() answers (and if it can't).
 const PERF_PROFILES_FALLBACK = [
   { id: "balanced", title: "Balanced", description: ["Reminth's performance pack and Java settings, with Minecraft's own video settings.", "Nothing about how the game looks or plays is changed."] },
-  { id: "max-fps", title: "Max FPS", description: ["Lower view and simulation distance, fewer particles, V-Sync off for a brand-new instance.", "Applied to new instances only; your existing settings are never changed."] },
+  { id: "max-fps", title: "Max FPS", description: ["Lower view and simulation distance, fewer particles, V-Sync off for a brand-new instance.", "Applied to new instances only; for one you already play, use \"Boost FPS…\" in its menu."] },
   { id: "far-view", title: "Far view", description: ["A longer render distance picked for this PC, and more memory.", "Applied to new instances only; your existing settings are never changed."] },
 ];
 let perfProfilesCache = null;
@@ -1733,7 +1734,7 @@ function openInstanceMenu(id, at = {}) {
     index,
     count: state.instances.length,
   });
-  const icons = { play: "#i-play", open: "#i-cube", rename: "#i-edit", folder: "#i-folder", verify: "#i-refresh", up: "#i-chevron", down: "#i-chevron", top: "#i-chevron", bottom: "#i-chevron", delete: "#i-trash" };
+  const icons = { play: "#i-play", open: "#i-cube", rename: "#i-edit", folder: "#i-folder", verify: "#i-refresh", boost: "#i-bolt", up: "#i-chevron", down: "#i-chevron", top: "#i-chevron", bottom: "#i-chevron", delete: "#i-trash" };
   const box = el("div", "dd-menu inst-menu");
   box.setAttribute("role", "menu");
   box.setAttribute("aria-label", `${inst.name}: menu`);
@@ -1834,6 +1835,7 @@ async function runInstanceMenuItem(id, what) {
   if (what === "open") return selectInstance(id, true);
   if (what === "rename") return renameInstanceFlow(id);
   if (what === "folder") return openFolder("game", id);
+  if (what === "boost") return boostFpsFlow(id);
   if (what === "verify") {
     await selectInstance(id, false);
     switchPage("home");
@@ -1841,6 +1843,84 @@ async function runInstanceMenuItem(id, what) {
   }
   if (["up", "down", "top", "bottom"].includes(what)) return moveInstance(id, what);
   if (what === "delete") return deleteInstanceFlow(id);
+}
+
+/**
+ * Boost FPS…: shows exactly which video settings change (from -> to), and
+ * changes them only on "Change them". The old values are kept, so the same
+ * dialog offers "Put my old settings back" afterwards. Never while the game
+ * runs - it rewrites options.txt when it closes.
+ */
+async function boostFpsFlow(id) {
+  const inst = instanceById(id);
+  if (!inst) return;
+  if (state.running.has(id)) return toast("Close the game first.");
+  let plan;
+  try {
+    plan = await window.reminth.perfBoostPlan(id);
+  } catch (err) {
+    return toast(friendlyError(err.message));
+  }
+  const changes = (plan && Array.isArray(plan.changes) && plan.changes) || [];
+  const canUndo = Boolean(plan && plan.canUndo);
+  const body = el("div", "boost-body");
+  if (changes.length) {
+    body.appendChild(el("p", null, `These video settings of ${inst.name} change to the ones that gave the biggest FPS gain in our tests:`));
+    const list = el("ul", "boost-list");
+    for (const c of changes) {
+      const li = el("li");
+      li.appendChild(el("b", null, c.label));
+      li.appendChild(el("span", "boost-from", c.fromText));
+      li.appendChild(icon("#i-chevron", "i boost-arrow"));
+      li.appendChild(el("span", "boost-to", c.toText));
+      list.appendChild(li);
+    }
+    body.appendChild(list);
+    body.appendChild(el("p", "set-note", "Nothing else in your settings is touched. Your current values are saved - this menu can put them back any time."));
+  } else if (plan && plan.reason === "not-installed") {
+    body.appendChild(el("p", null, "Play this instance once first - Reminth needs the game's files to know which settings it has."));
+  } else if (plan && plan.reason === "no-options") {
+    body.appendChild(el("p", null, "This instance hasn't saved any video settings yet. Play it once, then come back."));
+  } else {
+    body.appendChild(el("p", null, `${inst.name} already has the fast settings.`));
+  }
+  const buttons = [{ label: changes.length ? "Cancel" : "Close", className: "outline" }];
+  let busy = false;
+  const act = async (call, done) => {
+    if (busy) return false;
+    if (state.running.has(id)) {
+      toast("Close the game first.");
+      return false;
+    }
+    busy = true;
+    try {
+      const r = await call(id);
+      toast(done(r || {}));
+      return true;
+    } catch (err) {
+      toast(friendlyError(err.message));
+      return false;
+    } finally {
+      busy = false;
+    }
+  };
+  if (canUndo) {
+    buttons.push({
+      label: "Put my old settings back",
+      className: "outline",
+      icon: "#i-rotate",
+      onClick: () => act(window.reminth.perfBoostUndo, (r) => (r.restored ? `${inst.name}: your old video settings are back.` : `${inst.name}: nothing to put back - you had changed those settings since.`)),
+    });
+  }
+  if (changes.length) {
+    buttons.push({
+      label: "Change them",
+      className: "primary",
+      icon: "#i-bolt",
+      onClick: () => act(window.reminth.perfBoostApply, (r) => (r.changed ? `${inst.name}: faster settings saved. They apply the next time you play.` : `${inst.name} already has the fast settings.`)),
+    });
+  }
+  openModal({ title: `Boost FPS — ${inst.name}`, body, buttons });
 }
 
 /** Rename…: one name field, the normal instances:update path, never while the game runs. */
@@ -2381,8 +2461,18 @@ window.reminth.onInstallDone(({ instanceId }) => {
   $("progressFill" + suffix).classList.remove("busy");
 });
 
+/**
+ * While a game runs nothing in the launcher animates (styles.css,
+ * body.game-running): a launcher window left visible next to a windowed
+ * game, or on a second screen, must not take frames from the game.
+ */
+function paintGameRunning() {
+  document.body.classList.toggle("game-running", state.running.size > 0);
+}
+
 window.reminth.onPlayStarted(({ instanceId, startedAt }) => {
   state.running.add(instanceId);
+  paintGameRunning();
   // Home's hero moves to this instance now, not after the list is read
   // again (main.js has saved "last played" by the time this arrives).
   state.instances = window.ReminthPure.markPlayed(state.instances, instanceId, startedAt || Date.now());
@@ -2399,6 +2489,7 @@ window.reminth.onTotalPlayTime(({ totalPlayTimeMs }) => {
 });
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);
+  paintGameRunning();
   stopFinished(instanceId);
   loadInstances();
   loadRecent();
@@ -2406,6 +2497,7 @@ window.reminth.onPlayExited(({ instanceId }) => {
 });
 window.reminth.onPlayCrashed(({ instanceId, code, signal, error, logPath }) => {
   state.running.delete(instanceId);
+  paintGameRunning();
   stopFinished(instanceId);
   paintPlayButtons();
   const reason = error ? friendlyError(error) : signal ? `the game process was killed (${signal})` : `the game process exited immediately (code ${code})`;

@@ -205,12 +205,185 @@ async function markNoSeed(gameDir, reason) {
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * "Boost FPS": the Max FPS settings for an instance that already has   *
+ * its own options.txt - only when the player presses the button and    *
+ * confirms the list of changes. The old values are saved first and     *
+ * "Put my old settings back" restores them.                            *
+ * ------------------------------------------------------------------ */
+
+const BOOST_FILE = path.join(".reminth", "options-before-boost.json");
+// Measured with the real game (26.2, the owner's 32 mods, 2026-10-03; see
+// DECISIONS_AND_TEST_PLAN.md): render distance is by far the biggest cost,
+// then shadows, clouds and biome blend. Servers usually send 8-12 chunks anyway.
+const BOOST_RENDER_DISTANCE = 12;
+const BOOST_SIMULATION_DISTANCE = 8;
+
+/** Pure: options.txt text -> Map of key -> raw value (the text after the first ":"). */
+function parseOptions(text) {
+  const map = new Map();
+  for (const line of String(text || "").split(/\r?\n/)) {
+    const i = line.indexOf(":");
+    if (i > 0) map.set(line.slice(0, i), line.slice(i + 1));
+  }
+  return map;
+}
+
+const PARTICLES = { 0: "all", 1: "decreased", 2: "minimal" };
+
+/**
+ * Pure: what "Boost FPS" would change in this options.txt, for a game whose
+ * data version is `worldVersion`: [{ key, label, from, to, fromText, toText }].
+ * Only keys already in the file are changed, keeping the format the game
+ * wrote them in (a value spelled some other way is skipped, not guessed).
+ * The one key that may be added is graphicsPreset (see DATA_FIRST_PRESET).
+ * An empty list means there's nothing to boost.
+ */
+function planBoost(text, { worldVersion } = {}) {
+  if (!Number.isInteger(worldVersion) || worldVersion < DATA_1_16) return [];
+  if (worldVersion > DATA_LAST_GRAPHICS_MODE && worldVersion < DATA_FIRST_PRESET) return [];
+  const opts = parseOptions(text);
+  const changes = [];
+  const change = (key, label, to, fromText, toText) => {
+    if (!opts.has(key) || opts.get(key) === to) return;
+    changes.push({ key, label, from: opts.get(key), to, fromText, toText });
+  };
+  const num = (key) => (opts.has(key) && /^-?\d+(\.\d+)?$/.test(opts.get(key)) ? Number(opts.get(key)) : null);
+
+  const rd = num("renderDistance");
+  if (rd !== null && rd > BOOST_RENDER_DISTANCE) {
+    change("renderDistance", "Render distance", String(BOOST_RENDER_DISTANCE), `${rd} chunks`, `${BOOST_RENDER_DISTANCE} chunks`);
+  }
+  const sim = num("simulationDistance");
+  if (worldVersion >= DATA_1_18 && sim !== null && sim > BOOST_SIMULATION_DISTANCE) {
+    change("simulationDistance", "Simulation distance", String(BOOST_SIMULATION_DISTANCE), `${sim} chunks`, `${BOOST_SIMULATION_DISTANCE} chunks`);
+  }
+  if (opts.get("entityShadows") === "true") change("entityShadows", "Entity shadows", "false", "on", "off");
+  // "true"/"fast" in quotes from 1.19, bare before that: written back the same way.
+  const clouds = opts.get("renderClouds");
+  if (clouds !== undefined && /^"?(true|fast)"?$/.test(clouds)) {
+    change("renderClouds", "Clouds", clouds.startsWith('"') ? '"false"' : "false", "on", "off");
+  }
+  const blend = num("biomeBlendRadius");
+  if (blend !== null && blend > 0) change("biomeBlendRadius", "Biome blend", "0", String(blend), "off");
+  if (num("particles") === 0) change("particles", "Particles", "1", PARTICLES[0], PARTICLES[1]);
+  if (opts.get("enableVsync") === "true") change("enableVsync", "V-Sync", "false", "on", "off");
+  const maxFps = num("maxFps");
+  if (maxFps !== null && maxFps < 260) change("maxFps", "Max framerate", "260", String(maxFps), "unlimited");
+  // From 1.21.11 a preset owns the values above; "custom" keeps ours (see DATA_FIRST_PRESET).
+  if (changes.length && worldVersion >= DATA_FIRST_PRESET && opts.get("graphicsPreset") !== '"custom"') {
+    const was = opts.has("graphicsPreset") ? opts.get("graphicsPreset") : null;
+    changes.push({ key: "graphicsPreset", label: "Graphics preset", from: was, to: '"custom"', fromText: was === null ? "none" : was.replace(/"/g, ""), toText: "custom" });
+  }
+  return changes;
+}
+
+/** Pure: `text` with each change's key set to `value(change)` (null removes the line); every other line untouched. */
+function rewriteOptions(text, changes, value) {
+  const eol = /\r\n/.test(String(text)) ? "\r\n" : "\n";
+  const lines = String(text || "").split(/\r?\n/);
+  if (lines.length && lines[lines.length - 1] === "") lines.pop();
+  const byKey = new Map(changes.map((c) => [c.key, c]));
+  const done = new Set();
+  const out = [];
+  for (const line of lines) {
+    const i = line.indexOf(":");
+    const key = i > 0 ? line.slice(0, i) : null;
+    if (key && byKey.has(key) && !done.has(key)) {
+      done.add(key);
+      const v = value(byKey.get(key));
+      if (v !== null) out.push(`${key}:${v}`);
+      continue;
+    }
+    out.push(line);
+  }
+  for (const c of changes) {
+    if (done.has(c.key)) continue;
+    const v = value(c);
+    if (v !== null) out.push(`${c.key}:${v}`);
+  }
+  return out.join(eol) + eol;
+}
+
+/** What "Boost FPS" would change for this instance, and whether there's a boost to undo. Never throws. */
+async function boostPlan({ gameDir, clientJar } = {}) {
+  try {
+    const canUndo = await exists(path.join(gameDir, BOOST_FILE));
+    const text = await fsp.readFile(path.join(gameDir, OPTIONS_FILE), "utf8").catch(() => null);
+    if (text === null) return { changes: [], canUndo, reason: "no-options" };
+    const worldVersion = clientJar ? await readWorldVersion(clientJar) : null;
+    if (!worldVersion) return { changes: [], canUndo, reason: "not-installed" };
+    return { changes: planBoost(text, { worldVersion }), canUndo, reason: null };
+  } catch {
+    return { changes: [], canUndo: false, reason: "error" };
+  }
+}
+
+/**
+ * Applies the plan. The caller makes sure the game isn't running (it
+ * rewrites options.txt when it closes). The old values are saved BEFORE
+ * options.txt is touched; a second boost keeps the first saved values, so
+ * "put back" always means "as before Reminth changed anything".
+ */
+async function applyBoost({ gameDir, clientJar } = {}) {
+  const file = path.join(gameDir, OPTIONS_FILE);
+  const text = await fsp.readFile(file, "utf8");
+  const worldVersion = await readWorldVersion(clientJar);
+  const changes = planBoost(text, { worldVersion });
+  if (!changes.length) return { changed: 0 };
+  const saved = path.join(gameDir, BOOST_FILE);
+  let before = [];
+  try {
+    before = JSON.parse(await fsp.readFile(saved, "utf8")).changes || [];
+  } catch {
+    before = [];
+  }
+  const keep = new Map(before.filter((c) => c && typeof c.key === "string").map((c) => [c.key, c]));
+  for (const c of changes) {
+    if (keep.has(c.key)) keep.set(c.key, { ...keep.get(c.key), to: c.to });
+    else keep.set(c.key, { key: c.key, from: c.from, to: c.to });
+  }
+  await atomic.writeJsonAtomic(saved, { at: new Date().toISOString(), changes: [...keep.values()] }, { space: 2 });
+  await atomic.writeFileAtomic(file, rewriteOptions(text, changes, (c) => c.to), { encoding: "utf8" });
+  return { changed: changes.length };
+}
+
+/**
+ * Puts back the values from before the boost - only for settings still at
+ * the boosted value; anything the player changed since stays theirs.
+ */
+async function undoBoost({ gameDir } = {}) {
+  const saved = path.join(gameDir, BOOST_FILE);
+  const record = JSON.parse(await fsp.readFile(saved, "utf8"));
+  const file = path.join(gameDir, OPTIONS_FILE);
+  const text = await fsp.readFile(file, "utf8");
+  const opts = parseOptions(text);
+  const back = (Array.isArray(record.changes) ? record.changes : []).filter(
+    (c) =>
+      c &&
+      typeof c.key === "string" &&
+      /^[A-Za-z0-9_]+$/.test(c.key) &&
+      (c.from === null || (typeof c.from === "string" && !/[\r\n]/.test(c.from))) &&
+      opts.get(c.key) === c.to
+  );
+  if (back.length) await atomic.writeFileAtomic(file, rewriteOptions(text, back, (c) => c.from), { encoding: "utf8" });
+  await fsp.rm(saved, { force: true });
+  return { restored: back.length };
+}
+
 module.exports = {
   seedIfAbsent,
   markNoSeed,
   readWorldVersion,
+  boostPlan,
+  applyBoost,
+  undoBoost,
   // pure, for tests
   buildOptions,
+  planBoost,
+  rewriteOptions,
+  parseOptions,
+  BOOST_FILE,
   farViewDistance,
   SEEDED_FILE,
 };

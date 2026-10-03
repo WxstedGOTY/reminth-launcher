@@ -40,7 +40,7 @@ const PROFILES = {
     title: "Max FPS",
     description: [
       "A new instance starts with render distance 10, simulation distance 8, fewer particles, no entity shadows, V-Sync off and no frame cap. Things more than 8 chunks away stop growing and moving in singleplayer.",
-      "Applied to new instances only; your existing settings are never changed.",
+      "Applied to new instances only; your existing settings are never changed by this. For an instance you already play, \"Boost FPS…\" in its menu shows the changes first and can put them back.",
     ],
     extras: [
       {

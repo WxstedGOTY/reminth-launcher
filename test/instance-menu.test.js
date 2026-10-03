@@ -38,7 +38,7 @@ const paths = require("../src/main/paths");
 test("instanceMenuItems: order, the main instance's Delete shown but off, a running one can't be renamed or deleted", () => {
   const ids = (items) => items.map((i) => i.id);
   const normal = pure.instanceMenuItems({ name: "Survival" }, { index: 1, count: 3 });
-  assert.deepEqual(ids(normal), ["play", "open", "rename", "folder", "verify", "up", "down", "top", "bottom", "delete"]);
+  assert.deepEqual(ids(normal), ["play", "open", "rename", "folder", "verify", "boost", "up", "down", "top", "bottom", "delete"]);
   assert.equal(normal.find((i) => i.id === "delete").disabled, false);
   assert.equal(normal.find((i) => i.id === "delete").danger, true);
   const main = pure.instanceMenuItems({ name: "Reminth" }, { isMain: true, index: 0, count: 1 });
@@ -47,7 +47,7 @@ test("instanceMenuItems: order, the main instance's Delete shown but off, a runn
   // only one instance: no moving at all, the menu still has everything
   assert.deepEqual(main.filter((i) => ["up", "down", "top", "bottom"].includes(i.id)).map((i) => i.disabled), [true, true, true, true]);
   const running = pure.instanceMenuItems({ name: "Survival" }, { running: true, index: 0, count: 3 });
-  for (const id of ["play", "rename", "delete"]) assert.equal(running.find((i) => i.id === id).disabled, true, id);
+  for (const id of ["play", "rename", "boost", "delete"]) assert.equal(running.find((i) => i.id === id).disabled, true, id);
   assert.equal(running.find((i) => i.id === "rename").why, "Close the game first.");
   // first / last can't go further that way
   const firstOf3 = pure.instanceMenuItems({}, { index: 0, count: 3 });

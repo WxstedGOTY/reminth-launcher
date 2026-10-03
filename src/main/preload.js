@@ -101,6 +101,9 @@ contextBridge.exposeInMainWorld("reminth", {
   perfProfileExtras: (id) => ipcRenderer.invoke("perf:profileExtras", id),
   perfPackStatus: (id) => ipcRenderer.invoke("perf:packStatus", id),
   perfRestorePack: (id) => ipcRenderer.invoke("perf:restorePack", id),
+  perfBoostPlan: (id) => ipcRenderer.invoke("perf:boostPlan", id),
+  perfBoostApply: (id) => ipcRenderer.invoke("perf:boostApply", id),
+  perfBoostUndo: (id) => ipcRenderer.invoke("perf:boostUndo", id),
 
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),

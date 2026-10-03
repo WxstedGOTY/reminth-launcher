@@ -462,6 +462,26 @@ ipcMain.handle("perf:profileExtras", async (_e, id) => perfProfiles.listExtras(a
 
 ipcMain.handle("perf:packStatus", async (_e, id) => minecraft.performancePackStatus(await instances.require(id)));
 
+// "Boost FPS": the measured Max FPS video settings for an instance that
+// already has its own (gameOptions.js planBoost). Only on the player's
+// confirmed click, never while the game runs (it rewrites options.txt when it
+// closes), old values saved first, and "put back" undoes it.
+const boostTarget = (inst) => ({
+  gameDir: inst.gameDir,
+  clientJar: /^[A-Za-z0-9._-]+$/.test(String(inst.mcVersion)) && !String(inst.mcVersion).includes("..") ? path.join(paths.VERSIONS_DIR, inst.mcVersion, `${inst.mcVersion}.jar`) : null,
+});
+ipcMain.handle("perf:boostPlan", async (_e, id) => gameOptions.boostPlan(boostTarget(await instances.require(id))));
+ipcMain.handle("perf:boostApply", async (_e, id) => {
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  const inst = await instances.require(id);
+  return atomic.withLock(`options:${id}`, () => gameOptions.applyBoost(boostTarget(inst)));
+});
+ipcMain.handle("perf:boostUndo", async (_e, id) => {
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  const inst = await instances.require(id);
+  return atomic.withLock(`options:${id}`, () => gameOptions.undoBoost(boostTarget(inst)));
+});
+
 // Restore: forget which pack mods the player switched off or removed, so the
 // next Play installs the whole pack again. Only bookkeeping changes, but not
 // while the game runs - that launch already decided what's in mods/.

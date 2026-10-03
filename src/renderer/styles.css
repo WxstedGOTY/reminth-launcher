@@ -2410,6 +2410,19 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
    bottom and right edge (most visible on the highlighted sidebar button).
    Starting every background at the border edge instead of inside it makes
    the fill one continuous colour right to the edge, on every box. */
+/* Boost FPS…: the list of settings that change, "from -> to" (renderer.js boostFpsFlow). */
+.boost-list { list-style: none; margin: 10px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.boost-list li { display: grid; grid-template-columns: 1fr auto 14px auto; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--line-soft); }
+.boost-list b { font-weight: 600; color: var(--text); }
+.boost-from { color: var(--text-3); text-decoration: line-through; text-decoration-color: rgba(183, 196, 218, .45); }
+.boost-to { color: var(--emerald); font-weight: 600; }
+.boost-arrow { width: 14px; height: 14px; transform: rotate(-90deg); color: var(--text-3); }
+
+/* While a game runs, nothing here animates (renderer.js paintGameRunning): a
+   launcher left visible next to a windowed game, or on a second screen, would
+   otherwise redraw at the monitor's refresh rate and take frames from it. */
+body.game-running *, body.game-running *::before, body.game-running *::after { animation-play-state: paused !important; }
+
 /* !important because every "background:" shorthand elsewhere silently resets
    this back to the padding edge. */
 *, *::before, *::after { background-origin: border-box !important; }
