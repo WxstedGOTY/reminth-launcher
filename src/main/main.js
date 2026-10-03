@@ -654,14 +654,16 @@ ipcMain.handle("content:removeInvalid", async (_e, id, kind) => {
 // modsSync.js). One run per instance, never while its game is starting or
 // running.
 const syncing = new Set();
-ipcMain.handle("mods:sync", async (_e, id) => {
+// options.files: only these mod files (plain names) - the Play warning and a crash notice fix one or a few.
+ipcMain.handle("mods:sync", async (_e, id, options) => {
   if (running.has(id)) throw new Error("Close the game first - that instance is running.");
   if (syncing.has(id)) throw new Error("That instance's mods are already being updated.");
   const inst = await instances.require(id);
   if (inst.loader === "vanilla") throw new Error("A vanilla instance has no mods to update.");
   syncing.add(id);
   try {
-    return await modsSync.applySync(inst, (p) => send("content:progress", { instanceId: id, op: "update", ...p }));
+    const files = options && Array.isArray(options.files) ? options.files.filter((f) => typeof f === "string" && f && f === path.basename(f)).slice(0, 500) : null;
+    return await modsSync.applySync(inst, (p) => send("content:progress", { instanceId: id, op: "update", ...p }), {}, files ? { files } : {});
   } finally {
     syncing.delete(id);
   }

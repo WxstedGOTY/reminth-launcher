@@ -391,14 +391,47 @@ function judgeMod(item, version, instance, wanted, hasConnector) {
     };
   }
   const games = Array.isArray(version.game_versions) ? version.game_versions : [];
-  // The jar said yes itself: Modrinth's shorter list doesn't overrule it.
-  if (local === true || !games.length || games.includes(instance.mcVersion)) return null;
+  if (!games.length || games.includes(instance.mcVersion)) return null;
+  if (local === true) {
+    // The jar says yes itself, and Modrinth's list being short (only older
+    // versions) doesn't overrule that. But a build listed ONLY for newer
+    // Minecraft versions was made against the newer game: its "range"
+    // reaching back is often just loose, and code compiled for 26.3 asking
+    // 26.2 for things it doesn't have crashes in play (AppleSkin's
+    // NoSuchFieldError, 3 Oct 2026). That is worth a warning.
+    if (!builtForNewerOnly(games, instance.mcVersion)) return null;
+    return {
+      severity: "warn",
+      reason: "wrong-mc",
+      madeFor: summariseVersions(games),
+      listedElsewhere: true,
+      detail: `This build is listed for Minecraft ${summariseVersions(games)}, not ${instance.mcVersion}. Its own file lets it load, but a build made for a newer Minecraft can crash the game in play.`,
+    };
+  }
   return {
     severity: "warn",
     reason: "wrong-mc",
     madeFor: summariseVersions(games),
+    listedElsewhere: true,
     detail: `This build is listed for Minecraft ${summariseVersions(games)}, not ${instance.mcVersion}. It may not load.`,
   };
+}
+
+/** Pure: a fingerprint of the switched-on mod jars (name, size, time) - any change to the set changes it. */
+function modSetOf(loaded) {
+  const rows = (loaded || []).map((i) => [String(i.file).toLowerCase(), i.size || 0, i.modifiedAt || 0]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  return require("crypto").createHash("sha1").update(JSON.stringify(rows)).digest("hex");
+}
+
+/**
+ * Pure: is every release this build is listed for newer than `mcVersion`?
+ * False when it lists no release that can be read, or the instance's
+ * version can't be read (a snapshot): nothing is claimed then.
+ */
+function builtForNewerOnly(games, mcVersion) {
+  const mine = parseMcVersion(mcVersion);
+  const listed = (games || []).map(parseMcVersion).filter(Boolean);
+  return Boolean(mine) && listed.length > 0 && listed.every((v) => compareTriples(v, mine) > 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -864,6 +897,9 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
   // reported - but they do count as "installed" for what other mods need.
   const loaded = (all.mod || []).filter((i) => i.valid && !i.folder && i.enabled);
   const mods = loaded.filter((i) => !managed.has(String(i.file).toLowerCase()));
+  // Which mods are switched on, as one fingerprint: a "don't ask again" for
+  // this instance's Play warning holds only while this stays the same.
+  base.modSet = modSetOf(loaded);
   // Reminth puts the Fabric API in by itself whenever the HUD or the
   // performance pack is on - the same rule minecraft.ensureInstalled uses
   // (config.perfPackEnabled).
@@ -1043,6 +1079,7 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
       neededBy: null,
       fix,
       ...(verdict.fromGame ? { fromGame: true } : {}),
+      ...(verdict.listedElsewhere ? { listedElsewhere: true } : {}),
     });
   }
 
@@ -1483,6 +1520,8 @@ module.exports = {
   serverAccepts,
   wrongLoaderFamily,
   judgeMod,
+  builtForNewerOnly,
+  modSetOf,
   rankVersions,
   FABRIC_API,
   QUILT_API,

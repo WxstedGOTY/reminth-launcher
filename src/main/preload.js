@@ -60,7 +60,7 @@ contextBridge.exposeInMainWorld("reminth", {
   installContent: (instanceId, req) => ipcRenderer.invoke("content:install", instanceId, req),
   invalidContentDetails: (instanceId, kind) => ipcRenderer.invoke("content:invalidDetails", instanceId, kind),
   removeInvalidContent: (instanceId, kind) => ipcRenderer.invoke("content:removeInvalid", instanceId, kind),
-  syncMods: (instanceId) => ipcRenderer.invoke("mods:sync", instanceId),
+  syncMods: (instanceId, options) => ipcRenderer.invoke("mods:sync", instanceId, options || {}),
   contentCreators: (instanceId) => ipcRenderer.invoke("content:creators", instanceId),
   checkUpdates: (instanceId) => ipcRenderer.invoke("content:checkUpdates", instanceId),
   applyUpdates: (instanceId, updates) => ipcRenderer.invoke("content:applyUpdates", instanceId, updates),

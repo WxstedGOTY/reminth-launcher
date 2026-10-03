@@ -5194,7 +5194,7 @@ const syncUi = {
 /** How many mods the button is about, from a compat answer. Mirrors modsSync.syncCandidates. */
 function syncCount(result) {
   if (!result || !Array.isArray(result.issues)) return 0;
-  return result.issues.filter((i) => i && i.file && ((i.reason === "wrong-mc" && i.severity === "blocked") || i.reason === "wrong-loader")).length;
+  return result.issues.filter((i) => i && i.file && ((i.reason === "wrong-mc" && (i.severity === "blocked" || i.listedElsewhere === true)) || i.reason === "wrong-loader")).length;
 }
 
 /** Why the button can't run for an instance right now, or null. */
@@ -5244,7 +5244,7 @@ function paintSyncButtons() {
   if (!showNotice) return;
   const text = el("div", "sn-text");
   text.appendChild(el("b", null, `${n} ${plural(n, "mod")} ${n === 1 ? "is" : "are"} built for another Minecraft version.`));
-  text.appendChild(el("span", null, `They won't load on ${inst.mcVersion}. Reminth can swap them to their newest stable ${inst.mcVersion} builds; anything without one is listed, not removed.`));
+  text.appendChild(el("span", null, `They won't load on ${inst.mcVersion}, or may crash it. Reminth can swap them to their newest stable ${inst.mcVersion} builds; anything without one is listed, not removed.`));
   box.appendChild(text);
   const go = button("btn sync-btn sm", `Update mods to fit ${inst.mcVersion}`, "#i-refresh");
   go.disabled = Boolean(syncBlocked(id));

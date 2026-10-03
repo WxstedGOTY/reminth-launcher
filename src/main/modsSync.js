@@ -1,8 +1,9 @@
 "use strict";
 /**
  * "Update mods to fit <version>": one click that swaps every enabled mod
- * that won't load on the instance's Minecraft version or loader to the
- * newest STABLE build made for exactly that version and loader.
+ * that won't load on the instance's Minecraft version or loader - or is only
+ * listed for another Minecraft version ("may not work") - to the newest
+ * STABLE build made for exactly that version and loader.
  *
  * What it never does:
  *  - pick a beta or alpha. The compatibility panel's own "Switch to" fix
@@ -28,13 +29,17 @@ const LOOKUP_CONCURRENCY = 4;
 
 /**
  * Pure: the compat issues this button is about - enabled mods built for
- * another Minecraft version (when that stops the game) or another loader
- * (they do nothing there). Not missing dependencies, duplicates or clashes:
- * a newer build doesn't fix those, and the panel has its own fixes for them.
+ * another Minecraft version (when that stops the game, or when the build is
+ * only LISTED for another version - "may not work", which can crash the game
+ * in play) or another loader (they do nothing there). Not missing
+ * dependencies, duplicates or clashes: a newer build doesn't fix those, and
+ * the panel has its own fixes for them. A "may not work" mod is only ever
+ * swapped for a stable build of exactly this version (planSync); without
+ * one it is listed in noBuild and left as it is.
  */
 function syncCandidates(issues) {
   return (Array.isArray(issues) ? issues : []).filter(
-    (i) => i && i.file && ((i.reason === "wrong-mc" && i.severity === "blocked") || i.reason === "wrong-loader")
+    (i) => i && i.file && ((i.reason === "wrong-mc" && (i.severity === "blocked" || i.listedElsewhere === true)) || i.reason === "wrong-loader")
   );
 }
 
@@ -109,8 +114,10 @@ async function mapLimit(items, limit, fn) {
  *   noBuild:   [{ file, title, why }]   - no stable build: left alone,
  *   unchecked: [{ file, title }] }      - Modrinth couldn't be asked about it
  * deps (tests): { check(instance), api: { getProjectVersions }, loadersFor(kind, instance) }.
+ * options.files: only these mod files (the Play warning's "Fix and play",
+ * a crash notice's "Fix it"); the same rules otherwise.
  */
-async function planSync(instance, deps = {}) {
+async function planSync(instance, deps = {}, options = {}) {
   const compat = deps.check ? null : require("./compat");
   const content = deps.loadersFor ? null : require("./content");
   const api = deps.api || require("./modrinth");
@@ -118,7 +125,8 @@ async function planSync(instance, deps = {}) {
   const out = { online: true, mcVersion: instance.mcVersion, loader: instance.loader, count: 0, updates: [], noBuild: [], unchecked: [] };
   if (!instance || instance.loader === "vanilla") return out;
   const check = deps.check ? await deps.check(instance) : await compat.checkInstance(instance, { force: true });
-  const candidates = syncCandidates(check && check.issues);
+  const only = Array.isArray(options.files) ? new Set(options.files.map(String)) : null;
+  const candidates = syncCandidates(check && check.issues).filter((i) => !only || only.has(i.file));
   out.count = candidates.length;
   out.online = Boolean(check && check.online !== false);
   if (!candidates.length) return out;
@@ -214,10 +222,10 @@ async function backupJars(gameDir, files, now = new Date(), { onError } = {}) {
 /**
  * The button: plan, copy the old jars aside, apply the stable builds.
  * Returns { applied, failed, added, warnings, noBuild, unchecked, online, count, backupDir }.
- * deps (tests): planSync's, plus { applyUpdates, invalidate }.
+ * deps (tests): planSync's, plus { applyUpdates, invalidate }. options: planSync's.
  */
-async function applySync(instance, onProgress, deps = {}) {
-  const plan = await planSync(instance, deps);
+async function applySync(instance, onProgress, deps = {}, options = {}) {
+  const plan = await planSync(instance, deps, options);
   const result = { applied: [], failed: [], added: [], warnings: [], noBuild: plan.noBuild, unchecked: plan.unchecked, online: plan.online, count: plan.count, backupDir: null };
   if (plan.updates.length) {
     // content.applyUpdates keeps a copy of every jar it replaces (backupJars).
