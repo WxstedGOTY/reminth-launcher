@@ -1241,17 +1241,40 @@ function finishSession(inst, played, session) {
 
 /**
  * Once no game runs any more: the window back the way it was when the game
- * was launched (Windows un-maximizes it for a fullscreen game; "launch
- * minimized" minimized it). Never while a game runs; never a window that
- * wasn't maximized made maximized. Decided by windowRestore.afterGame.
+ * was launched (Windows un-maximizes it for a fullscreen game, or leaves it
+ * flagged maximized but shrunk to 800x552; "launch minimized" minimized
+ * it). Never while a game runs; never a window that wasn't maximized made
+ * maximized; at most once per game end. Decided by windowRestore.afterGame.
  */
+function windowNow() {
+  let boundsFillWorkArea = true; // can't tell: change nothing on a guess
+  try {
+    const bounds = win.getBounds();
+    boundsFillWorkArea = windowRestore.fillsWorkArea(bounds, screen.getDisplayMatching(bounds).workArea);
+  } catch {
+    // no display information - leave the size alone
+  }
+  return { isMaximized: win.isMaximized(), isMinimized: win.isMinimized(), anyGameRunning: running.size > 0, boundsFillWorkArea };
+}
+
 function restoreWindowAfterGame() {
   if (!windowBeforeGame || !win || win.isDestroyed()) return;
-  const action = windowRestore.afterGame(windowBeforeGame, { isMaximized: win.isMaximized(), isMinimized: win.isMinimized(), anyGameRunning: running.size > 0 });
+  const before = windowBeforeGame;
+  let action = windowRestore.afterGame(before, windowNow());
   if (action === "wait") return;
-  windowBeforeGame = null;
+  windowBeforeGame = null; // done for this game end, whatever happens below
   if (action === "none") return;
   if (action === "restore" || action === "restore-maximize") win.restore();
   if (action === "maximize" || action === "restore-maximize") win.maximize();
+  // Brought back, but Windows' "maximized" window is still the small one: that needs the repair too.
+  if (action !== "repair") action = windowRestore.afterGame({ ...before, minimizedByUs: false }, windowNow());
+  if (action === "repair") {
+    const small = win.getBounds();
+    win.unmaximize();
+    win.maximize();
+    before.repaired = true;
+    const now = win.getBounds();
+    logCrash("window", `After a game the window said maximized but was ${small.width}x${small.height}; repaired to ${now.width}x${now.height}.`);
+  }
   send("window:maximized", win.isMaximized());
 }

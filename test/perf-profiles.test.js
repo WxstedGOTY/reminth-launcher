@@ -58,6 +58,9 @@ class FakeWindow extends EventEmitter {
   isMaximized() {
     return false;
   }
+  getBounds() {
+    return { x: -8, y: -8, width: 1936, height: 1048 };
+  }
   maximize() {}
   unmaximize() {}
   minimize() {}
@@ -72,7 +75,7 @@ const fakeElectron = {
   BrowserWindow: FakeWindow,
   ipcMain: { handle: (channel, fn) => ipc.set(channel, fn), on: noop },
   shell: { openExternal: noop, openPath: async () => "", trashItem: async () => {} },
-  screen: { getPrimaryDisplay: () => ({ workAreaSize: { width: 1920, height: 1080 } }) },
+  screen: { getPrimaryDisplay: () => ({ workAreaSize: { width: 1920, height: 1080 } }), getDisplayMatching: () => ({ workArea: { x: 0, y: 0, width: 1920, height: 1032 } }) },
   safeStorage: { isEncryptionAvailable: () => false },
   desktopCapturer: { getSources: async () => [] },
   globalShortcut: { register: () => true, unregisterAll: noop, unregister: noop },
@@ -825,7 +828,7 @@ test("main: after a game the window goes back to maximized (never during the gam
   const w = FakeWindow.last;
   const st = { max: true, min: false };
   const did = [];
-  const realMethods = { isMaximized: w.isMaximized, isMinimized: w.isMinimized, maximize: w.maximize, restore: w.restore, minimize: w.minimize };
+  const realMethods = { isMaximized: w.isMaximized, isMinimized: w.isMinimized, maximize: w.maximize, restore: w.restore, minimize: w.minimize, unmaximize: w.unmaximize, getBounds: w.getBounds };
   Object.assign(w, {
     isMaximized: () => st.max,
     isMinimized: () => st.min,
@@ -887,6 +890,57 @@ test("main: after a game the window goes back to maximized (never during the gam
     assert.deepEqual(did, ["maximize"]);
     w.emit("focus");
     assert.deepEqual(did, ["maximize"], "only once");
+
+    // 5. measured on Windows: still FLAGGED maximized, but shrunk to 800x552 at game start
+    const full = { x: -8, y: -8, width: 1936, height: 1048 };
+    let rect = full;
+    Object.assign(w, {
+      getBounds: () => rect,
+      unmaximize: () => (did.push("unmaximize"), (st.max = false), (rect = { x: 260, y: 96, width: 1320, height: 840 })),
+      // like Windows: maximize() on a window already flagged maximized changes nothing
+      maximize: () => {
+        did.push("maximize");
+        if (!st.max) rect = full;
+        st.max = true;
+        st.min = false;
+      },
+    });
+    const logFile = path.join(require("../src/main/paths").ROOT, "main-errors.log");
+    const logBefore = fs.existsSync(logFile) ? fs.readFileSync(logFile, "utf8") : "";
+    await call("settings:set", { launchMinimized: false });
+    did.length = 0;
+    st.max = true;
+    await play();
+    rect = { x: -8, y: -8, width: 816, height: 568 }; // Windows shrinks it, IsZoomed stays TRUE
+    w.emit("focus");
+    assert.deepEqual(did, [], "not while the game runs");
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, ["unmaximize", "maximize"]);
+    assert.deepEqual(rect, full);
+    assert.deepEqual(lastMaxState(), ["window:maximized", true]);
+    const logged = fs.readFileSync(logFile, "utf8").slice(logBefore.length);
+    assert.match(logged, /window: After a game the window said maximized but was 816x568; repaired to 1936x1048\./);
+    w.emit("focus");
+    w.emit("restore");
+    assert.deepEqual(did, ["unmaximize", "maximize"], "once per game end");
+
+    // 6. maximized and full after the game: nothing
+    did.length = 0;
+    await play();
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, []);
+
+    // 7. "launch minimized" on, and the window comes back small but flagged maximized
+    await call("settings:set", { launchMinimized: true });
+    did.length = 0;
+    await play();
+    rect = { x: -8, y: -8, width: 816, height: 568 };
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, ["minimize", "restore", "maximize", "unmaximize", "maximize"]);
+    assert.deepEqual(rect, full);
   } finally {
     Object.assign(w, realMethods);
     await call("settings:set", { launchMinimized: saved.launchMinimized });
