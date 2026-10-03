@@ -17,12 +17,16 @@
  *
  * Only keys whose name and on-disk format are certain for that Minecraft
  * version are written. Anything older than 1.16 gets nothing at all.
- * Graphics preset/mode, clouds, mipmaps and the Vulkan backend are left out
- * on purpose: their keys or formats changed between versions.
+ * Clouds, mipmaps, the graphics mode and the Vulkan backend are left out on
+ * purpose: their keys or formats changed between versions. The one
+ * exception is `graphicsPreset:"custom"` from 1.21.11 on - without it the
+ * game's "fancy" preset overwrites our values (see DATA_FIRST_PRESET).
  *
- * NOT tested against the real game here: whether every version family
- * (1.16, 1.20, 1.21, 26.x) keeps these values and resets nothing else must
- * be checked by starting the game once per family.
+ * Tested against the real game on Windows (2026-10-03): 1.16.5, 1.20.1,
+ * 1.21.1 started with the file and left it as written (these versions don't
+ * rewrite it on exit, so "the game used the values" is not proven by a
+ * rewrite there); 26.3 rewrote the whole file and kept every value, with the
+ * preset line, and reset nothing else.
  */
 const fs = require("fs");
 const fsp = fs.promises;
@@ -38,6 +42,15 @@ const SEEDED_FILE = path.join(".reminth", "options-seeded.json");
 const DATA_1_16 = 2566;
 const DATA_1_18 = 2860; // simulationDistance
 const DATA_1_18_2 = 2975; // prioritizeChunkUpdates ("Chunk Builder")
+// Graphics presets. Measured with the real game on 2026-10-03: 1.21.10 (data
+// 4556) still writes `graphicsMode`; 1.21.11 (4671) and 26.x write
+// `graphicsPreset:"fancy"`. From the preset versions on, the preset OWNS
+// render distance, simulation distance, particles, entity shadows, biome
+// blend, entity distance and chunk builder: a file without a preset gets
+// "fancy" and every one of our values is overwritten at start (26.3 kept only
+// maxFps and vsync). `graphicsPreset:"custom"` keeps them - also measured.
+const DATA_LAST_GRAPHICS_MODE = 4556; // 1.21.10
+const DATA_FIRST_PRESET = 4671; // 1.21.11
 
 /**
  * Pure: the render distance for "Far view" from what Node can see of this
@@ -59,7 +72,10 @@ function farViewDistance(totalMemMb, cpuCount) {
 function buildOptions(perfProfile, { worldVersion, totalMemMb, cpuCount } = {}) {
   if (perfProfile !== "max-fps" && perfProfile !== "far-view") return null;
   if (!Number.isInteger(worldVersion) || worldVersion < DATA_1_16) return null;
+  // Snapshots between 1.21.10 and 1.21.11: not measured, so nothing is written.
+  if (worldVersion > DATA_LAST_GRAPHICS_MODE && worldVersion < DATA_FIRST_PRESET) return null;
   const lines = [["version", String(worldVersion)]];
+  if (worldVersion >= DATA_FIRST_PRESET) lines.push(["graphicsPreset", '"custom"']);
   if (perfProfile === "max-fps") {
     lines.push(["renderDistance", "10"]);
     if (worldVersion >= DATA_1_18) lines.push(["simulationDistance", "8"]);

@@ -138,6 +138,7 @@ test("buildOptions: balanced (or anything unknown) writes nothing", () => {
 test("buildOptions: max-fps on a current version - exactly the agreed keys, version first", () => {
   assert.deepEqual(gameOptions.buildOptions("max-fps", { worldVersion: DATA_26 }), [
     ["version", String(DATA_26)],
+    ["graphicsPreset", '"custom"'],
     ["renderDistance", "10"],
     ["simulationDistance", "8"],
     ["particles", "1"],
@@ -152,6 +153,7 @@ test("buildOptions: max-fps on a current version - exactly the agreed keys, vers
 test("buildOptions: far-view on a current version", () => {
   assert.deepEqual(gameOptions.buildOptions("far-view", { worldVersion: DATA_26, totalMemMb: 8192, cpuCount: 4 }), [
     ["version", String(DATA_26)],
+    ["graphicsPreset", '"custom"'],
     ["renderDistance", "16"],
     ["simulationDistance", "8"],
     ["biomeBlendRadius", "2"],
@@ -173,6 +175,19 @@ test("buildOptions: keys a version doesn't have are left out; older than 1.16 ge
   // too old, or no usable data version at all
   for (const v of [DATA_1_15_2, 0, -1, 2566.5, "4700", null, undefined, NaN]) {
     assert.equal(gameOptions.buildOptions("max-fps", { worldVersion: v }), null, String(v));
+  }
+});
+
+test("buildOptions: graphicsPreset \"custom\" from 1.21.11 on (measured: otherwise the fancy preset overwrites our values); none before; snapshots in between get nothing", () => {
+  const keys = (p, v) => (gameOptions.buildOptions(p, { worldVersion: v }) || []).map(([k]) => k);
+  for (const p of ["max-fps", "far-view"]) {
+    assert.equal(keys(p, 4556).includes("graphicsPreset"), false, "1.21.10 still has graphicsMode");
+    assert.equal(keys(p, 4556).length > 1, true, "and gets its values");
+    assert.equal(keys(p, 4671)[1], "graphicsPreset", "1.21.11: right after version");
+    assert.equal(keys(p, 4786)[1], "graphicsPreset", "26.1");
+    assert.equal(gameOptions.buildOptions(p, { worldVersion: 4600 }), null, "an unmeasured snapshot: nothing");
+    assert.equal(gameOptions.buildOptions(p, { worldVersion: 4557 }), null);
+    assert.equal(gameOptions.buildOptions(p, { worldVersion: 4670 }), null);
   }
 });
 
