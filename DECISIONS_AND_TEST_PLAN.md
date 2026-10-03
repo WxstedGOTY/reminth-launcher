@@ -133,3 +133,28 @@ PASS/FAIL with what you saw; stop and report on any FAIL that risks his files.
 ### Report back
 22. PASS/FAIL per step, anything surprising, the owner's answers to section 2, then **update this file**
     (sections 1-4) before you stop.
+
+---
+
+## 5. Desktop window results (3 Oct 2026, Windows 11, real Electron + Minecraft)
+
+- Step 1: `npm test` 456 pass on Windows. CRLF files and the CSS last rule intact.
+- Steps 3-7 **PASS**: fresh throwaway Fabric 26.2 + the 29 mods. Panel now says 18 "won't load" (was 16): Client
+  Side Crystals ("carries a copy for each Minecraft version...") and JEI ("contains MezzConfig...") are caught;
+  Anchor Optimizer is a warning (decision 2). One click: "Updated 18 mods, and added Sodium"; 18 jars copied to
+  `.reminth/replaced-mods/`. Play: 113 mods loaded, "Sound engine started" (title screen). No
+  `launch-report.json` was needed. (The real "Reminth" instance was never touched.)
+- Step 8: the "Restore replaced mods" button is present; not clicked (it opens Explorer).
+- Step 9 **PASS**: update list shows Alpha (ScalableLux) and Beta (JEI, Simple Voice Chat, Client Side Crystals,
+  Text Placeholder API) tags.
+- Step 12 **PASS**: "Updates only work in the installed app." in a dev run.
+- Step 17 **PASS** (decision 4 = keep): Forge 1.20.1 (6 pack mods) and NeoForge 1.21.1 (7 pack mods) reach the
+  title screen, no duplicate-id crash.
+- Profiles: seeding tested for real on 1.16.5, 1.20.1, 1.21.1, 1.21.5, 1.21.10, 1.21.11, 26.1, 26.3. **Bug found
+  and fixed (commit 2dfbdc7):** from 1.21.11 on the graphics preset overwrote our values unless
+  `graphicsPreset:"custom"` was in the file. On 1.16.5/1.20.1/1.21.1 the file is left intact but the game never
+  rewrites it, so "values were used" is not proven there.
+- Decision 1 (privacy) done by the desktop window. Decisions 2-7: owner agreed with the recommendations.
+- Not done yet: steps 14-16, 18-20 (needs a second build and the GitHub release), site re-upload.
+- Owner's follow-up list (small fixes + Discover detail page + Home hero) will come as prompt 3 / prompt 4.
+

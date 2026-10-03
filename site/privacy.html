@@ -116,9 +116,12 @@
         remove its own copies without touching yours; which performance-pack mods you switched off or
         removed (so they are not put back) and what happened to each at the last Play; and, if you picked a
         performance profile for a new instance, a note that Reminth wrote a starting
-        <code>options.txt</code> (see section 10); and, when you press &ldquo;Update mods to fit&rdquo;, a
-        copy of each mod file it replaced (in <code>.reminth\replaced-mods</code>, the newest five batches
-        are kept) so you can put the old file back.</li>
+        <code>options.txt</code> (see section 10); whenever an update replaces a mod file (&ldquo;Update mods to
+        fit&rdquo;, &ldquo;Switch to&hellip;&rdquo;, &ldquo;Fix all&rdquo;, or a normal update), a copy of
+        the old file (in <code>.reminth\replaced-mods</code>, the newest five batches are kept) so you can put
+        it back; and, after a game that stops soon after it starts, the names of the mods Minecraft itself
+        reported as not fitting (<code>.reminth\launch-report.json</code>, read from that instance's own game
+        log, deleted again after a start that gets past loading mods). None of this leaves your computer.</li>
       <li><b>Skins</b>: a cached copy of your current skin and any skins you save to your library.</li>
       <li><b>Caches of public information</b>: a catalogue of public Modrinth listings, and which Modrinth
         project each of your installed files is and who made it (creator name, profile picture address, icon);
@@ -286,7 +289,8 @@
         checksum-checked) with GitHub only as a fallback, and has more mods and Forge/NeoForge support; added
         process priority, starting <code>options.txt</code> files for performance profiles, the graphics-card
         help, the &ldquo;Update mods to fit&rdquo; button and its copies of replaced mods, the six-hour update
-        check, and the new bookkeeping and cache files.</li>
+        check, the copies of replaced mods on every update, the note of mods the game reported as not fitting,
+        and the new bookkeeping and cache files.</li>
       <li><b>Version 5, 2 October 2026</b>: listed every service the launcher contacts (including modpack
         file hosts and the compatibility check's file fingerprints) and every file it keeps on your PC
         (including its logs); corrected the checksum statement and said that streamer mode's sound is
