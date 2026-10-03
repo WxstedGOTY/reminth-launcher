@@ -4877,6 +4877,7 @@ $("ramAutoBtn").onclick = async () => {
 pageHooks.settings = () => {
   paintPerfSettings(state.settings);
   paintAutoMemory();
+  refreshUpdateState();
 };
 
 /* ================================================================== *

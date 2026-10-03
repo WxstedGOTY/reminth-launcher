@@ -534,19 +534,93 @@ document.querySelector(".topbar").addEventListener("dblclick", (e) => {
   if (e.target.closest("button")) return;
   window.reminth.maximizeToggle();
 });
-// Auto-update (main/updater.js): downloading -> ready, with a Restart button.
-window.reminth.onUpdateStatus(({ state: updateState, version }) => {
-  $("updateBar").hidden = false;
-  const ready = updateState === "ready";
-  $("updateText").textContent = ready
-    ? `Reminth ${version} is ready. It installs when you restart.`
-    : `Update available (Reminth ${version}), downloading…`;
-  $("updateRestartBtn").hidden = !ready;
-});
-$("updateRestartBtn").onclick = () => {
-  $("updateRestartBtn").disabled = true;
-  window.reminth.installUpdate();
+// The launcher's own updates (main/updater.js). The top bar shows a download
+// and a ready update; Settings shows every state of a check the player asked for.
+const upd = { last: null, checking: false, installing: false };
+
+/** Paints both places from the last state main sent (or answered). */
+function paintUpdate(next) {
+  if (next) upd.last = next;
+  const s = upd.last || { state: "idle" };
+  const v = s.version ? `Reminth ${s.version}` : "The update";
+  const playing = state.running.size > 0;
+  // top bar: only a download and a ready update
+  const bar = s.state === "downloading" || s.state === "ready";
+  $("updateBar").hidden = !bar;
+  if (bar) {
+    $("updateText").textContent =
+      s.state === "ready"
+        ? playing
+          ? `${v} is ready. Close Minecraft first, then restart to install it.`
+          : `${v} is ready. It installs when you restart.`
+        : `Downloading ${v}… ${Number.isFinite(s.percent) ? s.percent + "%" : ""}`.trim();
+  }
+  $("updateRestartBtn").hidden = s.state !== "ready";
+  // Settings
+  const text = {
+    idle: "Updates download by themselves and install when you restart Reminth.",
+    dev: s.message || "Updates only work in the installed app.",
+    checking: "Checking…",
+    "up-to-date": `You're on the latest version (${s.version || s.currentVersion || (state.info && state.info.appVersion) || ""}).`,
+    downloading: `Downloading ${v}… ${Number.isFinite(s.percent) ? s.percent + "%" : ""}`.trim(),
+    ready: playing ? `${v} is ready. Close Minecraft first.` : `${v} is ready.`,
+    error: s.message || "Couldn't check for updates.",
+  }[s.state] || "";
+  $("updState").textContent = text;
+  $("updState").classList.toggle("warn-note", s.state === "error");
+  $("updManual").hidden = s.state !== "error";
+  $("updRestartBtn").hidden = s.state !== "ready";
+  for (const id of ["updRestartBtn", "updateRestartBtn"]) {
+    $(id).disabled = upd.installing || playing;
+    $(id).title = playing ? "Close Minecraft first" : "";
+  }
+  $("updCheckBtn").disabled = upd.checking || s.state === "checking" || s.state === "downloading";
+  $("updCheckBtn").hidden = s.state === "ready";
+}
+
+window.reminth.onUpdateStatus((s) => paintUpdate(s));
+
+$("updCheckBtn").onclick = async () => {
+  if (upd.checking) return;
+  upd.checking = true;
+  paintUpdate({ ...(upd.last || {}), state: "checking" });
+  try {
+    paintUpdate(await window.reminth.checkForUpdates());
+  } catch {
+    paintUpdate({ state: "error", message: "Couldn't check for updates - try again later, or download it manually." });
+  } finally {
+    upd.checking = false;
+    paintUpdate();
+  }
 };
+
+async function installLauncherUpdate() {
+  if (upd.installing) return;
+  if (state.running.size) return toast("Close Minecraft first — the update needs Reminth to restart.");
+  upd.installing = true;
+  paintUpdate();
+  try {
+    const r = await window.reminth.installUpdate();
+    if (r && r.ok === false) toast(r.reason || "Couldn't start the update.");
+  } catch {
+    toast("Couldn't start the update — download it manually from Settings.");
+  } finally {
+    upd.installing = false;
+    paintUpdate();
+  }
+}
+$("updateRestartBtn").onclick = installLauncherUpdate;
+$("updRestartBtn").onclick = installLauncherUpdate;
+
+/** What the Settings card should say when it opens. */
+async function refreshUpdateState() {
+  if (upd.checking) return;
+  try {
+    paintUpdate(await window.reminth.updateState());
+  } catch {
+    paintUpdate();
+  }
+}
 
 function paintMaxButton(isMaximized) {
   $("maxBtn").querySelector("span").className = isMaximized ? "wc-max restore" : "wc-max";
@@ -1017,6 +1091,8 @@ function paintPlayButtons() {
   }
   // "Update mods to fit…" hides while the game runs or installs (features.js).
   if (typeof paintSyncButtons === "function") paintSyncButtons();
+  // "Restart and update" waits for the game to close.
+  paintUpdate();
 }
 
 /* ---- the create / edit instance dialog, with the version picker ---- */

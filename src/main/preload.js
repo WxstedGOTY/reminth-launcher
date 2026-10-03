@@ -13,7 +13,9 @@ contextBridge.exposeInMainWorld("reminth", {
 
   // auto-update (updater.js)
   onUpdateStatus: on("update:status"),
-  installUpdate: () => ipcRenderer.send("update:install"),
+  installUpdate: () => ipcRenderer.invoke("update:install"),
+  checkForUpdates: () => ipcRenderer.invoke("update:check"),
+  updateState: () => ipcRenderer.invoke("update:state"),
 
   // account + skins
   currentAccount: () => ipcRenderer.invoke("auth:current"),

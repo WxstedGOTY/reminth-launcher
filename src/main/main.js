@@ -191,11 +191,16 @@ app.whenReady().then(async () => {
     for (const inst of await instances.list()) logs.importInstanceLogs(inst).catch(() => {});
     warmAllCachesIfStale();
     // After load, so the renderer is listening for "update:status".
-    updater.init({ notify: send });
+    updater.init({ notify: send, isGameRunning: () => running.size > 0 });
   });
 });
 
-ipcMain.on("update:install", () => updater.installNow());
+// Settings -> "Check for updates", and what to show when that card opens.
+// Both always answer with a state; nothing here throws into the renderer.
+ipcMain.handle("update:check", () => updater.check());
+ipcMain.handle("update:state", () => updater.getState());
+// "Restart and update": refused while a game runs (updater.installNow).
+ipcMain.handle("update:install", () => updater.installNow());
 
 app.on("window-all-closed", () => {
   streamer.shutdown();

@@ -932,6 +932,10 @@ input[type="range"]::-webkit-slider-thumb {
 .accent.selected { border-color: #fff; }
 
 .about { display: flex; align-items: center; justify-content: space-between; }
+/* The launcher's own updates, under the version. */
+.upd-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-soft); }
+.upd-state { flex: 1; min-width: 200px; font-size: 12.5px; color: var(--text-2); }
+.upd-link { font-size: 12.5px; font-weight: 650; color: var(--accent); }
 .about b { font-size: 17px; display: block; }
 .about span { font-size: 11.5px; color: var(--text-3); }
 .about-note { font-size: 11.5px; color: var(--text-3); }

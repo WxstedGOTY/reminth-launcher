@@ -894,12 +894,21 @@
               </details>
             </div>
 
-            <div class="card set about">
-              <div>
-                <b class="display" id="aboutVersion">Reminth</b>
-                <span id="aboutBuild">—</span>
+            <div class="card set about-card">
+              <div class="about">
+                <div>
+                  <b class="display" id="aboutVersion">Reminth</b>
+                  <span id="aboutBuild">—</span>
+                </div>
+                <span class="about-note">Built for people who just want to play.</span>
               </div>
-              <span class="about-note">Built for people who just want to play.</span>
+              <!-- The launcher's own updates (main/updater.js). The link is the one fixed address it may open. -->
+              <div class="upd-row">
+                <span class="upd-state" id="updState" role="status">Updates download by themselves and install when you restart Reminth.</span>
+                <a class="upd-link" id="updManual" href="https://github.com/WxstedGOTY/reminth-launcher/releases/latest" target="_blank" rel="noopener" hidden>Download it manually</a>
+                <button class="btn primary sm" id="updRestartBtn" hidden>Restart and update</button>
+                <button class="btn outline sm" id="updCheckBtn"><svg class="i"><use href="#i-refresh"/></svg><span>Check for updates</span></button>
+              </div>
             </div>
           </div>
         </div>
