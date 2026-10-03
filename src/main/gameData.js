@@ -484,4 +484,43 @@ async function addServer(gameDir, { name, address }) {
   return { added: true };
 }
 
-module.exports = { listWorlds, listServers, playerStats, recentActivity, addServer, TICKS_PER_SECOND };
+/* ------------------------------------------------------------------ */
+/* opening a world straight from Home                                 */
+/* ------------------------------------------------------------------ */
+
+const MAX_WORLD_FOLDER_NAME = 128;
+
+/**
+ * Pure: is this a plain world folder name, safe to hand to the game as an
+ * argument? One name only: no path separators, no drive colon, not "." or
+ * "..", no leading dot, no control characters, no trailing space or dot
+ * (Windows drops those, so the name would point somewhere else), length
+ * capped.
+ */
+function plainWorldFolderName(name) {
+  if (typeof name !== "string" || !name || name.length > MAX_WORLD_FOLDER_NAME) return false;
+  if (/[\u0000-\u001f\u007f/\\:]/.test(name)) return false;
+  if (name.startsWith(".") || /[. ]$/.test(name)) return false;
+  return path.basename(name) === name;
+}
+
+/**
+ * The world folder to open, or null: the name must be plain and be a real
+ * folder (not a link) inside THAT instance's saves folder. Anything else is
+ * ignored and the instance just starts. Never throws.
+ */
+async function worldFolderToOpen(gameDir, name) {
+  try {
+    if (!gameDir || !plainWorldFolderName(name)) return null;
+    const saves = await fsp.realpath(path.join(gameDir, "saves"));
+    const dir = path.join(saves, name);
+    const st = await fsp.lstat(dir);
+    if (!st.isDirectory() || st.isSymbolicLink()) return null;
+    const real = await fsp.realpath(dir);
+    return path.dirname(real) === saves ? name : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { listWorlds, listServers, playerStats, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };

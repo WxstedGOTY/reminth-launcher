@@ -470,6 +470,9 @@ async function latestFabricLoader(mcVersion) {
  *
  * `options.join` = { host, port } makes the game connect to that server as
  * soon as it's loaded (quick play on 1.20+, --server/--port before that).
+ * `options.world` = a world folder name (already checked by main.js) opens
+ * that world straight away, where the version's own arguments offer quick
+ * play for singleplayer (supportsWorldJoin); elsewhere it is ignored.
  */
 const LAUNCH_GRACE_MS = 15000;
 
@@ -488,6 +491,9 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
 
   const join = options.join && options.join.host ? options.join : null;
   const joinTarget = join ? `${join.host}${join.port && Number(join.port) !== 25565 ? ":" + join.port : ""}` : "";
+  // A world to open directly - only through the version's own quick-play
+  // argument, never a flag of Reminth's making; a server join wins.
+  const world = !join && typeof options.world === "string" && options.world ? options.world : null;
 
   const tokens = {
     "${auth_player_name}": account.username,
@@ -511,13 +517,15 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
     "${classpath_separator}": ";",
     "${library_directory}": paths.LIBRARIES_DIR,
     "${quickPlayMultiplayer}": joinTarget,
+    "${quickPlaySingleplayer}": world || "",
   };
   const sub = (arg) => substituteTokens(arg, tokens);
 
   // Quick play is a "feature" in Mojang's argument rules (1.20+). Versions
   // without it still understand the older --server/--port flags.
   const modernJoin = Boolean(join) && hasFeature(profile, "is_quick_play_multiplayer");
-  const features = { is_quick_play_multiplayer: modernJoin };
+  const worldJoin = Boolean(world) && supportsWorldJoin(profile);
+  const features = { is_quick_play_multiplayer: modernJoin, is_quick_play_singleplayer: worldJoin };
 
   const maxMemoryMb = settings.maxMemoryMb || config.MAX_MEMORY_MB || computeDefaultMaxMemoryMb(os.totalmem());
   let jvmFromProfile;
@@ -641,6 +649,15 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
 }
 
 /** Pure: does any game-argument rule in this profile gate on `feature`? */
+/**
+ * Pure: can this version open a world straight from the launcher? Read from
+ * the version JSON's own arguments (quick play for singleplayer, 1.20 on) -
+ * never decided by version number.
+ */
+function supportsWorldJoin(profile) {
+  return Boolean(profile) && hasFeature(profile, "is_quick_play_singleplayer");
+}
+
 function hasFeature(profile, feature) {
   const game = (profile.arguments && profile.arguments.game) || [];
   return game.some(
@@ -3075,6 +3092,7 @@ module.exports = {
   downloadFabricApi,
   vanillaProfile,
   hasFeature,
+  supportsWorldJoin,
   reminthHudSupports,
   mcRangeAccepts,
   bundledReminthHudBuilds,

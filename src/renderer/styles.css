@@ -511,6 +511,9 @@ svg use, .rail-btn svg, .top-action svg, .btn svg, .i {
    overflow:hidden instead of being ellipsised. */
 .recent-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .recent-body { min-width: 0; }
+/* "Play" on a card: top right of the picture, out of the way of the name. */
+.recent-play { position: absolute; top: 9px; right: 9px; z-index: 1; height: 28px; padding: 0 11px; font-size: 11.5px; border-radius: 9px; gap: 5px; }
+.recent-play .i { width: 13px; height: 13px; }
 
 /* "+" add tile - UI only, styled like the rest of the grid but dashed and
    inert (no click behaviour yet, same "Soon" pattern used elsewhere). */

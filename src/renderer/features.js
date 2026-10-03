@@ -5196,15 +5196,24 @@ function paintSyncButtons() {
   const n = modded ? syncCount(compatUi.results.get(id)) : 0;
   const busyHere = modded && syncUi.busy === id;
   // Hidden while the game runs or installs, or another change is under way.
-  const show = busyHere || (n > 0 && !syncBlocked(id));
-  for (const btnId of ["instSyncBtn", "heroSyncBtn"]) {
+  // The instance page's button is about the open instance; Home's about the
+  // hero's (the last played one).
+  for (const [btnId, who] of [
+    ["instSyncBtn", inst],
+    ["heroSyncBtn", heroInstance()],
+  ]) {
     const btn = $(btnId);
     if (!btn) continue;
-    btn.hidden = !show;
-    btn.disabled = busyHere;
-    btn.classList.toggle("busy", busyHere);
-    btn.querySelector("span").textContent = busyHere ? "Updating mods…" : `Update mods to fit ${inst ? inst.mcVersion : ""} (${n})`;
-    btn.title = busyHere ? "" : `${n} ${plural(n, "mod is", "mods are")} built for another Minecraft version or loader. Swaps ${n === 1 ? "it" : "them"} to the newest stable build for ${inst ? inst.mcVersion : "this version"}.`;
+    const wid = who && who.id;
+    const wModded = Boolean(who && who.loader !== "vanilla");
+    const wn = wModded ? syncCount(compatUi.results.get(wid)) : 0;
+    const wBusy = wModded && syncUi.busy === wid;
+    btn.hidden = !(wBusy || (wn > 0 && !syncBlocked(wid)));
+    btn.disabled = wBusy;
+    btn.dataset.instance = wid || "";
+    btn.classList.toggle("busy", wBusy);
+    btn.querySelector("span").textContent = wBusy ? "Updating mods…" : `Update mods to fit ${who ? who.mcVersion : ""} (${wn})`;
+    btn.title = wBusy ? "" : `${wn} ${plural(wn, "mod is", "mods are")} built for another Minecraft version or loader. Swaps ${wn === 1 ? "it" : "them"} to the newest stable build for ${who ? who.mcVersion : "this version"}.`;
   }
   // The one-time notice after an edit, on that instance's page only.
   const box = $("instSyncNotice");
@@ -5336,7 +5345,10 @@ function askAboutNoBuild(id, mcVersion, noBuild, appliedCount) {
 }
 
 $("instSyncBtn").onclick = () => runModsSync(state.activeId);
-$("heroSyncBtn").onclick = () => runModsSync(state.activeId);
+$("heroSyncBtn").onclick = () => {
+  const inst = heroInstance();
+  if (inst) runModsSync(inst.id);
+};
 
 /* ================================================================== *
  * wiring that depends on instances                                    *
@@ -5344,6 +5356,10 @@ $("heroSyncBtn").onclick = () => runModsSync(state.activeId);
 window.onInstancesChanged = () => {
   const inst = activeInstance();
   if (!inst) return;
+  // Home's hero can be another instance than the selected one: check its
+  // mods too, so Home's "Update mods to fit" knows about them.
+  const hero = heroInstance();
+  if (hero && hero.id !== inst.id && hero.loader !== "vanilla" && !compatUi.results.has(hero.id)) scheduleCompatCheck(hero.id);
   paintSyncButtons();
   renderInstallTarget();
   paintHomeCards();

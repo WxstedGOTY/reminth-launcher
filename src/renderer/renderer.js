@@ -950,6 +950,12 @@ window.reminth.onAuthWaiting(() => {
  * instances                                                           *
  * ================================================================== */
 const activeInstance = () => state.instances.find((i) => i.id === state.activeId) || state.instances[0] || null;
+/**
+ * The instance the Home hero is about: the one played last (pure.js), not
+ * whatever was last clicked in the rail - looking at another instance's
+ * mods doesn't change Home.
+ */
+const heroInstance = () => window.ReminthPure.heroInstance(state.instances, state.activeId);
 const instanceById = (id) => state.instances.find((i) => i.id === id) || null;
 const LOADER_LABELS = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" };
 const LOADER_TAGS = { vanilla: "emerald", fabric: "cyan", quilt: "violet", forge: "amber", neoforge: "rose" };
@@ -1037,7 +1043,7 @@ async function selectInstance(id, open) {
 }
 
 function renderHero() {
-  const inst = activeInstance();
+  const inst = heroInstance();
   if (!inst) {
     // The instance list couldn't be read: say so instead of "set up and ready".
     $("heroLoader").textContent = "—";
@@ -1047,9 +1053,10 @@ function renderHero() {
     $("heroLede").textContent = state.instancesError
       ? "Reminth couldn't read your instances. Restart Reminth — your worlds and mods are not touched."
       : "No instance yet. Make one with the + on the left.";
-    for (const id of ["playBtn", "instPlayBtn"]) $(id).disabled = true;
+    for (const id of ["playBtn", "instPlayBtn", "heroInstanceBtn"]) $(id).disabled = true;
     return;
   }
+  $("heroInstanceBtn").disabled = false;
   $("heroLoader").textContent = loaderLabel(inst);
   $("heroLoader").className = loaderTag(inst);
   $("heroVersion").textContent = "Minecraft " + inst.mcVersion;
@@ -1057,38 +1064,54 @@ function renderHero() {
   $("heroLede").textContent = inst.modpack
     ? `${inst.modpack.title} is installed and ready. One click and you're in.`
     : `Your ${loaderLabel(inst)} ${inst.mcVersion} instance is set up and ready. One click and you're in.`;
+  paintHeroStats();
   paintPlayButtons();
 }
 
-/** Play buttons double as a progress pill while their instance installs. */
+/** Time played and Last played on the hero: the hero's own instance, like the rest of the hero. */
+function paintHeroStats() {
+  const inst = heroInstance();
+  $("heroPlaytime").textContent = inst && inst.playTimeMs ? formatPlaytime(msToTicks(inst.playTimeMs)) : "—";
+  $("heroLast").textContent = inst && inst.lastPlayed ? formatWhen(inst.lastPlayed) : "Never";
+}
+
+/**
+ * Play buttons double as a progress pill while their instance installs.
+ * Home's pair is about the hero's instance (the last played), the instance
+ * page's pair about the one open there.
+ */
 function paintPlayButtons() {
-  const inst = activeInstance();
-  if (!inst) return;
-  const busy = state.installing.has(inst.id);
-  const stopping = state.stopping.has(inst.id);
-  const runningNow = state.running.has(inst.id) || stopping;
-  const p = state.progress.get(inst.id);
-  for (const id of ["playBtn", "instPlayBtn"]) {
-    const btn = $(id);
-    if (!btn) continue;
-    btn.disabled = busy || runningNow;
-    const label = btn.querySelector("span");
-    btn.classList.toggle("progressing", busy);
-    btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
-    label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : "Play";
+  for (const [playId, stopId, inst] of [
+    ["playBtn", "stopBtn", heroInstance()],
+    ["instPlayBtn", "instStopBtn", activeInstance()],
+  ]) {
+    if (!inst) continue;
+    const busy = state.installing.has(inst.id);
+    const stopping = state.stopping.has(inst.id);
+    const runningNow = state.running.has(inst.id) || stopping;
+    const p = state.progress.get(inst.id);
+    const btn = $(playId);
+    if (btn) {
+      btn.disabled = busy || runningNow;
+      const label = btn.querySelector("span");
+      btn.classList.toggle("progressing", busy);
+      btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
+      label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : "Play";
+    }
+    // Only shows up once something is actually (or stuck) "running" - lets a
+    // player unstick the Play button themselves instead of relaunching
+    // Reminth every time a crash or an odd exit leaves it wedged on "Playing".
+    const stop = $(stopId);
+    if (stop) {
+      stop.hidden = !runningNow;
+      // Stays in place, busy, until the backend says the game is gone - so
+      // nothing else slides under the cursor of someone who double-clicked it.
+      stop.disabled = stopping;
+      stop.querySelector("span").textContent = stopping ? "Stopping…" : "Stop";
+    }
   }
-  // Only shows up once something is actually (or stuck) "running" - lets a
-  // player unstick the Play button themselves instead of relaunching
-  // Reminth every time a crash or an odd exit leaves it wedged on "Playing".
-  for (const id of ["stopBtn", "instStopBtn"]) {
-    const btn = $(id);
-    if (!btn) continue;
-    btn.hidden = !runningNow;
-    // Stays in place, busy, until the backend says the game is gone - so
-    // nothing else slides under the cursor of someone who double-clicked it.
-    btn.disabled = stopping;
-    btn.querySelector("span").textContent = stopping ? "Stopping…" : "Stop";
-  }
+  // The Play buttons on Home's "Jump back in" cards.
+  paintRecentPlayButtons();
   // "Update mods to fit…" hides while the game runs or installs (features.js).
   if (typeof paintSyncButtons === "function") paintSyncButtons();
   // A running game's mods are locked on screen; this unlocks them on exit.
@@ -1687,7 +1710,8 @@ async function runPlay(options = {}) {
       return;
     }
   }
-  const onHome = inst.id === state.activeId;
+  // The Home bar shows this run (Home's hero becomes this instance as soon as it starts).
+  const onHome = true;
   state.logError = false;
   // The stage de-dup is for one run: without this, a second run whose first
   // stage matches the last run's final one never gets its first log line.
@@ -1701,7 +1725,7 @@ async function runPlay(options = {}) {
   }
   paintPlayButtons();
   try {
-    const result = await window.reminth.play({ instanceId: inst.id, join: options.join || null });
+    const result = await window.reminth.play({ instanceId: inst.id, join: options.join || null, ...(options.world ? { world: options.world } : {}) });
     if (result && result.cancelled) {
       // The player backed out of something the backend asked: not a failure.
       if (onHome && !state.logError) {
@@ -1711,7 +1735,15 @@ async function runPlay(options = {}) {
       return;
     }
     if (result && result.launched === false) throw new Error("The game didn't start.");
-    toast(options.join ? (state.privacy ? "Minecraft is starting — joining the server…" : `Minecraft is starting — joining ${options.join.host}…`) : "Minecraft is starting…");
+    if (options.world) {
+      toast(
+        result && result.worldJoin
+          ? `Minecraft is starting — opening ${options.worldName || "your world"}…`
+          : "Starts this instance - this Minecraft version can't open a world directly."
+      );
+    } else {
+      toast(options.join ? (state.privacy ? "Minecraft is starting — joining the server…" : `Minecraft is starting — joining ${options.join.host}…`) : "Minecraft is starting…");
+    }
     scheduleHideProgress();
   } catch (err) {
     // The saved sign-in is no good any more: the sign-in card comes back,
@@ -1738,7 +1770,7 @@ async function runPlay(options = {}) {
 function scheduleHideProgress() {
   clearTimeout(window._hideProgress);
   window._hideProgress = setTimeout(() => {
-    if (state.logError || state.installing.has(state.activeId)) return;
+    if (state.logError || state.installing.has(state.progressShown)) return;
     for (const suffix of ["", "Out"]) {
       $("progressWrap" + suffix).hidden = true;
       $("log" + suffix).hidden = true;
@@ -1783,12 +1815,18 @@ async function runInstall(instanceId) {
 // A click that lands on Play just after Stop was pressed (the second half of
 // a double-click, once Stop has gone) must not start the game again.
 const STOP_GRACE_MS = 600;
-const playClick = () => {
+const playClick = (which) => () => {
   if (Date.now() - state.stopClickAt < STOP_GRACE_MS) return;
-  runPlay();
+  // Each button starts the instance it shows, fixed at the click.
+  const inst = which();
+  if (inst) runPlay({ instanceId: inst.id });
 };
-$("playBtn").onclick = playClick;
-$("instPlayBtn").onclick = playClick;
+$("playBtn").onclick = playClick(heroInstance);
+$("instPlayBtn").onclick = playClick(activeInstance);
+$("heroInstanceBtn").onclick = () => {
+  const inst = heroInstance();
+  if (inst) selectInstance(inst.id, true);
+};
 
 /** The game is gone (or never answered): Stop goes away, Play comes back. */
 function stopFinished(instanceId) {
@@ -1801,8 +1839,8 @@ function stopFinished(instanceId) {
 }
 const stopTimers = new Map(); // instance id -> fallback timer
 
-async function stopGame() {
-  const inst = activeInstance();
+async function stopGame(instanceId) {
+  const inst = instanceId ? instanceById(instanceId) : activeInstance();
   if (!inst || state.stopping.has(inst.id)) return;
   state.stopClickAt = Date.now();
   state.stopping.add(inst.id);
@@ -1821,8 +1859,14 @@ async function stopGame() {
     toast(friendlyError(err.message));
   }
 }
-$("stopBtn").onclick = () => stopGame();
-$("instStopBtn").onclick = () => stopGame();
+$("stopBtn").onclick = () => {
+  const inst = heroInstance();
+  if (inst) stopGame(inst.id);
+};
+$("instStopBtn").onclick = () => {
+  const inst = activeInstance();
+  if (inst) stopGame(inst.id);
+};
 $("updateBtnOut").onclick = () => runInstall();
 $("repairBtn").onclick = () => {
   switchPage("home");
@@ -1861,7 +1905,8 @@ window.reminth.onInstallProgress(({ instanceId, stage, current, total }) => {
   const short = /Java/i.test(stage) ? "Java" : /asset/i.test(stage) ? "Assets" : /librar/i.test(stage) ? "Libraries" : /native/i.test(stage) ? "Natives" : /client jar/i.test(stage) ? "Game" : "Installing";
   state.progress.set(instanceId, { stage, pct, short });
   paintPlayButtons();
-  if (instanceId !== state.activeId) return;
+  // The bar shows the run that put it up, whichever instance is selected.
+  if (instanceId !== state.progressShown) return;
   paintProgress(instanceId);
   // Only stage changes go in the log - not every tick of the counter.
   if (state.lastStage !== stage) {
@@ -1890,20 +1935,14 @@ function paintProgress(instanceId) {
  * instance you came from until the next event (or for good, if none came).
  */
 function paintActiveProgress() {
-  const id = state.activeId;
-  if (state.installing.has(id) && state.progress.has(id)) return paintProgress(id);
-  // The bar is still painting another instance's run: put it away, unless
-  // it's pinned open on an error the player hasn't dismissed yet.
-  if (state.progressShown && state.progressShown !== id && !state.logError) {
-    const suffix = progressSuffix();
-    $("progressWrap" + suffix).hidden = true;
-    $("log" + suffix).hidden = true;
-    state.progressShown = null;
-  }
+  // The bar belongs to the run that put it up (not to the rail selection):
+  // repaint it if that run is still going.
+  const id = state.progressShown;
+  if (id && state.installing.has(id) && state.progress.has(id)) paintProgress(id);
 }
 
 window.reminth.onInstallDone(({ instanceId }) => {
-  if (instanceId !== state.activeId) return;
+  if (instanceId !== state.progressShown) return;
   const suffix = progressSuffix();
   $("progressStage" + suffix).textContent = "Ready";
   $("progressPct" + suffix).textContent = "100%";
@@ -1916,6 +1955,8 @@ window.reminth.onPlayStarted(({ instanceId }) => {
   renderRail();
   paintPlayButtons();
   if (currentPage === "instance") renderInstancePage();
+  // main.js stores "last played" at launch: Home's hero moves to this instance now.
+  loadInstances();
 });
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);
@@ -1991,7 +2032,68 @@ function recentCard(entry, { showInstance } = {}) {
   body.appendChild(meta);
   card.appendChild(art);
   card.appendChild(body);
+  card.appendChild(recentPlayButton(entry));
   return card;
+}
+
+/* ---- "Play" on a Jump back in card ---- */
+const worldJoinSupport = new Map(); // "instanceId|mcVersion" -> true | false | null (not downloaded yet)
+
+/** The instance a card plays: the one it was last played in, else the selected one. */
+function recentTarget(entry) {
+  return (entry.instanceId && instanceById(entry.instanceId)) || activeInstance();
+}
+
+function recentPlayButton(entry) {
+  const b = button("btn primary sm recent-play", "Play", "#i-play");
+  const inst = recentTarget(entry);
+  if (inst) b.dataset.instance = inst.id;
+  const name = inst ? inst.name : "this instance";
+  if (entry.type === "server") {
+    b.title = `Starts ${name} and joins this server`;
+  } else {
+    b.title = `Starts ${name} and opens this world`;
+    // Whether this Minecraft version can open a world straight away comes
+    // from its own version file (main.js) - asked once per instance.
+    if (inst) {
+      const key = `${inst.id}|${inst.mcVersion}`;
+      const paint = (ok) => {
+        if (ok === false) b.title = "Starts this instance - this Minecraft version can't open a world directly";
+      };
+      if (worldJoinSupport.has(key)) paint(worldJoinSupport.get(key));
+      else
+        window.reminth
+          .worldJoinSupport(inst.id)
+          .then((ok) => {
+            worldJoinSupport.set(key, ok);
+            paint(ok);
+          })
+          .catch(() => {});
+    }
+  }
+  b.onclick = (e) => {
+    e.stopPropagation();
+    // Fixed at the click: the card's own instance, whatever is selected.
+    const target = recentTarget(entry);
+    if (!target || b.disabled) return;
+    if (state.running.has(target.id) || state.installing.has(target.id)) return;
+    if (entry.type === "server") {
+      const join = window.ReminthPure.parseServerAddress(entry.address);
+      if (!join) return toast("That server address can't be read.");
+      runPlay({ instanceId: target.id, join: { host: join.host, port: join.port } });
+    } else {
+      runPlay({ instanceId: target.id, world: entry.folder, worldName: entry.name });
+    }
+  };
+  return b;
+}
+
+/** Off while the card's instance is running or installing (runPlay is busy-proof too). */
+function paintRecentPlayButtons() {
+  document.querySelectorAll(".recent-play[data-instance]").forEach((b) => {
+    const id = b.dataset.instance;
+    b.disabled = state.running.has(id) || state.installing.has(id) || state.stopping.has(id);
+  });
 }
 
 function addInstanceTile() {
@@ -2035,12 +2137,7 @@ async function loadRecent() {
     $("recentNote").textContent = `${data.worldCount} world${data.worldCount === 1 ? "" : "s"} · ${data.serverCount} saved server${data.serverCount === 1 ? "" : "s"}`;
   }
 
-  const inst = activeInstance();
-  // Lifetime total across every instance, not whichever one is active.
-  const totalPlayMs = state.instances.reduce((sum, i) => sum + (i.playTimeMs || 0), 0);
-  $("heroPlaytime").textContent = totalPlayMs ? formatPlaytime(msToTicks(totalPlayMs)) : formatPlaytime(data.totalPlayTimeTicks);
-  const last = inst && inst.lastPlayed ? inst.lastPlayed : data.recent[0] && data.recent[0].lastPlayed;
-  $("heroLast").textContent = last ? formatWhen(last) : "Never";
+  paintHeroStats();
 
   fillGrid("libWorldGrid", data.worlds || [], "libWorldsNote", {
     emptyTitle: "No worlds yet",

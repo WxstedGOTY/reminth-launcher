@@ -488,7 +488,9 @@ instances.create = async (fields) => {
 let install = null;
 minecraft.ensureInstalled = () => install.promise;
 let lastChild = null;
-minecraft.launch = () => {
+let lastLaunchOptions = null;
+minecraft.launch = (_result, _account, _onCrash, _settings, _inst, options) => {
+  lastLaunchOptions = options;
   const child = new EventEmitter();
   child.pid = 4242;
   child.kill = noop;
@@ -718,5 +720,47 @@ test("main: while an instance runs, MOD changes are refused; packs, shaders and 
     if (release) release({ removedMods: [] });
     await new Promise((resolve) => setTimeout(resolve, 20));
     Object.assign(content, real);
+  }
+});
+
+test("main: Play from a Home card opens the world only when it is a real world of that instance; IPv6 joins get brackets; last played is written at launch", async () => {
+  const gameDir = path.join(HOME, "worlds-inst");
+  await fsp.mkdir(path.join(gameDir, "saves", "New World"), { recursive: true });
+  const saved = INSTANCE;
+  const quickPlay = { arguments: { game: [{ rules: [{ action: "allow", features: { is_quick_play_singleplayer: true } }], value: ["--quickPlaySingleplayer", "${quickPlaySingleplayer}"] }] } };
+  const launchWith = async (profile, options) => {
+    install = { promise: Promise.resolve({ removedMods: [], profile }) };
+    const r = await call("play:run", { instanceId: "i1", ...options });
+    const opts = lastLaunchOptions;
+    lastChild.emit("exit", 0, null);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return { r, opts };
+  };
+  try {
+    INSTANCE = { ...saved, gameDir, loader: "vanilla", mcVersion: "1.21.4" };
+    updates = [];
+    let { r, opts } = await launchWith(quickPlay, { world: "New World" });
+    assert.deepEqual(r, { launched: true, worldJoin: true });
+    assert.equal(opts.world, "New World");
+    assert.ok(updates.some((u) => typeof u.lastPlayed === "number" && Object.keys(u).length === 1), "last played stored when the game starts");
+    // a name that isn't a world of this instance: it just starts
+    for (const bad of ["../../etc", "Missing", ".hidden"]) {
+      ({ r, opts } = await launchWith(quickPlay, { world: bad }));
+      assert.deepEqual(r, { launched: true, worldJoin: false }, bad);
+      assert.equal(opts.world, null, bad);
+    }
+    // a version without the feature: started, and told so
+    ({ r, opts } = await launchWith({ arguments: { game: [] } }, { world: "New World" }));
+    assert.deepEqual(r, { launched: true, worldJoin: false });
+    // no world asked: the answer is as before
+    ({ r } = await launchWith(quickPlay, {}));
+    assert.deepEqual(r, { launched: true });
+    // servers: an IPv6 address goes to the game in brackets; junk is dropped
+    ({ opts } = await launchWith(quickPlay, { join: { host: "2001:db8::7", port: 25566 } }));
+    assert.deepEqual(opts.join, { host: "[2001:db8::7]", port: 25566 });
+    ({ opts } = await launchWith(quickPlay, { join: { host: "bad host;rm", port: 1 } }));
+    assert.equal(opts.join, null);
+  } finally {
+    INSTANCE = saved;
   }
 });

@@ -912,6 +912,18 @@ ipcMain.handle("install:run", async (_e, id) => {
   return { removedMods: installResult.removedMods || [] };
 });
 
+// Can this instance's Minecraft version open a world straight from Home?
+// From its own version file when it's downloaded; null when it isn't yet.
+ipcMain.handle("play:worldJoinSupport", async (_e, id) => {
+  const inst = await instances.require(id);
+  try {
+    const file = path.join(paths.VERSIONS_DIR, inst.mcVersion, `${inst.mcVersion}.json`);
+    return minecraft.supportsWorldJoin(JSON.parse(await fs.promises.readFile(file, "utf8")));
+  } catch {
+    return null;
+  }
+});
+
 ipcMain.handle("play:run", async (_e, options = {}) => {
   if (!auth.current()) throw new Error("Not signed in.");
   const inst = options.instanceId ? await instances.require(options.instanceId) : await activeInstance();
@@ -922,7 +934,7 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
   const claim = { child: null, startedAt: Date.now() };
   running.set(inst.id, claim);
   try {
-    return await startGame(inst, options.join, claim);
+    return await startGame(inst, options.join, claim, options.world);
   } catch (err) {
     // Never leave Play wedged behind a failed launch - but only this
     // launch's own claim: after a Stop, the entry may be a newer Play's.
@@ -977,7 +989,7 @@ ipcMain.handle("play:stop", async (_e, options = {}) => {
  * installing must not start the game anyway, least of all next to a second
  * launch on the same worlds.
  */
-async function startGame(inst, join, claim) {
+async function startGame(inst, join, claim, worldRequest) {
   const stopped = () => running.get(inst.id) !== claim;
   const cancelled = { launched: false, cancelled: true };
   // Make sure the Minecraft token is usable before launching. If Microsoft
@@ -1004,9 +1016,22 @@ async function startGame(inst, join, claim) {
   if (stopped()) return cancelled;
   // Whatever settings.json says, never above what this machine can spare.
   const maxMemoryMb = Math.min(cachedSettings.maxMemoryMb || defaultMb, entitlements.ramCapMb());
-  const safeJoin = join && typeof join.host === "string" && /^[A-Za-z0-9.\-_]{1,255}$/.test(join.host)
-    ? { host: join.host, port: Number(join.port) > 0 && Number(join.port) < 65536 ? Number(join.port) : 25565 }
-    : null;
+  // A host name, or an IPv6 address - which the game wants in brackets
+  // ("[::1]:25565") so its own colons aren't read as the port.
+  const joinHost =
+    join && typeof join.host === "string"
+      ? /^[A-Za-z0-9.\-_]{1,255}$/.test(join.host)
+        ? join.host
+        : /^[0-9A-Fa-f:.]{2,45}$/.test(join.host) && join.host.includes(":")
+          ? `[${join.host}]`
+          : null
+      : null;
+  const safeJoin = joinHost ? { host: joinHost, port: Number(join.port) > 0 && Number(join.port) < 65536 ? Number(join.port) : 25565 } : null;
+  // A world to open directly (Home "Jump back in"): only a plain folder name
+  // that really is a world folder of THIS instance; otherwise it just starts.
+  const worldAsked = typeof worldRequest === "string" && worldRequest.length > 0;
+  const world = !safeJoin && worldAsked ? await gameData.worldFolderToOpen(inst.gameDir, worldRequest) : null;
+  if (stopped()) return cancelled;
 
   // Signed out while the install was running: there's nobody to launch as.
   const account = auth.current();
@@ -1052,7 +1077,7 @@ async function startGame(inst, join, claim) {
       },
       { ...cachedSettings, maxMemoryMb: safe ? safe.maxMemoryMb : maxMemoryMb, appVersion: app.getVersion() },
       inst,
-      { join: safeJoin, safeMode: Boolean(safe) }
+      { join: safeJoin, world, safeMode: Boolean(safe) }
     );
     if (!child) return null;
     // The same object, filled in - so the checks here (and Stop) can tell
@@ -1077,10 +1102,14 @@ async function startGame(inst, join, claim) {
   }
   claim.startedAt = Date.now();
   streamer.gameStarted();
+  // "Last played" is now, not only when the game closes - Home shows the
+  // instance being played straight away.
+  instances.update(inst.id, { lastPlayed: claim.startedAt }).catch(() => {});
   send("play:started", { instanceId: inst.id });
 
   if (cachedSettings.launchMinimized) win.minimize();
-  return { launched: true };
+  // When a world was asked for: did the game get told to open it?
+  return worldAsked ? { launched: true, worldJoin: Boolean(world) && minecraft.supportsWorldJoin(installResult.profile) } : { launched: true };
 }
 
 /**
