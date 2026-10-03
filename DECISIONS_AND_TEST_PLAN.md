@@ -59,7 +59,7 @@ spelling; `graphicsPreset` becomes `"custom"` from 1.21.11 (else the preset over
 saved first to `.reminth/options-before-boost.json`; "Put my old settings back" restores the ones still at the
 boosted value. Max FPS profile text now points here.
 
-**5. Launcher draws nothing while a game runs**: `body.game-running` pauses every CSS animation (a launcher
+**5. Launcher draws nothing while a game runs (1.4.3 fix: 1.4.2 had this wrong)**: `body.game-running` switches every CSS animation OFF (`animation: none`). In 1.4.2 it PAUSED them, which froze the page/dialog fade-ins at opacity 0 (or half way after Ctrl+R): the launcher looked empty or dim for as long as a game ran. Reported by the owner with screenshots. Originally: it pauses every CSS animation (a launcher
 left visible next to a windowed game would otherwise redraw at the monitor's 239 Hz). Measured during play
 before this: Reminth used 0 % CPU and 0 % GPU (its window was hidden), so this is a safety net, not a speed-up.
 
