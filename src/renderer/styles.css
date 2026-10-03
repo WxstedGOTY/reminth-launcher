@@ -322,6 +322,10 @@ svg use, .rail-btn svg, .top-action svg, .btn svg, .i {
 .page { display: none; animation: rise .22s ease-out; }
 .page.active { display: block; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+/* Not on Skins: every skin there is a 3D model, and a fading/moving page
+   above them makes the browser flatten and re-layer all of them for the
+   whole animation. The models themselves look exactly the same. */
+#skins.page { animation: none; }
 
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .page-head h1 { font-size: 30px; margin: 5px 0 0; }

@@ -2844,21 +2844,64 @@ function currentSkinTexture() {
   return { dataUrl: fallbackSkinTexture(), model: (s && s.model) || "classic" };
 }
 
+/**
+ * performance.mark/measure around one step of the Skins page, named
+ * "skins:<name>" - read them in DevTools (Performance panel, or
+ * performance.getEntriesByType("measure")). Cheap, and harmless if missing.
+ */
+async function skinsTimed(name, fn) {
+  const has = typeof performance !== "undefined" && performance.mark;
+  if (has) performance.mark(`skins:${name}:start`);
+  try {
+    return await fn();
+  } finally {
+    if (has) {
+      performance.mark(`skins:${name}:end`);
+      try {
+        performance.measure(`skins:${name}`, `skins:${name}:start`, `skins:${name}:end`);
+      } catch {
+        // a mark went missing - only the number is lost
+      }
+    }
+  }
+}
+
 function ensureViewer() {
-  if (!skins.viewer) skins.viewer = new SkinViewer($("skinViewport"), { scale: 10.5, yaw: -22 });
+  if (!skins.viewer) {
+    if (typeof performance !== "undefined" && performance.mark) performance.mark("skins:viewer:start");
+    skins.viewer = new SkinViewer($("skinViewport"), { scale: 10.5, yaw: -22 });
+    // Built while another page shows (the idle warm-up): no frames until it's seen.
+    if (currentPage !== "skins") skins.viewer.pause();
+    if (typeof performance !== "undefined" && performance.mark) {
+      performance.mark("skins:viewer:end");
+      try {
+        performance.measure("skins:viewer", "skins:viewer:start", "skins:viewer:end");
+      } catch {
+        // see skinsTimed
+      }
+    }
+  }
   return skins.viewer;
 }
 
 window.onAccountSkin = (skin) => {
   const v = ensureViewer();
+  // The model is only rebuilt when the skin really changed: rebuilding the
+  // same one on every visit to the page was wasted work.
+  const show = (dataUrl, model) => {
+    const key = `${model}|${dataUrl}`;
+    if (skins.shownKey === key) return;
+    skins.shownKey = key;
+    v.setSkin(dataUrl, model);
+  };
   if (!state.signedIn) {
     $("skinName").textContent = "Not signed in";
     $("skinModel").textContent = "Sign in to change your skin";
-    v.setSkin(fallbackSkinTexture(), "classic");
+    show(fallbackSkinTexture(), "classic");
     return;
   }
   const t = currentSkinTexture();
-  v.setSkin(t.dataUrl, t.model);
+  show(t.dataUrl, t.model);
   $("skinName").textContent = state.username || "—";
   $("skinModel").textContent = skin && skin.dataUrl ? (skin.model === "slim" ? "Slim arms" : "Wide arms") : skin && skin.none ? "Default skin" : (skin && skin.error) || "—";
   // Keep the skin you're wearing in "Your skins", so changing it never loses it.
@@ -2872,6 +2915,9 @@ window.onAccountSkin = (skin) => {
 };
 
 async function loadSkinProfile() {
+  return skinsTimed("profile", loadSkinProfileNow);
+}
+async function loadSkinProfileNow() {
   if (!state.signedIn) return;
   try {
     skins.profile = await window.reminth.skinProfile();
@@ -2967,12 +3013,21 @@ $("skinFile").onchange = (e) => {
 };
 
 async function loadSkinLibrary() {
+  return skinsTimed("library", loadSkinLibraryNow);
+}
+async function loadSkinLibraryNow() {
   const grid = $("savedSkins");
   try {
     skins.library = await window.reminth.skinLibrary();
   } catch {
     skins.library = [];
   }
+  // Every tile is its own 3D model (dozens of 3D-transformed elements), so
+  // rebuilding them all on every visit was most of the cost of opening the
+  // page. Only rebuild when something about them changed.
+  const signature = JSON.stringify([state.username, state.privacy, skins.library.map((s) => [s.id, s.name, s.variant, s.lastUsed, (s.dataUrl || "").length])]);
+  if (signature === skins.librarySig && grid.childNodes.length) return;
+  skins.librarySig = signature;
   grid.textContent = "";
   grid.appendChild(addSkinTile());
   const wearingId = skins.library.find((s) => s.lastUsed) ? [...skins.library].sort((a, b) => (b.lastUsed || 0) - (a.lastUsed || 0))[0].id : null;
@@ -3050,6 +3105,9 @@ function renameSkinModal(s) {
 }
 
 async function loadDefaultSkins() {
+  return skinsTimed("defaults", loadDefaultSkinsNow);
+}
+async function loadDefaultSkinsNow() {
   const grid = $("defaultSkins");
   if (!skins.defaults) {
     try {
@@ -3058,6 +3116,9 @@ async function loadDefaultSkins() {
       skins.defaults = { skins: [], error: err.message };
     }
   }
+  // Drawn once per answer - they never change while Reminth runs.
+  if (skins.defaultsPainted === skins.defaults && grid.childNodes.length) return;
+  skins.defaultsPainted = skins.defaults;
   grid.textContent = "";
   if (!skins.defaults.skins.length) {
     renderEmpty(grid, "Not available yet", skins.defaults.error || "Couldn't read the default skins.");
@@ -3295,12 +3356,46 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
 }
 
 pageHooks.skins = () => {
-  ensureViewer();
-  if (window.onAccountSkin) window.onAccountSkin(state.accountSkin);
-  loadSkinProfile();
-  loadSkinLibrary();
-  loadDefaultSkins();
+  if (typeof performance !== "undefined" && performance.mark) performance.mark("skins:open");
+  ensureViewer().resume();
+  if (window.onAccountSkin) window.onAccountSkin(state.accountSkin); // rebuilds only if the skin changed
+  // The lists start after the page's first frame has been drawn, not in the
+  // same turn as the page switch.
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (currentPage !== "skins") return;
+      loadSkinProfile();
+      loadSkinLibrary();
+      loadDefaultSkins();
+    })
+  );
 };
+
+// Leaving the page: the big viewer stops asking for frames.
+document.addEventListener("reminth:page", (e) => {
+  if (e.detail !== "skins" && skins.viewer) skins.viewer.pause();
+});
+
+/**
+ * Warm-up: a few seconds after the window has loaded, when the app is idle
+ * and someone is signed in, build the viewer and both skin grids while the
+ * page is hidden - so opening Skins mostly just shows them.
+ */
+function warmSkinsPage() {
+  if (skins.warmStarted || !state.signedIn || currentPage === "skins") return;
+  skins.warmStarted = true;
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
+  idle(
+    () =>
+      skinsTimed("warm", async () => {
+        if (currentPage === "skins") return;
+        ensureViewer();
+        if (window.onAccountSkin) window.onAccountSkin(state.accountSkin);
+        await Promise.all([loadSkinLibrary(), loadDefaultSkins()]);
+      }).catch(() => {}),
+    { timeout: 5000 }
+  );
+}
 
 /* ================================================================== *
  * 6. streamer mode                                                    *
@@ -5269,6 +5364,7 @@ window.onInstancesChanged = () => {
 };
 
 window.bootFeatures = () => {
+  setTimeout(warmSkinsPage, 4000);
   buildDiscover();
   applyStreamerUi(state.settings);
   paintPerfSettings(state.settings);

@@ -51,12 +51,22 @@
     return c.toDataURL("image/png");
   }
 
+  /**
+   * The image, decoded before it's used: decode() does the PNG decoding off
+   * the main thread, so the first frame that shows the skin doesn't have to.
+   */
   function loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    if (typeof img.decode === "function") {
+      return img.decode().then(
+        () => img,
+        () => Promise.reject(new Error("Couldn't read that skin image."))
+      );
+    }
     return new Promise((resolve, reject) => {
-      const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => reject(new Error("Couldn't read that skin image."));
-      img.src = src;
     });
   }
 
@@ -90,6 +100,7 @@
       this.model = "classic";
       this.frame = null;
       this.destroyed = false;
+      this.paused = false; // the page it's on isn't showing: no animation frames at all
 
       container.textContent = "";
       container.classList.add("sv-viewport");
@@ -152,6 +163,8 @@
     async setSkin(dataUrl, model) {
       this.model = model === "slim" ? "slim" : "classic";
       let url = dataUrl;
+      const mark = typeof performance !== "undefined" && performance.mark && this.animate; // only the big viewer is measured
+      if (mark) performance.mark("skins:texture:start");
       try {
         const img = await loadImage(dataUrl);
         if (img.height * 2 === img.width) url = upgradeLegacySkin(img);
@@ -163,6 +176,14 @@
       if (this.destroyed) return;
       this.skinUrl = url;
       this.build();
+      if (mark) {
+        performance.mark("skins:texture:end");
+        try {
+          performance.measure("skins:texture", "skins:texture:start", "skins:texture:end");
+        } catch {
+          // a mark was cleared meanwhile - the number is just missing
+        }
+      }
     }
 
     setModel(model) {
@@ -171,6 +192,7 @@
     }
 
     setCape(dataUrl) {
+      if ((dataUrl || null) === this.capeUrl) return; // same cape: nothing to rebuild
       this.capeUrl = dataUrl || null;
       if (this.skinUrl) this.build();
     }
@@ -267,7 +289,7 @@
       }
       this.parts = { legR, legL, body, armR, armL, head, cape };
       this.render(performance.now());
-      if (this.animate && !this.frame) this.loop();
+      if (this.animate && !this.frame && !this.paused) this.loop();
     }
 
     applyScene() {
@@ -355,6 +377,19 @@
         this.render(now);
       };
       this.frame = requestAnimationFrame(tick);
+    }
+
+    /** The page it's on was left: stop asking for animation frames. Quality is untouched. */
+    pause() {
+      this.paused = true;
+      if (this.frame) cancelAnimationFrame(this.frame);
+      this.frame = null;
+    }
+
+    /** The page is showing again: animate from where it was. */
+    resume() {
+      this.paused = false;
+      if (this.animate && !this.frame && !this.destroyed && this.parts) this.loop();
     }
 
     destroy() {
