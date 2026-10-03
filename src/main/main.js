@@ -775,7 +775,9 @@ ipcMain.handle("game:stats", async () => {
   }
 });
 
-const FOLDERS = { game: "", mods: "mods", resourcepacks: "resourcepacks", shaderpacks: "shaderpacks", screenshots: "screenshots", logs: "logs", saves: "saves" };
+// "replaced": where every update keeps a copy of the mod jars it replaced
+// (content.applyUpdates) - opened so the player can copy one back.
+const FOLDERS = { game: "", mods: "mods", resourcepacks: "resourcepacks", shaderpacks: "shaderpacks", screenshots: "screenshots", logs: "logs", saves: "saves", replaced: path.join(".reminth", "replaced-mods") };
 ipcMain.handle("instance:openFolder", async (_e, which, id) => {
   const inst = id ? await instances.require(id) : await activeInstance();
   // Own keys only: "constructor" / "__proto__" would otherwise look up

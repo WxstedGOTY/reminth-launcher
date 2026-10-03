@@ -1366,8 +1366,36 @@ async function checkUpdates(instance) {
  * one file), and `warnings` notes about updates that did go through (an old
  * file that couldn't be removed).
  */
+/**
+ * A line in <instance>/.reminth/replaced-mods.log - only for a copy that
+ * couldn't be kept. Never throws.
+ */
+async function logReplaced(gameDir, line) {
+  try {
+    await fsp.mkdir(path.join(gameDir, ".reminth"), { recursive: true });
+    await fsp.appendFile(path.join(gameDir, ".reminth", "replaced-mods.log"), `${new Date().toISOString()} ${line}\n`);
+  } catch {
+    // logging must never get in the way of the update
+  }
+}
+
 async function applyUpdates(instance, updates, onProgress, { releaseOnly = false } = {}) {
   const gameDir = instance.gameDir;
+  // Every mod jar about to be replaced is copied to
+  // .reminth/replaced-mods/<time>/ first (the newest 5 such folders are
+  // kept), whichever button asked for the update. Best effort: a copy that
+  // fails is written down and the update goes on.
+  let backupDir = null;
+  const modFiles = (updates || []).filter((u) => u && u.kind === "mod" && typeof u.file === "string").map((u) => u.file);
+  if (modFiles.length) {
+    try {
+      backupDir = await require("./modsSync").backupJars(gameDir, modFiles, new Date(), {
+        onError: (name, err) => logReplaced(gameDir, `couldn't keep a copy of ${name} before updating it: ${(err && err.message) || err}`),
+      });
+    } catch (err) {
+      await logReplaced(gameDir, `couldn't keep copies before updating: ${(err && err.message) || err}`);
+    }
+  }
   const total = updates.reduce((sum, u) => sum + (u.next.size || 0), 0) || updates.length;
   let doneBytes = 0;
   const applied = [];
@@ -1462,7 +1490,7 @@ async function applyUpdates(instance, updates, onProgress, { releaseOnly = false
   }
 
   onProgress && onProgress({ stage: "Done", current: total, total });
-  return { applied, failed, added, warnings };
+  return { applied, failed, added, warnings, ...(backupDir ? { backupDir } : {}) };
 }
 
 

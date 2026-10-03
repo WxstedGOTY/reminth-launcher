@@ -14,9 +14,9 @@
  *    the player decides (switch off, or find another Minecraft version).
  *  - touch Reminth's own jars (performance pack, HUD, Fabric API): compat
  *    never reports them, and they are swapped at launch anyway.
- *  - lose the player's jar: before anything is replaced, each old file is
- *    copied to <instance>/.reminth/replaced-mods/<time>/, so going back to
- *    the old version is a copy back.
+ *  - lose the player's jar: content.applyUpdates copies each old file to
+ *    <instance>/.reminth/replaced-mods/<time>/ before replacing it (every
+ *    update path does), so going back to the old version is a copy back.
  */
 const fs = require("fs");
 const fsp = fs.promises;
@@ -169,10 +169,12 @@ function backupStamp(date = new Date()) {
 /**
  * Copies the jars about to be replaced into .reminth/replaced-mods/<time>/
  * and keeps only the newest few of those folders. Returns the folder (or
- * null when nothing needed copying). Throws if a copy fails - nothing is
- * replaced without its copy.
+ * null when nothing was copied). Best effort, one file at a time: a copy
+ * that fails is handed to `onError(name, err)` and the rest go on - an
+ * update is never held up by its backup. (listAll only reads mods/ and
+ * the pack folders, so nothing in here is ever taken for a mod.)
  */
-async function backupJars(gameDir, files, now = new Date()) {
+async function backupJars(gameDir, files, now = new Date(), { onError } = {}) {
   const modsDir = path.join(gameDir, "mods");
   const root = path.join(gameDir, BACKUP_DIR);
   const dir = path.join(root, backupStamp(now));
@@ -187,9 +189,13 @@ async function backupJars(gameDir, files, now = new Date()) {
       } catch {
         continue;
       }
-      await fsp.mkdir(dir, { recursive: true });
-      await fsp.copyFile(from, path.join(dir, candidate));
-      copied++;
+      try {
+        await fsp.mkdir(dir, { recursive: true });
+        await fsp.copyFile(from, path.join(dir, candidate));
+        copied++;
+      } catch (err) {
+        if (onError) onError(candidate, err);
+      }
       break;
     }
   }
@@ -214,9 +220,10 @@ async function applySync(instance, onProgress, deps = {}) {
   const plan = await planSync(instance, deps);
   const result = { applied: [], failed: [], added: [], warnings: [], noBuild: plan.noBuild, unchecked: plan.unchecked, online: plan.online, count: plan.count, backupDir: null };
   if (plan.updates.length) {
-    result.backupDir = await backupJars(instance.gameDir, plan.updates.map((u) => u.file));
+    // content.applyUpdates keeps a copy of every jar it replaces (backupJars).
     const applyUpdates = deps.applyUpdates || require("./content").applyUpdates;
     const r = await applyUpdates(instance, plan.updates, onProgress, { releaseOnly: true });
+    result.backupDir = r.backupDir || null;
     result.applied = r.applied || [];
     result.failed = r.failed || [];
     result.added = r.added || [];

@@ -178,7 +178,7 @@ test("planSync: vanilla and nothing-wrong instances plan nothing; one project is
 
 /* ---------------- applying: old jars copied first ---------------- */
 
-test("applySync: copies the old jars aside, applies with releaseOnly, reports the rest", async () => {
+test("applySync: applies with releaseOnly, hands back where the old jars were copied, reports the rest", async () => {
   const gameDir = path.join(HOME, "apply");
   await fsp.mkdir(path.join(gameDir, "mods"), { recursive: true });
   await fsp.writeFile(path.join(gameDir, "mods", "a-1.jar"), "old A");
@@ -186,12 +186,10 @@ test("applySync: copies the old jars aside, applies with releaseOnly, reports th
   const deps = fakeDeps({ PA: [ver({ id: "A2" })] }, { issues: [issue({ file: "a-1.jar", title: "A" }), issue({ file: "b-1.jar", title: "B", projectId: "PB" })] });
   const applied = [];
   const invalidated = [];
+  // (the copy itself is content.applyUpdates' job - tested below on the real one)
   deps.applyUpdates = async (inst, updates, _p, options) => {
     applied.push({ updates, options });
-    // the copy must already exist when the real update would delete the old jar
-    const dirs = await fsp.readdir(path.join(gameDir, modsSync.BACKUP_DIR));
-    assert.equal(await fsp.readFile(path.join(gameDir, modsSync.BACKUP_DIR, dirs[0], "a-1.jar"), "utf8"), "old A");
-    return { applied: ["A"], failed: [], added: ["Lib"], warnings: [] };
+    return { applied: ["A"], failed: [], added: ["Lib"], warnings: [], backupDir: path.join(gameDir, modsSync.BACKUP_DIR, "t") };
   };
   deps.invalidate = (id) => invalidated.push(id);
   const r = await modsSync.applySync({ ...INST, gameDir }, null, deps);
@@ -201,9 +199,8 @@ test("applySync: copies the old jars aside, applies with releaseOnly, reports th
   assert.deepEqual(r.applied, ["A"]);
   assert.deepEqual(r.added, ["Lib"]);
   assert.deepEqual(r.noBuild.map((n) => n.file), ["b-1.jar"]);
-  assert.ok(r.backupDir && r.backupDir.startsWith(path.join(gameDir, modsSync.BACKUP_DIR)));
-  // the mod with no build was not copied, not touched
-  assert.deepEqual(await fsp.readdir(r.backupDir), ["a-1.jar"]);
+  assert.equal(r.backupDir, path.join(gameDir, modsSync.BACKUP_DIR, "t"));
+  // the mod with no build was not touched
   assert.equal(await fsp.readFile(path.join(gameDir, "mods", "b-1.jar"), "utf8"), "old B");
   assert.deepEqual(invalidated, ["i1"]);
 });
@@ -252,11 +249,42 @@ test("content.applyUpdates releaseOnly: a dependency with only a beta for this v
     const update = { kind: "mod", world: null, file: "a-1.jar", enabled: true, projectId: "PA", title: "A", next: { versionId: "A2", versionNumber: "2", url: "https://cdn.modrinth.com/a-2.jar", sha1, filename: "a-2.jar", size: newJar.length } };
     const r = await content.applyUpdates(inst, [update], null, { releaseOnly: true });
     assert.deepEqual(r.applied, ["A"]);
+    // the old jar is gone from mods/ but kept in .reminth/replaced-mods/<time>/
+    assert.equal(fs.existsSync(path.join(gameDir, "mods", "a-1.jar")), false);
+    assert.ok(r.backupDir && r.backupDir.startsWith(path.join(gameDir, modsSync.BACKUP_DIR)));
+    assert.equal(await fsp.readFile(path.join(r.backupDir, "a-1.jar"), "utf8"), "old");
+    // ...and listAll never sees it as a mod
+    assert.deepEqual((await content.listAll(gameDir)).mod.map((m) => m.file), ["a-2.jar"]);
     assert.deepEqual(r.added, [], "the beta-only library was not added");
     assert.ok(r.warnings.some((w) => /Lib has no stable build for Minecraft 26\.3/.test(w)), r.warnings.join(" | "));
     assert.equal(fs.existsSync(path.join(gameDir, "mods", "l.jar")), false);
   } finally {
     Object.assign(modrinth, real);
     global.fetch = realFetch;
+  }
+});
+
+test("content.applyUpdates: a copy that can't be made is written down and the update still happens", async () => {
+  const gameDir = path.join(HOME, "nocopy");
+  await fsp.mkdir(path.join(gameDir, "mods"), { recursive: true });
+  await fsp.writeFile(path.join(gameDir, "mods", "a-1.jar"), "old");
+  // a FILE where the backup folder should be: every copy fails
+  await fsp.mkdir(path.join(gameDir, ".reminth"), { recursive: true });
+  await fsp.writeFile(path.join(gameDir, modsSync.BACKUP_DIR), "in the way");
+  const newJar = Buffer.from("new A");
+  const sha1 = require("crypto").createHash("sha1").update(newJar).digest("hex");
+  const realFetch = global.fetch;
+  const real = { ...modrinth };
+  global.fetch = async () => new Response(newJar, { status: 200, headers: { "content-length": String(newJar.length) } });
+  Object.assign(modrinth, { getVersionsFromHashes: async () => ({}), getVersions: async () => [] });
+  try {
+    const update = { kind: "mod", world: null, file: "a-1.jar", enabled: true, projectId: "PA", title: "A", next: { versionId: "A2", versionNumber: "2", url: "https://cdn.modrinth.com/a-2.jar", sha1, filename: "a-2.jar", size: newJar.length } };
+    const r = await content.applyUpdates({ id: "n", mcVersion: "26.3", loader: "fabric", gameDir }, [update], null);
+    assert.deepEqual(r.applied, ["A"]);
+    assert.equal(r.backupDir, undefined);
+    assert.match(await fsp.readFile(path.join(gameDir, ".reminth", "replaced-mods.log"), "utf8"), /couldn't keep a copy of a-1\.jar before updating it/);
+  } finally {
+    global.fetch = realFetch;
+    Object.assign(modrinth, real);
   }
 });

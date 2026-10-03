@@ -816,6 +816,7 @@ window.onInstancePageOpen = (inst) => {
   $("contentToolbar").hidden = !isContent;
   // Nothing to check without a mod loader.
   $("versionCheckBtn").hidden = inst.loader === "vanilla";
+  $("replacedModsBtn").hidden = inst.loader === "vanilla";
 };
 
 /* ================================================================== *
@@ -4516,6 +4517,7 @@ function chooseServerInstance(s, active, version, takesLabel, modCount) {
 }
 
 $("versionCheckBtn").onclick = () => openVersionAdvisor(content.instanceId || state.activeId);
+$("replacedModsBtn").onclick = () => openFolder("replaced", content.instanceId || state.activeId);
 
 /* ================================================================== *
  * 8. performance: settings, safe mode, profiles, the pack             *
