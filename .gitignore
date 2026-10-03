@@ -137,3 +137,8 @@ dist
 
 # macOS
 .DS_Store
+
+# Local scratch and logs
+_to_delete/
+publish-log.txt
+npm-test-*.txt
