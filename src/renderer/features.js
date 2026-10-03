@@ -4667,19 +4667,23 @@ function openVersionAdvisor(instanceId, options = {}) {
     if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth).`);
     if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now.`);
     context.textContent = bits.join(" ");
-    const { rows, best } = window.ReminthPure.rankVersionRows(a.candidates || [], { server: Boolean(accepts) });
+    const view = window.ReminthPure.pickerView(a.candidates || [], { server: Boolean(accepts) });
+    const { rows, best } = view;
+    if (view.currentFits) {
+      // Already on a version that fits everything: say so, and list the other
+      // fitting versions plainly - no "Best match", nothing picked.
+      bestBox.hidden = false;
+      bestBox.textContent = view.headline;
+      if (rows.length) list.appendChild(el("div", "vpick-empty adv-list-title", view.listTitle));
+    }
     if (!rows.length) {
-      list.appendChild(el("div", "vpick-empty", "No version to suggest."));
+      if (!view.currentFits) list.appendChild(el("div", "vpick-empty", "No version to suggest."));
       paintGroups();
       return;
     }
-    const current = rows.find((r) => r.current);
-    if (best) {
+    if (!view.currentFits && best) {
       bestBox.hidden = false;
       bestBox.textContent = window.ReminthPure.bestLine(best, choicesFor(best).recommended);
-    } else if (current && !current.missing.length) {
-      bestBox.hidden = false;
-      bestBox.textContent = `${inst.name} is already on the best version for its mods${accepts ? " and this server" : ""}.`;
     }
     const select = (c, item) => {
       // Another version: start again from what is recommended for it.

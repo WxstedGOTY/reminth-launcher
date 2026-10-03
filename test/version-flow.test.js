@@ -265,3 +265,22 @@ test("turned-off reasons: set, cleared when turned on or removed, kept on disk a
   const after = JSON.parse(await fsp.readFile(path.join(gameDir, ".reminth", "content.json"), "utf8"));
   assert.deepEqual(after.turnedOff, {});
 });
+
+test("pickerView: the current version already fits -> 'nothing to change', other fitting versions listed plainly, no best", () => {
+  // the real case: on 26.2, all 32 mods fit 26.2; 26.1.2 fits too
+  const r = (version, missing = [], extra = {}) => ({ version, total: 32, supported: 32 - missing.length, missing, server: null, current: false, ...extra });
+  const v = pure.pickerView([r("26.2", [], { current: true }), r("26.1.2"), r("26.1"), r("1.21.11", ["JEI"])]);
+  assert.equal(v.currentFits, true);
+  assert.equal(v.headline, "Your mods already fit Minecraft 26.2 - there is nothing you need to change.");
+  assert.equal(v.listTitle, "Other versions that also fit");
+  assert.deepEqual(v.rows.map((x) => x.version), ["26.1.2", "26.1"], "only the others that fit - no current, no problem versions");
+  assert.equal(v.best, null, "no Best match, nothing picked");
+  // the current version has problems: today's list
+  const w = pure.pickerView([r("26.2", ["JEI"], { current: true }), r("26.1.2")]);
+  assert.deepEqual([w.currentFits, w.best.version, w.headline], [false, "26.1.2", null]);
+  // a checked server that doesn't take the current version: it doesn't "fit"
+  const s = pure.pickerView([r("26.2", [], { current: true, server: false }), r("1.21.4", [], { server: true })], { server: true });
+  assert.deepEqual([s.currentFits, s.best.version], [false, "1.21.4"]);
+  // no mods checked at all: nothing claimed
+  assert.equal(pure.pickerView([{ version: "26.2", total: 0, supported: 0, missing: [], current: true }]).currentFits, false);
+});

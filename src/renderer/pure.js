@@ -223,6 +223,30 @@
     return { rows, best };
   }
 
+  /**
+   * What the version list shows. When the instance's own version already fits
+   * every checked mod (and a checked server takes it), nothing needs changing:
+   * { currentFits: true, headline: "Your mods already fit…", listTitle:
+   * "Other versions that also fit", rows: the other fitting versions, best: null }
+   * - no "Best match", nothing picked for the player. Otherwise today's list:
+   * { currentFits: false, rows, best }.
+   */
+  function pickerView(candidates, { server = false } = {}) {
+    const { rows, best } = rankVersionRows(candidates, { server });
+    const current = rows.find((r) => r.current);
+    const fits = (r) => r.total > 0 && !r.missing.length && (!server || r.server !== false);
+    if (current && fits(current)) {
+      return {
+        currentFits: true,
+        headline: `Your mods already fit Minecraft ${current.version} - there is nothing you need to change.`,
+        listTitle: "Other versions that also fit",
+        rows: rows.filter((r) => !r.current && fits(r)),
+        best: null,
+      };
+    }
+    return { currentFits: false, headline: null, listTitle: null, rows, best };
+  }
+
   /** The line above the list: "Best match: 1.21.1 - all 29 mods fit" / "Fits most: 1.21.4 - 3 mods have to be turned off". */
   function bestLine(best, action) {
     if (!best) return null;
@@ -400,7 +424,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);
