@@ -2084,6 +2084,59 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .tag.fit-hint { cursor: help; }
 .dcp-misfit { color: var(--amber); }
 
+/* ── performance (features.js, section 8) ─────────────────── */
+/* Settings: the memory helper under the slider, and the Performance card. */
+.ram-auto { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.ram-auto .set-note { margin: 0; flex: 1; min-width: 220px; }
+.toggle-row.stack { flex-direction: column; align-items: stretch; gap: 10px; }
+.toggle-row.stack .seg-choice { margin-top: 0; }
+/* The instance page's "started with basic Java settings" notice. */
+.safe-notice {
+  display: flex; align-items: flex-start; gap: 12px; margin: 0 0 14px; color: var(--text);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent); background: color-mix(in srgb, var(--amber) 8%, transparent);
+}
+.safe-notice .sn-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.safe-notice .sn-text > span { color: var(--text-2); }
+.safe-notice .mono { overflow-wrap: anywhere; }
+/* Instance dialog: why the pack is off, the profile picker, the pack's status. */
+.perf-why { margin: 8px 0 0; }
+.profile-field { margin-top: 14px; }
+.profile-note { margin-top: 8px; }
+.profile-note .set-note { margin: 4px 0 0; line-height: 1.5; }
+.pack-status { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; }
+.ps-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--text-2); }
+.ps-list { display: flex; flex-direction: column; margin-top: 6px; }
+.ps-row {
+  display: grid; grid-template-columns: minmax(110px, auto) auto minmax(0, 1fr); align-items: center; gap: 10px;
+  padding: 6px 0; border-top: 1px solid var(--line-soft); font-size: 12.5px;
+}
+.ps-row:first-child { border-top: 0; }
+.ps-name { font-weight: 650; color: var(--text); }
+.ps-row .tag { justify-self: start; padding: 2px 8px; }
+.ps-note { font-size: 11.5px; color: var(--text-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* "Suggested for this profile": tick boxes, unticked until the player ticks them. */
+.extras-list { max-height: 360px; overflow-y: auto; }
+.extra-item { align-items: flex-start; width: 100%; }
+.extra-item:disabled { cursor: default; opacity: .6; }
+.extra-item:disabled:hover { border-color: var(--line); }
+.pick-item .chk {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; border-radius: 5px; box-sizing: border-box;
+  border: 2px solid rgba(148, 170, 205, .45); display: grid; place-items: center;
+}
+.extra-item.selected .chk { border-color: var(--accent); background: var(--accent); }
+.extra-item.selected .chk::after { content: ""; width: 5px; height: 9px; border: solid var(--accent-ink); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); }
+.extra-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.extra-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.extra-top .tag { display: inline-flex; padding: 2px 8px; }
+.pick-item .extra-why { font-size: 12px; color: var(--text-2); }
+.pick-item .extra-warn { font-size: 11.5px; color: var(--amber); }
+/* "Choose graphics card": the steps and Reminth's javaw.exe paths. */
+.gpu-steps { margin: 0 0 12px 18px; padding: 0; color: var(--text-2); font-size: 13px; line-height: 1.6; }
+.gpu-paths { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.gpu-path { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.gpu-path .mono { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gpu-path .btn { flex-shrink: 0; }
+
 /* A gradient on a box with a see-through border used to wrap around under
    that border, drawing a thin line of the gradient's other end along the
    bottom and right edge (most visible on the highlighted sidebar button).

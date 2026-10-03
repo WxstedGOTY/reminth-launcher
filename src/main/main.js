@@ -366,6 +366,11 @@ ipcMain.handle("app:info", () => ({
   totalMemoryMb: Math.round(os.totalmem() / (1024 * 1024)),
   plan: entitlements.summary(),
   capturesDir: paths.CAPTURES_DIR,
+  // The performance pack's mods per loader, for the instance dialog. Which
+  // ones really go in is decided per instance at Play (stable builds only).
+  performancePack: Object.fromEntries(
+    ["fabric", "quilt", "forge", "neoforge"].map((l) => [l, (config.PERFORMANCE_PACK || []).filter((e) => (e.loaders || []).includes(l)).map((e) => e.label)])
+  ),
   managedMods: [
     { name: "ReminthHUD", tag: "HUD", note: "Reminth's own in-game HUD: FPS, coordinates and facing. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
     { name: "Fabric API", tag: "Library", note: "ReminthHUD can't load without it, so Reminth installs it alongside.", required: true },

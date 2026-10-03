@@ -286,6 +286,8 @@
             </div>
           </div>
 
+          <div class="notice safe-notice" id="instSafeNotice" role="status" hidden></div>
+
           <nav class="tabs" id="instanceTabs">
             <button class="tab active" data-tab="tabMods"><svg><use href="#i-cube"/></svg>Mods<span class="tab-count" id="countMods"></span></button>
             <button class="tab" data-tab="tabPacks"><svg><use href="#i-pack"/></svg>Resource packs<span class="tab-count" id="countPacks"></span></button>
@@ -703,6 +705,29 @@
                 </div>
                 <div class="scale"><span>1 GB</span><span id="ramMidMark">4 GB</span><span id="ramMaxMark">8 GB</span></div>
                 <p class="set-note" id="ramNote"></p>
+                <div class="ram-auto">
+                  <p class="set-note" id="ramAuto" hidden></p>
+                  <button class="btn outline sm" id="ramAutoBtn" hidden>Use automatic</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card set">
+              <div class="set-head">
+                <h2>Performance</h2>
+                <p>How Reminth starts Java for Minecraft. The defaults suit almost every PC.</p>
+              </div>
+              <div class="toggle-row stack">
+                <div><b>Garbage collector</b><span id="gcNote"></span></div>
+                <div class="seg-choice small" id="gcChoice"></div>
+              </div>
+              <div class="toggle-row">
+                <div><b>Give Minecraft priority</b><span id="priorityNote"></span></div>
+                <button class="switch" id="togglePriority" role="switch" aria-checked="true" aria-label="Give Minecraft priority"></button>
+              </div>
+              <div class="toggle-row">
+                <div><b>Graphics card</b><span>On a laptop with two graphics cards, Windows can run Minecraft on the slower one. Reminth shows you how to change that; it doesn't change it itself.</span></div>
+                <button class="btn outline sm" id="gpuHelpBtn">Choose graphics card…</button>
               </div>
             </div>
 

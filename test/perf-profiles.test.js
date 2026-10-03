@@ -498,6 +498,21 @@ test("main: perf:profiles, and create/update only pass known profiles", async ()
   assert.deepEqual(updates, [{ perfProfile: "max-fps" }, { name: "Kept" }]);
 });
 
+test("main: app:info lists the performance pack per loader for the instance dialog", async () => {
+  const config = require("../src/main/config");
+  const info = await call("app:info");
+  for (const loader of ["fabric", "quilt", "forge", "neoforge"]) {
+    assert.deepEqual(
+      info.performancePack[loader],
+      config.PERFORMANCE_PACK.filter((e) => e.loaders.includes(loader)).map((e) => e.label),
+      loader
+    );
+  }
+  assert.ok(info.performancePack.fabric.includes("Sodium"));
+  assert.ok(info.performancePack.forge.includes("Embeddium") && !info.performancePack.forge.includes("Sodium"));
+  assert.equal("vanilla" in info.performancePack, false);
+});
+
 test("main: far-view instances get the modpack memory default", async () => {
   const total = os.totalmem();
   const entitlements = require("../src/main/entitlements");

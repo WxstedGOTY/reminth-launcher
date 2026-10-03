@@ -138,6 +138,7 @@ async function loadContentNow(id, seq) {
   $("instMods").textContent = String((data.mod || []).filter((i) => i.valid && i.enabled).length);
   if (currentPage === "instance") renderContentTab();
   loadCreators(id);
+  refreshPackFiles(id);
   paintUpdateButton();
   refreshInstalledMarks();
   // On every page, not only the instance's own: Play can be pressed from
@@ -320,6 +321,11 @@ function contentRow(item, ctx) {
   if (item.problem) sub.appendChild(el("span", "c-note warn", item.problem));
   else if (item.world && item.kind === "datapack") sub.appendChild(el("span", "c-note", item.world));
   if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Reminth-managed"));
+  else if (item.kind === "mod" && isPackFile(content.instanceId, item.file)) {
+    const badge = el("span", "c-badge", "Performance pack");
+    badge.title = "Kept up to date by Reminth. Switch it off here and Reminth leaves it off.";
+    sub.appendChild(badge);
+  }
   const needers = creator && ctx.neededBy.get(creator.projectId);
   if (needers && needers.length) {
     const others = needers.filter((n) => n !== itemName(item));
@@ -786,6 +792,7 @@ async function loadInstanceData() {
 }
 
 window.onInstancePageOpen = (inst) => {
+  paintSafeModeNotice(inst);
   loadContent(inst.id);
   loadInstanceData();
   if (content.tab === "tabLogs") loadLogSessions();
@@ -3202,7 +3209,11 @@ function saveStreamer(patch) {
   return streamerSaves;
 }
 
-window.onSettingsSaved = (settings, problems) => applyStreamerUi(settings, problems);
+window.onSettingsSaved = (settings, problems) => {
+  applyStreamerUi(settings, problems);
+  paintPerfSettings(settings); // streamer mode changes what "priority" can do
+  if (currentPage === "settings") paintAutoMemory(); // the slider may have moved, or gone back to automatic
+};
 
 $("streamerToggle").onclick = async () => {
   const on = !(state.settings && state.settings.streamerMode);
@@ -4470,6 +4481,393 @@ function chooseServerInstance(s, active, version, takesLabel, modCount) {
 $("versionCheckBtn").onclick = () => openVersionAdvisor(content.instanceId || state.activeId);
 
 /* ================================================================== *
+ * 8. performance: settings, safe mode, profiles, the pack             *
+ * ================================================================== */
+const perfUi = {
+  packFiles: { id: null, files: new Set() }, // the active instance's performance-pack jars (lowercase names)
+  packReq: 0,
+  memReq: 0,
+  safeMode: new Map(), // instanceId -> reason, until the player dismisses it
+  gpuBusy: false,
+  gcBusy: false,
+  priorityBusy: false,
+};
+
+/* ---- the Mods tab: which jars are the performance pack's ---- */
+const isPackFile = (id, file) => perfUi.packFiles.id === id && perfUi.packFiles.files.has(String(file || "").toLowerCase());
+
+async function refreshPackFiles(id) {
+  const req = ++perfUi.packReq;
+  let files = new Set();
+  try {
+    const status = await window.reminth.perfPackStatus(id);
+    for (const m of (status && status.mods) || []) if (m.state === "installed" && m.file) files.add(String(m.file).toLowerCase());
+  } catch {
+    files = new Set(); // no labels is better than wrong ones
+  }
+  if (req !== perfUi.packReq || content.instanceId !== id) return; // a newer list is on screen
+  const before = perfUi.packFiles;
+  const same = before.id === id && before.files.size === files.size && [...files].every((f) => before.files.has(f));
+  perfUi.packFiles = { id, files };
+  if (!same && currentPage === "instance" && CONTENT_TABS[content.tab] && CONTENT_TABS[content.tab].kind === "mod") renderContentTab();
+}
+
+/* ---- the pack's status, in the instance dialog ---- */
+const PACK_STATE_LABELS = {
+  installed: ["Installed", "emerald"],
+  pending: ["Next Play", "dim"],
+  off: ["Off", "dim"],
+  "no-build": ["No stable build yet", "amber"],
+  "stepped-aside": ["Left out", "amber"],
+  "held-back": ["Kept as is", "amber"],
+  "switched-off-by-you": ["Switched off by you", "violet"],
+  failed: ["Couldn't install", "rose"],
+};
+// What these states mean when there's no detail from the last Play.
+const PACK_STATE_NOTES = {
+  pending: "Checked the next time you press Play.",
+  "no-build": "No stable build for this Minecraft version and loader yet.",
+  "stepped-aside": "You have your own copy, or a mod it can't run next to.",
+  "held-back": "One of your mods needs the version that's installed.",
+  "switched-off-by-you": "Reminth leaves it off. Restore puts it back.",
+  failed: "Reminth tries again the next time you press Play.",
+};
+
+/** Fills `box` with the pack's per-mod state for one instance. onPainted runs after each paint. */
+async function paintPackStatus(box, instanceId, onPainted) {
+  let status;
+  try {
+    status = await window.reminth.perfPackStatus(instanceId);
+  } catch {
+    status = null;
+  }
+  if (!box.isConnected) return; // the dialog was closed before this answered
+  box.textContent = "";
+  if (!status || !status.enabled || !(status.mods || []).length) {
+    onPainted && onPainted();
+    return;
+  }
+  const head = el("div", "ps-head");
+  head.appendChild(el("b", null, "At the last Play"));
+  const restore = button("btn outline sm", "Restore", "#i-refresh");
+  restore.title = "Put back the pack mods you switched off or removed, and look again for builds that were left out. Applies the next time you press Play.";
+  const needsRestore = status.mods.some((m) => !["installed", "pending", "off"].includes(m.state));
+  restore.hidden = !needsRestore;
+  restore.onclick = async () => {
+    if (restore.disabled) return;
+    if (state.running.has(instanceId)) return toast("Close the game first — that instance is running.");
+    restore.disabled = true;
+    try {
+      const result = await window.reminth.perfRestorePack(instanceId);
+      toast(result && result.reset ? "Restored — the whole pack goes back in the next time you press Play." : "Nothing to restore — the pack is already complete.");
+      await paintPackStatus(box, instanceId, onPainted);
+      if (instanceId === content.instanceId) refreshPackFiles(instanceId);
+    } catch (err) {
+      toast(friendlyError(err.message));
+    } finally {
+      restore.disabled = false;
+    }
+  };
+  head.appendChild(restore);
+  box.appendChild(head);
+  const list = el("div", "ps-list");
+  for (const m of status.mods) {
+    const row = el("div", "ps-row");
+    row.appendChild(el("span", "ps-name", m.label));
+    const [label, colour] = PACK_STATE_LABELS[m.state] || [m.state, "dim"];
+    row.appendChild(el("span", "tag " + colour, label));
+    const note = m.detail || PACK_STATE_NOTES[m.state] || (m.version ? m.version : "");
+    if (note) row.appendChild(el("span", "ps-note", note));
+    list.appendChild(row);
+  }
+  box.appendChild(list);
+  onPainted && onPainted();
+}
+
+/* ---- optional mods a profile suggests ---- */
+const PROFILE_TITLES = { "max-fps": "Max FPS", "far-view": "Far view" };
+
+/** After a profile was picked (new instance or a change): offer its extras, if it has any here. */
+function offerProfileExtras(instanceId, profile, loader) {
+  if (!PROFILE_TITLES[profile] || !loader || loader === "vanilla") return;
+  openProfileExtras(instanceId, profile);
+}
+
+function openProfileExtras(instanceId, profile) {
+  const inst = instanceById(instanceId);
+  if (!inst) return;
+  const body = el("div", "extras");
+  body.appendChild(el("p", null, "Optional mods that fit this profile. Nothing is added unless you tick it, and each one becomes an ordinary mod you can switch off or remove."));
+  const list = el("div", "pick-list extras-list");
+  list.appendChild(el("p", "set-note", "Checking which ones have a build for " + inst.mcVersion + "…"));
+  body.appendChild(list);
+  const picked = new Set();
+  let rows = [];
+  const handle = openModal({
+    title: `Suggested for ${PROFILE_TITLES[profile] || "this profile"}`,
+    body,
+    wide: true,
+    buttons: [
+      { label: "Not now", className: "outline" },
+      {
+        label: "Add selected",
+        className: "primary",
+        icon: "#i-plus",
+        onClick: async () => {
+          const chosen = rows.filter((r) => picked.has(r.slug));
+          if (!chosen.length) {
+            toast("Tick the mods you want first — or press Not now.");
+            return false;
+          }
+          // Anything that isn't a plain stable build gets a second, explicit yes.
+          const risky = chosen.filter((r) => r.experimental || (r.channel && r.channel !== "release"));
+          if (risky.length) {
+            const lines = risky.map((r) => `${r.title}: ${r.warning || `only a ${r.channel} build exists for ${inst.mcVersion}.`}`);
+            const ok = await confirmModal("Add experimental mods?", [...lines, "Back up your worlds before you play with these."], "Add anyway", true);
+            if (!ok) return false;
+          }
+          // One at a time, into the instance chosen when this opened - whatever is on screen now.
+          for (const r of chosen) await installProject({ projectId: r.slug, projectType: "mod", title: r.title, instanceId });
+          return true;
+        },
+      },
+    ],
+  });
+  const addBtn = handle.buttons[1];
+  addBtn.disabled = true;
+  window.reminth
+    .perfProfileExtras(instanceId)
+    .then((answer) => {
+      if (handle.closed) return;
+      rows = Array.isArray(answer) ? answer : [];
+      list.textContent = "";
+      if (!rows.length) {
+        list.appendChild(el("p", "set-note", "Nothing extra to suggest for this instance."));
+        return;
+      }
+      for (const r of rows) list.appendChild(extraRow(r));
+    })
+    .catch((err) => {
+      if (handle.closed) return;
+      list.textContent = "";
+      list.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
+    });
+
+  function extraRow(r) {
+    const usable = r.available !== false && r.installed !== true;
+    const item = el("button", "pick-item extra-item");
+    item.type = "button";
+    item.setAttribute("role", "checkbox");
+    item.setAttribute("aria-checked", "false");
+    item.disabled = !usable;
+    item.appendChild(el("span", "chk"));
+    const main = el("div", "extra-main");
+    const top = el("div", "extra-top");
+    top.appendChild(el("b", null, r.title));
+    if (r.installed) top.appendChild(el("span", "tag emerald", "Already added"));
+    else if (r.available === false) top.appendChild(el("span", "tag dim", `No build for ${inst.mcVersion}`));
+    else if (r.available === null) top.appendChild(el("span", "tag dim", "Couldn't check"));
+    if (r.experimental) top.appendChild(el("span", "tag rose", "Experimental"));
+    else if (r.channel && r.channel !== "release") top.appendChild(el("span", "tag amber", r.channel === "beta" ? "Beta build" : "Alpha build"));
+    main.appendChild(top);
+    main.appendChild(el("span", "extra-why", r.why));
+    if (r.warning) main.appendChild(el("span", "extra-warn", r.warning));
+    item.appendChild(main);
+    item.onclick = () => {
+      if (item.disabled) return;
+      const on = !picked.has(r.slug);
+      if (on) picked.add(r.slug);
+      else picked.delete(r.slug);
+      item.classList.toggle("selected", on);
+      item.setAttribute("aria-checked", on ? "true" : "false");
+      addBtn.disabled = picked.size === 0;
+    };
+    return item;
+  }
+}
+
+/* ---- safe mode: the JVM refused Reminth's settings, so it ran on basic ones ---- */
+window.reminth.onSafeMode(({ instanceId, reason }) => {
+  perfUi.safeMode.set(instanceId, String(reason || "").slice(0, 200));
+  const inst = instanceById(instanceId);
+  toast(`${inst ? inst.name : "Minecraft"}: Minecraft refused the Java settings, so Reminth started it with basic ones. The instance page says why.`);
+  if (currentPage === "instance" && state.activeId === instanceId && inst) paintSafeModeNotice(inst);
+});
+
+function paintSafeModeNotice(inst) {
+  const box = $("instSafeNotice");
+  const reason = inst && perfUi.safeMode.get(inst.id);
+  box.textContent = "";
+  box.hidden = reason === undefined;
+  if (reason === undefined) return;
+  const text = el("div", "sn-text");
+  text.appendChild(el("b", null, "Minecraft refused the Java settings, so Reminth started it with basic ones."));
+  if (reason) {
+    const why = el("span", null, "Reason: ");
+    why.appendChild(el("span", "mono pii", reason));
+    text.appendChild(why);
+  }
+  text.appendChild(el("span", null, "Check Settings → Advanced (extra JVM arguments)."));
+  box.appendChild(text);
+  const x = el("button", "icon-btn");
+  x.type = "button";
+  x.title = "Dismiss";
+  x.setAttribute("aria-label", "Dismiss");
+  x.appendChild(icon("#i-x"));
+  x.onclick = () => {
+    perfUi.safeMode.delete(inst.id);
+    box.hidden = true;
+  };
+  box.appendChild(x);
+}
+
+/* ---- Settings → Performance ---- */
+const GC_CHOICES = [
+  ["auto", "Automatic (recommended)"],
+  ["g1", "Classic (G1)"],
+  ["zgc", "Low-pause (ZGC)"],
+];
+const GC_NOTES = {
+  auto: "Reminth picks per Java version: low-pause ZGC on Java 25 and newer when this PC has the memory and cores for it, otherwise G1.",
+  g1: "G1 on every version. Pick this if the game stutters or won't start with Automatic.",
+  zgc: "ZGC where Java 21 or newer runs the game (Minecraft 1.20.5 and up) on Windows 10 1803 or newer; older versions stay on G1.",
+};
+
+function paintPerfSettings(settings) {
+  const s = settings || state.settings || {};
+  const gc = ["auto", "g1", "zgc"].includes(s.gc) ? s.gc : "auto";
+  paintSeg("gcChoice", GC_CHOICES, gc, async (v) => {
+    if (perfUi.gcBusy || v === ((state.settings || {}).gc || "auto")) return;
+    perfUi.gcBusy = true;
+    try {
+      await saveSetting({ gc: v }, "Saved. Applies the next time you press Play.");
+    } finally {
+      perfUi.gcBusy = false;
+      paintPerfSettings(state.settings);
+    }
+  });
+  $("gcNote").textContent = GC_NOTES[gc];
+  const on = s.processPriority !== "normal";
+  setSwitch("togglePriority", on);
+  $("priorityNote").textContent = s.streamerMode
+    ? "Streamer mode is on, so Minecraft runs at normal priority until you turn it off — the recording needs that CPU time."
+    : "Asks Windows to put Minecraft a step above other programs (\"above normal\", never higher). Helps when something else is busy at the same time.";
+}
+
+$("togglePriority").onclick = async () => {
+  if (perfUi.priorityBusy) return;
+  perfUi.priorityBusy = true;
+  const on = !$("togglePriority").classList.contains("on");
+  setSwitch("togglePriority", on);
+  try {
+    const saved = await saveSetting({ processPriority: on ? "above-normal" : "normal" }, on ? "Minecraft gets priority from your next launch." : "Minecraft runs at normal priority from your next launch.");
+    if (!saved) setSwitch("togglePriority", !on);
+  } finally {
+    perfUi.priorityBusy = false;
+  }
+};
+
+$("gpuHelpBtn").onclick = async () => {
+  if (perfUi.gpuBusy) return;
+  perfUi.gpuBusy = true;
+  $("gpuHelpBtn").disabled = true;
+  let help;
+  try {
+    help = await window.reminth.perfGpuHelp();
+  } catch (err) {
+    toast(friendlyError(err.message));
+    return;
+  } finally {
+    perfUi.gpuBusy = false;
+    $("gpuHelpBtn").disabled = false;
+  }
+  const body = el("div", "gpu-help");
+  body.appendChild(
+    el(
+      "p",
+      null,
+      help.opened
+        ? "Windows decides which graphics card runs each program. Reminth doesn't change that setting itself — it opened Windows' graphics settings for you."
+        : "Windows decides which graphics card runs each program. Reminth doesn't change that setting itself. Open Settings → System → Display → Graphics."
+    )
+  );
+  const steps = el("ol", "gpu-steps");
+  steps.appendChild(el("li", null, "In Graphics, add a desktop app (Browse) and pick a javaw.exe from the list below."));
+  steps.appendChild(el("li", null, "Click it in the list, then Options."));
+  steps.appendChild(el("li", null, "Choose High performance and Save. It applies the next time Minecraft starts."));
+  body.appendChild(steps);
+  const paths = (help && help.javaPaths) || [];
+  if (!paths.length) body.appendChild(el("p", "set-note", "Reminth hasn't installed Java yet — press Play once, then come back here."));
+  else {
+    body.appendChild(el("p", "set-note", paths.length > 1 ? "Reminth's Java programs (different Minecraft versions use different ones — add each):" : "Reminth's Java program:"));
+    const list = el("div", "gpu-paths");
+    for (const p of paths) {
+      const row = el("div", "gpu-path");
+      row.appendChild(el("span", "mono pii", p));
+      const copy = button("btn outline sm", "Copy", "#i-copy");
+      copy.onclick = () => navigator.clipboard.writeText(p).then(() => toast("Path copied."), () => toast("Couldn't reach the clipboard."));
+      row.appendChild(copy);
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+  }
+  openModal({ title: "Choose graphics card", body, wide: true, buttons: [{ label: "Done", className: "primary" }] });
+};
+
+/* ---- the memory helper: what "automatic" means for the active instance ---- */
+async function paintAutoMemory() {
+  const req = ++perfUi.memReq;
+  const id = state.activeId;
+  let info;
+  try {
+    info = await window.reminth.perfInfo(id);
+  } catch {
+    info = null;
+  }
+  if (req !== perfUi.memReq) return;
+  const note = $("ramAuto");
+  const useAuto = $("ramAutoBtn");
+  if (!info || !info.defaultMemoryMb) {
+    note.hidden = true;
+    useAuto.hidden = true;
+    return;
+  }
+  const gb = (mb) => {
+    const v = Math.round((mb / 1024) * 2) / 2;
+    return (Number.isInteger(v) ? v : v.toFixed(1)) + " GB";
+  };
+  const inst = instanceById(id);
+  const name = inst ? inst.name : "this instance";
+  const chosen = state.settings && state.settings.maxMemoryMb;
+  note.hidden = false;
+  if (chosen) {
+    note.textContent = `You picked ${gb(chosen)}. Automatic would give ${name} ${gb(info.defaultMemoryMb)}.`;
+    useAuto.hidden = false;
+  } else {
+    note.textContent = `Automatic: ${gb(info.defaultMemoryMb)} for ${name}, from this PC's ${gb(info.totalMemMb)} and the instance (modpacks and Far view get more). Move the slider to choose yourself.`;
+    useAuto.hidden = true;
+    const capGb = ramLimits().capGb;
+    const v = Math.min(Math.round((info.defaultMemoryMb / 1024) * 2) / 2, capGb);
+    $("ramRange").value = String(v);
+    paintRam(Number($("ramRange").value));
+  }
+}
+$("ramAutoBtn").onclick = async () => {
+  const btn = $("ramAutoBtn");
+  if (btn.disabled) return;
+  btn.disabled = true;
+  try {
+    if (await saveSetting({ maxMemoryMb: null }, "Memory is automatic again from your next launch.")) await paintAutoMemory();
+  } finally {
+    btn.disabled = false;
+  }
+};
+pageHooks.settings = () => {
+  paintPerfSettings(state.settings);
+  paintAutoMemory();
+};
+
+/* ================================================================== *
  * wiring that depends on instances                                    *
  * ================================================================== */
 window.onInstancesChanged = () => {
@@ -4496,6 +4894,7 @@ window.onInstancesChanged = () => {
 window.bootFeatures = () => {
   buildDiscover();
   applyStreamerUi(state.settings);
+  paintPerfSettings(state.settings);
   window.reminth.onCatalogWarmProgress((status) => {
     if (status.project_type === "mod" && status.state === "done") buildDiscover();
     if (currentPage === "discover" && status.project_type === disc.type && isDefaultView()) runBrowse();

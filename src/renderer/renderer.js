@@ -1040,6 +1040,54 @@ const LOADER_CHOICES = [
   { key: "neoforge", label: "NeoForge", note: "Forge's modern successor - where most big mods went from 1.20.2 on." },
 ];
 
+// Shown until window.reminth.perfProfiles() answers (and if it can't).
+const PERF_PROFILES_FALLBACK = [
+  { id: "balanced", title: "Balanced", description: ["Reminth's performance pack and Java settings, with Minecraft's own video settings.", "Nothing about how the game looks or plays is changed."] },
+  { id: "max-fps", title: "Max FPS", description: ["Lower view and simulation distance, fewer particles, V-Sync off for a brand-new instance.", "Applied to new instances only; your existing settings are never changed."] },
+  { id: "far-view", title: "Far view", description: ["A longer render distance picked for this PC, and more memory.", "Applied to new instances only; your existing settings are never changed."] },
+];
+let perfProfilesCache = null;
+async function loadPerfProfiles() {
+  if (perfProfilesCache) return perfProfilesCache;
+  try {
+    const list = await window.reminth.perfProfiles();
+    if (Array.isArray(list) && list.length) perfProfilesCache = list;
+  } catch {
+    // the fallback above says the same thing, shorter
+  }
+  return perfProfilesCache || PERF_PROFILES_FALLBACK;
+}
+
+/** "A, B and C" */
+function listInWords(names) {
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0] || "";
+}
+
+/**
+ * Is the pack on for this loader when the player hasn't touched the switch?
+ * The same rule as config.perfPackEnabled: Fabric/Quilt on unless switched
+ * off; Forge/NeoForge only when switched on - except a brand-new instance,
+ * where nothing can clash yet, so the dialog starts with it on.
+ */
+function packOnByDefault(loader, existing) {
+  if (loader === "vanilla") return false;
+  const sameLoader = existing && existing.loader === loader;
+  const stored = sameLoader ? existing.performanceMods : undefined;
+  if (loader === "fabric" || loader === "quilt") return stored !== false;
+  if (!existing) return true;
+  return stored === true;
+}
+
+/** Why the pack is off by default here, in one sentence - or "" when it isn't. */
+function packOffReason(loader, existing, touched) {
+  if (!existing || touched !== null || loader === "vanilla") return "";
+  if (existing.modpack && existing.performanceMods === false) return "Off for modpacks: the pack's author chose its mods. Switch it on if you want Reminth's as well.";
+  if ((loader === "forge" || loader === "neoforge") && existing.performanceMods !== true) {
+    return "Off by default for an instance that already exists: Forge and NeoForge won't start when two mods carry the same id, and this instance's mods were picked without the pack.";
+  }
+  return "";
+}
+
 function openInstanceModal(existing) {
   const editing = Boolean(existing);
   const pick = {
@@ -1048,7 +1096,10 @@ function openInstanceModal(existing) {
     version: existing ? existing.mcVersion : null,
     build: existing ? existing.loaderVersion : null,
     hud: existing ? Boolean(existing.hud) : true,
-    perf: existing ? existing.performanceMods !== false : true, // missing = on
+    // The performance pack switch: null until the player touches it, so the
+    // per-loader default (packOnByDefault) follows the loader they pick.
+    perf: null,
+    profile: (existing && existing.perfProfile) || "balanced",
     types: new Set(["release"]),
     query: "",
   };
@@ -1155,13 +1206,15 @@ function openInstanceModal(existing) {
   hudRow.appendChild(hudSwitch);
   hudField.appendChild(hudRow);
   extras.appendChild(hudField);
-  // The performance pack: on unless this instance switches it off.
+  // The performance pack: per loader, with the mods it has (state.info).
   const perfField = el("div", "field hud-field perf-field");
   perfField.appendChild(el("label", null, "Performance pack"));
   const perfRow = el("div", "toggle-row compact");
   const perfText = el("div");
-  perfText.appendChild(el("b", null, "Sodium, Lithium and ScalableLux"));
-  perfText.appendChild(el("span", null, "Kept up to date by Reminth. Switch off if you'd rather pick your own."));
+  const perfTitle = el("b");
+  const perfSub = el("span", null, "Stable builds only, from Modrinth. Reminth leaves a mod out when you have your own copy or one that conflicts.");
+  perfText.appendChild(perfTitle);
+  perfText.appendChild(perfSub);
   const perfSwitch = el("button", "switch");
   perfSwitch.type = "button";
   perfSwitch.setAttribute("role", "switch");
@@ -1169,18 +1222,69 @@ function openInstanceModal(existing) {
   perfRow.appendChild(perfText);
   perfRow.appendChild(perfSwitch);
   perfField.appendChild(perfRow);
+  const perfWhy = el("p", "set-note perf-why");
+  perfField.appendChild(perfWhy);
+  // What the pack did at this instance's last Play (editing only).
+  const packStatus = el("div", "pack-status");
+  packStatus.hidden = true;
+  perfField.appendChild(packStatus);
   extras.appendChild(perfField);
   body.appendChild(extras);
-  const perfEligible = () => pick.loader === "fabric" || pick.loader === "quilt";
+
+  // Performance profile: three choices, each described in plain words.
+  const profileField = el("div", "field profile-field");
+  profileField.appendChild(el("label", null, "Performance profile"));
+  const profileRow = el("div", "radio-row");
+  profileField.appendChild(profileRow);
+  const profileNote = el("div", "profile-note");
+  profileField.appendChild(profileNote);
+  body.appendChild(profileField);
+  let profiles = PERF_PROFILES_FALLBACK;
+  function paintProfiles() {
+    profileRow.textContent = "";
+    for (const p of profiles) {
+      const b = el("button", "radio-pill" + (pick.profile === p.id ? " on" : ""), p.title);
+      b.type = "button";
+      b.setAttribute("aria-pressed", pick.profile === p.id ? "true" : "false");
+      b.onclick = () => {
+        pick.profile = p.id;
+        paintProfiles();
+      };
+      profileRow.appendChild(b);
+    }
+    const chosen = profiles.find((p) => p.id === pick.profile) || profiles[0];
+    profileNote.textContent = "";
+    for (const line of chosen.description || []) profileNote.appendChild(el("p", "set-note", line));
+  }
+  paintProfiles();
+  loadPerfProfiles().then((list) => {
+    profiles = list;
+    paintProfiles();
+  });
+
+  const perfEligible = () => pick.loader !== "vanilla";
+  const perfShown = () => (pick.perf === null ? packOnByDefault(pick.loader, existing) : pick.perf);
   function paintPerf() {
     perfField.hidden = !perfEligible();
-    perfSwitch.classList.toggle("on", pick.perf);
-    perfSwitch.setAttribute("aria-checked", pick.perf ? "true" : "false");
+    if (!perfEligible()) return;
+    const on = perfShown();
+    perfSwitch.classList.toggle("on", on);
+    perfSwitch.setAttribute("aria-checked", on ? "true" : "false");
+    const mods = (state.info && state.info.performancePack && state.info.performancePack[pick.loader]) || [];
+    perfTitle.textContent = mods.length ? listInWords(mods) : "Performance mods";
+    perfWhy.textContent = packOffReason(pick.loader, existing, pick.perf);
+    perfWhy.hidden = !perfWhy.textContent;
+    // The status list is about the instance as it is now: hidden while the
+    // loader is being changed in this dialog.
+    packStatus.hidden = !editing || pick.loader !== existing.loader || !packStatus.childNodes.length;
   }
   perfSwitch.onclick = () => {
-    pick.perf = !pick.perf;
+    pick.perf = !perfShown();
     paintPerf();
   };
+  if (editing && existing.loader !== "vanilla" && typeof paintPackStatus === "function") {
+    paintPackStatus(packStatus, existing.id, () => paintPerf());
+  }
 
   const note = el("p", "set-note");
   body.appendChild(note);
@@ -1349,14 +1453,18 @@ function openInstanceModal(existing) {
           }
           const name = nameInput.value.trim() || `${LOADER_LABELS[pick.loader]} ${pick.version}`;
           const hud = (pick.loader === "fabric" || pick.loader === "quilt") && !hudSwitch.disabled && pick.hud;
-          // Only instances the pack applies to say anything about it.
-          const perf = perfEligible() ? { performanceMods: pick.perf } : {};
+          // Only instances that load mods say anything about the pack, and
+          // only once the switch was touched or the loader changed - an
+          // untouched switch keeps whatever the instance had.
+          const loaderChanged = !editing || pick.loader !== existing.loader;
+          const perf = perfEligible() && (pick.perf !== null || loaderChanged) ? { performanceMods: perfShown() } : {};
+          const profile = { perfProfile: pick.profile };
           saving = true;
           handle.buttons[0].disabled = true;
           try {
             if (editing) {
-              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf });
-              const perfOff = perfEligible() && !pick.perf && existing.performanceMods !== false;
+              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf, ...profile });
+              const perfOff = perfEligible() && !perfShown() && packOnByDefault(existing.loader, existing);
               toast(perfOff ? "Performance pack off — Reminth removes its copies the next time you press Play." : `${name} saved. Anything new downloads next time you press Play.`);
               await loadInstances();
               // A different version or loader can leave every mod on the wrong
@@ -1364,11 +1472,16 @@ function openInstanceModal(existing) {
               if ((pick.version !== existing.mcVersion || pick.loader !== existing.loader) && typeof compatAfterEdit === "function") {
                 compatAfterEdit(existing.id, pick.version);
               }
+              // A newly picked profile: offer its optional mods (nothing is added unless ticked).
+              if (pick.profile !== (existing.perfProfile || "balanced") && typeof offerProfileExtras === "function") {
+                offerProfileExtras(existing.id, pick.profile, pick.loader);
+              }
             } else {
-              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf });
+              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf, ...profile });
               await loadInstances();
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);
+              if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
             }
             return true;
           } catch (err) {
@@ -1933,7 +2046,7 @@ const CHANGELOG = [
   "\"Which Minecraft version should I use?\" finds the version all your mods have builds for, and copies your instance to it.",
   "Servers show which versions they take. Play finds, or makes, an instance that fits.",
   "Safer saves: settings, instances and downloads are written so a crash or power cut can't leave a half-written file.",
-  "The performance pack no longer clashes with mods you added yourself, and can be switched off per instance.",
+  "Performance: Java settings chosen for your Java version, a bigger performance pack from Modrinth (stable builds only, now on Forge and NeoForge too), and optional Max FPS and Far view profiles for new instances.",
   "Any Minecraft version, on Fabric, Quilt, Forge or NeoForge. Modpacks install in one click, and one button updates everything in an instance.",
   "Logs kept per instance, 3D skins and capes, and streamer mode with clips and screenshots.",
 ];
