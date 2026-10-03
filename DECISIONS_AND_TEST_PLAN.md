@@ -4,9 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 4** (job 0 + the project page in
-  Discover). Prompt 5 (`CLOUD_PROMPT_5.md`) has NOT been started.
-- **`main` is at:** `ae51cc5` (plus this file's commit). **`npm test`: 502 pass** on Linux (was 470).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 5** (two bugs from the prompt-3
+  tests). Prompt 4 (project page) is also done but not yet tested on Windows.
+- **`main` is at:** `1fbc98d` (plus this file's commit). **`npm test`: 512 pass** on Linux (502 after
+  prompt 4, 470 before).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -16,7 +17,16 @@ section 4 in order and report PASS/FAIL per step.
 
 ---
 
-## 1. What changed in prompt 4
+## 1. What changed
+
+### Prompt 5 (two bugs the desktop window found)
+
+| Bug | Fix | Files |
+|---|---|---|
+| 1 Home hero stayed on the old instance after starting another | `startGame` now **awaits** saving `lastPlayed` (a failed save still starts the game) and only then sends `play:started` (now with `startedAt`); if the game already ended during the save, no `play:started` is sent. The page marks the instance played at once (`pure.markPlayed`), re-renders the hero, then still reloads the list. | `main.js`, `renderer.js` (`onPlayStarted`), `pure.js`, `test/home-play.test.js`, `test/perf-profiles.test.js` |
+| 2 Window not maximized after a fullscreen game | At launch main.js remembers `{ wasMaximized, minimizedByUs }` (first game wins if several run). When the last game ends, and on the window's `focus`/`restore` events, `windowRestore.afterGame` decides: **wait** while any game runs; a self-minimized window ("launch minimized") is restored - maximized if it was; a window the player minimized is left alone until they bring it back, then maximized; a window that wasn't maximized is never touched. `window:maximized` is sent after. | `main.js`, `src/main/windowRestore.js` (new), `test/window-restore.test.js` (new, 7), `test/perf-profiles.test.js` |
+
+### Prompt 4
 
 | Step | What it does now | Files |
 |---|---|---|
@@ -33,6 +43,12 @@ opening a page from inside it would need it to close and reopen with its ticks k
 ---
 
 ## 2. Decisions the owner must make (recommendation first)
+
+0. **New: with "launch minimized" on, Reminth now comes back on screen when the game ends** (prompt 5
+   asked for this: "restore it to what it was when the game ends"). Before, it stayed minimized in the
+   taskbar. **Recommend: keep** - it's what the prompt asked; if the owner dislikes the window popping up
+   after quitting a game, the one place to change is `windowRestore.afterGame` (return "wait" for the
+   `minimizedByUs` case).
 
 1. **Privacy text - one wording change suggested (not made; the desktop window edits privacy text).**
    The page now shows pictures from `cdn.modrinth.com` inside descriptions and galleries, and loads a
@@ -61,6 +77,12 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 3. Known weak spots (say them, don't hide them)
 
+- **Bug 2 is a guess at the cause** (Windows un-maximizing for fullscreen); it works whether that happens at
+  game start or end, but it has never run on Windows. `win.restore()`/`maximize()` after a game may bring
+  Reminth to the front - intended, untested.
+- The window snapshot is taken when the game process is spawned. If Windows changed the window before
+  that (it shouldn't - the game has no window yet), the snapshot would be wrong.
+
 - **Nothing of prompt 4 has met real Modrinth.** Real descriptions use HTML in ways the tests may not cover
   (nested tables, `<p align>`, odd entity use). Worst case is ugly text, never script: the parser can only
   produce the node types listed above.
@@ -84,9 +106,22 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **502 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **512 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
+
+### Prompt 5 - the two bugs (test these first)
+P1. Home shows instance A as hero. Start instance **B** from its page → as soon as the game window appears
+    (and certainly within 2 s), Home's hero shows **B** (name, Last played). No manual refresh.
+P2. Same with "launch minimized" ON: Reminth minimizes; open it from the taskbar during the game → hero is B.
+P3. Reminth maximized, "launch minimized" OFF, game set to **Start in fullscreen** → play, quit the game →
+    Reminth is **maximized** again, title-bar icon shows "restore" (two squares).
+P4. Same with "launch minimized" ON → when the game ends Reminth comes back on screen **maximized**.
+P5. During the game Reminth never pops up or takes focus (alt-tab around a bit).
+P6. Reminth NOT maximized (restore it to a window) → play fullscreen → quit → it stays a normal window.
+P7. "launch minimized" OFF, minimize Reminth yourself during the game, quit the game → it stays minimized;
+    click it on the taskbar → it comes back maximized.
+P8. Two instances running at once: Reminth is only put back after the **second** one closes.
 
 ### Prompt 4 - Job 0
 3. Home → "Jump back in": Play sits at the right of each card's text strip, never over the picture or the
@@ -132,7 +167,7 @@ you saw; stop and report on any FAIL that risks his files.
 23. Open 10 different pages quickly → no lag in the window; DevTools Performance: no long task over
     ~100 ms from the page itself.
 24. If the owner accepts decision 1, edit the privacy text (app + `site/privacy.html`) exactly as written.
-25. Report PASS/FAIL 3-24.
+25. Report PASS/FAIL P1-P8 and 3-24.
 
 ### Still open from prompt 3 (not yet reported)
 26. In a throwaway instance put a folder with a few files, an empty folder and a `.rar` in `mods/`, and a
@@ -169,7 +204,7 @@ you saw; stop and report on any FAIL that risks his files.
     it. Re-upload `site/` if the privacy text changed.
 
 ### Report back
-45. PASS/FAIL per step, the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
