@@ -1881,6 +1881,8 @@ async function boostFpsFlow(id) {
     body.appendChild(el("p", null, "Play this instance once first - Reminth needs the game's files to know which settings it has."));
   } else if (plan && plan.reason === "no-options") {
     body.appendChild(el("p", null, "This instance hasn't saved any video settings yet. Play it once, then come back."));
+  } else if (plan && plan.reason === "error") {
+    body.appendChild(el("p", null, "Reminth couldn't read this instance's video settings. Close the game if it's running and try again."));
   } else {
     body.appendChild(el("p", null, `${inst.name} already has the fast settings.`));
   }
