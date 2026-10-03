@@ -4,10 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 10** (instance menu, moving instances,
-  no surprise instances). Prompt 11 was done just before it (the owner sent 11 first); 10 now builds on it.
-- **`main` is at:** `c07b426` (plus this file's commit). **`npm test`: 554 pass** on Linux (545 after
-  prompt 11, 536 after prompt 9).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 12** (lifetime Time played on Home, and
+  three fixes from the desktop test). Prompts 10 and 11 are done too; none of 10-12 is tested on Windows yet.
+- **`main` is at:** `b042bfe` (plus this file's commit). **`npm test`: 563 pass** on Linux (554 after prompt 10,
+  545 after prompt 11).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +18,15 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 12 (Time played on Home + three fixes from the desktop test)
+
+| Job | What it does now | Files |
+|---|---|---|
+| 1 - lifetime Time played | Home's **Time played** = every minute played through Reminth, on every instance, **deleted ones included** (the owner's correction to prompt 3). A counter `totalPlayTimeMs` in `settings.json` (finite, non-negative, max 200 years; junk = absent). **Seeded once** at start, before the page can show it, from the sum of the instances' recorded time - never seeded twice, never lowered, never recomputed. Each finished session adds its time right after the instance's own time is recorded (`finishSession` → `recordSession` → `store.addPlayTime`), same rules (a start that failed adds nothing; a crash in play counts; two games at once both count - the settings lock). Only `store.seedPlayTime/addPlayTime` change it; a settings save from the page ignores it. A failed write never touches the exit handling. Home shows it ("12h 6m") with the tooltip "All your time in Minecraft through Reminth, across every instance - including ones you deleted." and repaints when a game ends (`play:totalTime`). Last played on Home, the instance page and Player Statistics are unchanged. | `store.js`, `main.js`, `preload.js`, `renderer.js` (`paintHeroStats`), `pure.js` (`homePlayTime`), `test/play-time.test.js` (new) |
+| 2 - nothing to change | When the instance's own version already fits every checked mod (and a checked server takes it), the picker's green line says **"Your mods already fit Minecraft 26.2 - there is nothing you need to change."** and only the other fitting versions follow under "Other versions that also fit" - no "Best match" badge, nothing pre-selected. With problems on the current version, unchanged. | `pure.js` (`pickerView`), `features.js` |
+| 3 - complete promise | "Switch this instance" confirm step now shows an **exact preview** from the main process (`compat:previewSwitch` → `versionSwitch.previewSwitch`): the same advisor answer, the same compatibility check and swap plan against the new version, nothing changed. Preview and switch build their list with ONE function (`turnOffPlan`), so "Will be turned off (3)" with each mod and reason ("no version made for 1.21.10" / "its own file says it can't run on 1.21.10") is what the result screen shows. The Switch button waits for the preview; a failed preview says so with Try again. | `versionSwitch.js`, `main.js`, `preload.js`, `pure.js` (`previewGroups`), `features.js` |
+| 4 - stale button | When "Update mods to fit" ends, the old answer is dropped and the button repainted at once (hidden), then painted from a fresh check. Mods the run couldn't fix (no stable build / not on Modrinth / failed) don't count again until the switched-on mods change, so the button hides when nothing it can fix is left. (I couldn't find a path that repainted an old answer after the fresh check; the "(2)" most likely WAS the two mods it couldn't fix - both causes are covered.) | `features.js` (`runModsSync`, `syncCount`), `pure.js` (`syncButtonCount`) |
 
 ### Prompt 10 ("stop creating me a million instances that I can't delete simply")
 
@@ -151,6 +160,13 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P12-1. **The lifetime counter can't be changed from the page** (no reset button, a settings save ignores it).
+   If the owner wants a "Reset" later, it's one store function. **Recommend: keep** (it's the "official" total).
+P12-2. **The picker's confirm step waits for the exact preview before Switch can be pressed** (a few seconds on a
+   big instance) - the price of the promise always matching the result. **Recommend: keep.**
+P12-3. **Privacy text: no new sentence.** The counter is a number in settings.json on the PC; the preview uses the
+   same Modrinth lookups already listed.
+
 P10-1. **Undo is offered only after the version picker made a new instance and was closed without playing.**
    A server's instance is played straight away (Play sets "last played"), so Undo can never apply there - its
    menu has Delete. **Recommend: keep.**
@@ -200,12 +216,12 @@ P9-4. **Privacy text: no new sentence needed.** Crash reports and mod files are 
    **Recommend: keep.**
 4. **Per-version Install is off when that build doesn't fit the instance Discover shows** (instead of
    offering to install a wrong-version jar). **Recommend: keep.**
-5. Still open from prompt 3 (unchanged): Home "Time played" is the hero instance's time (**keep**); no page
+5. Still open from prompt 3 (unchanged): no page
    fade on Skins (**keep if 33 shows it faster**); Mods-tab delete text says Recycle Bin (**keep**); world
    open on old versions just starts the instance (**keep**); shader install needing Iris refused while
    running (**keep**); unsigned installer (nothing to do).
 
-Closed: prompt 11's "send prompt 10 next" (done); privacy text for project-page pictures and links (made by the desktop window in `194863c`; re-upload
+Closed: Home "Time played" = the lifetime total across every instance (owner, prompt 12); prompt 11's "send prompt 10 next" (done); privacy text for project-page pictures and links (made by the desktop window in `194863c`; re-upload
 `site/` with the release); privacy text for copies + game report; tied versions stay warnings; all replaced jars copied;
 Forge/NeoForge pack ON for new instances; profile on never-played instance writes options.txt;
 wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
@@ -213,6 +229,14 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 ---
 
 ## 3. Known weak spots (say them, don't hide them)
+
+- **Prompt 12 never ran in Electron.** The counter was tested on a throwaway settings.json and through main.js on
+  a fake Electron (a session's end adds to it and tells the page); the picker parts in headless Chromium.
+- The lifetime counter starts from the instances' recorded time on first start: time from instances deleted
+  BEFORE this version can't be recovered (it was never stored anywhere else).
+- The confirm step's preview asks Modrinth again; the switch a moment later asks too. If Modrinth's answer changes
+  in between (a mod releases a build that minute), the two can differ - the result screen always shows what
+  really happened.
 
 - **Prompt 11 never ran in Electron or against real Modrinth.** `switchVersion` was tested with stubs for
   Modrinth, the loader lookup and the registry, on real files; the dialog with a fake main process.
@@ -268,11 +292,29 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **554 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **563 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
-### Prompt 10 - instance menu, moving, no surprise instances (test these first)
+### Prompt 12 (test these first)
+T1. Note Home's **Time played** before installing this build, and the sum of every instance page's time. After the
+    update, Home shows that sum (or more), with the tooltip "All your time in Minecraft through Reminth…".
+    `%APPDATA%\Reminth\settings.json` has `totalPlayTimeMs`.
+T2. Play any instance for ~2 minutes and quit → Home's Time played grows by ~2 minutes without restarting Reminth.
+T3. Delete a throwaway instance that has play time → Home's Time played does NOT go down. Restart Reminth → still
+    the same (never recomputed).
+T4. Two instances running at once for a few minutes, quit both → both sessions are added.
+T5. The instance page's own time and Player Statistics show what they showed before (unchanged).
+T6. Version picker on an instance whose mods all fit its version (e.g. the Reminth copy on 26.2 after M2): the green
+    line says "Your mods already fit Minecraft 26.2 - there is nothing you need to change.", the list is titled
+    "Other versions that also fit", no "Best match" tag, no row picked.
+T7. Picker → a version where some mods' own files refuse it (e.g. 1.21.10 with Client Side Crystals) → Next →
+    "Checking each mod's own file…" then "Will be turned off (N)" naming each with its reason; the Switch button is
+    off until that list is there. Switch → the result screen's Turned off list has the SAME N mods and reasons.
+T8. "Update mods to fit (N)" on an instance where some mods have no stable build → after the run the button is
+    hidden (or shows only what it can still fix), never the old number. Turn a mod on/off → it counts again.
+
+### Prompt 10 - instance menu, moving, no surprise instances
 I1. **Right-click** an instance in the rail → the menu opens next to the pointer, inside the window: Play, Open,
     Rename…, Open folder, Verify files, Move up/down/top/bottom, Delete… (red, last). Arrow keys move, Esc closes
     and the rail button has the focus again. Same menu from a **Library > Instances** card and from the instance
@@ -478,7 +520,7 @@ U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for 
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
-45. PASS/FAIL per step (I1-I10, V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (T1-T8, I1-I10, V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
