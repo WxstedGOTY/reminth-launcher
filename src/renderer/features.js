@@ -793,6 +793,7 @@ async function loadInstanceData() {
 
 window.onInstancePageOpen = (inst) => {
   paintSafeModeNotice(inst);
+  paintSyncButtons();
   loadContent(inst.id);
   loadInstanceData();
   if (content.tab === "tabLogs") loadLogSessions();
@@ -3598,6 +3599,7 @@ function runCompatCheck(id, force = false) {
     // Only the instance on screen is painted; another one's answer is kept
     // for when it's opened (and for its Play button).
     if (content.instanceId === id) renderCompatPanel();
+    paintSyncButtons();
     return result;
   })();
   compatUi.inflight.set(id, run);
@@ -3976,6 +3978,16 @@ window.reminth.onInstallDone(({ instanceId }) => {
 async function compatAfterEdit(id, mcVersion) {
   const result = await runCompatCheck(id, true);
   if (!result || !result.issues) return;
+  // Mods built for the old version or loader: the one-time notice with the
+  // "Update mods to fit" button, on that instance's page.
+  const behind = syncCount(result);
+  if (behind) {
+    syncUi.notice = { id, mcVersion };
+    paintSyncButtons();
+    const inst = instanceById(id);
+    toast(`${behind} ${plural(behind, "mod")} in ${inst ? inst.name : "that instance"} ${behind === 1 ? "is" : "are"} built for another version — "Update mods to fit ${mcVersion}" swaps ${behind === 1 ? "it" : "them"}.`);
+    return;
+  }
   const n = result.issues.filter((i) => i.fix && i.fix.type === "update").length;
   if (!n) return;
   toast(n === 1 ? `1 mod needs its ${mcVersion} build — open Mods to fix it in one click.` : `${n} mods need their ${mcVersion} builds — open Mods to fix them in one click.`);
@@ -4868,11 +4880,191 @@ pageHooks.settings = () => {
 };
 
 /* ================================================================== *
+ * 9. "Update mods to fit <version>"                                   *
+ *                                                                     *
+ * A button next to Play (instance page and Home) whenever enabled     *
+ * mods are built for another Minecraft version or loader. One click   *
+ * swaps them to their newest STABLE build for this version (main/     *
+ * modsSync.js); mods with no stable build are listed and left alone   *
+ * until the player picks what to do with them.                        *
+ * ================================================================== */
+const syncUi = {
+  busy: null, // instance id being updated
+  notice: null, // { id, mcVersion } - the one-time notice after an edit
+};
+
+/** How many mods the button is about, from a compat answer. Mirrors modsSync.syncCandidates. */
+function syncCount(result) {
+  if (!result || !Array.isArray(result.issues)) return 0;
+  return result.issues.filter((i) => i && i.file && ((i.reason === "wrong-mc" && i.severity === "blocked") || i.reason === "wrong-loader")).length;
+}
+
+/** Why the button can't run for an instance right now, or null. */
+function syncBlocked(id) {
+  if (state.running.has(id) || state.stopping.has(id)) return "Close the game first — Windows won't let files in use be replaced.";
+  if (state.installing.has(id)) return "Wait for the game to finish installing first.";
+  if (content.updating && content.updatingFor === id) return "Wait for the update that's running to finish first.";
+  if (compatUi.fixing === id) return "A fix is already being applied.";
+  if (syncUi.busy) return "Mods are already being updated — wait for that to finish.";
+  return null;
+}
+
+function paintSyncButtons() {
+  const inst = activeInstance();
+  const id = inst && inst.id;
+  const modded = Boolean(inst && inst.loader !== "vanilla");
+  const n = modded ? syncCount(compatUi.results.get(id)) : 0;
+  const busyHere = modded && syncUi.busy === id;
+  // Hidden while the game runs or installs, or another change is under way.
+  const show = busyHere || (n > 0 && !syncBlocked(id));
+  for (const btnId of ["instSyncBtn", "heroSyncBtn"]) {
+    const btn = $(btnId);
+    if (!btn) continue;
+    btn.hidden = !show;
+    btn.disabled = busyHere;
+    btn.classList.toggle("busy", busyHere);
+    btn.querySelector("span").textContent = busyHere ? "Updating mods…" : `Update mods to fit ${inst ? inst.mcVersion : ""} (${n})`;
+    btn.title = busyHere ? "" : `${n} ${plural(n, "mod is", "mods are")} built for another Minecraft version or loader. Swaps ${n === 1 ? "it" : "them"} to the newest stable build for ${inst ? inst.mcVersion : "this version"}.`;
+  }
+  // The one-time notice after an edit, on that instance's page only.
+  const box = $("instSyncNotice");
+  const notice = syncUi.notice;
+  // Nothing left to update (and that's an answer, not "not checked yet"): the notice has done its job.
+  if (notice && notice.id === id && !n && compatUi.results.has(id)) syncUi.notice = null;
+  const showNotice = Boolean(syncUi.notice && syncUi.notice.id === id && n > 0 && !busyHere);
+  box.hidden = !showNotice;
+  box.textContent = "";
+  if (!showNotice) return;
+  const text = el("div", "sn-text");
+  text.appendChild(el("b", null, `${n} ${plural(n, "mod")} ${n === 1 ? "is" : "are"} built for another Minecraft version.`));
+  text.appendChild(el("span", null, `They won't load on ${inst.mcVersion}. Reminth can swap them to their newest stable ${inst.mcVersion} builds; anything without one is listed, not removed.`));
+  box.appendChild(text);
+  const go = button("btn sync-btn sm", `Update mods to fit ${inst.mcVersion}`, "#i-refresh");
+  go.disabled = Boolean(syncBlocked(id));
+  go.onclick = () => runModsSync(id);
+  box.appendChild(go);
+  const x = el("button", "icon-btn");
+  x.type = "button";
+  x.title = "Dismiss";
+  x.setAttribute("aria-label", "Dismiss");
+  x.appendChild(icon("#i-x"));
+  x.onclick = () => {
+    syncUi.notice = null;
+    paintSyncButtons();
+  };
+  box.appendChild(x);
+}
+
+async function runModsSync(id) {
+  if (!id) return;
+  const why = syncBlocked(id);
+  if (why) return toast(why);
+  const inst = instanceById(id);
+  if (!inst || inst.loader === "vanilla") return;
+  const mcVersion = inst.mcVersion;
+  syncUi.busy = id;
+  syncUi.notice = null;
+  paintSyncButtons();
+  let r = null;
+  try {
+    r = await window.reminth.syncMods(id);
+  } catch (err) {
+    toast(friendlyError(err.message));
+  } finally {
+    syncUi.busy = null;
+    // Fresh lists for the instance on screen; the check for the one updated.
+    if (content.instanceId === id) await loadContent(id);
+    await runCompatCheck(id, true);
+    paintSyncButtons();
+  }
+  if (!r) return;
+  const applied = r.applied || [];
+  const failed = r.failed || [];
+  const noBuild = r.noBuild || [];
+  const unchecked = r.unchecked || [];
+  const parts = [];
+  if (applied.length) parts.push(`Updated ${applied.length} ${plural(applied.length, "mod")} in ${inst.name}${addedNote(r.added)}.`);
+  if (failed.length) parts.push(`${failed.length} couldn't be updated — ${failed[0].title}: ${friendlyError(failed[0].error)}`);
+  if (unchecked.length) parts.push(`Couldn't reach Modrinth for ${unchecked.length} — try again in a moment.`);
+  if (noBuild.length) parts.push(`${noBuild.length} ${plural(noBuild.length, "has", "have")} no stable build for ${mcVersion} yet.`);
+  toast((parts.join(" ") || "Nothing needed updating.") + warningNote(r.warnings));
+  // The "no build" choice is about this instance: only asked while it's the one open.
+  if (noBuild.length && state.activeId === id) askAboutNoBuild(id, mcVersion, noBuild, applied.length);
+}
+
+/** Mods with no stable build: nothing happens to them until the player picks. */
+function askAboutNoBuild(id, mcVersion, noBuild, appliedCount) {
+  const body = el("div");
+  body.appendChild(
+    el("p", null, `${noBuild.length === 1 ? "This mod has" : `These ${noBuild.length} mods have`} no stable build for ${mcVersion} yet. Left as ${noBuild.length === 1 ? "it is" : "they are"}, Minecraft may not start. Nothing is deleted either way.`)
+  );
+  const list = el("div", "pick-list nb-list");
+  for (const m of noBuild) {
+    const row = el("div", "pick-item nb-item");
+    const main = el("div");
+    main.appendChild(el("b", null, m.title));
+    main.appendChild(el("span", null, m.why));
+    row.appendChild(main);
+    list.appendChild(row);
+  }
+  body.appendChild(list);
+  openModal({
+    title: `No ${mcVersion} build yet`,
+    body,
+    wide: true,
+    focusCancel: true,
+    buttons: [
+      { label: noBuild.length === 1 ? "Leave it" : "Leave them", className: "outline" },
+      {
+        label: "Find a version that fits everything",
+        className: "outline",
+        onClick: () => {
+          setTimeout(() => openVersionAdvisor(id), 0);
+          return true;
+        },
+      },
+      {
+        label: noBuild.length === 1 ? "Switch it off" : "Switch them off",
+        className: "primary",
+        onClick: async () => {
+          if (state.running.has(id)) {
+            toast("Close the game first — Windows won't let files in use be renamed.");
+            return false;
+          }
+          let off = 0;
+          const failed = [];
+          for (const m of noBuild) {
+            try {
+              await window.reminth.setContentEnabled(id, { kind: "mod", world: null, file: m.file }, false);
+              off++;
+            } catch (err) {
+              failed.push(`${m.title}: ${friendlyError(err.message)}`);
+            }
+          }
+          toast(
+            [appliedCount ? `Updated ${appliedCount} ${plural(appliedCount, "mod")}` : null, off ? `${off} switched off` : null].filter(Boolean).join(", ") +
+              (failed.length ? `. Couldn't switch off ${failed[0]}` : ".") +
+              (off ? " Switch them back on in the Mods tab whenever a build comes out." : "")
+          );
+          if (content.instanceId === id) await loadContent(id);
+          await runCompatCheck(id, true);
+          return true;
+        },
+      },
+    ],
+  });
+}
+
+$("instSyncBtn").onclick = () => runModsSync(state.activeId);
+$("heroSyncBtn").onclick = () => runModsSync(state.activeId);
+
+/* ================================================================== *
  * wiring that depends on instances                                    *
  * ================================================================== */
 window.onInstancesChanged = () => {
   const inst = activeInstance();
   if (!inst) return;
+  paintSyncButtons();
   renderInstallTarget();
   paintHomeCards();
   loadPresence();

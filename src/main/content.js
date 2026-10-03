@@ -945,7 +945,7 @@ function primaryFile(version) {
  * requires. `kind`/`world` are those of the request that started it (they
  * decide what counts as "already there"); report(stage, current, total).
  */
-async function createInstaller(instance, kind, world, report) {
+async function createInstaller(instance, kind, world, report, { releaseOnly = false } = {}) {
   const gameDir = instance.gameDir;
   const installed = [];
   const skipped = [];
@@ -1056,6 +1056,21 @@ async function createInstaller(instance, kind, world, report) {
         gameVersions: [instance.mcVersion],
       });
       version = pickVersion(versions);
+    }
+    // releaseOnly (the "update mods to fit" button): nothing the player didn't
+    // pick themselves may be a beta or alpha - not even a build another mod
+    // pinned. A dependency with no stable build is left out and said so.
+    if (releaseOnly && version && version.version_type !== "release") {
+      const versions = await modrinth.getProjectVersions(project.id, {
+        loaders: loadersFor(k, instance),
+        gameVersions: [instance.mcVersion],
+      });
+      version = (versions || []).find((v) => v && v.version_type === "release" && versionFitsInstance(v, k, instance)) || null;
+      if (!version && isDependency) {
+        warnings.push(`${project.title} has no stable build for Minecraft ${instance.mcVersion} yet, so it wasn't added - a mod that was updated needs it.`);
+        skipped.push(project.title);
+        return;
+      }
     }
     if (!version) {
       if (isDependency) {
@@ -1341,7 +1356,7 @@ async function checkUpdates(instance) {
  * one file), and `warnings` notes about updates that did go through (an old
  * file that couldn't be removed).
  */
-async function applyUpdates(instance, updates, onProgress) {
+async function applyUpdates(instance, updates, onProgress, { releaseOnly = false } = {}) {
   const gameDir = instance.gameDir;
   const total = updates.reduce((sum, u) => sum + (u.next.size || 0), 0) || updates.length;
   let doneBytes = 0;
@@ -1413,8 +1428,12 @@ async function applyUpdates(instance, updates, onProgress) {
       for (const part of chunk([...updatedMods.keys()], 100)) versions.push(...((await modrinth.getVersions(part)) || []));
       const needy = versions.filter((v) => v && (v.dependencies || []).some((d) => d && d.dependency_type === "required"));
       if (needy.length) {
-        const installer = await createInstaller(instance, "mod", null, (stage, current = 0, of = 1) =>
-          onProgress && onProgress({ stage, current, total: of })
+        const installer = await createInstaller(
+          instance,
+          "mod",
+          null,
+          (stage, current = 0, of = 1) => onProgress && onProgress({ stage, current, total: of }),
+          { releaseOnly }
         );
         for (const version of needy) {
           try {

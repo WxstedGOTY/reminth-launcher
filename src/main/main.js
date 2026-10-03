@@ -29,6 +29,7 @@ const compat = require("./compat");
 const migrate = require("./migrate");
 const perfProfiles = require("./perfProfiles");
 const gameOptions = require("./gameOptions");
+const modsSync = require("./modsSync");
 const { fetchJson } = require("./downloader");
 
 let win;
@@ -612,6 +613,23 @@ ipcMain.handle("content:install", async (_e, id, request) => {
   const inst = await instances.require(id);
   return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }));
 });
+// "Update mods to fit <version>": every enabled mod built for another
+// version or loader goes to its newest stable build for this one (see
+// modsSync.js). One run per instance, never while its game is starting or
+// running.
+const syncing = new Set();
+ipcMain.handle("mods:sync", async (_e, id) => {
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  if (syncing.has(id)) throw new Error("That instance's mods are already being updated.");
+  const inst = await instances.require(id);
+  if (inst.loader === "vanilla") throw new Error("A vanilla instance has no mods to update.");
+  syncing.add(id);
+  try {
+    return await modsSync.applySync(inst, (p) => send("content:progress", { instanceId: id, op: "update", ...p }));
+  } finally {
+    syncing.delete(id);
+  }
+});
 ipcMain.handle("content:creators", async (_e, id) => content.lookupCreators((await instances.require(id)).gameDir));
 ipcMain.handle("content:checkUpdates", async (_e, id) => content.checkUpdates(await instances.require(id)));
 ipcMain.handle("content:applyUpdates", async (_e, id, updates) => {
@@ -869,6 +887,7 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
   if (!auth.current()) throw new Error("Not signed in.");
   const inst = options.instanceId ? await instances.require(options.instanceId) : await activeInstance();
   if (running.has(inst.id)) throw new Error("Minecraft is already running.");
+  if (syncing.has(inst.id)) throw new Error("Its mods are being updated - wait a moment for that to finish.");
   // Claimed synchronously, before the first await below, so a second click
   // can't sail past the check and start a second copy on the same worlds.
   const claim = { child: null, startedAt: Date.now() };

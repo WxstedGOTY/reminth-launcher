@@ -1015,6 +1015,8 @@ function paintPlayButtons() {
     btn.disabled = stopping;
     btn.querySelector("span").textContent = stopping ? "Stopping…" : "Stop";
   }
+  // "Update mods to fit…" hides while the game runs or installs (features.js).
+  if (typeof paintSyncButtons === "function") paintSyncButtons();
 }
 
 /* ---- the create / edit instance dialog, with the version picker ---- */
