@@ -4668,13 +4668,24 @@ function openVersionAdvisor(instanceId, options = {}) {
     if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth).`);
     if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now.`);
     context.textContent = bits.join(" ");
-    const view = window.ReminthPure.pickerView(a.candidates || [], { server: Boolean(accepts) });
+    const compatNow = compatUi.results.get(instanceId) || null;
+    const view = window.ReminthPure.pickerView(a.candidates || [], { server: Boolean(accepts), files: window.ReminthPure.filesSummary(compatNow, compatNow ? syncCount(compatNow, instanceId) : 0) });
     const { rows, best } = view;
+    bestBox.classList.remove("warn", "neutral");
     if (view.currentFits) {
-      // Already on a version that fits everything: say so, and list the other
-      // fitting versions plainly - no "Best match", nothing picked.
+      // The builds exist for this version. Whether the INSTALLED files fit is
+      // a separate question (the compatibility result): never say "nothing to
+      // change" without it. No "Best match", nothing picked.
       bestBox.hidden = false;
       bestBox.textContent = view.headline;
+      if (view.tone === "warn") bestBox.classList.add("warn");
+      if (view.tone === "neutral") bestBox.classList.add("neutral");
+      if (view.state === "files" && view.fixable > 0) {
+        const fix = button("btn sync-btn sm adv-fix", `Update mods to fit ${inst.mcVersion}`, "#i-refresh");
+        fix.disabled = Boolean(syncBlocked(instanceId));
+        fix.onclick = () => fixFromDialog(fix);
+        bestBox.appendChild(fix);
+      }
       if (rows.length) list.appendChild(el("div", "vpick-empty adv-list-title", view.listTitle));
     }
     if (!rows.length) {
@@ -4731,6 +4742,20 @@ function openVersionAdvisor(instanceId, options = {}) {
     paintGroups();
   }
 
+  /** The in-dialog "Update mods to fit": the yellow button's own operation, then the line is worked out again. */
+  async function fixFromDialog(btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try {
+      await runModsSync(instanceId);
+    } finally {
+      if (!handle.closed && advice) {
+        await runCompatCheck(instanceId, true); // runModsSync leaves a fresh one; this makes sure
+        if (!handle.closed && step === "pick") paintList();
+      }
+    }
+  }
+
   async function load() {
     const mine = ++token;
     advice = null;
@@ -4755,6 +4780,14 @@ function openVersionAdvisor(instanceId, options = {}) {
       advice = a;
       showAll = false;
       paintList();
+      // The installed files' compatibility (the Mods panel's own data): until it
+      // is there the dialog says "Checking your installed mods...". Looked at again
+      // when it arrives.
+      if (!compatUi.results.get(instanceId)) {
+        runCompatCheck(instanceId).then(() => {
+          if (!handle.closed && mine === token && step === "pick") paintList();
+        });
+      }
     } catch (err) {
       if (handle.closed || mine !== token) return;
       list.textContent = "";

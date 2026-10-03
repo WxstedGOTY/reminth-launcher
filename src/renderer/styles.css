@@ -2349,6 +2349,9 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .gate-dead { margin: 10px 0 0; color: var(--amber); }
 .adv-best { margin: 0 0 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--emerald); background: color-mix(in srgb, var(--emerald) 10%, transparent); border: 1px solid color-mix(in srgb, var(--emerald) 28%, transparent); }
 .adv-more { align-self: flex-start; margin-top: 2px; }
+.adv-best.warn { color: var(--amber); background: color-mix(in srgb, var(--amber) 10%, transparent); border-color: color-mix(in srgb, var(--amber) 32%, transparent); }
+.adv-best.neutral { color: var(--text-2); background: rgba(255, 255, 255, .04); border-color: var(--line); font-weight: 650; }
+.adv-best .adv-fix { display: flex; margin-top: 8px; }
 .adv-groups { margin-top: 14px; }
 .adv-groups h4 { margin: 0 0 8px; font-size: 12.5px; }
 .adv-group-list { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; padding-right: 4px; }

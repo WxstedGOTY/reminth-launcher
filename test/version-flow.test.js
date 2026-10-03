@@ -269,7 +269,8 @@ test("turned-off reasons: set, cleared when turned on or removed, kept on disk a
 test("pickerView: the current version already fits -> 'nothing to change', other fitting versions listed plainly, no best", () => {
   // the real case: on 26.2, all 32 mods fit 26.2; 26.1.2 fits too
   const r = (version, missing = [], extra = {}) => ({ version, total: 32, supported: 32 - missing.length, missing, server: null, current: false, ...extra });
-  const v = pure.pickerView([r("26.2", [], { current: true }), r("26.1.2"), r("26.1"), r("1.21.11", ["JEI"])]);
+  const clean = pure.filesSummary({ issues: [] }, 0);
+  const v = pure.pickerView([r("26.2", [], { current: true }), r("26.1.2"), r("26.1"), r("1.21.11", ["JEI"])], { files: clean });
   assert.equal(v.currentFits, true);
   assert.equal(v.headline, "Your mods already fit Minecraft 26.2 - there is nothing you need to change.");
   assert.equal(v.listTitle, "Other versions that also fit");
@@ -279,7 +280,7 @@ test("pickerView: the current version already fits -> 'nothing to change', other
   const w = pure.pickerView([r("26.2", ["JEI"], { current: true }), r("26.1.2")]);
   assert.deepEqual([w.currentFits, w.best.version, w.headline], [false, "26.1.2", null]);
   // a checked server that doesn't take the current version: it doesn't "fit"
-  const s = pure.pickerView([r("26.2", [], { current: true, server: false }), r("1.21.4", [], { server: true })], { server: true });
+  const s = pure.pickerView([r("26.2", [], { current: true, server: false }), r("1.21.4", [], { server: true })], { server: true, files: clean });
   assert.deepEqual([s.currentFits, s.best.version], [false, "1.21.4"]);
   // no mods checked at all: nothing claimed
   assert.equal(pure.pickerView([{ version: "26.2", total: 0, supported: 0, missing: [], current: true }]).currentFits, false);
@@ -351,4 +352,51 @@ test("syncButtonCount: after a run, the mods it couldn't fix don't count again u
   // the mods changed since (a new jar, one switched on…): everything counts again
   assert.equal(pure.syncButtonCount(result, { modSet: "b".repeat(40), files: ["anchor.jar", "jei.jar"] }, isC), 2);
   assert.equal(pure.syncButtonCount(null, null, isC), 0);
+});
+
+test("pickerView: 'already fit' needs the builds AND the installed files - all four combinations, no result yet, and every kind of problem counted", () => {
+  const r = (version, missing = [], extra = {}) => ({ version, total: 32, supported: 32 - missing.length, missing, server: null, current: false, ...extra });
+  const buildsOk = [r("1.21.1", [], { current: true }), r("26.2"), r("1.21.4", ["JEI"])];
+  const buildsMissing = [r("1.21.1", ["JEI"], { current: true }), r("26.2")];
+  const blocked = (n) => Array.from({ length: n }, (_, i) => ({ file: `b${i}.jar`, severity: "blocked", reason: "wrong-mc" }));
+  const maybe = (n) => Array.from({ length: n }, (_, i) => ({ file: `m${i}.jar`, severity: "warn", reason: "wrong-mc", listedElsewhere: true }));
+  const crashed = (n) => Array.from({ length: n }, (_, i) => ({ file: `c${i}.jar`, severity: "warn", reason: "crashed", crashed: true }));
+  const files = (issues, fixable) => pure.filesSummary({ issues }, fixable);
+
+  // (a) builds exist, (b) files fit -> the green sentence
+  const ok = pure.pickerView(buildsOk, { files: files([], 0) });
+  assert.deepEqual([ok.state, ok.tone, ok.headline, ok.best], ["fits", "ok", "Your mods already fit Minecraft 1.21.1 - there is nothing you need to change.", null]);
+  assert.deepEqual(ok.rows.map((x) => x.version), ["26.2"]);
+
+  // (a) yes, (b) no -> amber, with the count of files and the button's number; same neutral list
+  const bad = pure.pickerView(buildsOk, { files: files([...blocked(28), ...maybe(3)], 31) });
+  assert.equal(bad.state, "files");
+  assert.equal(bad.tone, "warn");
+  assert.equal(bad.fixable, 31);
+  assert.equal(bad.headline, 'Builds exist for Minecraft 1.21.1 for all your mods, but 31 of the files in this instance are made for another version. Press "Update mods to fit" to swap them.');
+  assert.deepEqual([bad.best, bad.rows.map((x) => x.version)], [null, ["26.2"]], "no Best match, nothing picked, the list as before");
+  assert.equal(pure.pickerView(buildsOk, { files: files(blocked(1), 1) }).headline.includes("1 of the files in this instance is made for another version"), true);
+
+  // blocked + may-not-work + crashed all count as "the files don't fit"
+  for (const issues of [blocked(1), maybe(1), crashed(1), [...blocked(1), ...maybe(1), ...crashed(1)]]) {
+    assert.equal(pure.pickerView(buildsOk, { files: files(issues, 0) }).state, "files", JSON.stringify(issues.map((i) => i.reason)));
+  }
+  assert.equal(files([...blocked(2), ...maybe(3), ...crashed(1)], 0).problems, 6);
+  // problems the button can't fix (it already left them): still not "fits", but no button
+  const stuck = pure.pickerView(buildsOk, { files: files(maybe(2), 0) });
+  assert.deepEqual([stuck.state, stuck.fixable], ["files", 0]);
+  assert.match(stuck.headline, /^Builds exist for Minecraft 1\.21\.1 for all your mods, but 2 mods in this instance won't load or may not work\. The Mods tab says which/);
+
+  // the compatibility result isn't there yet -> neutral "checking", never the happy sentence
+  const wait = pure.pickerView(buildsOk, { files: null });
+  assert.deepEqual([wait.state, wait.tone, wait.headline], ["checking", "neutral", "Checking your installed mods..."]);
+  assert.equal(pure.filesSummary(null, 0), null);
+  assert.equal(pure.filesSummary({}, 0), null);
+  assert.equal(pure.pickerView(buildsOk).state, "checking", "no files data at all counts as not there yet");
+
+  // (a) no (some mods have no build for the current version) -> today's best-match view, whatever the files say
+  for (const f of [null, files([], 0), files(blocked(3), 3)]) {
+    const v = pure.pickerView(buildsMissing, { files: f });
+    assert.deepEqual([v.state, v.currentFits, v.best.version], ["best", false, "26.2"]);
+  }
 });

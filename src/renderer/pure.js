@@ -224,27 +224,58 @@
   }
 
   /**
-   * What the version list shows. When the instance's own version already fits
-   * every checked mod (and a checked server takes it), nothing needs changing:
-   * { currentFits: true, headline: "Your mods already fit…", listTitle:
-   * "Other versions that also fit", rows: the other fitting versions, best: null }
-   * - no "Best match", nothing picked for the player. Otherwise today's list:
-   * { currentFits: false, rows, best }.
+   * What the instance's installed FILES look like, from its compatibility
+   * result (the one the Mods panel and the yellow button use): null while
+   * there is no result yet, else { problems, fixable } - problems = every
+   * mod that won't load, may not work or crashed the game; fixable = the
+   * ones "Update mods to fit" can still do something about (`fixable` is
+   * the button's own count, given in).
    */
-  function pickerView(candidates, { server = false } = {}) {
+  function filesSummary(result, fixable = 0) {
+    if (!result || !Array.isArray(result.issues)) return null;
+    return { problems: result.issues.filter(Boolean).length, fixable: Math.max(0, Number(fixable) || 0) };
+  }
+
+  /**
+   * What the version list shows. "The builds exist" and "the files fit" are
+   * two different things:
+   *  (a) every checked mod has a build for the instance's own version
+   *      (Modrinth's data - as before);
+   *  (b) the installed files really fit (`files`: filesSummary, null = the
+   *      compatibility result isn't there yet).
+   * Returns { state, headline, tone, listTitle, rows, best, fixable, problems }:
+   *  - "fits"     (a and b): green "Your mods already fit Minecraft X - there
+   *               is nothing you need to change."; the other fitting versions
+   *               below, no best, nothing picked.
+   *  - "files"    (a, not b): amber "Builds exist for Minecraft X for all your
+   *               mods, but N of the files in this instance are made for
+   *               another version. Press "Update mods to fit" to swap them."
+   *               (with `fixable` > 0; else it says to look at the Mods panel);
+   *               the same neutral list.
+   *  - "checking" (a, no result yet): "Checking your installed mods..." - never
+   *               the happy sentence.
+   *  - "best"     (not a): today's best-match line and ranked list.
+   */
+  function pickerView(candidates, { server = false, files = null } = {}) {
     const { rows, best } = rankVersionRows(candidates, { server });
     const current = rows.find((r) => r.current);
     const fits = (r) => r.total > 0 && !r.missing.length && (!server || r.server !== false);
-    if (current && fits(current)) {
-      return {
-        currentFits: true,
-        headline: `Your mods already fit Minecraft ${current.version} - there is nothing you need to change.`,
-        listTitle: "Other versions that also fit",
-        rows: rows.filter((r) => !r.current && fits(r)),
-        best: null,
-      };
+    if (!(current && fits(current))) {
+      return { state: "best", currentFits: false, headline: null, tone: null, listTitle: null, rows, best, fixable: 0, problems: 0 };
     }
-    return { currentFits: false, headline: null, listTitle: null, rows, best };
+    const v = current.version;
+    const others = rows.filter((r) => !r.current && fits(r));
+    const base = { currentFits: true, listTitle: "Other versions that also fit", rows: others, best: null, fixable: 0, problems: 0 };
+    if (!files) return { ...base, state: "checking", tone: "neutral", headline: "Checking your installed mods..." };
+    if (files.problems > 0) {
+      const n = files.problems;
+      const headline =
+        files.fixable > 0
+          ? `Builds exist for Minecraft ${v} for all your mods, but ${files.fixable} of the files in this instance ${files.fixable === 1 ? "is" : "are"} made for another version. Press "Update mods to fit" to swap ${files.fixable === 1 ? "it" : "them"}.`
+          : `Builds exist for Minecraft ${v} for all your mods, but ${n} ${n === 1 ? "mod" : "mods"} in this instance won't load or may not work. The Mods tab says which, and what to do.`;
+      return { ...base, state: "files", tone: "warn", headline, fixable: files.fixable, problems: n };
+    }
+    return { ...base, state: "fits", tone: "ok", headline: `Your mods already fit Minecraft ${v} - there is nothing you need to change.` };
   }
 
   /** The line above the list: "Best match: 1.21.1 - all 29 mods fit" / "Fits most: 1.21.4 - 3 mods have to be turned off". */
@@ -462,7 +493,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, previewGroups, syncButtonCount, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, filesSummary, pickerView, bestLine, modGroups, previewGroups, syncButtonCount, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);
