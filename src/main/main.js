@@ -464,8 +464,9 @@ ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderV
   if (!instances.isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
   const l = loaders.LOADERS.includes(loader) ? loader : "vanilla";
   const lv = await resolveLoaderVersion(l, mcVersion, loaderVersion);
-  // The performance pack is on unless it was switched off outright.
-  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: performanceMods === false ? false : undefined });
+  // The performance-pack switch from the create dialog, if it sent one
+  // (instances.create applies config.perfPackEnabled's per-loader default).
+  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined });
   return withRunning(inst);
 });
 

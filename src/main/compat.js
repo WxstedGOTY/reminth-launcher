@@ -694,10 +694,9 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
   const loaded = (all.mod || []).filter((i) => i.valid && !i.folder && i.enabled);
   const mods = loaded.filter((i) => !managed.has(String(i.file).toLowerCase()));
   // Reminth puts the Fabric API in by itself whenever the HUD or the
-  // performance pack is on - the same test minecraft.ensureInstalled makes
-  // (the pack is on unless the instance switched it off, and only while
-  // Reminth ships one at all).
-  const perfPackOn = config.BUNDLE_PERFORMANCE_MODS !== false && instance.performanceMods !== false;
+  // performance pack is on - the same rule minecraft.ensureInstalled uses
+  // (config.perfPackEnabled).
+  const perfPackOn = config.perfPackEnabled(instance);
   const apiComesAtLaunch = isFabricLike(loader) && (instance.hud === true || perfPackOn);
   const overridden = deps.hasOverrideFile ? await deps.hasOverrideFile(gameDir) : await hasOverrideFile(gameDir);
   // Which jars are Reminth's is part of the question: the same files with a

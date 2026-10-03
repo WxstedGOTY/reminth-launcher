@@ -25,52 +25,86 @@ module.exports = {
   // ships in assets/mods/ (see paths.js).
   REMINTHHUD_UPDATE_MANIFEST_URL: process.env.REMINTH_HUD_MANIFEST_URL || null,
 
-  // Reminth ships a default performance pack on every Fabric/Quilt instance:
-  // players shouldn't have to know Sodium/Lithium exist to get a smooth
-  // game. Each entry is fetched straight from the project's own GitHub
-  // Releases (see minecraft.js:downloadPerformanceMods /
-  // fetchLatestGithubAssetForVersion) - never Modrinth/CurseForge, so
-  // Reminth has no runtime dependency on either. A missing build for the
-  // current MINECRAFT_VERSION, or any network/parse failure, is logged and
-  // skipped per-mod rather than failing the whole install.
+  // Reminth's performance pack: mods that make the game run smoother without
+  // changing how it plays or looks, put into an instance without the player
+  // having to know they exist. Which instances get it: perfPackEnabled below.
   //
-  // Per-instance opt-out lives on the instance itself (instance.performanceMods
-  // === false); when a player turns it off, minecraft.js:tidyManagedMods
-  // removes the copies Reminth installed - the files it wrote down in the
-  // instance's .reminth/managed-mods.json, and nothing else - so nobody is
-  // left with mods they didn't choose. Mods the player installs themselves
-  // are never touched, whatever they are called. And Reminth's copies step
-  // aside for the player's own: if the player has their own Sodium (or a
-  // mod that can't run next to one of these), Reminth's copy is left out
-  // and the player's is the one that loads (minecraft.js:planStepAside).
+  // Source: Modrinth, release builds only (never alpha/beta), sha1-checked,
+  // then checked against the instance by the jar's own metadata - see
+  // minecraft.js:downloadPerformancePack. A mod with no stable build for the
+  // instance's Minecraft version and loader is simply left out and logged in
+  // <instance>/reminth-performance-mods.log. The same list works for every
+  // Minecraft version: Modrinth is asked for that exact version and loader.
+  //
+  // Per entry:
+  //   slug      Modrinth project slug (checked against Modrinth on 2026-10-03)
+  //   label     the name players know it by
+  //   ids       mod ids its jars carry (read out of the real jars, not guessed)
+  //   conflicts mod ids that can't run next to it - when the player has one
+  //             of those enabled, Reminth leaves this entry out
+  //   loaders   which instance loaders get it
+  //   github    the old GitHub Releases source, used only when Modrinth can't
+  //             be reached and nothing was remembered from it (Fabric/Quilt)
+  //
+  // Reminth's copies step aside for the player's own: if the player has their
+  // own copy (same mod id) or a conflicting mod, Reminth's isn't installed.
+  // Only files Reminth wrote down in .reminth/managed-mods.json are ever
+  // removed; mods the player installs are never touched, whatever they are
+  // called (minecraft.js:tidyManagedMods).
+  //
+  // Deliberately NOT here: C2ME (alpha on every version; it hung "Preparing
+  // world" for a real Reminth user), ModernFix-mVUS (a third-party fork),
+  // Dynamic FPS (visibly slows the game when unfocused), BadOptimizations and
+  // Ixeris (more invasive). Players can add any of them from Discover.
   BUNDLE_PERFORMANCE_MODS: true,
+  PERFORMANCE_PACK: [
+    // The renderer: the single biggest gain, and what meshes chunks faster
+    // at high render distance.
+    { slug: "sodium", label: "Sodium", ids: ["sodium"], conflicts: ["embeddium", "rubidium", "magnesium", "optifine", "optifabric", "vulkanmod"], loaders: ["fabric", "quilt", "neoforge"], github: { owner: "CaffeineMC", repo: "sodium" } },
+    // Game logic: mostly helps singleplayer (the built-in server).
+    { slug: "lithium", label: "Lithium", ids: ["lithium"], conflicts: ["radium", "canary"], loaders: ["fabric", "quilt", "neoforge"], github: { owner: "CaffeineMC", repo: "lithium" } },
+    // Less memory used, so fewer garbage-collection hitches.
+    { slug: "ferrite-core", label: "FerriteCore", ids: ["ferritecore"], conflicts: [], loaders: ["fabric", "quilt", "neoforge", "forge"] },
+    // Draws text, HUD and entities in batches.
+    { slug: "immediatelyfast", label: "ImmediatelyFast", ids: ["immediatelyfast"], conflicts: [], loaders: ["fabric", "quilt", "neoforge", "forge"] },
+    // Skips entities and block entities hidden behind walls.
+    { slug: "entityculling", label: "Entity Culling", ids: ["entityculling"], conflicts: [], loaders: ["fabric", "quilt", "neoforge", "forge"] },
+    // Faster start-up and less memory. The official one has no Fabric builds;
+    // the Fabric fork carries the same mod id, so a player who has it keeps it.
+    { slug: "modernfix", label: "ModernFix", ids: ["modernfix"], conflicts: [], loaders: ["neoforge", "forge"] },
+    // Lighting engine. Mostly helps singleplayer and world generation: on a
+    // server, the server lights the chunks. Often only alphas exist for the
+    // newest Minecraft - then it's simply left out.
+    { slug: "scalablelux", label: "ScalableLux", ids: ["scalablelux"], conflicts: ["starlight", "phosphor", "moonrise"], loaders: ["fabric", "quilt", "neoforge"], github: { owner: "RelativityMC", repo: "ScalableLux" } },
+    // Forge: the Sodium and Lithium ports (Forge 1.20.1 and older).
+    { slug: "embeddium", label: "Embeddium", ids: ["embeddium", "rubidium"], conflicts: ["sodium", "magnesium", "optifine", "vulkanmod"], loaders: ["forge"] },
+    { slug: "radium", label: "Radium", ids: ["radium"], conflicts: ["lithium", "canary"], loaders: ["forge"] },
+  ],
+  // The pack's GitHub fallback, in the shape minecraft.js:downloadPerformanceMods
+  // reads. Only the three that publish GitHub Releases; Fabric/Quilt jars only.
   PERFORMANCE_MODS: [
     { owner: "CaffeineMC", repo: "sodium", label: "Sodium" },
     { owner: "CaffeineMC", repo: "lithium", label: "Lithium" },
-    // Starlight rewrite of the lighting engine, ported to Fabric - this is
-    // the one that actually kills the "new chunks loading = stutter" spike,
-    // not Sodium/Lithium (those don't touch lighting).
     { owner: "RelativityMC", repo: "ScalableLux", label: "ScalableLux" },
-    // C2ME (RelativityMC/C2ME-fabric) was in this list and pulled back out:
-    // live report of a real hard hang on "Preparing world" the first time
-    // anyone actually created a new world with it installed. The only
-    // release that exists for this Minecraft version is a beta
-    // (0.4.1-beta.1) - C2ME's async chunk-gen parallelism is exactly the
-    // kind of thing that deadlocks on unstable builds, and world creation
-    // is exactly when that code path runs. Shipping beta software as a
-    // silent default, for a feature meant to reduce stutter, is a worse
-    // trade than the stutter it was meant to fix. Sodium/Lithium/ScalableLux
-    // are all stable releases and stay; this one goes back to opt-in only,
-    // available by hand from the mod browser for anyone who wants the risk.
-    // FerriteCore (malte0811/FerriteCore) was in this list and never
-    // installed for anyone - confirmed by hand that the repo has zero
-    // GitHub Releases published (it ships elsewhere, not through GitHub's
-    // Releases feature), so fetchLatestGithubAssetForVersion always got
-    // nothing back. Not "no build for this version yet" - it will never
-    // resolve via this mechanism, so it's out rather than silently no-op
-    // forever. If a real GitHub-Releases source for it shows up later,
-    // it can go back in.
   ],
+
+  /**
+   * The one rule for "does this instance get the performance pack", used by
+   * minecraft.js, compat.js, mrpack.js and the renderer alike.
+   *  - Fabric/Quilt: on unless the player switched it off.
+   *  - Forge/NeoForge: off unless it was switched on. Forge refuses to start
+   *    when two jars carry the same mod id, and existing Forge/NeoForge
+   *    instances were set up without the pack - so it is only on where the
+   *    player (or the create dialog, for a new instance) said so.
+   *  - Vanilla: never (nothing loads mods).
+   */
+  perfPackEnabled(instance) {
+    if (!instance || !module.exports.BUNDLE_PERFORMANCE_MODS) return false;
+    const loader = instance.loader;
+    if (loader === "fabric" || loader === "quilt") return instance.performanceMods !== false;
+    if (loader === "forge" || loader === "neoforge") return instance.performanceMods === true;
+    return false;
+  },
 
   // JVM heap ceiling. Overridable per machine; default is picked at runtime
   // from the player's actual RAM (see minecraft.js:computeDefaultMaxMemoryMb)

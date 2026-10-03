@@ -428,7 +428,9 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
       loaderVersion,
       color: color || COLOURS[all.length % COLOURS.length],
       hud: hud === true,
-      performanceMods: performanceMods === false ? false : undefined, // on unless switched off
+      // Fabric/Quilt: on unless switched off (nothing stored). Forge/NeoForge:
+      // off unless switched on - see config.perfPackEnabled.
+      performanceMods: performanceMods === false ? false : performanceMods === true && (loader === "forge" || loader === "neoforge") ? true : undefined,
       createdAt: Date.now(),
       modpack,
     });

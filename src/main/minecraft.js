@@ -140,6 +140,20 @@ async function ensureInstalled(instance, onProgress) {
   const loggingArg = await prepareLoggingConfig(profile);
 
   await fsp.mkdir(gameDir, { recursive: true });
+  // A starting options.txt for a brand-new instance whose player picked a
+  // performance profile. gameOptions decides whether it may write at all
+  // (never over an existing file); whatever happens there, Play goes on.
+  try {
+    await require("./gameOptions").seedIfAbsent({
+      gameDir,
+      perfProfile: instance.perfProfile,
+      clientJar: vanillaJarPath,
+      totalMemMb: Math.round(os.totalmem() / (1024 * 1024)),
+      cpuCount: os.cpus().length,
+    });
+  } catch {
+    // no starting options - the game makes its own
+  }
   const modsDir = path.join(gameDir, "mods");
   let removed = [];
   let performanceModsInstalled = [];
@@ -148,14 +162,14 @@ async function ensureInstalled(instance, onProgress) {
   // a HUD build for this exact Minecraft version is bundled. Putting a HUD
   // built for another version in would stop the game from starting.
   const wantsHud = instance.hud === true && (loader === "fabric" || loader === "quilt");
-  // The performance pack (Sodium/Lithium/ScalableLux/C2ME/FerriteCore) is
-  // on by default for every Fabric/Quilt instance - a player has to
-  // explicitly opt out (instance.performanceMods === false), not opt in.
-  const wantsPerfMods =
-    config.BUNDLE_PERFORMANCE_MODS &&
-    instance.performanceMods !== false &&
-    (loader === "fabric" || loader === "quilt");
+  // The performance pack: one rule for the whole app (config.perfPackEnabled) -
+  // on by default for Fabric/Quilt, only when switched on for Forge/NeoForge.
+  const wantsPerfMods = config.perfPackEnabled(instance);
   const fabricLike = loader === "fabric" || loader === "quilt";
+  // Reminth's jars are looked after (held back, stepped aside, removed when
+  // they no longer fit, tidied) on every loader that loads mods.
+  const managesMods = loader !== "vanilla";
+  let packStates = null;
   // What ended up in mods/ this run: { file, mod, own }. `own` is false when
   // a jar with that name was already there and Reminth hadn't put it there -
   // that one is the player's, and must never be deleted as "Reminth's".
@@ -186,16 +200,18 @@ async function ensureInstalled(instance, onProgress) {
     // The player's own copies of the mods Reminth would install (their own
     // Sodium, their own Fabric API...). Those win: Reminth doesn't even
     // download its copy, so there is never a second one to clash.
-    const ownCopies = await findPlayerCopies(gameDir, mcVersion).catch(() => new Map());
+    const ownCopies = await findPackSkips(gameDir, mcVersion).catch(() => new Map());
     // Fabric API is a hard dependency of the performance pack too (Sodium/
     // Lithium/ScalableLux won't load without it), not just ReminthHUD - it
     // used to only be fetched inside the wantsHud branch, which silently
     // broke every perf mod on an instance with the HUD off. Fetch/keep it
     // whenever either wants it installed.
-    report("Installing Fabric API", 0, 1);
-    if (ownCopies.has("fabric-api")) {
-      modLog.push(stepAsideLine("fabric-api", "own", ownCopies.get("fabric-api")));
+    if (!fabricLike) {
+      // Fabric API is for Fabric/Quilt only.
+    } else if (ownCopies.has("fabric-api")) {
+      modLog.push(stepAsideLine("fabric-api", "own", ownCopies.get("fabric-api").file));
     } else {
+      report("Installing Fabric API", 0, 1);
       // Never allowed to stop the launch: a missing Fabric API is something
       // the game explains itself, a failed launch isn't.
       try {
@@ -225,20 +241,25 @@ async function ensureInstalled(instance, onProgress) {
     if (wantsPerfMods) {
       report("Installing performance mods", 0, 1);
       const detail = [];
-      performanceModsInstalled = await downloadPerformanceMods(modsDir, mcVersion, (msg) => report(msg, 0, 1), detail, {
-        loader,
-        skip: ownCopies,
-        isOurs,
+      // Never allowed to stop the launch: the pack is a bonus.
+      const run = await downloadPerformancePack(instance, modsDir, { onProgress: (msg) => report(msg, 0, 1), detail, skip: ownCopies, isOurs }).catch((err) => {
+        modLog.push(`Performance pack not checked this time (${err && err.message})`);
+        return { installed: [], states: null };
       });
+      performanceModsInstalled = run.installed;
+      packStates = run.states;
       for (const d of detail) note(d.file, d.mod);
     }
   }
   // A newer build of one of Reminth's mods must not replace the copy that
   // is there when one of the player's mods needs exactly the old version
   // (Iris pins its Sodium): the new download is given up instead.
-  if (fabricLike) {
+  let heldFiles = [];
+  let asideFiles = [];
+  if (managesMods) {
     const held = await holdBackForPlayerMods(gameDir, installedMods, { mcVersion }).catch(() => ({ removed: [], lines: [] }));
     modLog.push(...held.lines);
+    heldFiles = held.removed;
     if (held.removed.length) {
       const gone = new Set(held.removed.map((f) => f.toLowerCase()));
       performanceModsInstalled = performanceModsInstalled.filter((f) => !gone.has(f.toLowerCase()));
@@ -247,9 +268,10 @@ async function ensureInstalled(instance, onProgress) {
   // Reminth's copies step aside for the player's own mods BEFORE the tidy:
   // a jar Reminth has just given up must not count as "the fresh copy" that
   // lets the tidy delete somebody else's.
-  if (fabricLike) {
+  if (managesMods) {
     const aside = await stepAsideForPlayerMods(gameDir, installedMods, { mcVersion }).catch(() => ({ removed: [], lines: [] }));
     modLog.push(...aside.lines);
+    asideFiles = aside.removed;
     if (aside.removed.length) {
       const gone = new Set(aside.removed.map((f) => f.toLowerCase()));
       performanceModsInstalled = performanceModsInstalled.filter((f) => !gone.has(f.toLowerCase()));
@@ -261,7 +283,7 @@ async function ensureInstalled(instance, onProgress) {
   // and that says itself it is for another Minecraft version or loader: the
   // game would refuse to start with it, and nothing else would ever say why.
   let misfits = [];
-  if (fabricLike) {
+  if (managesMods) {
     const gone = await removeMisfitManagedMods(gameDir, installedMods, { mcVersion, loader }).catch(() => ({ removed: [], lines: [] }));
     misfits = gone.removed;
     modLog.push(...gone.lines);
@@ -271,7 +293,10 @@ async function ensureInstalled(instance, onProgress) {
   // Tidied on every Fabric/Quilt install, not only when something was just
   // installed: switching both the HUD and the performance pack off used to
   // skip this entirely, so the jars already on disk kept loading.
-  if (fabricLike) {
+  if (wantsPerfMods && packStates) {
+    await recordPackRun(gameDir, { mcVersion, loader, states: packStates, aside: asideFiles, held: heldFiles, misfits });
+  }
+  if (managesMods) {
     report("Tidying mods folder", 0, 1);
     removed = await tidyManagedMods(modsDir, installedMods, {
       // Drop the ReminthHUD jar whenever the player doesn't currently want
@@ -1460,22 +1485,34 @@ async function downloadFabricApi(modsDir, mcVersion = config.MINECRAFT_VERSION) 
  * `asset` is the jar GitHub offered, `because` the files in mods/ it couldn't
  * run next to (null when the jar itself was the wrong build). Manifests
  * written before this existed simply have no `skipped`.
+ *
+ * And what the player decided about Reminth's jars, so it is respected:
+ *   optedOut: { "<mod>": { by: "disabled" | "deleted", file, at } }
+ * plus the outcome of the last performance-pack run, for the instance page:
+ *   lastRun: { at, mcVersion, loader, mods: { "<mod>": { state, file, version, detail } } }
  */
 function managedModsFile(gameDir) {
   return path.join(gameDir, ".reminth", "managed-mods.json");
 }
 
+const plainObject = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+
 async function readManagedMods(gameDir) {
   try {
     const parsed = JSON.parse(await fsp.readFile(managedModsFile(gameDir), "utf8"));
-    if (parsed && parsed.files && typeof parsed.files === "object" && !Array.isArray(parsed.files)) {
-      const skipped = parsed.skipped && typeof parsed.skipped === "object" && !Array.isArray(parsed.skipped) ? parsed.skipped : {};
-      return { version: 1, files: parsed.files, skipped };
+    if (parsed && plainObject(parsed.files)) {
+      return {
+        version: 1,
+        files: parsed.files,
+        skipped: plainObject(parsed.skipped) ? parsed.skipped : {},
+        optedOut: plainObject(parsed.optedOut) ? parsed.optedOut : {},
+        lastRun: plainObject(parsed.lastRun) && plainObject(parsed.lastRun.mods) ? parsed.lastRun : null,
+      };
     }
   } catch {
     // none yet
   }
-  return { version: 1, files: {}, skipped: {} };
+  return { version: 1, files: {}, skipped: {}, optedOut: {}, lastRun: null };
 }
 
 async function writeManagedMods(gameDir, managed) {
@@ -1483,6 +1520,8 @@ async function writeManagedMods(gameDir, managed) {
   await fsp.mkdir(path.dirname(file), { recursive: true });
   const out = { version: 1, files: managed.files || {} };
   if (managed.skipped && Object.keys(managed.skipped).length) out.skipped = managed.skipped;
+  if (managed.optedOut && Object.keys(managed.optedOut).length) out.optedOut = managed.optedOut;
+  if (managed.lastRun) out.lastRun = managed.lastRun;
   await writeFileAtomic(file, JSON.stringify(out, null, 2));
 }
 
@@ -1522,18 +1561,35 @@ async function adoptLegacyManagedMods(gameDir, { perf = true, usedBefore = false
   const tracked = await readUserModNames(gameDir);
   if (tracked === null) return [];
   const files = {};
+  const optedOut = {};
   const known = usedBefore || (await fileExists(path.join(gameDir, "reminth-performance-mods.log")));
   if (known) {
     const current = new Set(["fabric-api", "reminthhud", ...(perf ? [...(config.PERFORMANCE_MODS || []).map(performanceModKey), ...LEGACY_PERFORMANCE_NAMES] : [])]);
     const entries = await fsp.readdir(path.join(gameDir, "mods"), { withFileTypes: true }).catch(() => []);
+    const names = new Set(entries.map((e) => e.name.toLowerCase()));
     for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".jar")) continue;
+      if (!entry.isFile()) continue;
+      const lower = entry.name.toLowerCase();
+      // A pack jar the player switched off (Reminth's Lithium renamed to
+      // .jar.disabled): that is a "no thanks", not a missing mod - without
+      // this the next launch put a second, enabled copy right next to it.
+      if (perf && lower.endsWith(".jar.disabled")) {
+        const jar = entry.name.slice(0, -".disabled".length);
+        const mod = managedModFromName(jar);
+        if (mod && isPerformanceMod(mod) && current.has(mod) && !names.has(jar.toLowerCase()) && !tracked.has(jar.toLowerCase())) {
+          optedOut[mod] = { by: "disabled", file: jar, at: new Date().toISOString() };
+        }
+        continue;
+      }
+      if (!lower.endsWith(".jar")) continue;
       const mod = managedModFromName(entry.name);
-      if (!mod || !current.has(mod) || tracked.has(entry.name.toLowerCase())) continue;
+      if (!mod || !current.has(mod) || tracked.has(lower)) continue;
       files[entry.name] = { mod };
     }
+    // An enabled copy of the same mod wins over a disabled one.
+    for (const info of Object.values(files)) delete optedOut[info.mod];
   }
-  await writeManagedMods(gameDir, { version: 1, files, skipped: {} });
+  await writeManagedMods(gameDir, { version: 1, files, skipped: {}, optedOut });
   return Object.keys(files);
 }
 
@@ -1583,8 +1639,23 @@ function managedModFromName(file) {
 function managedModLabel(mod) {
   if (mod === "fabric-api") return "Fabric API";
   if (mod === "reminthhud") return "ReminthHUD";
-  const entry = (config.PERFORMANCE_MODS || []).find((m) => performanceModKey(m) === mod);
+  const entry = packEntry(mod) || (config.PERFORMANCE_MODS || []).find((m) => performanceModKey(m) === mod);
   return entry ? entry.label : String(mod);
+}
+
+/** The performance-pack entry (config.PERFORMANCE_PACK) tracked under `key`, or null. */
+function packEntry(key) {
+  return (config.PERFORMANCE_PACK || []).find((e) => e.slug === key) || null;
+}
+
+/** The pack entries an instance with this loader gets. */
+function packEntriesFor(loader) {
+  return (config.PERFORMANCE_PACK || []).filter((e) => Array.isArray(e.loaders) && e.loaders.includes(loader));
+}
+
+/** Every key the pack can be tracked under today (the GitHub fallback's names are the same slugs). */
+function packKeysNow() {
+  return new Set([...(config.PERFORMANCE_PACK || []).map((e) => e.slug), ...(config.PERFORMANCE_MODS || []).map(performanceModKey)]);
 }
 
 /** The key a performance-pack entry is tracked under in managed-mods.json. */
@@ -1601,6 +1672,7 @@ function performanceModIds(mod) {
 function stepAsideLine(mod, reason, because, problem = null) {
   const label = managedModLabel(mod);
   if (reason === "own") return `Left ${label} out: you have your own copy (${because})`;
+  if (reason === "conflict") return `Left ${label} out: you have ${because}, which can't run next to it`;
   if (reason === "broken-by") return `Left ${label} out: ${because} says it can't run next to it`;
   if (reason === "breaks") return `Left ${label} out: this build says it can't run next to ${because}`;
   if (reason === "depends") {
@@ -1645,12 +1717,18 @@ function splitLoadedMods({ mods, managed, tracked, mcVersion = null }) {
   };
 }
 
-/** Pure: the player's jar that is (or stands in for) mod `id`, or null. */
+/**
+ * Pure: the player's jar that is (or stands in for) mod `id`, or null.
+ * OptiFine is the one mod looked for by file name too: on Forge its jar
+ * carries no mod id Reminth can read, and Sodium/Embeddium next to it is a
+ * crash on start.
+ */
 function playerCopyOf(ids, playerMods) {
   const want = new Set(ids.filter(Boolean).map((i) => String(i).toLowerCase()));
   return (
     playerMods.find((m) => m.modId && want.has(String(m.modId).toLowerCase())) ||
     playerMods.find((m) => (m.provides || []).some((p) => want.has(String(p).toLowerCase()))) ||
+    (want.has("optifine") && playerMods.find((m) => !m.modId && /^optifine/i.test(String(m.file)))) ||
     null
   );
 }
@@ -1663,15 +1741,33 @@ function playerCopyOf(ids, playerMods) {
  */
 function planOwnCopies({ mods, managed, tracked, mcVersion = null }) {
   const out = new Map();
+  for (const [key, why] of planPackSkips({ mods, managed, tracked, mcVersion })) if (why.reason === "own") out.set(key, why.file);
+  return out;
+}
+
+/**
+ * Pure: what Reminth must leave out before downloading anything, because of
+ * what the player has enabled. Map of key -> { file, reason } where reason is
+ *  "own"      the player has their own copy (same mod id, any file name)
+ *  "conflict" the player has a mod that can't run next to it (their own
+ *             Embeddium or OptiFine where Reminth would add Sodium...)
+ * Covers Fabric API and every performance-pack entry. Arguments as for
+ * splitLoadedMods.
+ */
+function planPackSkips({ mods, managed, tracked, mcVersion = null }) {
+  const out = new Map();
   if (tracked === null) return out; // can't tell whose is whose - change nothing
   const { playerUsable } = splitLoadedMods({ mods, managed, tracked, mcVersion });
-  const wanted = [
-    { key: "fabric-api", ids: ["fabric-api"] },
-    ...(config.PERFORMANCE_MODS || []).map((m) => ({ key: performanceModKey(m), ids: performanceModIds(m) })),
-  ];
-  for (const w of wanted) {
-    const copy = playerCopyOf(w.ids, playerUsable);
-    if (copy) out.set(w.key, copy.file);
+  const own = playerCopyOf(["fabric-api"], playerUsable);
+  if (own) out.set("fabric-api", { file: own.file, reason: "own" });
+  for (const entry of config.PERFORMANCE_PACK || []) {
+    const copy = playerCopyOf(entry.ids || [entry.slug], playerUsable);
+    if (copy) {
+      out.set(entry.slug, { file: copy.file, reason: "own" });
+      continue;
+    }
+    const clash = (entry.conflicts || []).length ? playerCopyOf(entry.conflicts, playerUsable) : null;
+    if (clash) out.set(entry.slug, { file: clash.file, reason: "conflict" });
   }
   return out;
 }
@@ -1715,7 +1811,8 @@ function planStepAside({ mods, managed, tracked, mcVersion = null }) {
   for (const item of reminth) {
     const mod = ours.get(String(item.file).toLowerCase()).mod;
     if (mod === "reminthhud") continue;
-    const copy = playerCopyOf([item.modId, mod], playerUsable);
+    const entry = packEntry(mod);
+    const copy = playerCopyOf([item.modId, mod, ...((entry && entry.ids) || [])], playerUsable);
     if (copy) drop(item, "own", copy.file);
   }
 
@@ -1736,6 +1833,17 @@ function planStepAside({ mods, managed, tracked, mcVersion = null }) {
       drop(byFile.get(String(p.targetFile).toLowerCase()), "broken-by", p.file, p);
     }
   }
+
+  // c. a mod of the player's that the pack entry is known not to run next
+  // to (config.PERFORMANCE_PACK conflicts) - for clashes neither jar
+  // declares itself, such as OptiFine. Checked last, so a jar that does say
+  // it keeps its own, more precise reason in the log.
+  for (const item of reminth) {
+    if (going.has(String(item.file).toLowerCase())) continue;
+    const entry = packEntry(ours.get(String(item.file).toLowerCase()).mod);
+    const clash = entry && (entry.conflicts || []).length ? playerCopyOf(entry.conflicts, playerUsable) : null;
+    if (clash) drop(item, "conflict", clash.file);
+  }
   return plan;
 }
 
@@ -1743,6 +1851,12 @@ function planStepAside({ mods, managed, tracked, mcVersion = null }) {
 async function findPlayerCopies(gameDir, mcVersion) {
   const [listed, managed, tracked] = await Promise.all([content.listAll(gameDir), readManagedMods(gameDir), readUserModNames(gameDir)]);
   return planOwnCopies({ mods: listed.mod, managed: managed.files, tracked, mcVersion });
+}
+
+/** What to leave out before downloading - see planPackSkips. Reads the mods folder. */
+async function findPackSkips(gameDir, mcVersion) {
+  const [listed, managed, tracked] = await Promise.all([content.listAll(gameDir), readManagedMods(gameDir), readUserModNames(gameDir)]);
+  return planPackSkips({ mods: listed.mod, managed: managed.files, tracked, mcVersion });
 }
 
 /**
@@ -2001,7 +2115,7 @@ async function tidyManagedMods(modsDir, installed, { dropHud = false, dropPerf =
   const onDisk = new Set(files.map((f) => f.toLowerCase()));
   const switchedOff = (mod) => (mod === "reminthhud" ? dropHud : mod === "fabric-api" ? false : dropPerf);
   // A mod an older Reminth installed and this one doesn't any more.
-  const packNow = new Set((config.PERFORMANCE_MODS || []).map(performanceModKey));
+  const packNow = packKeysNow();
   const retired = (mod) => LEGACY_PERFORMANCE_NAMES.includes(mod) && !packNow.has(mod);
 
   const managed = await readManagedMods(gameDir);
@@ -2030,7 +2144,11 @@ async function tidyManagedMods(modsDir, installed, { dropHud = false, dropPerf =
     if (await remove(file)) delete managed.files[file];
   }
 
-  if (JSON.stringify(managed.files) !== beforeJson) {
+  // Switching the pack off and on again is the plain way back from "I
+  // switched Reminth's Sodium off": the next run starts from a clean slate.
+  const resetChoices = dropPerf && Object.keys(managed.optedOut || {}).length > 0;
+  if (resetChoices) managed.optedOut = {};
+  if (resetChoices || JSON.stringify(managed.files) !== beforeJson) {
     await writeManagedMods(gameDir, managed).catch(() => {}); // losing it only makes Reminth more cautious
   }
   return removed;
@@ -2085,8 +2203,11 @@ async function downloadPerformanceMods(modsDir, mcVersion, onProgress, detail = 
   // it, with no way to go back and check "did Sodium actually install, and
   // if not, why" after the fact. Written next to the mods it's about so
   // it's easy to find without knowing this exists.
-  const logLines = [`=== performance mods install, ${new Date().toISOString()}, mcVersion=${mcVersion} ===`];
-  for (const mod of config.PERFORMANCE_MODS || []) {
+  // `options.logLines`: the Modrinth pack's log this is a fallback inside -
+  // lines go there and the log file is left to it. `options.mods`: which of
+  // the GitHub entries to try (default: all of them).
+  const logLines = options.logLines || [`=== performance mods install, ${new Date().toISOString()}, mcVersion=${mcVersion} ===`];
+  for (const mod of options.mods || config.PERFORMANCE_MODS || []) {
     const key = performanceModKey(mod);
     let found = null;
     try {
@@ -2158,12 +2279,544 @@ async function downloadPerformanceMods(modsDir, mcVersion, onProgress, detail = 
     manifest.skipped = skipped;
     await writeManagedMods(gameDir, manifest).catch(() => {});
   }
+  if (!options.logLines) {
+    try {
+      await fsp.writeFile(path.join(gameDir, "reminth-performance-mods.log"), logLines.join("\n") + "\n");
+    } catch {
+      // Best-effort - a missing log is annoying to debug, not worth failing the install over.
+    }
+  }
+  return installed;
+}
+
+/* ---------------- performance pack from Modrinth ---------------- */
+
+// A release must have been out this long before it is installed without
+// asking: Entity Culling shipped three releases in three days in September
+// 2026, two of them fixes for the one before.
+const PACK_SOAK_MS = 48 * 60 * 60 * 1000;
+// Modrinth's answer per slug + Minecraft version + loader is reused this long
+// (shared by every instance), and used however old it is when Modrinth is down.
+const PACK_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const PACK_CACHE_EMPTY_TTL_MS = 60 * 60 * 1000; // "no build yet" is the answer people wait to see change
+const PACK_LOOKUP_CONCURRENCY = 3;
+// Launch waits at most this long for Modrinth, then carries on with what's installed.
+const PACK_LOOKUP_BUDGET_MS = 12000;
+const FABRIC_API_PROJECT_ID = "P7dR8mSH";
+const SHA1_HEX = /^[0-9a-f]{40}$/i;
+
+const safeJarName = (name) => typeof name === "string" && /\.jar$/i.test(name) && path.basename(name) === name && !/[\\/]/.test(name) && name.length <= 200;
+const modrinthCdnUrl = (url) => {
+  try {
+    const u = new URL(String(url));
+    return u.protocol === "https:" && /^cdn\.modrinth\.com$/i.test(u.hostname);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Pure: the parts of a Modrinth version object the pack needs, or null when
+ * it isn't something the pack may install: not a "release", not for this
+ * Minecraft version / loader, or without a jar that has a sha1 and lives on
+ * Modrinth's own file host.
+ */
+function packReleaseFrom(v, mcVersion, wantedLoaders = []) {
+  if (!v || v.version_type !== "release") return null;
+  if (Array.isArray(v.game_versions) && !v.game_versions.includes(mcVersion)) return null;
+  if (Array.isArray(v.loaders) && wantedLoaders.length && !v.loaders.some((l) => wantedLoaders.includes(l))) return null;
+  const files = Array.isArray(v.files) ? v.files : [];
+  const f = files.find((x) => x && x.primary) || files[0];
+  const sha1 = f && f.hashes && f.hashes.sha1;
+  if (!f || !safeJarName(f.filename) || !modrinthCdnUrl(f.url) || !SHA1_HEX.test(String(sha1 || ""))) return null;
+  const at = Date.parse(v.date_published);
+  return {
+    id: String(v.id || ""),
+    projectId: String(v.project_id || ""),
+    version: String(v.version_number || ""),
+    name: String(v.name || ""),
+    publishedAt: Number.isFinite(at) ? at : 0,
+    file: { url: f.url, filename: f.filename, sha1: String(sha1).toLowerCase() },
+    deps: (Array.isArray(v.dependencies) ? v.dependencies : [])
+      .filter((d) => d && d.dependency_type === "required" && (d.project_id || d.version_id))
+      .map((d) => ({ projectId: d.project_id ? String(d.project_id) : null, versionId: d.version_id ? String(d.version_id) : null })),
+  };
+}
+
+/** Pure: is this a release record as packReleaseFrom makes them (read back from the cache)? */
+function validPackRelease(r) {
+  return Boolean(r) && typeof r.id === "string" && typeof r.version === "string" && Number.isFinite(r.publishedAt) && r.file && safeJarName(r.file.filename) && modrinthCdnUrl(r.file.url) && SHA1_HEX.test(String(r.file.sha1 || "")) && Array.isArray(r.deps);
+}
+
+/**
+ * Pure: which release to install. Newest first, the newest one that is at
+ * least 48 hours old. When every release is newer than that: the oldest of
+ * them, but only when no copy of Reminth's is installed (a brand-new
+ * instance gets something; one that has a working copy keeps it a while).
+ * Returns { pick, why: "soaked" | "only-new" | "too-new" | "none" }.
+ */
+function pickPackRelease(releases, { now = Date.now(), hasManagedCopy = false } = {}) {
+  const sorted = [...(releases || [])].sort((a, b) => b.publishedAt - a.publishedAt);
+  if (!sorted.length) return { pick: null, why: "none" };
+  const soaked = sorted.find((r) => now - r.publishedAt >= PACK_SOAK_MS);
+  if (soaked) return { pick: soaked, why: "soaked" };
+  if (hasManagedCopy) return { pick: null, why: "too-new", newest: sorted[0] };
+  return { pick: sorted[sorted.length - 1], why: "only-new" };
+}
+
+function packCacheFile(project, mcVersion, wantedLoaders, cacheDir) {
+  const name = `${project}-${mcVersion}-${wantedLoaders.join("+")}`.replace(/[^\w.+-]/g, "_");
+  return containedPath(cacheDir || path.join(paths.ROOT, "cache", "modrinth-pack"), `${name}.json`);
+}
+
+async function readPackCache(file) {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(file, "utf8"));
+    if (!parsed || !Number.isFinite(parsed.at) || !Array.isArray(parsed.releases)) return null;
+    if (!parsed.releases.every(validPackRelease)) return null;
+    return { at: parsed.at, releases: parsed.releases, nonRelease: parsed.nonRelease === true };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The release builds Modrinth has of `project` (slug or id) for this
+ * Minecraft version and these Modrinth loaders - one request, or none inside
+ * the cache time. Returns { releases, nonRelease, source } where source is
+ * "cache" | "modrinth" | "stale-cache" (Modrinth failed, an older answer was
+ * used), or { unavailable: true, error } when Modrinth failed and nothing
+ * was remembered.
+ */
+async function lookupPackReleases(project, mcVersion, wantedLoaders, { api, cacheDir, now = Date.now() } = {}) {
+  const file = packCacheFile(project, mcVersion, wantedLoaders, cacheDir);
+  const cached = await readPackCache(file);
+  if (cached) {
+    const age = now - cached.at;
+    if (age >= 0 && age < (cached.releases.length ? PACK_CACHE_TTL_MS : PACK_CACHE_EMPTY_TTL_MS)) return { ...cached, source: "cache", cacheFile: file };
+  }
+  let list;
+  try {
+    list = await api.getProjectVersions(project, { loaders: wantedLoaders, gameVersions: [mcVersion] });
+    if (!Array.isArray(list)) throw new Error("Modrinth gave no version list");
+  } catch (err) {
+    if (cached) return { ...cached, source: "stale-cache", cacheFile: file };
+    return { unavailable: true, error: err };
+  }
+  const releases = list.map((v) => packReleaseFrom(v, mcVersion, wantedLoaders)).filter(Boolean);
+  const nonRelease = list.some((v) => v && v.version_type && v.version_type !== "release");
+  try {
+    await fsp.mkdir(path.dirname(file), { recursive: true });
+    await writeFileAtomic(file, JSON.stringify({ at: now, releases, nonRelease }));
+  } catch {
+    // not remembered - the next launch simply asks again
+  }
+  return { releases, nonRelease, source: "modrinth", cacheFile: file };
+}
+
+/**
+ * Runs fn over items, `limit` at a time, for at most `budgetMs`. Whatever
+ * hasn't answered by then counts as { unavailable: true } - a launch must
+ * not sit waiting on Modrinth. Never rejects.
+ */
+async function settleWithin(items, limit, budgetMs, fn) {
+  const results = new Array(items.length).fill(undefined);
+  let next = 0;
+  let stopped = false;
+  const worker = async () => {
+    while (!stopped && next < items.length) {
+      const i = next++;
+      try {
+        results[i] = await fn(items[i]);
+      } catch (err) {
+        results[i] = { unavailable: true, error: err };
+      }
+    }
+  };
+  let timer;
+  const workers = Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  await Promise.race([workers, new Promise((resolve) => (timer = setTimeout(resolve, budgetMs)))]);
+  clearTimeout(timer);
+  stopped = true;
+  return results.map((r) => (r === undefined ? { unavailable: true, error: new Error("Modrinth took too long to answer") } : r));
+}
+
+/**
+ * Installs the performance pack (config.PERFORMANCE_PACK) into one instance,
+ * from Modrinth, release builds only. Everything the old GitHub-only code
+ * guaranteed still holds, and this runs the same safety steps after it in
+ * ensureInstalled (hold back, step aside, misfit removal, tidy).
+ *
+ *  - The player's own copy, or a mod that clashes (`options.skip`, from
+ *    planPackSkips): not looked up, not downloaded.
+ *  - A Reminth jar the player switched off (renamed to .disabled) or deleted:
+ *    remembered in managed-mods.json `optedOut` and left alone - until the
+ *    file is switched back on, the pack is switched off and on, or Restore
+ *    (resetPerformancePack).
+ *  - Release builds only, at least 48 hours old (pickPackRelease), with the
+ *    jar's sha1 checked before it replaces anything, then the jar's own
+ *    metadata checked against the instance (verifyDownloadedJar).
+ *  - Required dependencies under the same rule. Fabric API counts as there
+ *    on Fabric/Quilt (Reminth brings it); another pack entry counts when it
+ *    is being installed; anything else is looked up; one without a stable
+ *    build means the mod that needs it is left out.
+ *  - Modrinth down: the remembered answer is used; with none, nothing is
+ *    removed, what's installed stays, and Sodium/Lithium/ScalableLux fall
+ *    back to their GitHub releases (Fabric/Quilt only).
+ *
+ * Returns { installed: [file], states: { key: { state, file, version, detail } } }.
+ * `options.detail` gets { file, mod } per jar in place, for ensureInstalled.
+ * `options.deps` (tests): { api, download, now, cacheDir, budgetMs }.
+ */
+async function downloadPerformancePack(instance, modsDir, options = {}) {
+  const { onProgress = null, detail = null, skip = new Map(), isOurs = null } = options;
+  const deps = options.deps || {};
+  const api = deps.api || require("./modrinth");
+  const download = deps.download || ((url, dest, sha1) => downloadFile(url, dest, sha1));
+  const now = Number.isFinite(deps.now) ? deps.now : Date.now();
+  const budgetMs = Number.isFinite(deps.budgetMs) ? deps.budgetMs : PACK_LOOKUP_BUDGET_MS;
+  const mcVersion = instance.mcVersion;
+  const loader = instance.loader || "vanilla";
+  const fabricLike = loader === "fabric" || loader === "quilt";
+  const wanted = content.loadersFor("mod", instance);
+  const gameDir = path.dirname(modsDir);
+  const manifest = await readManagedMods(gameDir);
+  let manifestChanged = false;
+  const installed = [];
+  const states = {};
+  const logLines = [`=== performance mods install, ${new Date(now).toISOString()}, mcVersion=${mcVersion}, loader=${loader} ===`];
+  const say = (line) => {
+    logLines.push(line);
+    if (onProgress) onProgress(line);
+  };
+  const exists = (file) => fileExists(path.join(modsDir, file));
+
+  // 1. Decide, without any network, what is left out.
+  const queue = []; // { entry, key, hasManagedCopy }
+  for (const entry of packEntriesFor(loader)) {
+    const key = entry.slug;
+    const label = entry.label;
+    if (skip.has(key)) {
+      const why = skip.get(key);
+      const file = typeof why === "string" ? why : why.file;
+      const reason = typeof why === "string" ? "own" : why.reason;
+      states[key] = { state: "stepped-aside", file: null, version: null, detail: reason === "conflict" ? `You have ${file}, which can't run next to it` : `You have your own copy (${file})` };
+      logLines.push(stepAsideLine(key, reason, file));
+      continue;
+    }
+    const managedFiles = Object.entries(manifest.files)
+      .filter(([f, info]) => info && info.mod === key && safeJarName(f))
+      .map(([f]) => f);
+    const present = [];
+    for (const f of managedFiles) if (await exists(f)) present.push(f);
+    const prior = manifest.optedOut[key];
+    if (prior) {
+      if (prior.file && safeJarName(prior.file) && (await exists(prior.file))) {
+        // Switched back on: it is Reminth's to keep up to date again.
+        delete manifest.optedOut[key];
+        manifest.files[prior.file] = { mod: key };
+        present.push(prior.file);
+        manifestChanged = true;
+        logLines.push(`${label} is switched on again - Reminth keeps it up to date from now on`);
+      } else {
+        states[key] = { state: "switched-off-by-you", file: null, version: null, detail: prior.by === "disabled" ? "You switched it off" : "You removed it" };
+        logLines.push(`Left ${label} out: you ${prior.by === "disabled" ? "switched it off" : "removed it"}, so Reminth doesn't put it back (Restore on the instance page brings it back)`);
+        continue;
+      }
+    } else if (managedFiles.length && !present.length) {
+      // Reminth installed it and Reminth didn't take it out: the player did.
+      let disabled = null;
+      for (const f of managedFiles) if (!disabled && (await exists(`${f}.disabled`))) disabled = f;
+      manifest.optedOut[key] = { by: disabled ? "disabled" : "deleted", file: disabled || managedFiles[0], at: new Date(now).toISOString() };
+      manifestChanged = true;
+      states[key] = { state: "switched-off-by-you", file: null, version: null, detail: disabled ? "You switched it off" : "You removed it" };
+      logLines.push(`Left ${label} out: you ${disabled ? "switched it off" : "removed it"}, so Reminth doesn't put it back (Restore on the instance page brings it back)`);
+      continue;
+    }
+    queue.push({ entry, key, hasManagedCopy: present.length > 0, present });
+  }
+
+  // 2. Ask Modrinth (or the cache) - at most one request per mod, three at a
+  // time, and no longer than the budget.
+  if (queue.length && onProgress) onProgress("Checking performance mods");
+  const started = Date.now();
+  const answers = await settleWithin(queue, PACK_LOOKUP_CONCURRENCY, budgetMs, (q) => lookupPackReleases(q.entry.slug, mcVersion, wanted, { api, cacheDir: deps.cacheDir, now }));
+
+  const picks = new Map(); // key -> { entry, key, release, label, cacheFile, hasManagedCopy, dependency }
+  const fallback = []; // queue items that go to GitHub
+  queue.forEach((q, i) => {
+    const a = answers[i];
+    const label = q.entry.label;
+    if (a.unavailable) {
+      const why = (a.error && a.error.message) || "Modrinth can't be reached";
+      if (q.entry.github && fabricLike) {
+        fallback.push(q);
+        return;
+      }
+      states[q.key] = q.hasManagedCopy
+        ? { state: "installed", file: q.present[0], version: null, detail: `Modrinth couldn't be reached, so the installed copy was kept (${why})` }
+        : { state: "failed", file: null, version: null, detail: `Modrinth couldn't be reached (${why})` };
+      logLines.push(q.hasManagedCopy ? `Kept ${label} as it is: Modrinth couldn't be reached (${why})` : `${label} not installed: Modrinth couldn't be reached (${why})`);
+      return;
+    }
+    const choice = pickPackRelease(a.releases, { now, hasManagedCopy: q.hasManagedCopy });
+    if (choice.why === "none") {
+      const msg = a.nonRelease ? `No stable ${label} build for ${mcVersion} yet (only test builds) - skipped` : `No ${label} build for ${mcVersion} yet - skipped`;
+      states[q.key] = q.hasManagedCopy
+        ? { state: "installed", file: q.present[0], version: null, detail: msg }
+        : { state: "no-build", file: null, version: null, detail: a.nonRelease ? "Only test builds so far" : "No build for this version yet" };
+      say(msg);
+      return;
+    }
+    if (choice.why === "too-new") {
+      states[q.key] = { state: "installed", file: q.present[0], version: null, detail: `A newer build (${choice.newest.version}) is less than two days old - not installed yet` };
+      logLines.push(`Kept ${label} as it is: the newest build (${choice.newest.version}) is less than 48 hours old`);
+      return;
+    }
+    picks.set(q.key, { entry: q.entry, key: q.key, label, release: choice.pick, cacheFile: a.source === "modrinth" ? null : a.cacheFile, hasManagedCopy: q.hasManagedCopy });
+  });
+
+  // 3. Required dependencies. Anything not already covered is looked up
+  // (within what's left of the budget) under the same release-only rule.
+  const byProject = () => new Map([...picks.values()].map((p) => [p.release.projectId, p]));
+  const unknown = new Map(); // projectId -> versionId|null
+  for (const p of picks.values()) {
+    for (const d of p.release.deps) {
+      if (!d.projectId) continue;
+      if (d.projectId === FABRIC_API_PROJECT_ID || byProject().has(d.projectId)) continue;
+      if (!unknown.has(d.projectId)) unknown.set(d.projectId, d.versionId);
+    }
+  }
+  if (unknown.size) {
+    const ids = [...unknown.keys()];
+    const left = Math.max(2000, budgetMs - (Date.now() - started));
+    const found = await settleWithin(ids, PACK_LOOKUP_CONCURRENCY, left, (id) => lookupPackReleases(id, mcVersion, wanted, { api, cacheDir: deps.cacheDir, now }));
+    ids.forEach((id, i) => {
+      const a = found[i];
+      if (a.unavailable) return;
+      const key = `dep-${id}`;
+      const present = Object.entries(manifest.files).some(([, info]) => info && info.mod === key);
+      const pinned = unknown.get(id);
+      const release = pinned ? a.releases.find((r) => r.id === pinned) || null : pickPackRelease(a.releases, { now, hasManagedCopy: present }).pick;
+      if (release && !release.deps.some((d) => d.projectId && d.projectId !== FABRIC_API_PROJECT_ID)) {
+        picks.set(key, { entry: null, key, label: release.name || release.file.filename, release, cacheFile: a.source === "modrinth" ? null : a.cacheFile, hasManagedCopy: present, dependency: true });
+      }
+    });
+  }
+  // Drop every mod whose requirements aren't all met, until nothing changes
+  // (a dependency that drops takes the mods needing it with it).
+  for (let changed = true; changed; ) {
+    changed = false;
+    const projects = byProject();
+    for (const p of [...picks.values()]) {
+      const unmet = p.release.deps.find((d) => {
+        if (d.projectId === FABRIC_API_PROJECT_ID) return !fabricLike;
+        const other = d.projectId ? projects.get(d.projectId) : null;
+        if (!other) return true;
+        return Boolean(d.versionId) && other.release.id !== d.versionId;
+      });
+      if (!unmet) continue;
+      picks.delete(p.key);
+      changed = true;
+      const what = unmet.projectId === FABRIC_API_PROJECT_ID ? "Fabric API" : `a mod (${unmet.projectId || unmet.versionId})`;
+      if (!p.dependency) {
+        states[p.key] = { state: "no-build", file: null, version: null, detail: `Needs ${what}, which has no stable build here` };
+        say(`Left ${p.label} out: it needs ${what}, which has no stable build for ${mcVersion}`);
+      }
+    }
+  }
+  // Dependencies that ended up needed by nobody aren't installed.
+  for (const p of [...picks.values()]) {
+    if (p.dependency && ![...picks.values()].some((o) => !o.dependency && o.release.deps.some((d) => d.projectId === p.release.projectId))) picks.delete(p.key);
+  }
+
+  // 4. Download what was picked: sha1-checked, then the jar's own word.
+  for (const p of picks.values()) {
+    const { release, label, key } = p;
+    const filename = release.file.filename;
+    const prior = manifest.skipped[key];
+    if (prior) {
+      if (prior.asset === filename && (await blockersUnchanged(modsDir, prior.because))) {
+        const msg = skippedAgainLine(label, prior, mcVersion);
+        const held = /^held back/.test(String(prior.reason || ""));
+        states[key] = { state: held ? "held-back" : prior.because ? "stepped-aside" : "no-build", file: null, version: release.version, detail: msg };
+        say(msg);
+        continue;
+      }
+      delete manifest.skipped[key];
+      manifestChanged = true;
+    }
+    const dest = path.join(modsDir, filename);
+    const existed = await fileExists(dest);
+    const listed = Object.keys(manifest.files).some((f) => f.toLowerCase() === filename.toLowerCase());
+    const ours = isOurs ? isOurs(filename) : listed || !existed;
+    if (existed && !ours) {
+      // A file of that very name that isn't Reminth's is the player's: never overwritten.
+      states[key] = { state: "stepped-aside", file: null, version: null, detail: `${filename} is already in your mods folder` };
+      logLines.push(`Left ${label} out: ${filename} is already in your mods folder and is yours`);
+      continue;
+    }
+    try {
+      if (!modrinthCdnUrl(release.file.url)) throw new Error("not a Modrinth download");
+      await download(release.file.url, dest, release.file.sha1);
+    } catch (err) {
+      // The remembered answer may be what's wrong (a file that was pulled): ask again next time.
+      if (p.cacheFile) await fsp.rm(p.cacheFile, { force: true }).catch(() => {});
+      states[key] = p.hasManagedCopy ? { state: "installed", file: null, version: null, detail: `The update failed (${err.message})` } : { state: "failed", file: null, version: null, detail: err.message };
+      say(`${label} failed to install (${err.message}) - skipped`);
+      continue;
+    }
+    const check = await verifyDownloadedJar(dest, { mcVersion, loader }, ours);
+    if (check.ok === false) {
+      const msg = `Skipped ${label}: the build Modrinth offered is not for ${mcVersion} (${check.why})`;
+      say(msg);
+      if (ours) {
+        manifest.skipped[key] = { asset: filename, reason: "not-for-version", because: null, at: new Date(now).toISOString() };
+        manifestChanged = true;
+      }
+      states[key] = { state: "no-build", file: null, version: release.version, detail: check.why };
+      continue;
+    }
+    installed.push(filename);
+    if (detail) detail.push({ file: filename, mod: key });
+    if (!p.dependency || p.entry) states[key] = { state: "installed", file: filename, version: release.version, detail: null };
+    say(`${existed ? "Up to date" : "Installed"} ${label}: ${filename} (release ${release.version})`);
+  }
+
+  if (manifestChanged) {
+    // Read again: only optedOut / skipped / re-enabled files are ours to change here.
+    const fresh = await readManagedMods(gameDir);
+    fresh.optedOut = manifest.optedOut;
+    fresh.skipped = manifest.skipped;
+    for (const [f, info] of Object.entries(manifest.files)) if (!fresh.files[f]) fresh.files[f] = info;
+    await writeManagedMods(gameDir, fresh).catch(() => {});
+  }
+
+  // 5. Modrinth unreachable with nothing remembered: the old GitHub source
+  // for the three that publish there.
+  if (fallback.length) {
+    const mods = (config.PERFORMANCE_MODS || []).filter((m) => fallback.some((q) => q.key === performanceModKey(m)));
+    const ghDetail = [];
+    logLines.push("Modrinth couldn't be reached - trying GitHub for " + mods.map((m) => m.label).join(", "));
+    const got = await downloadPerformanceMods(modsDir, mcVersion, onProgress, ghDetail, { loader, isOurs, mods, logLines }).catch(() => []);
+    installed.push(...got);
+    if (detail) detail.push(...ghDetail);
+    for (const q of fallback) {
+      const d = ghDetail.find((x) => x.mod === q.key);
+      states[q.key] = d
+        ? { state: "installed", file: d.file, version: null, detail: "From GitHub (Modrinth couldn't be reached)" }
+        : q.hasManagedCopy
+          ? { state: "installed", file: q.present[0], version: null, detail: "Modrinth couldn't be reached, so the installed copy was kept" }
+          : { state: "failed", file: null, version: null, detail: "Modrinth couldn't be reached" };
+    }
+  }
+
   try {
     await fsp.writeFile(path.join(gameDir, "reminth-performance-mods.log"), logLines.join("\n") + "\n");
   } catch {
     // Best-effort - a missing log is annoying to debug, not worth failing the install over.
   }
-  return installed;
+  return { installed, states };
+}
+
+/**
+ * Writes managed-mods.json `lastRun` - what the instance page shows. `states`
+ * from downloadPerformancePack, corrected by what the steps after it did:
+ * a jar that was stepped aside, held back or removed again is not
+ * "installed". Never throws.
+ */
+async function recordPackRun(gameDir, { mcVersion, loader, states, aside = [], held = [], misfits = [] }) {
+  try {
+    const modsDir = path.join(gameDir, "mods");
+    const lower = (list) => new Set(list.map((f) => String(f).toLowerCase()));
+    const [asideSet, heldSet, misfitSet] = [lower(aside), lower(held), lower(misfits)];
+    const mods = {};
+    for (const [key, s] of Object.entries(states || {})) {
+      if (key.startsWith("dep-")) continue;
+      const out = { ...s };
+      if (out.state === "installed" && out.file) {
+        const f = out.file.toLowerCase();
+        if (asideSet.has(f)) Object.assign(out, { state: "stepped-aside", file: null, detail: "Left out: one of your mods can't run next to it" });
+        else if (heldSet.has(f)) Object.assign(out, { state: "held-back", file: null, detail: "One of your mods needs the version that's installed" });
+        else if (misfitSet.has(f)) Object.assign(out, { state: "no-build", file: null, detail: "Removed: it was built for another Minecraft version" });
+        else if (!(await fileExists(path.join(modsDir, out.file)))) Object.assign(out, { state: "failed", file: null });
+      }
+      mods[key] = out;
+    }
+    const manifest = await readManagedMods(gameDir);
+    manifest.lastRun = { at: new Date().toISOString(), mcVersion, loader, mods };
+    await writeManagedMods(gameDir, manifest);
+  } catch {
+    // the instance page then says "pending" - nothing breaks
+  }
+}
+
+const PACK_STATES = ["installed", "pending", "off", "no-build", "stepped-aside", "held-back", "switched-off-by-you", "failed"];
+
+/**
+ * What the performance pack is doing in one instance, for the instance page:
+ * { enabled, loader, mods: [{ slug, label, state, file, version, detail }] }.
+ * State per mod: "installed" | "pending" (not run since the instance last
+ * changed) | "off" | "no-build" | "stepped-aside" | "held-back" |
+ * "switched-off-by-you" | "failed". Never throws.
+ */
+async function performancePackStatus(instance) {
+  const loader = (instance && instance.loader) || "vanilla";
+  const enabled = config.perfPackEnabled(instance);
+  const out = { enabled, loader, mods: [] };
+  try {
+    const gameDir = instance && instance.gameDir;
+    const manifest = gameDir ? await readManagedMods(gameDir) : { files: {}, optedOut: {}, lastRun: null };
+    const run = manifest.lastRun && manifest.lastRun.mcVersion === instance.mcVersion && manifest.lastRun.loader === loader ? manifest.lastRun.mods : null;
+    for (const entry of packEntriesFor(loader)) {
+      const key = entry.slug;
+      const row = { slug: key, label: entry.label, state: "pending", file: null, version: null, detail: null };
+      const last = run && run[key];
+      if (!enabled) row.state = "off";
+      else if (manifest.optedOut && manifest.optedOut[key]) {
+        row.state = "switched-off-by-you";
+        row.detail = manifest.optedOut[key].by === "disabled" ? "You switched it off" : "You removed it";
+      } else if (last && PACK_STATES.includes(last.state)) {
+        Object.assign(row, { state: last.state, file: last.file || null, version: last.version || null, detail: last.detail || null });
+      } else {
+        const file = Object.keys(manifest.files || {}).find((f) => manifest.files[f] && manifest.files[f].mod === key);
+        if (file && gameDir && (await fileExists(path.join(gameDir, "mods", file)))) Object.assign(row, { state: "installed", file });
+      }
+      out.mods.push(row);
+    }
+  } catch {
+    // whatever was gathered so far
+  }
+  return out;
+}
+
+/**
+ * Restore: forgets what the player switched off or deleted and every build
+ * that was set aside, so the next launch installs the whole pack again.
+ * Changes only the bookkeeping - no jar is touched here. Never throws;
+ * returns true when something was reset.
+ */
+async function resetPerformancePack(instance) {
+  try {
+    const manifest = await readManagedMods(instance.gameDir);
+    const keys = packKeysNow();
+    let changed = Object.keys(manifest.optedOut || {}).length > 0;
+    manifest.optedOut = {};
+    for (const key of Object.keys(manifest.skipped || {})) {
+      if (keys.has(key) || key.startsWith("dep-")) {
+        delete manifest.skipped[key];
+        changed = true;
+      }
+    }
+    if (manifest.lastRun) {
+      manifest.lastRun = null;
+      changed = true;
+    }
+    if (changed) await writeManagedMods(instance.gameDir, manifest);
+    return changed;
+  } catch {
+    return false;
+  }
 }
 
 /** Are the files a build was set aside for still in mods/, unchanged? `because` is [{ file, size }] or null. */
@@ -2463,6 +3116,18 @@ module.exports = {
   removeMisfitManagedMods,
   findPlayerCopies,
   downloadPerformanceMods,
+  // the performance pack from Modrinth (see test/perf-pack.test.js)
+  downloadPerformancePack,
+  performancePackStatus,
+  resetPerformancePack,
+  recordPackRun,
+  lookupPackReleases,
+  planPackSkips,
+  findPackSkips,
+  pickPackRelease,
+  packReleaseFrom,
+  readManagedMods,
+  PACK_SOAK_MS,
   tidyManagedMods,
   managedModFromName,
   adoptLegacyManagedMods,
