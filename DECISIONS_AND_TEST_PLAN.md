@@ -4,157 +4,135 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after prompt 2 (jobs C, D, E).
-- **`main` is at:** `fb4c47f`. **`npm test`: 456 pass** on Linux.
-- **Never run** in real Electron, against live Modrinth/GitHub, or with Minecraft: everything below
-  marked NOT TESTED needs the desktop window.
-- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1 (blunt, `npm test` after every batch, no `innerHTML`,
-  last CSS rule stays last, never delete a player's own mod, never install alpha/beta silently).
+- **Last updated:** 3 Oct 2026, by the cloud session, after prompt 3 (jobs 1, 2, 3, 4, 6). Prompt 4 (mod
+  detail page) has NOT been started.
+- **`main` is at:** `75603c0` (plus this file's commit). **`npm test`: 470 pass** on Linux.
+- **Never run** in real Electron, against live Modrinth/GitHub, or with Minecraft. The UI was clicked
+  through in headless Chromium with a fake main process (all buttons, IPC payloads, screenshots) - that
+  proves the page code, not the real IPC.
+- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 
 ---
 
-## 1. What changed since the last brief
+## 1. What changed in prompt 3
 
 | Job | What it does now | Files |
 |---|---|---|
-| C1 nested jars | The check reads the Minecraft requirement of mods packed inside other mods. Fabric loads the **highest version** of a mod id, so a multi-version bundle's 26.3 copy is what runs on 26.2 → the outer jar is "won't load" with a plain reason ("JEI contains MezzConfig, which needs Minecraft 26.3"). Only "blocked" when certain; ties stay warnings. | `compat.js` `findNestedMcProblems`, `content.js` (nested `name`/`mcDep`) |
-| C2 game's own report | After any game exit within 30 min of start, Reminth reads the end (max 512 KB) of **that instance's** `logs/latest.log` (written by this launch, no links). Fabric's "incompatible mods" lines about the Minecraft version are saved to `.reminth/launch-report.json`; those files count as "won't load" until the file changes or the instance's version/loader changes. A later start that gets past loading mods deletes the report. The Mods tab re-checks and toasts. | `compat.js` `parseIncompatibleMods`/`mapReportToFiles`, `main.js` `noteLaunchReport` |
-| C3/C4 | Both feed "Update mods to fit" (stable-only swap, or "No build yet" list). A packed mod's fix targets its outer file. | — |
-| D | Panel "Switch to X" / "Fix all" are now **stable-only** (a beta/alpha from Modrinth's lookup is replaced by the newest release, or only "Switch off" is offered). The normal update list and per-mod update button show **Beta/Alpha** tags. | `compat.js`, `content.js` `checkUpdates` (`next.channel`), `features.js` |
-| E | **Every** update path copies the old jar to `.reminth/replaced-mods/<time>/` first (newest 5 kept); a failed copy goes to `.reminth/replaced-mods.log` and the update continues. Mods tab: **"Restore replaced mods"** opens that folder. | `content.js` `applyUpdates`, `modsSync.js`, `main.js`, `features.js` |
-
-Earlier work still waiting for real-world testing: performance profiles + `options.txt` seeding, the
-Performance settings card, "Update mods to fit", the launcher-update button (see section 4).
+| 1 Safe to delete | "Needs a look" is now **"Safe to delete"** on every content tab. Red **Delete all** in its heading: a confirmation lists every item with its size or a folder's file count (capped "1000+"), says they go to the Recycle Bin, warns when a folder isn't empty. The MAIN process re-reads the folder and moves only what is invalid there (`content:removeInvalid`, `shell.trashItem`, max 200, partial failures reported). Italic names no longer lose their last letter. | `content.js` (`invalidItems`, `invalidDetails`, `removeInvalid`), `main.js`, `preload.js`, `features.js`, `styles.css` |
+| 2 Running = mods locked | Main process: `content:setEnabled`, `content:remove`, `content:removeInvalid`, `content:install` refuse **mod** changes while that instance runs ("Close the game first - that instance is running."); packs/shaders/data packs stay allowed; a shader install may not add Iris then. Screen: switches, bins, single updates, Delete all, bulk bar, "Browse content" off with "Close Minecraft to change mods."; Discover's "which instance?" panel shows a running instance as unavailable for mods; Open folder gets the line as a hint. Everything comes back by itself when the game exits. | `content.js` (`touchesMods`), `main.js`, `features.js`, `renderer.js`, `styles.css` |
+| 3 Skins page lag | **Not measured here.** Found: the viewer is CSS 3D (not WebGL) and every skin TILE is its own 3D model; opening the page rebuilt all tiles and the big model every time. Now: rebuild only when the skins changed; idle warm-up 4 s after start (signed in); loaders start after the first painted frame; images `decode()`d; the big viewer's frame loop pauses off-page; no entrance fade on the Skins page (it flattens every 3D model while it runs). Marks: `skins:viewer`, `skins:texture`, `skins:profile`, `skins:library`, `skins:defaults`, `skins:warm`, mark `skins:open`. | `features.js`, `skinview.js`, `styles.css` |
+| 4 Play on Home cards | Each "Jump back in" card has **Play**, starting the card's own instance. Servers: host / host:port / [IPv6]:port / bare IPv6 (IPv6 now goes to the game in brackets - before it was silently dropped). Worlds: opened directly when the version's own arguments have quick play for singleplayer (`minecraft.supportsWorldJoin`), otherwise the instance just starts and tooltip + toast say so. World folder name checked on the main side (plain name, real folder in THAT instance's saves). The only change inside `launch()`: `${quickPlaySingleplayer}` + the `is_quick_play_singleplayer` feature. | `renderer.js`, `pure.js` (new), `gameData.js`, `minecraft.js`, `main.js`, `preload.js`, `index.html`, `styles.css` |
+| 6 Hero = last played | The Home hero (tags, text, Time played, Last played, Play/Stop, Instance, "Update mods to fit") is about the instance with the newest `lastPlayed` (never played → the selected one). Clicking the rail no longer changes Home. `lastPlayed` is now written when the game **starts**. The Home progress bar follows the run that put it up. | `renderer.js`, `pure.js`, `features.js`, `main.js` |
 
 ---
 
 ## 2. Decisions the owner must make (recommendation first)
 
-Answer by number. Closed ones are listed at the end so nobody asks again.
+1. **Home "Time played" now shows the hero instance's time, not the lifetime total of all instances.** The
+   old code said "lifetime total across every instance" on purpose; prompt 3 says the hero's Time played is
+   about the hero instance. **Recommend: keep (as the prompt says)**; the Statistics page still has totals.
+2. **No page fade when opening Skins** (the other pages still fade in). It's the one visible change made for
+   speed; the 3D models look the same. **Recommend: keep if 4.11 shows Skins opening faster; otherwise
+   restore it** (one CSS line in `styles.css`: `#skins.page { animation: none; }`).
+3. **Mods-tab delete text unchanged** (prompt asked "deleted for good"): delete really moves the file to the
+   Recycle Bin, so that text would be false. **Recommend: keep unchanged.**
+4. **Opening a world from Home on a Minecraft version without quick play** just starts the instance (title
+   screen). **Recommend: keep** - opening it any other way would mean writing to the game's files.
+5. **A shader-pack install into a running instance that needs Iris/Oculus is refused** with a plain message
+   (the pack alone is allowed). **Recommend: keep.**
+6. **Unsigned installer** (still open from before): SmartScreen warns on manual downloads; nothing to do
+   without paying for a certificate. Never write "verified/signed" anywhere.
 
-1. **Privacy text is out of date in two places** (the code window may not edit it):
-   (a) `site/privacy.html` ~line 119 says copies of replaced mods are kept "when you press Update mods to
-   fit" - now **every** update keeps one; (b) nothing mentions that after a failed start Reminth reads the
-   instance's `logs/latest.log` and saves `.reminth/launch-report.json` (local only, nothing sent).
-   **Recommend: fix both in the next privacy edit** (desktop window, then re-upload `site/` to Cloudflare).
-2. **Tied versions stay a warning.** AnchorOptimizer's copies are `1.0.6+26.2` / `1.0.6+26.3`, which Fabric
-   treats as equal, so which one loads can't be known → warning before the first start; the game's report
-   makes it "won't load" after one failed start. **Recommend: keep** (your "false blocked is worst" rule).
-3. **All replaced mod jars are copied**, including ones Reminth installed itself (the prompt said "files
-   Reminth did not install"). **Recommend: keep** - the copy is cheap and "who installed it" is unreliable.
-4. **New Forge/NeoForge instances start with the performance pack ON.** **Recommend: keep only if test 4.17
-   passes**, otherwise flip `packOnByDefault` in `renderer.js` to off for Forge/NeoForge.
-5. **Max FPS / Far view on an existing never-played instance** writes `options.txt` at its first Play.
-   **Recommend: keep.**
-6. **Wrong-loader mods count toward "Update mods to fit".** **Recommend: keep.**
-7. **Six extra-mod slugs** (`dynamic-fps`, `badoptimizations`, `moreculling`, `distanthorizons`, `bobby`,
-   `c2me-fabric`) unverified live. **Recommend: confirm in test 4.15.**
-8. **Unsigned installer**: SmartScreen warns on manual downloads; nothing to do without paying for a
-   certificate. Never write "verified/signed" anywhere.
-
-Closed: panel fixes release-only (done, job D); every update keeps a copy (done, job E); privacy six-hour
-check + replaced-mods line (added by desktop window in `deb2408`, now needs decision 1's correction);
-Mods-tab delete text unchanged on purpose - it really uses the Recycle Bin.
+Closed: privacy text for copies + game report (done by the desktop window); tied versions stay warnings;
+all replaced jars copied; Forge/NeoForge pack ON for new instances (4.17 passed); profile on never-played
+instance writes options.txt; wrong-loader mods count for "Update mods to fit"; six extra-mod slugs
+(confirm in 4.20 if not yet done).
 
 ---
 
 ## 3. Known weak spots (say them, don't hide them)
 
-- No FPS number has ever been measured. No speed claims anywhere.
-- The nested-jar rule was tested on **fake jars shaped like** the real ones, not the real ClientSideCrystals /
-  AnchorOptimizer / JEI files. If a real bundle's outer jar has the same id and version as its newest packed
-  copy, it shows as a warning until the first failed start (then the report catches it).
-- The report parser was built from the three lines quoted from the owner's log; real Windows log formatting
-  (CRLF, timestamps, tabs) is assumed, not seen.
-- `options.txt` seeding unproven per version family (1.16, 1.20, 1.21, 1.21.11, 26.x).
-- Safe mode still misses JVM errors that show a `javaw` dialog.
-- The update path has never seen a real GitHub release.
-- Whether the NSIS installer kills a running `javaw` is unknown → install-on-quit is skipped while a game runs.
+- No FPS number has ever been measured; the Skins speed-up is unmeasured too (4.11 measures it).
+- Opening a world directly: the argument comes from Mojang's own version file, but no world has ever been
+  opened this way in a real game. Same for IPv6 server joins (bracket form assumed from Minecraft's own
+  address format).
+- "Last played" is now written at launch: an instance that crashes at start still becomes Home's hero.
+- `options.txt` seeding: on 1.16.5/1.20.1/1.21.1 the game never rewrites the file, so "values were used"
+  isn't proven there (desktop results below).
+- Safe mode still misses JVM errors that show a `javaw` dialog; the update path has never seen a real GitHub
+  release; whether the NSIS installer kills a running `javaw` is unknown.
 
 ---
 
 ## 4. Test plan for the desktop window (in order)
 
-Don't touch the screen while the owner plays. Back up anything you are about to change. Report each step
-PASS/FAIL with what you saw; stop and report on any FAIL that risks his files.
+Don't touch the screen while the owner plays. Use throwaway instances. Report PASS/FAIL per step with what
+you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **456 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **470 pass**. Report any Windows-only failure verbatim.
 2. `npm start`; watch DevTools console and `%APPDATA%\Reminth\main-errors.log` throughout.
 
-### The case that failed last time (jobs C, D, E) - most important
-3. Make a **fresh throwaway** Fabric 26.2 instance and copy in the 29 mods of the "Reminth" instance
-   (never work on his real instance).
-4. Before Play: the Mods panel should now list ClientSideCrystals and JEI as **won't load** with the new
-   reasons ("…carries a copy for each Minecraft version…", "JEI contains MezzConfig…"). AnchorOptimizer may
-   only be a warning (decision 2). Note exactly what each says.
-5. Click **"Update mods to fit 26.2 (N)"**. Check: swapped jars are **release** builds; every replaced jar is in
-   `.reminth\replaced-mods\<time>\`; nothing deleted without a copy; Reminth's own jars untouched.
-6. Play. If the game still refuses: confirm `.reminth\launch-report.json` appears listing the named mods with
-   the right jar (MezzConfig → the JEI jar), the Mods tab toast says "Minecraft named N mods…", and those
-   mods are now "won't load". Click the button again → swapped, or listed under "No 26.2 build yet" →
-   "Switch them off" → Play.
-7. **Expected end state: the game reaches the title screen.** Then quit normally and confirm
-   `launch-report.json` was deleted (a start that got past the mods clears it).
-8. "Restore replaced mods" (Mods tab) opens `.reminth\replaced-mods`. Copy one jar back by hand → it shows in
-   the list again.
-9. Mods tab → Check for updates on an instance with a mod whose newest build is a beta: the list and the
-   per-mod update button show a **Beta** tag. Panel "Switch to X" never offers a beta/alpha.
+### Job 1 - Safe to delete
+3. In a throwaway instance put a folder with a few files, an empty folder and a `.rar` in `mods/`, and a
+   `.txt` in `resourcepacks/`. The Mods tab shows **"Safe to delete"** with **Delete all**; names are fully
+   visible (no cut-off last letter).
+4. Delete all → the confirmation lists every item with size / file count and the "folders contain files"
+   line → confirm → they are in the **Windows Recycle Bin** (restore one to prove it); real jars untouched.
+5. Lock one item (open a file inside the folder in another program) → toast "Moved N of M; 1 is in use".
+6. Same on the Resource packs tab (only the .txt goes).
 
-### Settings + launcher update
-10. Settings → Performance: each GC option saves, priority switch saves, "Choose graphics card…" opens Windows
-    Graphics settings and lists real `javaw.exe` paths; Copy works.
-11. Memory card: "Automatic: X GB for <instance>"; move slider → "You picked…" + "Use automatic" works.
-12. Version card in `npm start`: "Check for updates" → "Updates only work in the installed app."
+### Job 2 - running game locks mods
+7. Start an instance. On its Mods tab: switches/bins/Delete all/bulk bar/"Browse content" are off, the line
+   "Close Minecraft to change mods." shows, Open folder has the hint. Resource packs tab still works (switch a
+   pack off and on).
+8. Discover → Install on a mod → the "which instance?" panel shows the running instance as "Game running".
+9. Quit the game → everything is enabled again without a restart.
 
-### Profiles + options.txt (needs the real game)
-13. For **1.16.5, 1.20.1, 1.21.1, 1.21.11, 26.x** (Fabric): new instance with **Max FPS**, Play to title,
-    quit. `options.txt` keeps renderDistance 10, simulationDistance 8 (where it exists), particles 1,
-    entityShadows false, biomeBlendRadius 1, entityDistanceScaling 0.75, enableVsync false, maxFps 260;
-    nothing else oddly reset; `.reminth\options-seeded.json` exists.
-14. **Far view** once on 26.x: renderDistance 16/20/24 by PC. Existing instance with its own `options.txt` →
-    change profile → Play → file unchanged (diff it).
-15. Suggested-mods window: rows load, no-build rows can't be ticked, C2ME asks twice, ticked mods install as
-    normal mods. All six slugs resolve (decision 7).
-16. Instance dialog: pack mod list per loader, "At the last Play" status, Restore (refused while running);
-    Mods tab "Performance pack" label.
-17. New **Forge 1.20.1** and **NeoForge 1.21.1** instance with the pack on → Play to title, no duplicate-id
-    crash, check `reminth-performance-mods.log` (decision 4).
+### Job 3 - Skins page (measure)
+10. Restart Reminth, wait 10 s on Home, then DevTools → Console:
+    `performance.getEntriesByType("measure").filter(m=>m.name.startsWith("skins:")).map(m=>[m.name,Math.round(m.duration)])`
+    → note the numbers (warm-up happened in idle time).
+11. Open Skins with the Performance panel recording: compare the page-switch frame with the old build if you
+    can (owner's report: it "lags for a moment"). Open/leave Skins 5 times: no rebuild flicker; the big model
+    animates only while visible. Report whether the lag is gone (decision 2).
 
-### Release (only after 3-17 pass)
-18. Bump to 1.4.0, build, smoke-test the packaged app (Check for updates works or shows the error + manual
-    link).
-19. With a game running: "Restart and update" disabled ("Close Minecraft first"); quitting Reminth leaves the
-    game running and installs nothing; the next quit without a game installs.
-20. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`); an installed older copy finds it
-    (10 s after start or via the button), shows download %, then "ready".
-21. Fix the privacy text (decision 1) and re-upload `site/` to Cloudflare.
+### Jobs 4 + 6 - Home
+12. Play instance A, quit; select instance B in the rail → Home still shows **A** (name, tags, Time played,
+    Last played). Play B from its page → Home switches to B as soon as the game starts.
+13. Home cards: **Play** on a world card of a 1.20+ instance → the game opens straight into that world.
+    On a world card of a pre-1.20 instance → the instance starts at the title screen and the toast says "this
+    Minecraft version can't open a world directly" (tooltip says the same).
+14. Play on a server card → joins the server. If you can, an IPv6 server (`[address]:port`).
+15. While a card's instance runs, its Play button is off; the hero's Instance button opens the hero instance.
+
+### Still open from before
+16. Profiles: Far view on 26.x (render distance 16/20/24 by PC); an existing instance with its own
+    `options.txt` → change profile → Play → file unchanged.
+17. Suggested-mods window: rows load, no-build rows can't be ticked, C2ME asks twice; all six slugs resolve.
+18. Instance dialog: pack list per loader, "At the last Play" status, Restore (refused while running).
+19. Settings → Performance card and the memory helper (GC options, priority switch, graphics-card help).
+
+### Release (only after the above pass)
+20. Bump to 1.4.0, build, smoke-test the packaged app.
+21. With a game running: "Restart and update" disabled; quitting Reminth leaves the game running and
+    installs nothing; the next quit without a game installs.
+22. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`); an installed older copy finds
+    it, shows download %, then "ready". Re-upload `site/` to Cloudflare if site text changed.
 
 ### Report back
-22. PASS/FAIL per step, anything surprising, the owner's answers to section 2, then **update this file**
-    (sections 1-4) before you stop.
+23. PASS/FAIL per step, the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
-## 5. Desktop window results (3 Oct 2026, Windows 11, real Electron + Minecraft)
+## 5. Desktop window results so far (3 Oct 2026, Windows 11, real Electron + Minecraft)
 
-- Step 1: `npm test` 456 pass on Windows. CRLF files and the CSS last rule intact.
-- Steps 3-7 **PASS**: fresh throwaway Fabric 26.2 + the 29 mods. Panel now says 18 "won't load" (was 16): Client
-  Side Crystals ("carries a copy for each Minecraft version...") and JEI ("contains MezzConfig...") are caught;
-  Anchor Optimizer is a warning (decision 2). One click: "Updated 18 mods, and added Sodium"; 18 jars copied to
-  `.reminth/replaced-mods/`. Play: 113 mods loaded, "Sound engine started" (title screen). No
-  `launch-report.json` was needed. (The real "Reminth" instance was never touched.)
-- Step 8: the "Restore replaced mods" button is present; not clicked (it opens Explorer).
-- Step 9 **PASS**: update list shows Alpha (ScalableLux) and Beta (JEI, Simple Voice Chat, Client Side Crystals,
-  Text Placeholder API) tags.
-- Step 12 **PASS**: "Updates only work in the installed app." in a dev run.
-- Step 17 **PASS** (decision 4 = keep): Forge 1.20.1 (6 pack mods) and NeoForge 1.21.1 (7 pack mods) reach the
-  title screen, no duplicate-id crash.
-- Profiles: seeding tested for real on 1.16.5, 1.20.1, 1.21.1, 1.21.5, 1.21.10, 1.21.11, 26.1, 26.3. **Bug found
-  and fixed (commit 2dfbdc7):** from 1.21.11 on the graphics preset overwrote our values unless
-  `graphicsPreset:"custom"` was in the file. On 1.16.5/1.20.1/1.21.1 the file is left intact but the game never
-  rewrites it, so "values were used" is not proven there.
-- Decision 1 (privacy) done by the desktop window. Decisions 2-7: owner agreed with the recommendations.
-- Not done yet: steps 14-16, 18-20 (needs a second build and the GitHub release), site re-upload.
-- Owner's follow-up list (small fixes + Discover detail page + Home hero) will come as prompt 3 / prompt 4.
-
+- `npm test` 456 pass on Windows (before prompt 3). CRLF files and the CSS last rule intact.
+- Prompt 2 case **PASS**: fresh Fabric 26.2 + the owner's 29 mods; panel caught 18 "won't load" (Client Side
+  Crystals and JEI included; Anchor Optimizer a warning); one click updated 18, added Sodium, copied 18 jars to
+  `.reminth/replaced-mods/`; the game reached the title screen with 113 mods. Real "Reminth" instance untouched.
+- Beta/Alpha tags in the update list **PASS**; dev-run "Updates only work in the installed app." **PASS**.
+- Forge 1.20.1 (6 pack mods) and NeoForge 1.21.1 (7) reach the title screen **PASS**.
+- `options.txt` seeding tested on 1.16.5, 1.20.1, 1.21.1, 1.21.5, 1.21.10, 1.21.11, 26.1, 26.3; fix in
+  `2dfbdc7` (`graphicsPreset:"custom"` from 1.21.11 on).
+- Not done yet: profile steps above, release steps, site re-upload.
