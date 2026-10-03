@@ -597,6 +597,177 @@ function findDependencyProblems(mods, { loader = "fabric", hasConnector = false 
   return [...out, ...duplicates];
 }
 
+/**
+ * Pure: mods packed INSIDE other mods (jar-in-jar) whose own Minecraft
+ * requirement this instance fails - when Fabric would really load them.
+ *
+ * Why this exists (a real instance, Fabric 26.2, October 2026): three mods
+ * stopped the game and the old check saw none of them.
+ *  - ClientSideCrystals-26.3.jar and AnchorOptimizer-26.3.jar are
+ *    multi-version bundles. Their outer fabric.mod.json says
+ *    ">=1.21 <=26.3" / ">=26.1 <=26.3" (26.2 passes that), but they carry
+ *    one nested jar per Minecraft version under META-INF/jars/, each with
+ *    the SAME mod id. Fabric doesn't pick the copy that fits: of several
+ *    copies of one id it loads the highest version - the 26.3 one - and
+ *    that one says it needs 26.3.
+ *  - jei-26.3-fabric-*.jar carries MezzConfig, whose own fabric.mod.json
+ *    needs exactly 26.3. Nothing else has MezzConfig, so it is loaded.
+ *
+ * The rule, per mod id that has at least one packed copy:
+ *  1. Every loaded copy counts: jars in the folder and copies packed inside
+ *     any of them.
+ *  2. The copy Fabric loads is the highest version. If the highest version
+ *     is shared by several copies (versions that only differ after a "+",
+ *     like 1.0.6+26.3 and 1.0.6+26.2, ARE equal to Fabric) or a version
+ *     can't be read, which copy loads can't be told.
+ *  3. If that copy is a packed one and its "depends.minecraft" fails this
+ *     version, the OUTER jar won't load: "blocked".
+ *  4. A false "blocked" is the worst outcome, so it is "blocked" only when
+ *     every copy that could be the one loaded fails, every requirement
+ *     involved could be read, and no unreadable packed jar could be another
+ *     copy. Anything less certain is a warning (and the game's own report
+ *     after a failed start - parseIncompatibleMods - settles it then).
+ * `skip`: files Fabric doesn't load at all (copies it passes over).
+ * Returns [{ file, id, name, version, need, bundle, certain }] - `file` is
+ * the outer jar, the only thing that can be swapped or switched off.
+ */
+function findNestedMcProblems(mods, { loader = "fabric", mcVersion, hasConnector = false, skip = new Set() } = {}) {
+  if (!(isFabricLike(loader) || hasConnector) || !parseMcVersion(mcVersion)) return [];
+  const live = (mods || []).filter((m) => m && m.environment !== "server" && !skip.has(m.file));
+  const candidates = new Map(); // id -> [{ item, version, nested, mcDep, name }]
+  const add = (id, c) => {
+    const key = String(id).toLowerCase();
+    if (!candidates.has(key)) candidates.set(key, []);
+    candidates.get(key).push(c);
+  };
+  for (const m of live) {
+    // On Quilt a jar with its own quilt.mod.json isn't read through fabric.mod.json at all.
+    const fabricSide = fabricRulesApply(m, loader) && !(loader === "quilt" && m.descriptors && m.descriptors.quilt && m.descriptors.fabric);
+    if (m.modId) add(m.modId, { item: m, version: m.modVersion, nested: false, mcDep: fabricSide ? m.mcDep || null : null, name: displayName(m) });
+    if (!fabricSide) continue;
+    for (const n of nestedModsOf(m)) add(n.id, { item: m, version: n.version, nested: true, mcDep: n.mcDep || null, name: n.name || n.id });
+  }
+  const verdict = (c) => (c.mcDep ? fabricPredicateAllows(c.mcDep, mcVersion) : true);
+  const out = [];
+  for (const [id, list] of candidates) {
+    if (!list.some((c) => c.nested && c.mcDep)) continue;
+    const parsed = list.map((c) => parseVer(c.version));
+    const readable = parsed.every(Boolean);
+    let top = list;
+    if (readable) {
+      const best = parsed.reduce((a, b) => (compareVer(a, b) >= 0 ? a : b));
+      top = list.filter((c, i) => compareVer(parsed[i], best) === 0);
+    }
+    const failing = top.filter((c) => c.nested && verdict(c) === false);
+    if (!failing.length) continue;
+    const certain = top.every((c) => verdict(c) === false) && !unreadMayProvide(id, live);
+    const seen = new Set();
+    for (const c of failing) {
+      if (seen.has(c.item.file)) continue;
+      seen.add(c.item.file);
+      out.push({
+        file: c.item.file,
+        id,
+        name: c.name,
+        version: c.version || null,
+        need: describePredicate(c.mcDep),
+        // several packed copies of one mod in one jar: a multi-version bundle
+        bundle: list.filter((x) => x.nested && x.item === c.item).length > 1,
+        certain,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Pure: the mods Fabric itself named when it refused to start, out of a
+ * game log. Fabric prints "Some of your mods are incompatible with the game
+ * or each other!" and then lines like
+ *   - Mod 'Anchor Optimizer' (client_side_anchors) 1.0.6+26.3 requires version 26.3 of 'Minecraft', but only the wrong version is present: 26.2!
+ *   - Replace mod 'MezzConfig' (mezz_config) 0.6.6 with any version that is compatible with:
+ *       - minecraft 26.2
+ * Returns [{ id, name, version, why }], one per mod id (the "requires" line
+ * wins over the "Replace" one). Nothing before the heading is looked at.
+ */
+const REPORT_HEADING = /Some of your mods are incompatible with the game or each other!|Incompatible mods found!/;
+function parseIncompatibleMods(text) {
+  const t = String(text || "");
+  const at = t.search(REPORT_HEADING);
+  if (at < 0) return [];
+  const lines = t.slice(at, at + 64 * 1024).split(/\r?\n/);
+  const out = new Map();
+  const put = (id, name, version, why, strong) => {
+    const key = id.toLowerCase();
+    const prev = out.get(key);
+    if (prev && (prev.strong || !strong)) return;
+    out.set(key, { id, name, version, why: why.slice(0, 300), strong });
+  };
+  for (let i = 0; i < lines.length && i < 2000; i++) {
+    const line = lines[i];
+    const mod = /-\s+Mod '([^']{1,120})' \(([A-Za-z0-9_.-]{1,64})\) (\S{1,80}) (.{1,400}?)\s*$/.exec(line);
+    if (mod) {
+      put(mod[2], mod[1], mod[3], mod[4], true);
+      continue;
+    }
+    const repl = /-\s+(Replace|Remove) mod '([^']{1,120})' \(([A-Za-z0-9_.-]{1,64})\) (\S{1,80})(?: with (.{1,300}?))?\s*$/.exec(line);
+    if (repl) {
+      let why = repl[1] === "Remove" ? "remove it" : `replace it with ${repl[5] || "another version"}`;
+      // The deeper "- minecraft 26.2" lines under it belong to it.
+      const indent = (line.match(/^\s*/) || [""])[0].length;
+      while (i + 1 < lines.length && (lines[i + 1].match(/^\s*/) || [""])[0].length > indent && /^\s*-\s+(?!Mod '|Replace mod|Remove mod|Install mod)/.test(lines[i + 1])) {
+        why += " " + lines[++i].trim().replace(/^-\s+/, "");
+      }
+      put(repl[3], repl[2], repl[4], why, false);
+    }
+  }
+  return [...out.values()].map(({ id, name, version, why }) => ({ id, name, version, why }));
+}
+
+/** Pure: the entries of parseIncompatibleMods that are about the Minecraft version. */
+function minecraftMismatches(entries) {
+  return (entries || []).filter((e) => e && /\bminecraft\b/i.test(e.why || ""));
+}
+
+/**
+ * Pure: which files the game's report is about. A mod id is matched to the
+ * enabled jar that is it, or else to the jar it is packed inside (that outer
+ * file is the only thing that can be swapped). `items` are content.listAll
+ * mod items. Returns [{ id, name, version, why, file, size, mtimeMs, nestedIn }].
+ */
+function mapReportToFiles(entries, items) {
+  const live = (items || []).filter((i) => i && i.valid && !i.folder && i.enabled);
+  const out = [];
+  const seen = new Set();
+  for (const e of entries || []) {
+    const id = String(e.id || "").toLowerCase();
+    if (!id) continue;
+    let hits = live.filter((i) => String(i.modId || "").toLowerCase() === id).map((i) => ({ item: i, nestedIn: null }));
+    if (!hits.length) {
+      hits = live.filter((i) => nestedModsOf(i).some((n) => n.id.toLowerCase() === id)).map((i) => ({ item: i, nestedIn: displayName(i) }));
+    }
+    for (const { item, nestedIn } of hits) {
+      const key = `${item.file}|${id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ id: e.id, name: e.name || e.id, version: e.version || null, why: e.why || "", file: item.file, size: item.size, mtimeMs: item.modifiedAt, nestedIn });
+    }
+  }
+  return out;
+}
+
+const LAUNCH_REPORT_FILE = path.join(".reminth", "launch-report.json");
+
+/** The last refused start's report for an instance, or null. Never throws. */
+async function readLaunchReport(gameDir) {
+  try {
+    const parsed = JSON.parse(await fsp.readFile(path.join(gameDir, LAUNCH_REPORT_FILE), "utf8"));
+    return parsed && Array.isArray(parsed.mods) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* checking an instance                                               */
 /* ------------------------------------------------------------------ */
@@ -699,10 +870,14 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
   const perfPackOn = config.perfPackEnabled(instance);
   const apiComesAtLaunch = isFabricLike(loader) && (instance.hud === true || perfPackOn);
   const overridden = deps.hasOverrideFile ? await deps.hasOverrideFile(gameDir) : await hasOverrideFile(gameDir);
+  // What the game itself refused at its last start (main.js writes it) -
+  // only for the version and loader it was about.
+  const rawReport = deps.readLaunchReport ? await deps.readLaunchReport(gameDir) : await readLaunchReport(gameDir);
+  const launchReport = rawReport && rawReport.mcVersion === instance.mcVersion && rawReport.loader === loader ? rawReport.mods : [];
   // Which jars are Reminth's is part of the question: the same files with a
   // different managed list (after a launch tidied or disowned one) is a
   // different answer.
-  const key = JSON.stringify([instance.mcVersion, loader, instance.hud === true, perfPackOn, overridden, loaded.map((i) => [i.file, i.size, i.modifiedAt]), [...managed].sort()]);
+  const key = JSON.stringify([instance.mcVersion, loader, instance.hud === true, perfPackOn, overridden, loaded.map((i) => [i.file, i.size, i.modifiedAt]), [...managed].sort(), launchReport]);
   const cached = checkCache.get(instance.id);
   if (!force && cached && cached.key === key && Date.now() - cached.at < CHECK_TTL_MS && cached.result.online) return cached.result;
 
@@ -755,6 +930,48 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
     if (verdict) flagged.push({ item, verdict });
   }
 
+  // --- mods packed inside a jar that need another Minecraft version: the
+  // outer jar won't load (findNestedMcProblems has the rule and why).
+  const flaggedOf = (item) => flagged.find((f) => f.item === item);
+  for (const p of findNestedMcProblems(atLaunch, { loader, mcVersion: instance.mcVersion, hasConnector, skip: passedOver })) {
+    const item = mods.find((i) => i.file === p.file); // Reminth's own jars aren't reported
+    if (!item) continue;
+    const outer = displayName(item);
+    const what = p.bundle
+      ? `${outer} carries a copy for each Minecraft version, and Fabric loads the newest one (${p.version || "?"}), which needs Minecraft ${p.need}`
+      : `${outer} contains ${p.name}, which needs Minecraft ${p.need}`;
+    const verdict = {
+      severity: p.certain ? "blocked" : "warn",
+      reason: "wrong-mc",
+      madeFor: p.need,
+      detail: p.certain
+        ? `${what} — this instance is on ${instance.mcVersion}. ${loaderName(loader)} won't start with it switched on.`
+        : `${what}. Fabric may load that copy on ${instance.mcVersion}, so it may not start.`,
+    };
+    const had = flaggedOf(item);
+    if (!had) flagged.push({ item, verdict });
+    else if (had.verdict.severity !== "blocked" && verdict.severity === "blocked") had.verdict = verdict;
+  }
+
+  // --- what the game itself refused at its last start, as long as that
+  // exact file (same size and time) is still there. No guessing involved.
+  for (const r of launchReport || []) {
+    if (!r || typeof r.file !== "string") continue;
+    const item = mods.find((i) => i.file === r.file && i.size === r.size && i.modifiedAt === r.mtimeMs);
+    if (!item) continue;
+    const who = r.nestedIn ? `${displayName(item)} contains ${r.name || r.id}, and` : `${displayName(item)}`;
+    const verdict = {
+      severity: "blocked",
+      reason: "wrong-mc",
+      madeFor: null,
+      fromGame: true,
+      detail: `${who} stopped Minecraft from starting last time — the game said it ${String(r.why || "doesn't fit this version").replace(/!$/, "")}.`,
+    };
+    const had = flaggedOf(item);
+    if (!had) flagged.push({ item, verdict });
+    else had.verdict = { ...verdict, detail: had.verdict.severity === "blocked" ? had.verdict.detail : verdict.detail };
+  }
+
   // --- for the ones on the wrong version, is there a build that fits?
   let replacements = {};
   const needFix = flagged.filter((f) => hashes.has(f.item) && versionOf(f.item));
@@ -768,6 +985,20 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
     } catch {
       replacements = {};
     }
+    // Only a STABLE build is switched to without the player picking the
+    // file: Modrinth's update lookup ignores the channel, so a beta or alpha
+    // it offers is swapped for the newest release for this exact version
+    // and loader (the same choice as "Update mods to fit"), or dropped.
+    const { pickStableBuild } = require("./modsSync");
+    const unstable = Object.entries(replacements).filter(([, v]) => v && (v.version_type === "beta" || v.version_type === "alpha"));
+    await mapLimit(unstable, 4, async ([hash, v]) => {
+      try {
+        const list = await api.getProjectVersions(v.project_id, { loaders: wanted, gameVersions: [instance.mcVersion] });
+        replacements[hash] = pickStableBuild(list, instance.mcVersion, wanted);
+      } catch {
+        replacements[hash] = null;
+      }
+    });
   }
 
   for (const { item, verdict } of flagged) {
@@ -811,6 +1042,7 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
       detail: verdict.detail,
       neededBy: null,
       fix,
+      ...(verdict.fromGame ? { fromGame: true } : {}),
     });
   }
 
@@ -995,7 +1227,8 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
   // is sure to stop the game - the file may have changed exactly that rule.
   if (overridden) {
     for (const issue of result.issues) {
-      if (issue.severity !== "blocked" || !OVERRIDABLE.has(issue.reason)) continue;
+      // What the game itself reported already went through that file.
+      if (issue.severity !== "blocked" || !OVERRIDABLE.has(issue.reason) || issue.fromGame) continue;
       issue.severity = "warn";
       issue.detail += OVERRIDE_NOTE;
     }
@@ -1236,6 +1469,12 @@ module.exports = {
   fabricPredicateAllows,
   versionSatisfies,
   findDependencyProblems,
+  findNestedMcProblems,
+  parseIncompatibleMods,
+  minecraftMismatches,
+  mapReportToFiles,
+  readLaunchReport,
+  LAUNCH_REPORT_FILE,
   unreadMayProvide,
   fabricRulesApply,
   describePredicate,

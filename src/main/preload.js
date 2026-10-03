@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld("reminth", {
   compatServerVersions: (address) => ipcRenderer.invoke("compat:serverVersions", address),
   copyInstanceToVersion: (instanceId, request) => ipcRenderer.invoke("compat:copyToVersion", instanceId, request),
   onCompatProgress: on("compat:progress"),
+  onCompatChanged: on("compat:changed"),
 
   // what the player has played (read-only, from their own save files)
   recent: () => ipcRenderer.invoke("game:recent"),

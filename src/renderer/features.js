@@ -3995,6 +3995,16 @@ async function compatAfterEdit(id, mcVersion) {
 
 /* ---- "Which Minecraft version should I use?" ---- */
 
+// The game refused to start and said which mods (main.js noteLaunchReport):
+// look again now, so the panel and "Update mods to fit" know them.
+window.reminth.onCompatChanged(({ instanceId, refused }) => {
+  runCompatCheck(instanceId, true);
+  if (refused) {
+    const inst = instanceById(instanceId);
+    toast(`Minecraft named ${refused} ${plural(refused, "mod")} in ${inst ? inst.name : "that instance"} that ${refused === 1 ? "needs" : "need"} another version — they're marked on the Mods tab.`);
+  }
+});
+
 const compatProgressListeners = new Set();
 window.reminth.onCompatProgress((p) => compatProgressListeners.forEach((fn) => fn(p)));
 

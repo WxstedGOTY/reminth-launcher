@@ -559,7 +559,8 @@ test("jar meta: environment and the mods nested inside a jar are reported, one l
 
   const meta = await jarMeta(path.join(mods, "outer.jar"));
   assert.equal(meta.environment, "client");
-  assert.deepEqual(meta.nestedMods, [{ id: "lib", version: "3.1.0", provides: ["oldlib"] }]);
+  // name and Minecraft requirement are recorded too (compat.findNestedMcProblems); this one has no requirement
+  assert.deepEqual(meta.nestedMods, [{ id: "lib", name: "LIB", version: "3.1.0", provides: ["oldlib"], mcDep: null }]);
   assert.equal(meta.nestedUnread, false);
   assert.deepEqual(meta.nested, ["META-INF/jars/lib.jar", "META-INF/jars/plain.jar"]);
 
@@ -604,7 +605,7 @@ test("jar meta: environment and the mods nested inside a jar are reported, one l
   // and the list items carry all three
   const item = (await content.listAll(gameDir)).mod.find((i) => i.file === "outer.jar");
   assert.equal(item.environment, "client");
-  assert.deepEqual(item.nestedMods, [{ id: "lib", version: "3.1.0", provides: ["oldlib"] }]);
+  assert.deepEqual(item.nestedMods, [{ id: "lib", name: "LIB", version: "3.1.0", provides: ["oldlib"], mcDep: null }]);
   assert.equal(item.nestedUnread, false);
   // cached by path + size + mtime: the same object comes back
   assert.equal(await jarMeta(path.join(mods, "outer.jar")), meta);

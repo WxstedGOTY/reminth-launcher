@@ -347,7 +347,7 @@ const MAX_NESTED_TOTAL_BYTES = 64 * 1024 * 1024;
 
 /**
  * The mods bundled INSIDE a Fabric jar (its "jars" list), one level deep:
- * { mods: [{ id, version, provides }], unread, unreadNames }. The
+ * { mods: [{ id, name, version, provides, mcDep }], unread, unreadNames }. The
  * compatibility check needs these to know a dependency is already provided
  * by a jar-in-jar. `unread` is true when the answer may be incomplete (too
  * many, too big, or one that couldn't be opened), and `unreadNames` says
@@ -376,10 +376,17 @@ async function readNestedMods(zip, nested) {
         unreadNames.push(name);
         continue;
       }
+      // Its own Minecraft requirement too: a packed jar that needs another
+      // Minecraft version stops the game exactly like one in the folder
+      // (compat.findNestedMcProblems decides whether Fabric would load it).
+      const mc = json.depends && typeof json.depends === "object" && !Array.isArray(json.depends) ? json.depends.minecraft : undefined;
+      const mcDep = typeof mc === "string" || (Array.isArray(mc) && mc.length && mc.every((d) => typeof d === "string")) ? mc : null;
       mods.push({
         id: json.id.slice(0, 80),
+        name: typeof json.name === "string" ? json.name.slice(0, 80) : null,
         version: typeof json.version === "string" ? json.version.slice(0, 40) : null,
         provides: Array.isArray(json.provides) ? json.provides.filter((x) => typeof x === "string").slice(0, 32) : [],
+        mcDep,
       });
     } catch {
       unreadNames.push(name);

@@ -29,8 +29,11 @@ test.after(() => fs.rmSync(HOME, { recursive: true, force: true }));
 const ipc = new Map();
 let appReady;
 const whenReady = new Promise((resolve) => (appReady = resolve));
+const toRenderer = []; // [channel, payload] main.js sent
 class FakeWebContents extends EventEmitter {
-  send() {}
+  send(channel, payload) {
+    toRenderer.push([channel, payload]);
+  }
   setWindowOpenHandler() {}
   getURL() {
     return "";
@@ -484,10 +487,12 @@ instances.create = async (fields) => {
 };
 let install = null;
 minecraft.ensureInstalled = () => install.promise;
+let lastChild = null;
 minecraft.launch = () => {
   const child = new EventEmitter();
   child.pid = 4242;
   child.kill = noop;
+  lastChild = child;
   return child;
 };
 
@@ -562,7 +567,8 @@ test("main: perf:packStatus and perf:restorePack (refused while the game runs)",
     assert.deepEqual(seen.invalidated, ["i1"]);
 
     // While the game is starting/running: refused, nothing reset.
-    install = { promise: new Promise(() => {}) }; // an install that never finishes = "running"
+    let release;
+    install = { promise: new Promise((resolve) => (release = resolve)) }; // an install that hasn't finished = "running"
     call("play:run", { instanceId: "i1" }).catch(() => {});
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal((await call("instances:list"))[0].running, true);
@@ -570,6 +576,8 @@ test("main: perf:packStatus and perf:restorePack (refused while the game runs)",
     assert.deepEqual(seen.reset, ["i1"], "not reset again");
     await call("play:stop", { instanceId: "i1" });
     assert.equal((await call("instances:list"))[0].running, false);
+    release({ removedMods: [] }); // the stopped launch ends (cancelled) instead of hanging on
+    await new Promise((resolve) => setTimeout(resolve, 20));
   } finally {
     minecraft.performancePackStatus = real.status;
     minecraft.resetPerformancePack = real.reset;
@@ -626,6 +634,44 @@ test("main: perf:profileExtras serves the instance's suggestions", async () => {
   INSTANCE = { ...saved, loader: "vanilla", perfProfile: "max-fps" };
   try {
     assert.deepEqual(await call("perf:profileExtras", "i1"), [], "vanilla: nothing to suggest, and Modrinth isn't asked");
+  } finally {
+    INSTANCE = saved;
+  }
+});
+
+test("main: a start Fabric refused for the Minecraft version is remembered in .reminth/launch-report.json, and cleared by a good start", async () => {
+  const zip = require("../src/main/zip");
+  const gameDir = path.join(HOME, "refused");
+  const src = path.join(HOME, "refused-src");
+  await fsp.mkdir(src, { recursive: true });
+  await fsp.writeFile(path.join(src, "fabric.mod.json"), JSON.stringify({ schemaVersion: 1, id: "clientsidecrystals", name: "Client Side Crystals", version: "26.3", depends: { minecraft: "26.3" } }));
+  await fsp.mkdir(path.join(gameDir, "mods"), { recursive: true });
+  await zip.buildZip(src, path.join(gameDir, "mods", "csc.jar"));
+  const saved = INSTANCE;
+  const reportFile = path.join(gameDir, ".reminth", "launch-report.json");
+  const play = async (logText, expectReport) => {
+    install = { promise: Promise.resolve({ removedMods: [] }) };
+    await call("play:run", { instanceId: "i1" });
+    await fsp.mkdir(path.join(gameDir, "logs"), { recursive: true });
+    await fsp.writeFile(path.join(gameDir, "logs", "latest.log"), logText);
+    lastChild.emit("exit", 1, null);
+    // written (or removed) off the exit event, a moment later
+    for (let i = 0; i < 200 && fs.existsSync(reportFile) !== expectReport; i++) await new Promise((r) => setTimeout(r, 10));
+  };
+  try {
+    INSTANCE = { ...saved, gameDir, loader: "fabric", mcVersion: "26.2" };
+    await play(
+      "[main/INFO]: Loading Minecraft 26.2 with Fabric Loader 0.17\nSome of your mods are incompatible with the game or each other!\n\t - Mod 'Client Side Crystals' (clientsidecrystals) 26.3 requires version 26.3 of 'Minecraft', but only the wrong version is present: 26.2!\n",
+      true
+    );
+    const report = JSON.parse(await fsp.readFile(path.join(gameDir, ".reminth", "launch-report.json"), "utf8"));
+    assert.equal(report.mcVersion, "26.2");
+    assert.equal(report.loader, "fabric");
+    assert.deepEqual(report.mods.map((m) => [m.id, m.file]), [["clientsidecrystals", "csc.jar"]]);
+    assert.ok(toRenderer.some(([c, p]) => c === "compat:changed" && p.instanceId === "i1" && p.refused === 1));
+    // a later start that got past the mods clears it
+    await play("[main/INFO]: Loading Minecraft 26.2\n[Render thread/INFO]: Setting user: Steve\n", false);
+    assert.equal(fs.existsSync(reportFile), false);
   } finally {
     INSTANCE = saved;
   }

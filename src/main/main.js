@@ -30,6 +30,7 @@ const migrate = require("./migrate");
 const perfProfiles = require("./perfProfiles");
 const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
+const atomic = require("./atomic");
 const { fetchJson } = require("./downloader");
 
 let win;
@@ -1024,6 +1025,7 @@ async function startGame(inst, join, claim) {
         }
         finishSession(inst, false, claim);
         send("play:crashed", { instanceId: inst.id, ...crashInfo });
+        noteLaunchReport(inst, claim.startedAt);
       },
       { ...cachedSettings, maxMemoryMb: safe ? safe.maxMemoryMb : maxMemoryMb, appVersion: app.getVersion() },
       inst,
@@ -1035,7 +1037,13 @@ async function startGame(inst, join, claim) {
     claim.child = child;
     // Only the process the session is on ends it: the refused first try
     // also "exits", a moment after its replacement has been started.
-    child.once("exit", () => claim.child === child && finishSession(inst, true, claim));
+    child.once("exit", () => {
+      if (claim.child !== child) return;
+      finishSession(inst, true, claim);
+      // Fabric's "incompatible mods" window keeps the game open until it is
+      // closed, so the refusal can end up here rather than in onCrash.
+      noteLaunchReport(inst, claim.startedAt);
+    });
     child.once("error", () => claim.child === child && finishSession(inst, false, claim));
     return child;
   };
@@ -1050,6 +1058,58 @@ async function startGame(inst, join, claim) {
 
   if (cachedSettings.launchMinimized) win.minimize();
   return { launched: true };
+}
+
+/**
+ * After a game that ended: if Fabric refused to start because of mods that
+ * need another Minecraft version, remember which files it named
+ * (<instance>/.reminth/launch-report.json) so the compatibility check, and
+ * "Update mods to fit", treat them as "won't load" until the file changes.
+ * A start that got past loading mods clears the old report.
+ * Only the instance's own logs/latest.log is read, only if it was written by
+ * this launch, never through a link, and at most its last 512 KB.
+ */
+const LAUNCH_REPORT_TAIL_BYTES = 512 * 1024;
+const LAUNCH_REPORT_WINDOW_MS = 30 * 60 * 1000; // a session longer than this got well past loading
+async function noteLaunchReport(inst, startedAt) {
+  try {
+    if (!inst || !inst.gameDir || inst.loader === "vanilla") return;
+    if (Date.now() - (startedAt || 0) > LAUNCH_REPORT_WINDOW_MS) return;
+    const gameDir = await fs.promises.realpath(inst.gameDir);
+    const logFile = path.join(gameDir, "logs", "latest.log");
+    const st = await fs.promises.lstat(logFile);
+    if (!st.isFile() || st.mtimeMs < (startedAt || 0) - 2000) return; // a link, or an older game's log
+    const real = await fs.promises.realpath(logFile);
+    if (!real.startsWith(path.join(gameDir, "logs") + path.sep)) return;
+    const len = Math.min(st.size, LAUNCH_REPORT_TAIL_BYTES);
+    const fh = await fs.promises.open(real, "r");
+    let text = "";
+    try {
+      const buf = Buffer.alloc(len);
+      const { bytesRead } = await fh.read(buf, 0, len, Math.max(0, st.size - len));
+      text = buf.toString("utf8", 0, bytesRead);
+    } finally {
+      await fh.close();
+    }
+    const reportFile = path.join(gameDir, compat.LAUNCH_REPORT_FILE);
+    const found = compat.minecraftMismatches(compat.parseIncompatibleMods(text));
+    if (!found.length) {
+      // Got past the mod check this time: last time's report no longer says anything.
+      // ("Loading Minecraft" is no proof: Fabric prints it before it checks the mods.)
+      if (/Setting user:|Sound engine started|Backend library: LWJGL/.test(text)) {
+        await fs.promises.rm(reportFile, { force: true });
+        compat.invalidate(inst.id);
+      }
+      return;
+    }
+    const mods = compat.mapReportToFiles(found, (await content.listAll(gameDir)).mod);
+    if (!mods.length) return;
+    await atomic.writeJsonAtomic(reportFile, { at: new Date().toISOString(), mcVersion: inst.mcVersion, loader: inst.loader, mods }, { space: 2 });
+    compat.invalidate(inst.id);
+    send("compat:changed", { instanceId: inst.id, refused: mods.length });
+  } catch {
+    // no log, a locked file - the next look just doesn't know more
+  }
 }
 
 /**
