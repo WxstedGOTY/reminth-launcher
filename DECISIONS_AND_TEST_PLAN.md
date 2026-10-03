@@ -4,10 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 7** (update-status wording). The
-  desktop window set the version to **1.4.0** (`0e5d688`); prompt 7 is not needed for that release.
-- **`main` is at:** `170bab6` (plus this file's commit). **`npm test`: 519 pass** on Linux (517 after
-  prompt 6, 512 after prompt 5, 502 after prompt 4).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 8** (Home stat cards). Prompt 7
+  (update wording) is also done. The desktop window set the version to **1.4.0** (`0e5d688`).
+- **`main` is at:** `HEAD` of the commit that adds this file (prompt 8's CSS commit is just before it).
+  **`npm test`: 519 pass** on Linux (no test covers CSS).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +18,17 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 8 (Home stat cards)
+
+The five Home stat cards (Mob kills, Player kills, Deaths, Blocks placed, Blocks broken) lost their thin
+coloured strip on the left edge (`.stat::before`, drawn from `--sc`). Kept: numbers, labels, notes, size and
+the soft corner glow (`.stat::after`). New: the same hover outline as the "Jump back in" cards - border colour
+becomes accent at 28% on hover and on focus-within, `.16s`, no movement, no shadow, no scale. `.recent` itself
+is untouched. `.stat`, `.s-*` and `--sc` are used nowhere else (searched CSS, HTML, all renderer JS: Player
+Statistics page, streamer page and bar lists don't use them), so nothing needed scoping. Only
+`src/renderer/styles.css` changed (LF in git; the last rule is still last). Checked in headless Chromium:
+`::before` is gone, `::after` glow still there, transition `border-color 0.16s`, hover border = accent 28%.
 
 ### Prompt 7 (Settings > Check for updates showed the wrong number)
 
@@ -237,6 +248,12 @@ P8. Two instances running at once: Reminth is only put back after the **second**
 43. With a game running: "Restart and update" disabled; quitting Reminth leaves the game running.
 44. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`); an older installed copy finds
     it. Re-upload `site/` if the privacy text changed.
+
+### Prompt 8 (Home)
+H1. Home: the five stat cards have no coloured line on the left edge; the soft coloured glow in each card's
+    top-right corner is still there; text and card size unchanged.
+H2. Hover each card (and Tab-focus into one if it can be focused): the border turns a soft cyan/accent, with
+    a short fade, exactly like the world/server cards below; nothing moves, no shadow appears.
 
 ### Prompt 7 (packaged app only - "Check for updates" says "Updates only work in the installed app." in a dev run)
 U1. Installed 1.4.0 (or newer), GitHub's newest release older or equal → Settings → **Check for updates** →
