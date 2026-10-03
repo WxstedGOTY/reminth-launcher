@@ -191,8 +191,11 @@
       <li><b>Modpack file hosts</b>: a modpack lists where each of its files is downloaded from. Reminth only
         accepts cdn.modrinth.com, github.com, raw.githubusercontent.com and gitlab.com, and downloads from
         those when you install such a pack.</li>
-      <li><b>Image servers</b>: mod icons and creators' profile pictures load from cdn.modrinth.com and, for
-        creators who use a GitHub picture, avatars.githubusercontent.com.</li>
+      <li><b>Image servers</b>: mod icons, creators' profile pictures, and the pictures in a project's description
+        and gallery load from cdn.modrinth.com and, for creators who use a GitHub picture,
+        avatars.githubusercontent.com. Pictures hosted on any other site are never loaded by the launcher; a
+        small placeholder with an &ldquo;Open in browser&rdquo; link is shown instead. Links on a project page
+        open in your own web browser, not inside the launcher, and only if they start with https.</li>
       <li><b>Minecraft servers</b>: when you view servers in the launcher, it contacts each server directly to
         show whether it's online, its player count, its version and your ping, the same way the game's
         multiplayer screen does. That server sees your IP address. When you join a server, the game itself
