@@ -372,8 +372,10 @@
           return;
         }
         this.frame = requestAnimationFrame(tick);
-        // Nothing to draw while the page it's on is hidden.
-        if (document.hidden || !this.container.isConnected || this.container.offsetParent === null) return;
+        // Nothing to draw while the page it's on is hidden - or while a game
+        // runs (body.game-running, renderer.js): the launcher must not take
+        // frames from it.
+        if (document.hidden || document.body.classList.contains("game-running") || !this.container.isConnected || this.container.offsetParent === null) return;
         this.render(now);
       };
       this.frame = requestAnimationFrame(tick);
