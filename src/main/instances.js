@@ -110,7 +110,18 @@ function sanitizeInstance(raw) {
   // fingerprint of the switched-on mods it was ticked for (compat modSet).
   // A different set of mods means the question comes back.
   if (typeof raw.skipModWarning === "string" && /^[0-9a-f]{40}$/.test(raw.skipModWarning)) out.skipModWarning = raw.skipModWarning;
+  // Why Reminth made this instance by itself ("for Hypixel", "copy of
+  // Survival"): shown in the instance page header, as text only.
+  const madeFor = cleanMadeFor(raw.madeFor);
+  if (madeFor) out.madeFor = madeFor;
   return out;
+}
+
+/** Pure: a madeFor note as stored - plain one-line text, max 60 characters, or null. */
+function cleanMadeFor(value) {
+  if (typeof value !== "string") return null;
+  const text = value.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60).trim();
+  return text || null;
 }
 
 let cache = null;
@@ -127,9 +138,17 @@ const META_FILE = path.join(".reminth", "instance.json");
 const ID_PATTERN = /^[a-z0-9-]{1,64}$/;
 
 /** The original instance always exists and comes first; ids are unique, first one wins. */
-function normalise(list) {
+function normalise(list, { keepOrder = false } = {}) {
   // Its version is allowed to be changed by the player like any other instance's.
   const existingDefault = list.find((i) => i.id === DEFAULT_ID);
+  // The player's own order (instances:reorder) keeps the original instance
+  // where they put it; a registry being rebuilt starts it at the top.
+  if (keepOrder && existingDefault) {
+    const seen = new Set();
+    return list
+      .map((i) => (i.id === DEFAULT_ID ? { ...i, managed: true } : i))
+      .filter((i) => (seen.has(i.id) ? false : (seen.add(i.id), true)));
+  }
   const rest = list.filter((i) => i.id !== DEFAULT_ID);
   rest.unshift(existingDefault ? { ...existingDefault, managed: true } : defaultInstance());
   const seen = new Set();
@@ -321,7 +340,7 @@ async function loadRegistry() {
   const text = await readRegistryText();
   const parsed = text === null ? null : parseRegistry(text);
   if (parsed) {
-    const list = normalise(parsed);
+    const list = normalise(parsed, { keepOrder: true });
     // Instances made before instance.json existed get theirs now.
     for (const inst of list) {
       try {
@@ -422,7 +441,7 @@ function slugify(name) {
   return base || "instance";
 }
 
-async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, performanceMods, perfProfile }) {
+async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, performanceMods, perfProfile, madeFor }) {
   if (!isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
   return mutate(async () => {
     const all = await readAll();
@@ -432,7 +451,8 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
     } while (all.some((i) => i.id === id));
     const inst = sanitizeInstance({
       id,
-      name: name || `Minecraft ${mcVersion}`,
+      // Never a second instance with the same name, version and loader: " (2)".
+      name: uniqueName(name || `Minecraft ${mcVersion}`, all, mcVersion, LOADERS.includes(loader) ? loader : "vanilla"),
       mcVersion,
       loader,
       loaderVersion,
@@ -444,6 +464,7 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
       perfProfile,
       createdAt: Date.now(),
       modpack,
+      madeFor,
     });
     if (!inst) throw new Error("Couldn't create that instance - check the name and version.");
     await writeAll([...all, inst]);
@@ -451,6 +472,115 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
     await writeMeta(inst);
     return { ...inst, gameDir: gameDirFor(inst) };
   });
+}
+
+/**
+ * Pure: `name`, or "name (2)", "name (3)"… when an instance with that name,
+ * Minecraft version and loader already exists (names are compared the way
+ * the player reads them: case and outer spaces don't count).
+ */
+function uniqueName(name, all, mcVersion, loader) {
+  const base = String(name || "Instance").trim().slice(0, 48) || "Instance";
+  const taken = new Set((all || []).filter((i) => i && i.mcVersion === mcVersion && i.loader === loader).map((i) => String(i.name).trim().toLowerCase()));
+  if (!taken.has(base.toLowerCase())) return base;
+  for (let n = 2; n < 1000; n++) {
+    const tail = ` (${n})`;
+    const candidate = base.slice(0, 48 - tail.length) + tail;
+    if (!taken.has(candidate.toLowerCase())) return candidate;
+  }
+  return base;
+}
+
+/**
+ * The rail's order: `ids` must be exactly the instances there are, each
+ * once - anything else (one missing, one unknown, a double) is refused and
+ * the old order stays. Atomic, through the same lock as every other change.
+ */
+async function reorder(ids) {
+  return mutate(async () => {
+    const all = await readAll();
+    const want = Array.isArray(ids) ? ids.map(String) : [];
+    const byId = new Map(all.map((i) => [i.id, i]));
+    if (want.length !== all.length || new Set(want).size !== want.length || !want.every((id) => byId.has(id))) {
+      throw new Error("That order doesn't match your instances - nothing was moved.");
+    }
+    const next = want.map((id) => byId.get(id));
+    await writeAll(next);
+    return next.map((i) => i.id);
+  });
+}
+
+/**
+ * How much an instance holds, for the delete question: world count (folders
+ * in saves/ with a level.dat) and total bytes. Links and junctions are never
+ * followed; the walk stops after `timeMs` and says the size is "about".
+ * Returns { worlds, bytes, capped }.
+ */
+async function summary(id, { timeMs = 1500, now = Date.now } = {}) {
+  const inst = await require_(id);
+  const root = gameDirFor(inst);
+  let worlds = 0;
+  try {
+    for (const e of await fsp.readdir(path.join(root, "saves"), { withFileTypes: true })) {
+      if (!e.isDirectory()) continue; // a link to a folder is not a world of this instance
+      try {
+        await fsp.access(path.join(root, "saves", e.name, "level.dat"));
+        worlds++;
+      } catch {
+        // not a world
+      }
+    }
+  } catch {
+    // no saves folder
+  }
+  const deadline = now() + timeMs;
+  let bytes = 0;
+  let capped = false;
+  const stack = [root];
+  while (stack.length) {
+    if (now() > deadline) {
+      capped = true;
+      break;
+    }
+    const dir = stack.pop();
+    let entries;
+    try {
+      entries = await fsp.readdir(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isSymbolicLink()) continue; // never out of the folder through a link
+      if (e.isDirectory()) {
+        // A Windows junction reads as a directory here: lstat says what it really is.
+        try {
+          if ((await fsp.lstat(full)).isSymbolicLink()) continue;
+        } catch {
+          continue;
+        }
+        stack.push(full);
+      } else if (e.isFile()) {
+        try {
+          bytes += (await fsp.lstat(full)).size;
+        } catch {
+          // gone meanwhile
+        }
+      }
+    }
+  }
+  return { worlds, bytes, capped };
+}
+
+/**
+ * Pure: may an instance Reminth just made by itself be taken back with
+ * "Undo"? Only when it was never played and holds no world the player made
+ * (saves/ empty, or only worlds the copy itself brought - copies bring none).
+ */
+function undoAllowed({ lastPlayed, worldNames = [], carried = [] } = {}) {
+  if (lastPlayed) return false;
+  const brought = new Set(carried);
+  return worldNames.every((w) => brought.has(w));
 }
 
 async function update(id, patch) {
@@ -464,7 +594,7 @@ async function updateLocked(id, patch) {
   if (idx < 0) throw new Error("That instance doesn't exist any more.");
   const current = all[idx];
   const allowed = {};
-  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile", "skipModWarning"]) {
+  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile", "skipModWarning", "madeFor"]) {
     if (key in (patch || {})) allowed[key] = patch[key];
   }
   // Changing version or loader invalidates a pinned loader version.
@@ -527,10 +657,15 @@ module.exports = {
   create,
   update,
   remove,
+  reorder,
+  summary,
   recordSession,
   gameDirFor,
   // pure, for tests
   sanitizeInstance,
   isValidVersionId,
   slugify,
+  uniqueName,
+  cleanMadeFor,
+  undoAllowed,
 };

@@ -1015,7 +1015,22 @@ function renderRail() {
     btn.dataset.tip = `${inst.name} · ${loaderLabel(inst)} ${inst.mcVersion}`;
     btn.appendChild(instanceChip(inst));
     if (state.running.has(inst.id)) btn.appendChild(el("span", "run-dot"));
-    btn.onclick = () => selectInstance(inst.id, true);
+    btn.onclick = () => {
+      // The click that ends a drag isn't a click on the instance.
+      if (railDrag.justDropped) return;
+      selectInstance(inst.id, true);
+    };
+    btn.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      openInstanceMenu(inst.id, { x: e.clientX, y: e.clientY, opener: btn });
+    });
+    btn.addEventListener("keydown", (e) => {
+      if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+        e.preventDefault();
+        openInstanceMenu(inst.id, { anchor: btn, opener: btn });
+      }
+    });
+    btn.addEventListener("pointerdown", (e) => railDragStart(e, inst.id, btn));
     bindTip(btn);
     rail.appendChild(btn);
   }
@@ -1603,22 +1618,232 @@ function openInstanceModal(existing) {
 $("railAdd").onclick = () => openInstanceModal(null);
 $("instMoreBtn").onclick = (e) => {
   e.stopPropagation();
-  toggleMenu($("instMore"));
+  const inst = activeInstance();
+  if (inst) openInstanceMenu(inst.id, { anchor: $("instMoreBtn"), opener: $("instMoreBtn") });
 };
-$("instMore").querySelectorAll(".dd-item").forEach((b) => b.addEventListener("click", () => $("instMore").classList.remove("dd-open")));
 $("instEditBtn").onclick = () => {
   const inst = activeInstance();
   if (inst) openInstanceModal(inst);
 };
-$("instDeleteBtn").onclick = async () => {
-  const inst = activeInstance();
-  if (!inst || inst.id === "reminth") return;
+/* ================================================================== *
+ * the instance menu: right-click (or the Menu key / Shift+F10) on a   *
+ * rail button or a Library card, and the instance page's ⋮ button -   *
+ * one menu, one implementation. Plus moving instances around.         *
+ * ================================================================== */
+let instMenu = null; // { box, opener, close }
+
+function closeInstanceMenu(refocus) {
+  if (!instMenu) return;
+  const { box, opener, cleanup } = instMenu;
+  instMenu = null;
+  cleanup();
+  box.remove();
+  if (refocus && opener && opener.isConnected) opener.focus();
+}
+
+/**
+ * at: { x, y } (the pointer) or { anchor: element }; opener gets the focus
+ * back on Esc. Never runs off the window; keyboard: arrows, Home/End, Enter, Esc.
+ */
+function openInstanceMenu(id, at = {}) {
+  closeInstanceMenu(false);
+  const inst = instanceById(id);
+  if (!inst) return;
+  const index = state.instances.findIndex((i) => i.id === id);
+  const items = window.ReminthPure.instanceMenuItems(inst, {
+    running: state.running.has(id) || state.stopping.has(id),
+    busy: state.installing.has(id),
+    isMain: id === "reminth",
+    index,
+    count: state.instances.length,
+  });
+  const icons = { play: "#i-play", open: "#i-cube", rename: "#i-edit", folder: "#i-folder", verify: "#i-refresh", up: "#i-chevron", down: "#i-chevron", top: "#i-chevron", bottom: "#i-chevron", delete: "#i-trash" };
+  const box = el("div", "dd-menu inst-menu");
+  box.setAttribute("role", "menu");
+  box.setAttribute("aria-label", `${inst.name}: menu`);
+  box.appendChild(el("div", "inst-menu-title", inst.name));
+  const buttons = [];
+  for (const item of items) {
+    if (item.separator) box.appendChild(el("div", "inst-menu-sep"));
+    const b = el("button", "dd-item" + (item.danger ? " danger" : "") + " im-" + item.id);
+    b.type = "button";
+    b.setAttribute("role", "menuitem");
+    b.appendChild(icon(icons[item.id] || "#i-cube"));
+    const text = el("span", "im-text");
+    text.appendChild(el("span", null, item.label));
+    // The main instance's Delete is shown, off, WITH the reason - hiding it confused people.
+    if (item.disabled && item.why && item.id === "delete") text.appendChild(el("small", "im-why", item.why));
+    b.appendChild(text);
+    if (item.disabled) {
+      b.disabled = true;
+      b.setAttribute("aria-disabled", "true");
+      if (item.why) b.title = item.why;
+    }
+    b.onclick = () => {
+      closeInstanceMenu(false);
+      runInstanceMenuItem(id, item.id);
+    };
+    box.appendChild(b);
+    buttons.push(b);
+  }
+  document.body.appendChild(box);
+  box.style.display = "flex";
+  // Where: at the pointer, or under the button; then kept inside the window.
+  const r = box.getBoundingClientRect();
+  let x = at.x;
+  let y = at.y;
+  if (at.anchor) {
+    const a = at.anchor.getBoundingClientRect();
+    x = a.right + 6;
+    y = a.top;
+    if (x + r.width > window.innerWidth - 8) x = a.right - r.width; // no room on the right: under it, right-aligned
+    if (x === a.right - r.width) y = a.bottom + 6;
+  }
+  x = Math.max(8, Math.min(Number(x) || 8, window.innerWidth - r.width - 8));
+  y = Math.max(8, Math.min(Number(y) || 8, window.innerHeight - r.height - 8));
+  box.style.left = x + "px";
+  box.style.top = y + "px";
+
+  const enabled = () => buttons.filter((b) => !b.disabled);
+  const onKey = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      closeInstanceMenu(true);
+      return;
+    }
+    if (e.key === "Tab") return closeInstanceMenu(false);
+    const list = enabled();
+    if (!list.length) return;
+    const at_ = list.indexOf(document.activeElement);
+    let next = null;
+    if (e.key === "ArrowDown") next = list[(at_ + 1) % list.length];
+    else if (e.key === "ArrowUp") next = list[(at_ - 1 + list.length) % list.length];
+    else if (e.key === "Home") next = list[0];
+    else if (e.key === "End") next = list[list.length - 1];
+    if (next) {
+      e.preventDefault();
+      next.focus();
+    }
+  };
+  const onOutside = (e) => {
+    if (!box.contains(e.target)) closeInstanceMenu(false);
+  };
+  const onAway = () => closeInstanceMenu(false);
+  document.addEventListener("keydown", onKey, true);
+  // Not the very press that opened it.
+  setTimeout(() => document.addEventListener("mousedown", onOutside, true), 0);
+  window.addEventListener("blur", onAway);
+  window.addEventListener("resize", onAway);
+  document.addEventListener("scroll", onAway, true);
+  instMenu = {
+    box,
+    opener: at.opener || null,
+    cleanup: () => {
+      document.removeEventListener("keydown", onKey, true);
+      document.removeEventListener("mousedown", onOutside, true);
+      window.removeEventListener("blur", onAway);
+      window.removeEventListener("resize", onAway);
+      document.removeEventListener("scroll", onAway, true);
+    },
+  };
+  const first = enabled()[0];
+  if (first) first.focus({ preventScroll: true });
+}
+
+async function runInstanceMenuItem(id, what) {
+  const inst = instanceById(id);
+  if (!inst) return;
+  if (what === "play") return runPlay({ instanceId: id });
+  if (what === "open") return selectInstance(id, true);
+  if (what === "rename") return renameInstanceFlow(id);
+  if (what === "folder") return openFolder("game", id);
+  if (what === "verify") {
+    await selectInstance(id, false);
+    switchPage("home");
+    return runInstall();
+  }
+  if (["up", "down", "top", "bottom"].includes(what)) return moveInstance(id, what);
+  if (what === "delete") return deleteInstanceFlow(id);
+}
+
+/** Rename…: one name field, the normal instances:update path, never while the game runs. */
+function renameInstanceFlow(id) {
+  const inst = instanceById(id);
+  if (!inst) return;
+  if (state.running.has(id)) return toast("Close the game first.");
+  const body = el("div", "field");
+  body.appendChild(el("label", null, "Name"));
+  const input = el("input");
+  input.type = "text";
+  input.maxLength = 48;
+  input.value = inst.name;
+  body.appendChild(input);
+  let saving = false;
+  const save = async (handle) => {
+    if (saving) return false;
+    const name = input.value.trim();
+    if (!name) {
+      input.focus();
+      return false;
+    }
+    if (name === inst.name) return true;
+    if (state.running.has(id)) {
+      toast("Close the game first.");
+      return false;
+    }
+    saving = true;
+    try {
+      await window.reminth.updateInstance(id, { name });
+      await loadInstances();
+      toast(`Renamed to ${name}.`);
+      return true;
+    } catch (err) {
+      toast(friendlyError(err.message));
+      return false;
+    } finally {
+      saving = false;
+      if (handle && handle.buttons[1]) handle.buttons[1].disabled = false;
+    }
+  };
+  const handle = openModal({
+    title: `Rename ${inst.name}`,
+    body,
+    canClose: () => !saving,
+    buttons: [
+      { label: "Cancel", className: "outline" },
+      { label: "Save", className: "primary", onClick: (h) => save(h) },
+    ],
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handle.buttons[1].click();
+    }
+  });
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 0);
+}
+
+/**
+ * Delete…: says WHAT goes (worlds, size - counted in the main process) and
+ * that the other instances aren't touched. Then a sensible instance is
+ * selected and every list redrawn.
+ */
+function deleteInstanceFlow(id) {
+  const inst = instanceById(id);
+  if (!inst) return;
+  if (id === "reminth") return toast("This is your main instance - it can't be deleted.");
+  if (state.running.has(id)) return toast("Close the game first.");
   const body = el("div");
-  body.appendChild(el("p", null, "This deletes the instance's whole folder — its mods, packs, worlds and screenshots. There's no undo."));
-  body.appendChild(el("p", null, "Your saved logs stay in Reminth's archive."));
-  // The delete runs inside the dialog, which can't be closed while it does.
+  const what = el("p", "del-what", `${inst.name} - counting what's in it…`);
+  body.appendChild(what);
+  body.appendChild(el("p", null, "Everything inside it is deleted for good (worlds, mods, screenshots). There's no undo. Your other instances are not touched."));
+  body.appendChild(el("p", "set-note", "Your saved logs stay in Reminth's archive."));
   let deleting = false;
-  openModal({
+  const handle = openModal({
     title: `Delete ${inst.name}?`,
     body,
     focusCancel: true,
@@ -1628,15 +1853,21 @@ $("instDeleteBtn").onclick = async () => {
       {
         label: "Delete forever",
         className: "primary danger-fill",
-        onClick: async (handle) => {
+        onClick: async (h) => {
           if (deleting) return false;
           deleting = true;
-          handle.buttons[0].disabled = true;
+          h.buttons[0].disabled = true;
           try {
-            await window.reminth.deleteInstance(inst.id);
-            if (state.activeId === inst.id) state.activeId = "reminth";
+            await window.reminth.deleteInstance(id);
+            const wasActive = state.activeId === id;
             await loadInstances();
-            if (currentPage === "instance") switchPage("home");
+            // The hero (last played) is the sensible one to land on.
+            if (wasActive || !instanceById(state.activeId)) {
+              const next = heroInstance();
+              if (next) await selectInstance(next.id, false);
+              if (currentPage === "instance") switchPage("home");
+            }
+            if (currentPage === "home" || currentPage === "library") loadRecent();
             toast(`${inst.name} deleted.`);
             return true;
           } catch (err) {
@@ -1644,13 +1875,139 @@ $("instDeleteBtn").onclick = async () => {
             return false;
           } finally {
             deleting = false;
-            handle.buttons[0].disabled = false;
+            h.buttons[0].disabled = false;
           }
         },
       },
     ],
   });
-};
+  window.reminth
+    .instanceSummary(id)
+    .then((sum) => {
+      if (!handle.closed) what.textContent = `${inst.name} - ${window.ReminthPure.summaryText(sum)}.`;
+    })
+    .catch(() => {
+      if (!handle.closed) what.textContent = `${inst.name}.`;
+    });
+}
+
+/** Saves a new order (all ids): shown at once, put back if main.js refuses it. */
+async function saveInstanceOrder(ids) {
+  const byId = new Map(state.instances.map((i) => [i.id, i]));
+  const before = state.instances;
+  state.instances = ids.map((x) => byId.get(x)).filter(Boolean);
+  renderRail();
+  if (currentPage === "library") renderLibraryInstances();
+  try {
+    await window.reminth.reorderInstances(ids);
+  } catch (err) {
+    state.instances = before;
+    renderRail();
+    if (currentPage === "library") renderLibraryInstances();
+    toast(friendlyError(err.message));
+  }
+}
+
+function moveInstance(id, how) {
+  const ids = state.instances.map((i) => i.id);
+  const from = ids.indexOf(id);
+  if (from < 0) return;
+  const to = window.ReminthPure.moveIndex(from, ids.length, how);
+  if (to === from) return;
+  saveInstanceOrder(window.ReminthPure.moveItem(ids, from, to));
+}
+
+/* ---- drag and drop in the rail: a thin line shows where it lands ---- */
+const railDrag = { id: null, btn: null, startY: 0, active: false, gap: -1, line: null, scrollTimer: null, justDropped: false };
+
+function railDragStart(e, id, btn) {
+  if (e.button !== 0 || state.instances.length < 2) return;
+  railDrag.id = id;
+  railDrag.btn = btn;
+  railDrag.startY = e.clientY;
+  railDrag.active = false;
+  railDrag.gap = -1;
+  window.addEventListener("pointermove", railDragMove);
+  window.addEventListener("pointerup", railDragEnd);
+  window.addEventListener("keydown", railDragKey, true);
+}
+
+function railDragGap(y) {
+  const btns = [...$("railInstances").querySelectorAll(".instance-btn")];
+  for (let i = 0; i < btns.length; i++) {
+    const r = btns[i].getBoundingClientRect();
+    if (y < r.top + r.height / 2) return i;
+  }
+  return btns.length;
+}
+
+function railDragMove(e) {
+  if (!railDrag.id) return;
+  if (!railDrag.active) {
+    if (Math.abs(e.clientY - railDrag.startY) < 6) return;
+    railDrag.active = true;
+    hideTip();
+    railDrag.btn.classList.add("dragging");
+    railDrag.line = el("div", "rail-drop-line");
+    $("railInstances").appendChild(railDrag.line);
+  }
+  const rail = $("railInstances");
+  const box = rail.getBoundingClientRect();
+  // Near the top or bottom edge of a long rail: it scrolls by itself.
+  clearInterval(railDrag.scrollTimer);
+  const edge = e.clientY < box.top + 24 ? -1 : e.clientY > box.bottom - 24 ? 1 : 0;
+  if (edge) railDrag.scrollTimer = setInterval(() => (rail.scrollTop += edge * 8), 16);
+  const inside = e.clientX >= box.left - 20 && e.clientX <= box.right + 20;
+  railDrag.gap = inside ? railDragGap(e.clientY) : -1;
+  const btns = [...rail.querySelectorAll(".instance-btn")];
+  if (railDrag.gap < 0) {
+    railDrag.line.hidden = true;
+    return;
+  }
+  railDrag.line.hidden = false;
+  const ref = btns[Math.min(railDrag.gap, btns.length - 1)].getBoundingClientRect();
+  const y = railDrag.gap < btns.length ? ref.top - 3 : ref.bottom + 3;
+  railDrag.line.style.top = y - box.top + rail.scrollTop + "px";
+}
+
+function railDragStop() {
+  window.removeEventListener("pointermove", railDragMove);
+  window.removeEventListener("pointerup", railDragEnd);
+  window.removeEventListener("keydown", railDragKey, true);
+  clearInterval(railDrag.scrollTimer);
+  if (railDrag.btn) railDrag.btn.classList.remove("dragging");
+  if (railDrag.line) railDrag.line.remove();
+  const was = railDrag.active;
+  railDrag.id = null;
+  railDrag.btn = null;
+  railDrag.line = null;
+  railDrag.active = false;
+  if (was) {
+    // Swallow the click the browser sends after the drop.
+    railDrag.justDropped = true;
+    setTimeout(() => (railDrag.justDropped = false), 0);
+  }
+}
+
+function railDragEnd() {
+  const { id, gap, active } = railDrag;
+  railDragStop();
+  if (!active || gap < 0) return; // a plain click, or dropped outside the rail: nothing moves
+  const ids = state.instances.map((i) => i.id);
+  const from = ids.indexOf(id);
+  const to = window.ReminthPure.dropGapToIndex(from, gap);
+  if (from < 0 || to === from) return;
+  saveInstanceOrder(window.ReminthPure.moveItem(ids, from, to));
+}
+
+function railDragKey(e) {
+  if (e.key === "Escape" && railDrag.active) {
+    e.preventDefault();
+    e.stopPropagation();
+    railDrag.gap = -1;
+    railDragStop();
+  }
+}
 
 /* ---- instance page (the header; tabs live in features.js) ---- */
 async function renderInstancePage() {
@@ -1668,7 +2025,9 @@ async function renderInstancePage() {
   const instStatus = state.running.has(inst.id) ? "Running" : state.installing.has(inst.id) ? "Installing" : "Ready";
   $("instState").textContent = instStatus;
   $("instState").dataset.state = instStatus.toLowerCase();
-  $("instDeleteBtn").hidden = inst.id === "reminth";
+  // Why Reminth made it by itself ("For Hypixel", "Copy of Survival").
+  $("instMadeFor").hidden = !inst.madeFor;
+  $("instMadeFor").textContent = inst.madeFor ? `Made for: ${inst.madeFor}` : "";
   $("instPlaytime").textContent = inst.playTimeMs ? formatPlaytime(msToTicks(inst.playTimeMs)) : "—";
   paintPlayButtons();
   if (window.onInstancePageOpen) window.onInstancePageOpen(inst);
@@ -1868,10 +2227,6 @@ $("instStopBtn").onclick = () => {
   if (inst) stopGame(inst.id);
 };
 $("updateBtnOut").onclick = () => runInstall();
-$("repairBtn").onclick = () => {
-  switchPage("home");
-  runInstall();
-};
 $("repairBtn2").onclick = () => {
   switchPage("home");
   runInstall();
@@ -2174,9 +2529,10 @@ function fillGrid(gridId, entries, noteId, copy) {
 }
 
 /* ---- Library → Instances, with a sort ---- */
-let libSort = localGet("sort.library", "new");
+let libSort = localGet("sort.library", "order");
+// "My order" is the rail's order (drag it there, or Move up/down in an instance's menu).
 const libSortDd = makeDropdown($("libSort"), {
-  options: SORT_OPTIONS,
+  options: [{ value: "order", label: "My order" }, ...SORT_OPTIONS],
   value: libSort,
   align: "right",
   onChange: (v) => {
@@ -2187,13 +2543,41 @@ const libSortDd = makeDropdown($("libSort"), {
 });
 void libSortDd;
 
+const libSizes = new Map(); // instance id -> "1.4 GB" (this session)
+let libSizing = false;
+/** One instance at a time, only while Library is open; each answer is kept for the session. */
+async function loadLibrarySizes() {
+  if (libSizing) return;
+  libSizing = true;
+  try {
+    for (const inst of [...state.instances]) {
+      if (currentPage !== "library") break;
+      if (libSizes.has(inst.id)) continue;
+      try {
+        const sum = await window.reminth.instanceSummary(inst.id);
+        libSizes.set(inst.id, window.ReminthPure.summaryText(sum).replace(/^[^,]*, /, ""));
+      } catch {
+        libSizes.set(inst.id, "");
+      }
+      const tileSub = [...document.querySelectorAll("#libInstanceGrid .lib-tile")].find((t) => t.dataset.instance === inst.id);
+      if (tileSub && libSizes.get(inst.id)) {
+        const sub = tileSub.querySelector(".lib-sub");
+        if (sub && !sub.querySelector(".lib-size")) sub.appendChild(el("span", "lib-size", libSizes.get(inst.id)));
+      }
+    }
+  } finally {
+    libSizing = false;
+  }
+}
+
 function renderLibraryInstances() {
   const grid = $("libInstanceGrid");
   if (!grid) return;
   grid.textContent = "";
-  const sorted = sortItems(state.instances, libSort, (i) => i.name, (i) => i.lastPlayed || i.createdAt || 0);
+  const sorted = libSort === "order" ? [...state.instances] : sortItems(state.instances, libSort, (i) => i.name, (i) => i.lastPlayed || i.createdAt || 0);
   for (const inst of sorted) {
     const tile = el("div", "card lib-tile");
+    tile.dataset.instance = inst.id;
     const art = el("div", "lib-art");
     art.appendChild(instanceChip(inst));
     tile.appendChild(art);
@@ -2202,12 +2586,27 @@ function renderLibraryInstances() {
     const sub = el("div", "lib-sub sep-list");
     sub.appendChild(el("span", null, `${loaderLabel(inst)} ${inst.mcVersion}`));
     sub.appendChild(el("span", null, inst.lastPlayed ? `played ${formatWhen(inst.lastPlayed)}` : "never played"));
+    // Size on disk: worked out once per session, only while this page is open.
+    const size = el("span", "lib-size", libSizes.has(inst.id) ? libSizes.get(inst.id) : "");
+    size.dataset.instance = inst.id;
+    if (libSizes.has(inst.id)) sub.appendChild(size);
     meta.appendChild(sub);
     tile.appendChild(meta);
     if (state.running.has(inst.id)) tile.appendChild(el("span", "tag emerald", "Running"));
     clickable(tile, () => selectInstance(inst.id, true));
+    tile.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      openInstanceMenu(inst.id, { x: e.clientX, y: e.clientY, opener: tile });
+    });
+    tile.addEventListener("keydown", (e) => {
+      if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+        e.preventDefault();
+        openInstanceMenu(inst.id, { anchor: tile, opener: tile });
+      }
+    });
     grid.appendChild(tile);
   }
+  loadLibrarySizes();
   const add = el("div", "card lib-tile add");
   const addArt = el("div", "lib-art");
   addArt.appendChild(icon("#i-plus", "add-mark"));
@@ -2503,7 +2902,6 @@ async function openFolder(which, instanceId) {
     toast("Couldn't open that folder.");
   }
 }
-$("openGameFolder").onclick = () => openFolder("game");
 $("openGameFolder2").onclick = () => openFolder("game");
 $("openModsFolder").onclick = () => openFolder("mods");
 

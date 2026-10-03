@@ -505,7 +505,7 @@ async function resolveLoaderVersion(loader, mc, wanted) {
   return (list.find((e) => e.recommended) || list[0]).id;
 }
 
-ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, performanceMods, perfProfile }) => {
+ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, performanceMods, perfProfile, madeFor }) => {
   // Checked before it's used to ask the loader's servers anything -
   // instances.create validates it too, but only after that lookup.
   if (!instances.isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
@@ -513,7 +513,7 @@ ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderV
   const lv = await resolveLoaderVersion(l, mcVersion, loaderVersion);
   // The performance-pack switch from the create dialog, if it sent one
   // (instances.create applies config.perfPackEnabled's per-loader default).
-  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined, perfProfile: perfProfiles.normaliseProfile(perfProfile) });
+  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined, perfProfile: perfProfiles.normaliseProfile(perfProfile), madeFor: instances.cleanMadeFor(madeFor) });
   return withRunning(inst);
 });
 
@@ -546,7 +546,10 @@ ipcMain.handle("instances:update", async (_e, id, patch) => {
   return withRunning(updated);
 });
 
-ipcMain.handle("instances:delete", async (_e, id) => {
+ipcMain.handle("instances:delete", async (_e, id) => deleteInstanceNow(id));
+
+/** Deletes an instance's folder and entry (the running guard and the content watcher handled). */
+async function deleteInstanceNow(id) {
   if (running.has(id)) throw new Error("Close the game first - that instance is running.");
   // The content watcher holds handles inside the active instance's folder;
   // on Windows the folder can't be removed while they're open.
@@ -570,6 +573,30 @@ ipcMain.handle("instances:delete", async (_e, id) => {
   }
   if (failure) throw failure;
   return { ok: true };
+}
+
+// The rail's order (instances.reorder checks it is exactly the instances there are).
+ipcMain.handle("instances:reorder", async (_e, ids) => instances.reorder(ids));
+
+// For the delete question: worlds and size on disk (links never followed, ~1.5 s at most).
+ipcMain.handle("instances:summary", async (_e, id) => instances.summary(id));
+
+// "Undo" on the toast after Reminth made an instance by itself: only while it
+// was never played and holds no world (checked here again, whatever the page thought).
+ipcMain.handle("instances:undoCreate", async (_e, id) => {
+  const inst = await instances.require(id);
+  if (inst.id === instances.DEFAULT_ID) throw new Error("The main Reminth instance can't be deleted.");
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  let worldNames = [];
+  try {
+    for (const e of await fs.promises.readdir(path.join(inst.gameDir, "saves"), { withFileTypes: true })) worldNames.push(e.name);
+  } catch {
+    worldNames = [];
+  }
+  if (!instances.undoAllowed({ lastPlayed: inst.lastPlayed, worldNames, carried: [] })) {
+    throw new Error(`${inst.name} has been played or has a world in it now - delete it from its menu if you're sure.`);
+  }
+  return deleteInstanceNow(id);
 });
 
 /**
@@ -765,6 +792,7 @@ ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
           // switched on stays on (migrate only passes "off").
           const created = await instances.create({
             ...fields,
+            madeFor: instances.cleanMadeFor(`Copy of ${source.name}`),
             loaderVersion: lv,
             perfProfile: source.perfProfile,
             ...(source.performanceMods === true ? { performanceMods: true } : {}),

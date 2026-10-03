@@ -66,6 +66,86 @@
     return p === null ? null : { host: m[1], port: p, ipv6: false };
   }
 
+  /* ---------------- the instance menu, order, creating ---------------- */
+
+  /**
+   * The right-click menu of one instance, in order. facts: { running, busy
+   * (installing / stopping), isMain, index, count }. Each item:
+   * { id, label, disabled, why, danger, separator }.
+   */
+  function instanceMenuItems(inst, { running = false, busy = false, isMain = false, index = 0, count = 1 } = {}) {
+    const name = (inst && inst.name) || "this instance";
+    const closeFirst = "Close the game first.";
+    const first = index <= 0;
+    const last = index >= count - 1;
+    return [
+      { id: "play", label: "Play", disabled: running || busy, why: running ? "It's running." : busy ? "It's busy." : null },
+      { id: "open", label: "Open", disabled: false, why: null },
+      { id: "rename", label: "Rename…", disabled: running, why: running ? closeFirst : null },
+      { id: "folder", label: "Open folder", disabled: false, why: null },
+      { id: "verify", label: "Verify files", disabled: running || busy, why: running ? closeFirst : null },
+      { id: "up", label: "Move up", disabled: first, why: null, separator: true },
+      { id: "down", label: "Move down", disabled: last, why: null },
+      { id: "top", label: "Move to top", disabled: first, why: null },
+      { id: "bottom", label: "Move to bottom", disabled: last, why: null },
+      {
+        id: "delete",
+        label: "Delete…",
+        danger: true,
+        separator: true,
+        disabled: isMain || running,
+        why: isMain ? "This is your main instance - it can't be deleted." : running ? closeFirst : null,
+        aria: `Delete ${name}`,
+      },
+    ];
+  }
+
+  /** Pure: where "up" / "down" / "top" / "bottom" takes item `index` of `count` (the same index when it can't move). */
+  function moveIndex(index, count, how) {
+    if (how === "top") return 0;
+    if (how === "bottom") return Math.max(0, count - 1);
+    if (how === "up") return Math.max(0, index - 1);
+    if (how === "down") return Math.min(count - 1, index + 1);
+    return index;
+  }
+
+  /**
+   * Pure: `list` with the item at `from` moved so it ends up at `to` (an index
+   * in the result). A drag's drop gap "before item k" is `k` when moving up,
+   * `k - 1` when moving down - dropGapToIndex works that out.
+   */
+  function moveItem(list, from, to) {
+    const out = [...(Array.isArray(list) ? list : [])];
+    if (from < 0 || from >= out.length) return out;
+    const [item] = out.splice(from, 1);
+    out.splice(Math.max(0, Math.min(out.length, to)), 0, item);
+    return out;
+  }
+
+  /** Pure: dropping item `from` into the gap before item `gap` (0…count) -> its new index. */
+  function dropGapToIndex(from, gap) {
+    return gap > from ? gap - 1 : gap;
+  }
+
+  /** "2 worlds, 1.4 GB" / "no worlds, about 830 MB" (the count stopped early) - for the delete question. */
+  function summaryText({ worlds = 0, bytes = 0, capped = false } = {}) {
+    const w = worlds === 0 ? "no worlds" : worlds === 1 ? "1 world" : `${worlds} worlds`;
+    const mb = bytes / (1024 * 1024);
+    const size = mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : mb >= 1 ? `${Math.round(mb)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${w}, ${capped ? "about " : ""}${size}`;
+  }
+
+  /** The one sentence before Reminth makes an instance by itself. */
+  function createSentence({ name, mcVersion, loader }) {
+    const names = { fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge", vanilla: "vanilla" };
+    return `Reminth will make a new instance: ${name} - Minecraft ${mcVersion} ${names[loader] || loader || ""}`.trim() + ". Your other instances are not changed.";
+  }
+
+  /** Pure: an instance already on this version and loader (the first in the player's order), or null. */
+  function reusableInstance(instances, { mcVersion, loader, excludeId = null } = {}) {
+    return (Array.isArray(instances) ? instances : []).find((i) => i && i.id !== excludeId && i.mcVersion === mcVersion && i.loader === loader) || null;
+  }
+
   /* ---------------- "Pick a Minecraft version for my mods" ---------------- */
 
   /** Pure: -1 / 0 / 1 for two release versions ("1.21.4", "26.2"); null when either isn't one. */
@@ -292,7 +372,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

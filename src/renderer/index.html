@@ -262,6 +262,7 @@
             <div class="instance-art" id="instArt"><span class="instance-chip">R</span></div>
             <div class="ib-info">
               <h2 id="instName">Reminth</h2>
+              <div class="inst-made-for" id="instMadeFor" hidden></div>
               <div class="ib-meta sep-list">
                 <span class="ib-m"><svg class="i"><use href="#i-cube"/></svg><span id="instLoader">Fabric</span><span id="instVersion">—</span></span>
                 <span class="ib-m"><svg class="i"><use href="#i-clock"/></svg><span id="instPlaytime">—</span></span>
@@ -277,13 +278,9 @@
               <button class="btn primary ib-play" id="instPlayBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
               <button class="btn primary danger-fill ib-play" id="instStopBtn" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
               <button class="ib-round" id="instEditBtn" title="Version &amp; name"><svg class="i"><use href="#i-gear"/></svg></button>
-              <div class="sort-dd ib-more" id="instMore">
-                <button class="ib-round ib-kebab" id="instMoreBtn" title="More"><span class="kebab"></span></button>
-                <div class="dd-menu right">
-                  <button class="dd-item" id="openGameFolder"><svg class="i"><use href="#i-folder"/></svg><span>Open folder</span></button>
-                  <button class="dd-item" id="repairBtn"><svg class="i"><use href="#i-refresh"/></svg><span>Verify files</span></button>
-                  <button class="dd-item danger" id="instDeleteBtn" hidden><svg class="i"><use href="#i-trash"/></svg><span>Delete instance</span></button>
-                </div>
+              <!-- The same menu as a right-click on the instance (renderer.js openInstanceMenu). -->
+              <div class="ib-more" id="instMore">
+                <button class="ib-round ib-kebab" id="instMoreBtn" title="More" aria-haspopup="menu"><span class="kebab"></span></button>
               </div>
             </div>
           </div>
