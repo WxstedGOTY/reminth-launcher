@@ -4,19 +4,83 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 13** (the version picker's "already fit"
-  sentence must be true of the installed files). Prompts 10-12 are done too; none of 10-13 is tested on Windows yet.
-- **`main` is at:** `b509ea1` (plus this file's commit). **`npm test`: 564 pass** on Linux (563 after prompt 12).
-- **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
-  through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
-  the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
-  parser, not the real IPC, real Modrinth answers, real pictures loading, or `shell.openExternal`.
-- Prompt 3's desktop tests (section 4, steps 26-41) have not been reported yet - they are still open.
-- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1. The cloud session did no version bump and no build.
+- **Last updated:** 3 Oct 2026 (evening), by the **desktop window**, which this time wrote the code itself
+  (owner's request: no prompts): the server ping fix (was prompt 14), ReminthHUD's FPS/GPU/CPU/LAT bar (was
+  prompt 15), updates without the Windows admin prompt, "Boost FPS…", and an FPS investigation measured in the
+  real game. **CLOUD_PROMPT_14.md and CLOUD_PROMPT_15.md are done - don't send them.**
+- **`main` is at:** see `git log` (this file's commit is the last of the batch). **`npm test`: 582 pass** on Windows.
+- Prompts 10-13 were released in 1.4.1; their steps below that aren't marked PASS are still open.
+- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1. Version bumped to **1.4.2** in `package.json`; `dist/Reminth-Setup.exe` built (not uploaded) - section 4, R2 first.
 
 ---
 
 ## 1. What changed
+
+### Desktop batch, 3 Oct evening (owner: "200 FPS in Reminth vs 500 in Modrinth", ping too high, update popup annoying)
+
+**1. Server ping** (`src/main/serverPing.js`, `test/server-ping.test.js`, tooltip in `features.js paintPing`).
+The number was the time the server took to build its status answer (MOTD, icon, players), not the round trip.
+Now, like Minecraft's own server list: after the status answer, up to 3 Ping/Pong packets (8-byte payload, must
+echo exactly), `process.hrtime`, median kept. A server that never answers a ping falls back to the status time
+(`latencyKind: "status"`, tooltip says so); a vanilla server that hangs up after the first pong still counts it;
+ping phase capped at 1.5 s inside the old 3.5 s timeout. Real servers, old vs new: hypixel.net 439 → 149 ms,
+donutsmp.net 103 → 42, play.cubecraft.net 82 → 40, 2b2t.org 37 → 17.
+
+**2. Updates without the admin prompt** (`package.json` build.nsis, `build/installer.nsh`, `updater.js`).
+The UAC popup came from the "all users" install in `C:\Program Files\Reminth` (Windows must ask to write there).
+Now: one-click NSIS, **per user** (`%LOCALAPPDATA%\Programs\reminth-launcher`), no admin rights ever, and
+"Restart and update" runs `quitAndInstall(true, true)` (silent, Reminth reopens). `build/installer.nsh`
+`customInstall`: if an HKLM "all users" Reminth exists in another folder, its own uninstaller is run once,
+elevated (`/allusers /S /KEEP_APP_DATA`), so Windows asks **one last time** and the old copy and its public
+shortcuts go. Player data is in `%APPDATA%\Reminth` and is not touched. The install-folder chooser is gone
+(one-click has none). Checked: a test build installs silently with no prompt in 9 s, makes the desktop + Start
+menu shortcuts and the HKCU uninstall entry, and its silent uninstall removes them. **Not checked: the removal of
+the old Program Files copy** (needs someone to answer the Windows prompt) - section 4 R2.
+
+**3. ReminthHUD 1.1.0** (`hud/`, jars in `assets/mods/`: `reminthhud-1.1.0+26.2.jar`, `…+26.3.jar`).
+Top-right bar `FPS 208 | GPU 55 % | CPU 7 % | LAT 0 ms` (owner's screenshot), coordinates + facing on a line
+under it (the old top-left box sat on top of Xaero's minimap). GPU = Windows `\GPU Engine(*)\Utilization
+Percentage` via `pdh.dll` through `java.lang.foreign`, summed per engine (luid+phys+eng - this PC has 7 separate
+"copy" engines), busiest engine, on one low-priority daemon thread; failure → the item is left out. CPU =
+`OperatingSystemMXBean.getCpuLoad()` (= Windows "% Processor Time"; Win 11 Task Manager shows the clock-scaled
+"% Processor Utility", so they can differ). LAT = `getPlayerInfo(uuid).getLatency()`. `config/reminthhud.json`
+switches items off. Moves below potion icons. One source builds both jars (key type looked up by name:
+`KEYBOARD` on 26.3, `KEYSYM` on 26.2; Minecraft range from Gradle: `gradlew build -Pminecraft_version=26.2
+-Pfabric_api_version=0.159.0+26.2 -Pversion=1.1.0+26.2`). Seen in the real game (26.2, the owner's 32 mods):
+loads with no warning, bar and coordinates line drawn as above, no FPS cost (paired runs 228/219 vs 215-221).
+The HUD is **off** on the owner's main instance (`hud:false`) - he turns it on in the instance settings.
+
+**4. "Boost FPS…"** (instance menu; `gameOptions.js planBoost/applyBoost/undoBoost`, IPC `perf:boostPlan/
+boostApply/boostUndo`, `renderer.js boostFpsFlow`, `test/boost-fps.test.js`). Only on the player's click and
+"Change them", never while the game runs. Lists every change from → to; on the owner's file: render distance
+16 → 12, simulation 12 → 8, entity shadows off, clouds off, biome blend 2 → off (also: V-Sync off, a frame cap
+→ unlimited, particles all → decreased, when set). Only keys already in options.txt change, in the game's own
+spelling; `graphicsPreset` becomes `"custom"` from 1.21.11 (else the preset overwrites the values). Old values
+saved first to `.reminth/options-before-boost.json`; "Put my old settings back" restores the ones still at the
+boosted value. Max FPS profile text now points here.
+
+**5. Launcher draws nothing while a game runs**: `body.game-running` pauses every CSS animation (a launcher
+left visible next to a windowed game would otherwise redraw at the monitor's 239 Hz). Measured during play
+before this: Reminth used 0 % CPU and 0 % GPU (its window was hidden), so this is a safety net, not a speed-up.
+
+**FPS investigation (real game, owner's PC, 26.2).** A test-only mod (`reminthbench`, scratchpad only, not in
+the repo) records every frame time; launched through Reminth's own `minecraft.launch()` with an offline test
+account into a copy of the owner's world, window 1600x900, camera turning. Roblox (30-50 % GPU) and Medal's
+recorder were running the whole time, so absolute numbers swing ±20 % between runs; only runs next to each
+other are compared (paired with a baseline on both sides).
+- **Same mods + same settings, Reminth's launch vs a Modrinth-style launch** (Zulu 25 + Modrinth's G1 flags,
+  normal priority): 164 vs 164, 236 vs 223, and 201 vs 232 (neighbours). **Reminth's Java setup is not
+  slower**, and had fewer frames over 50 ms (0 vs 4 in round 1). Keep ZGC: G1 gave +2 % average but 1 % lows
+  85 vs ~100.
+- **The 200-vs-500 gap is the instance, not the launcher**: Modrinth's profile runs render distance 8,
+  simulation 8, no shadows/clouds/biome blend, 22 mods (no Xaero's Minimap, JEI…), no resource packs. In the
+  same run pair, Modrinth's mods + settings through Reminth's launch: 241 vs 164 (+47 %).
+- Indoor scene (the saved player stood inside a house, walls hid the world): Boost settings +14 % average,
+  1 % lows 112 vs 58 (+91 %), worst frame 15 ms vs 198-280 ms in the baselines; no Xaero's Minimap +17 %;
+  no resource packs +9 %; ReminthHUD no cost.
+- **Outdoor scene** (spectator 30 blocks up, open view - where render distance really costs): running
+  overnight on a quiet PC (base vs Boost 12/10, Nvidium beta, More Culling + BadOptimizations, Modrinth
+  everything vs Reminth everything). Results go here when done.
 
 ### Prompt 13 ("Your mods already fit" was false for a real instance - blocks release 1.4.1)
 
@@ -188,6 +252,18 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+D1. **No more install-folder chooser** (one-click per-user installer). It's the price of no admin prompt; every
+   big launcher (Modrinth App, Discord, VS Code user setup) does the same. **Recommend: keep.**
+D2. **Boost FPS changes 5 video settings on the owner's instance and can make the view shorter** (16 → 12
+   chunks). It only happens on his click, after the list, with undo. **Recommend: keep 12** (servers usually
+   send 8-12 chunks anyway); see the outdoor numbers in section 1 for 10 vs 12.
+D3. **Not added to the performance pack: More Culling + BadOptimizations** unless the outdoor numbers in
+   section 1 show a clear gain; they stay as Max-FPS "extras" the player ticks. **Recommend: follow the numbers.**
+D4. **Xaero's Minimap costs the owner ~15 % FPS** in the indoor test. It's his mod; Reminth says nothing about
+   it. **Recommend: tell him, change nothing.**
+D5. **Privacy text: no new sentence.** The HUD reads Windows' own CPU/GPU counters inside the game and sends
+   nothing; Boost FPS edits a local file.
+
 P13-1. **The in-dialog "Update mods to fit" can open the usual "No <v> build yet" window on top of the picker** when
    some mods have no stable build (same as the yellow button). **Recommend: keep** - one behaviour everywhere.
 
@@ -261,6 +337,15 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 3. Known weak spots (say them, don't hide them)
 
+- **Desktop batch (3 Oct evening):** the migration away from `C:\Program Files\Reminth` has not run for real
+  (R2). If the owner says No to the one Windows prompt, the old copy and its public shortcut stay, and starting
+  Reminth from that shortcut runs the old version, which updates itself again (asks again). Pinned taskbar
+  icons point at the old path and break once it's removed - pin again.
+- Boost FPS's dialog was never clicked in Electron (only unit tests on real files and the owner's real
+  options.txt read-only). The HUD on 26.3 was compiled but not run in a game.
+- FPS numbers were taken with Roblox and Medal running; no clean-PC number exists. The 350 FPS target was not
+  measured on the owner's real setup (fullscreen, his server).
+
 - **Prompt 12 never ran in Electron.** The counter was tested on a throwaway settings.json and through main.js on
   a fake Electron (a session's end adds to it and tells the page); the picker parts in headless Chromium.
 - The lifetime counter starts from the instances' recorded time on first start: time from instances deleted
@@ -326,6 +411,32 @@ you saw; stop and report on any FAIL that risks his files.
 1. `git pull`, `npm install` if needed, `npm test` → **564 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
+
+### Desktop batch, 3 Oct evening (ping, HUD, Boost FPS, updates) - test with 1.4.2
+B1. Discover → Servers: the ping badges are lower than before (hypixel ~150, cubecraft ~40 here) and agree within
+    a few ms with Minecraft's own multiplayer list for the same server. Hover: "…measured the way Minecraft's own
+    server list does".
+B2. Instance settings → ReminthHUD on → Play: top-right bar `FPS | GPU % | CPU % | LAT ms`, coordinates line under
+    it, nothing over a minimap. GPU roughly matches Task Manager's GPU column. LAT 0 in singleplayer, a real number
+    on a server. **H** hides/shows. A potion effect: the bar moves below the icons. `config/reminthhud.json`
+    with `"gpu": false` → the GPU item is gone and the bar closes up. F3 open → the HUD hides (F3 shows the
+    same). A server with `reducedDebugInfo` → no coordinates line. Same on a 26.3 instance.
+B3. Right-click an instance → **Boost FPS…** → the list of from → to; Cancel changes nothing; **Change them** →
+    toast; options.txt shows the new values, everything else identical; `.reminth/options-before-boost.json`
+    exists. Open again → "already has the fast settings" + **Put my old settings back** → the old values return.
+    With the game running: the entry is greyed out with "Close the game first."
+B4. While a game runs, the launcher's looping animations (Plus page, progress shimmer) stand still; they move
+    again after the game closes.
+
+### Release 1.4.2
+R1. **Done by the desktop window:** `npm test` (582), bump to 1.4.2, `npm run dist`, check `dist/latest.yml` has no `isAdminRightsRequired`.
+R2. **The migration, on the owner's PC, before uploading:** close Reminth, run `dist\Reminth-Setup.exe` by hand →
+    a small "Installing" box (no wizard), then Windows asks ONCE (that's the old copy being removed) → Yes →
+    Reminth opens from `%LOCALAPPDATA%\Programs\reminth-launcher`; `C:\Program Files\Reminth` is gone; one
+    "Reminth" on the desktop and in Start; instances, worlds, sign-in, settings all still there.
+R3. Upload the release (installer + `latest.yml` + `.blockmap`).
+R4. When 1.4.3 exists: Settings → Check for updates → download → **Restart and update** → no Windows prompt, no
+    installer window, Reminth reopens on 1.4.3.
 
 ### Prompt 13 (test these first - it blocks 1.4.1)
 W1. A throwaway **Fabric 1.21.1** instance holding the mod files of a 26.2 instance (copy its `mods` folder). Open

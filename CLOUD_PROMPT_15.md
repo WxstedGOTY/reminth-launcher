@@ -1,5 +1,7 @@
 # Prompt 15 for the code-writing window: ReminthHUD gets the FPS / GPU / CPU / LAT bar
 
+> **DONE - don't send.** The desktop window implemented this itself on 3 Oct 2026 (evening); see DECISIONS_AND_TEST_PLAN.md section 1.
+
 Model: Opus 5.5, effort high (Java 25, Windows system calls, no way to run it in the cloud). Send when the desktop window is idle. The desktop window compiles and tests it.
 
 ---

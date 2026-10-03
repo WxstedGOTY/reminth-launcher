@@ -1,5 +1,7 @@
 # Prompt 14 for the code-writing window: the server ping shows ~80 ms where other launchers show ~30 ms
 
+> **DONE - don't send.** The desktop window implemented this itself on 3 Oct 2026 (evening); see DECISIONS_AND_TEST_PLAN.md section 1.
+
 Model: Sonnet 5.5, effort medium. Small, self-contained (src/main/serverPing.js + tests). Send when the desktop window is idle.
 
 ---
