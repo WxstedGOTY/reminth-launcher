@@ -203,7 +203,10 @@ function createUpdater({ app, loadUpdater, notify = () => {}, isGameRunning = ()
     if (isGameRunning()) return { ok: false, reason: "Close Minecraft first." };
     if (!au || current.state !== "ready") return { ok: false, reason: "No update is ready yet." };
     log("restarting to install");
-    au.quitAndInstall();
+    // Silent (no installer window) and Reminth opens again by itself when it
+    // is done. Installs are per user since 1.4.2, so there is no Windows
+    // admin prompt either.
+    au.quitAndInstall(true, true);
     return { ok: true };
   }
 

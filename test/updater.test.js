@@ -42,8 +42,9 @@ class FakeAutoUpdater extends EventEmitter {
     this.emit("checking-for-update");
     return this.script(this);
   }
-  quitAndInstall() {
+  quitAndInstall(isSilent, isForceRunAfter) {
     this.installs++;
+    this.installArgs = [isSilent, isForceRunAfter];
   }
 }
 
@@ -258,6 +259,8 @@ test("a running game: no automatic check, no Restart, no install on quit", async
   assert.equal(au.autoInstallOnAppQuit, true);
   assert.deepEqual(u.installNow(), { ok: true });
   assert.equal(au.installs, 1);
+  // silent, and Reminth reopens afterwards
+  assert.deepEqual(au.installArgs, [true, true]);
 });
 
 test("check while one is already running or downloading: one check, the current state back", async () => {
