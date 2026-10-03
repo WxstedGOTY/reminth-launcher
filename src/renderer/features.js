@@ -4433,10 +4433,13 @@ function openVersionAdvisor(instanceId, options = {}) {
   let copying = false;
   let copied = null;
   let playAfter = false;
+  let showAll = false; // "Show more versions"
+  let worlds = null; // how many worlds the instance has (asked when the dialog opens)
 
   const body = el("div", "adv");
   /* step 1: pick */
   const pickView = el("div");
+  pickView.appendChild(el("p", "adv-help", 'A "build" is the version of a mod made for one Minecraft version.'));
   const context = el("p", "vpick-note");
   pickView.appendChild(context);
   const field = el("div", "field");
@@ -4457,8 +4460,14 @@ function openVersionAdvisor(instanceId, options = {}) {
   serverNote.textContent = server && accepts ? `${server.name} takes ${versionRangeLabel(accepts) || "the versions below"}.` : "Add a server to see which versions it lets in.";
   field.appendChild(serverNote);
   pickView.appendChild(field);
+  const bestBox = el("div", "adv-best");
+  bestBox.hidden = true;
+  pickView.appendChild(bestBox);
   const list = el("div", "pick-list vpick-list");
   pickView.appendChild(list);
+  // What happens to each mod on the version picked above.
+  const groupsBox = el("div", "adv-groups");
+  pickView.appendChild(groupsBox);
   body.appendChild(pickView);
   /* steps 2-4: confirm, progress, result */
   const stepView = el("div");
@@ -4549,65 +4558,105 @@ function openVersionAdvisor(instanceId, options = {}) {
 
   function modsLine(c) {
     if (!c.total) return "No mods to check";
-    if (c.supported === c.total) return c.total === 1 ? "Your mod has a build for it" : `All ${c.total} mods`;
-    return `${c.supported} of ${c.total} mods — no build of ${nameList(c.missing)}`;
+    const n = c.missing.length;
+    if (!n) return c.total === 1 ? "Your mod fits" : `All ${c.total} mods fit`;
+    return `${n} ${n === 1 ? "mod has" : "mods have"} no build for it: ${nameList(c.missing)}`;
+  }
+
+  /** What may be done with a version here (switch this instance / make a new one), and the recommended one. */
+  const choicesFor = (c) =>
+    window.ReminthPure.versionChoices({ from: inst.mcVersion, to: c.version, worlds: worlds === null ? 1 : worlds, modpack: Boolean(inst.modpack), running: state.running.has(inst.id) });
+
+  /** The four plain groups (Will work / No build / Not from Modrinth / Not checked) as collapsible lists. */
+  function groupsView(c, action) {
+    const box = el("div", "adv-group-list");
+    for (const g of window.ReminthPure.modGroups(advice, c, action)) {
+      const d = el("details", "adv-group " + g.key);
+      // Up to 6 names are shown straight away; longer lists open on a click.
+      d.open = g.names.length <= 6 && g.key !== "works";
+      d.appendChild(el("summary", null, g.title));
+      d.appendChild(el("p", "adv-group-what", g.sentence));
+      const ul = el("ul", "adv-group-names");
+      for (const name of g.names) ul.appendChild(el("li", null, name));
+      d.appendChild(ul);
+      box.appendChild(d);
+    }
+    return box;
+  }
+
+  function paintGroups() {
+    groupsBox.textContent = "";
+    if (!chosen || !advice) return;
+    const action = choicesFor(chosen).recommended;
+    groupsBox.appendChild(el("h4", null, `On Minecraft ${chosen.version}${action === "copy" ? ", in a new instance" : ""}:`));
+    groupsBox.appendChild(groupsView(chosen, action));
   }
 
   function paintList() {
     list.textContent = "";
+    bestBox.hidden = true;
     const a = advice;
     const bits = [];
     if (a.total) bits.push(`${a.total} of your mods ${a.total === 1 ? "is" : "are"} on Modrinth and ${a.total === 1 ? "was" : "were"} checked.`);
     else bits.push("None of this instance's mods are on Modrinth, so there is nothing to compare.");
-    if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth): ${nameList(a.unknown)}.`);
-    if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now: ${nameList(a.failed)}.`);
+    if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth).`);
+    if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now.`);
     context.textContent = bits.join(" ");
-    context.title = [...(a.unknown || []), ...(a.failed || [])].join(", ");
-    const rows = a.candidates || [];
+    const { rows, best } = window.ReminthPure.rankVersionRows(a.candidates || [], { server: Boolean(accepts) });
     if (!rows.length) {
       list.appendChild(el("div", "vpick-empty", "No version to suggest."));
+      paintGroups();
       return;
     }
-    if (a.best && a.best.current) {
-      list.appendChild(el("div", "vpick-empty", `${inst.name} is already on the best version for its mods${accepts ? " and this server" : ""}.`));
-    } else if (!a.best && a.total) {
-      list.appendChild(el("div", "vpick-empty", `No version has every mod${accepts ? " and is taken by this server" : ""}. The closest ones are first.`));
+    const current = rows.find((r) => r.current);
+    if (best) {
+      bestBox.hidden = false;
+      bestBox.textContent = window.ReminthPure.bestLine(best, choicesFor(best).recommended);
+    } else if (current && !current.missing.length) {
+      bestBox.hidden = false;
+      bestBox.textContent = `${inst.name} is already on the best version for its mods${accepts ? " and this server" : ""}.`;
     }
     const select = (c, item) => {
       chosen = c;
       list.querySelectorAll(".pick-item").forEach((x) => x.classList.toggle("selected", x === item));
+      paintGroups();
       paintButtons();
     };
-    for (const c of rows) {
+    // The best 5 first; the rest behind "Show more versions".
+    const visible = showAll ? rows : rows.slice(0, 5);
+    for (const c of visible) {
       const item = el("button", "pick-item vpick-item");
       item.type = "button";
       const main = el("div", "vpick-main");
       main.appendChild(el("b", null, `Minecraft ${c.version}`));
       const line = el("span", null, modsLine(c));
-      if (c.missing && c.missing.length) line.title = `No build for ${c.version}: ${c.missing.join(", ")}`;
+      if (c.missing.length) line.title = c.missing.join(", ");
       main.appendChild(line);
       item.appendChild(main);
       const tags = el("div", "vpick-tags");
-      if (a.best && a.best.version === c.version) tags.appendChild(el("span", "tag emerald", "Best fit"));
+      if (best && best.version === c.version) tags.appendChild(el("span", "tag emerald", c.missing.length ? "Fits most" : "Best match"));
       if (c.server === true) tags.appendChild(el("span", "tag cyan", "Server ok"));
       else if (c.server === false) tags.appendChild(el("span", "tag rose", "Server won't take it"));
       if (c.current) tags.appendChild(el("span", "tag dim", "Current"));
       item.appendChild(tags);
       if (c.current) {
-        // The instance is already on it - there is nothing to copy to.
+        // The instance is already on it - nothing to change.
         item.disabled = true;
         item.title = `${inst.name} is on ${c.version} now`;
       } else item.onclick = () => select(c, item);
       list.appendChild(item);
-      if (a.best && a.best.version === c.version && !c.current) select(c, item);
+      if (!chosen && best && best.version === c.version) select(c, item);
+      else if (chosen && chosen.version === c.version) select(c, item);
     }
-    // Nothing fits everything, but a server was given: start on the closest
-    // version it takes (they are ranked first) rather than on nothing.
-    if (!chosen && !(a.best && a.best.current) && accepts) {
-      const at = rows.findIndex((c) => c.server === true && !c.current);
-      const items = list.querySelectorAll(".pick-item");
-      if (at >= 0 && items[at]) select(rows[at], items[at]);
+    if (rows.length > visible.length) {
+      const more = button("btn outline sm adv-more", `Show more versions (${rows.length - visible.length})`);
+      more.onclick = () => {
+        showAll = true;
+        paintList();
+      };
+      list.appendChild(more);
     }
+    paintGroups();
   }
 
   async function load() {
@@ -4617,6 +4666,8 @@ function openVersionAdvisor(instanceId, options = {}) {
     paintButtons();
     context.textContent = "";
     list.textContent = "";
+    groupsBox.textContent = "";
+    bestBox.hidden = true;
     const wait = el("div", "vpick-empty", "Checking each of your mods on Modrinth — this takes a moment…");
     const track = el("div", "track adv-wait");
     const fill = el("div", "fill busy");
@@ -4625,9 +4676,12 @@ function openVersionAdvisor(instanceId, options = {}) {
     list.appendChild(wait);
     list.appendChild(track);
     try {
-      const a = await window.reminth.compatAdvise(instanceId, accepts ? { accepts } : {});
+      const [a, data] = await Promise.all([window.reminth.compatAdvise(instanceId, accepts ? { accepts } : {}), worlds === null ? window.reminth.instanceData(instanceId).catch(() => null) : null]);
       if (handle.closed || mine !== token) return; // closed, or a newer check took over
+      // Not known: counted as "has worlds", so an older version is never offered in place.
+      if (worlds === null) worlds = data && Number.isFinite(Number(data.worldCount)) ? Number(data.worldCount) : null;
       advice = a;
+      showAll = false;
       paintList();
     } catch (err) {
       if (handle.closed || mine !== token) return;

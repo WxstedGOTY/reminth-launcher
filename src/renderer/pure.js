@@ -66,6 +66,108 @@
     return p === null ? null : { host: m[1], port: p, ipv6: false };
   }
 
+  /* ---------------- "Pick a Minecraft version for my mods" ---------------- */
+
+  /** Pure: -1 / 0 / 1 for two release versions ("1.21.4", "26.2"); null when either isn't one. */
+  function compareMc(a, b) {
+    const pa = mcParts(a);
+    const pb = mcParts(b);
+    if (!pa || !pb) return null;
+    for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] < pb[i] ? -1 : 1;
+    return 0;
+  }
+
+  /**
+   * What the player may do with a version, and which choice is recommended:
+   *   switch - change THIS instance to it (mods updated, the ones with no
+   *            build turned off, worlds stay)
+   *   copy   - keep this instance and make a new one on it
+   * facts: { from, to, worlds (count), modpack (bool), running (bool) }.
+   * Returns { switch: { allowed, why }, copy: { allowed: true, why: null }, recommended }.
+   */
+  function versionChoices({ from, to, worlds = 0, modpack = false, running = false } = {}) {
+    let why = null;
+    if (modpack) why = "Its mods belong to the modpack it came from, so Reminth doesn't change them here.";
+    else if (running) why = "Close the game first — Windows won't let files in use be replaced.";
+    else if (compareMc(to, from) === -1 && worlds > 0) {
+      why = `Your worlds were saved in Minecraft ${from}. Opening them in the older ${to} can damage them, so they stay here and a new instance is made instead.`;
+    }
+    const sw = { allowed: !why, why };
+    return { switch: sw, copy: { allowed: true, why: null }, recommended: sw.allowed ? "switch" : "copy" };
+  }
+
+  /**
+   * The versions to offer, best first: (a server that takes it first, when a
+   * server was checked), then the fewest mods without a build for it, then
+   * the newest. The version the instance is on stays in the list (marked)
+   * but is never "best". Returns { rows, best } - best = the first other row.
+   */
+  function rankVersionRows(candidates, { server = false } = {}) {
+    const rows = (Array.isArray(candidates) ? candidates : []).filter((c) => c && typeof c.version === "string").map((c) => ({ ...c, missing: Array.isArray(c.missing) ? c.missing : [] }));
+    rows.sort(
+      (a, b) =>
+        (server ? Number(b.server === true) - Number(a.server === true) : 0) ||
+        a.missing.length - b.missing.length ||
+        -(compareMc(a.version, b.version) || 0) ||
+        String(b.version).localeCompare(String(a.version))
+    );
+    const best = rows.find((r) => !r.current && (!server || r.server !== false)) || null;
+    return { rows, best };
+  }
+
+  /** The line above the list: "Best match: 1.21.1 - all 29 mods fit" / "Fits most: 1.21.4 - 3 mods have to be turned off". */
+  function bestLine(best, action) {
+    if (!best) return null;
+    const n = best.missing.length;
+    if (!n) return `Best match: ${best.version} — ${best.total === 1 ? "your mod fits" : `all ${best.total} mods fit`}`;
+    return `Fits most: ${best.version} — ${n} ${n === 1 ? "mod has" : "mods have"} to be ${action === "copy" ? "left out" : "turned off"}`;
+  }
+
+  /**
+   * Every mod in one of four plain groups for one version and one action,
+   * each with the sentence that says exactly what happens to it:
+   * [{ key: "works" | "nobuild" | "unknown" | "failed", title, names, sentence }]
+   * (empty groups left out). advice: compat.adviseVersions' answer.
+   */
+  function modGroups(advice, row, action) {
+    const a = advice || {};
+    const v = row ? row.version : "";
+    const missing = new Set(row && Array.isArray(row.missing) ? row.missing : []);
+    const known = (Array.isArray(a.mods) ? a.mods : []).map((m) => m.title).filter(Boolean);
+    const works = known.filter((t) => !missing.has(t));
+    const noBuild = known.filter((t) => missing.has(t));
+    const unknown = Array.isArray(a.unknown) ? a.unknown : [];
+    const failed = Array.isArray(a.failed) ? a.failed : [];
+    const copy = action === "copy";
+    const out = [];
+    if (works.length) out.push({ key: "works", title: `Will work (${works.length})`, names: works, sentence: copy ? `Downloaded again in their ${v} version.` : `Updated to their ${v} version where needed.` });
+    if (noBuild.length) {
+      out.push({
+        key: "nobuild",
+        title: `No build for ${v} (${noBuild.length})`,
+        names: noBuild,
+        sentence: `They can't work with the rest on ${v}, so they will be ${copy ? "left out of the copy" : "turned off (you can turn them on again)"}.`,
+      });
+    }
+    if (unknown.length) {
+      out.push({
+        key: "unknown",
+        title: `Not from Modrinth, Reminth can't check these (${unknown.length})`,
+        names: unknown,
+        sentence: copy ? "They will be left out of the copy. Add them by hand if they have a version for this Minecraft." : `They will be kept as they are, unless the file itself says it can't run on ${v} — then it is turned off.`,
+      });
+    }
+    if (failed.length) {
+      out.push({
+        key: "failed",
+        title: `Couldn't be checked just now (${failed.length})`,
+        names: failed,
+        sentence: copy ? "They will be left out of the copy." : "They will be kept as they are.",
+      });
+    }
+    return out;
+  }
+
   /* ---------------- the Play warning ---------------- */
 
   /**
@@ -190,7 +292,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { heroInstance, markPlayed, modWarning, riskyText, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { heroInstance, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);
