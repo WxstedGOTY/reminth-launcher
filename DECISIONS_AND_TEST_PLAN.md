@@ -250,6 +250,10 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ---
 
+**JEI first-inventory-open stutter (owner report, 4 Oct; fixed for him by switching JEI off).** Measured with the test mod opening the inventory by itself 3/8/15/25 s after joining, JEI 30.39 on vs off, owner's 32 mods, singleplayer: worst frame in the 4 s after opening = 52-59 ms with JEI, 35-50 ms without. So JEI costs about ONE extra 40-60 ms frame here, not the ~1 s the owner feels; the one-second hitch was NOT reproduced (the test has no server, no full real inventory). Nothing to fix from Reminth's side found. Next step if it matters: ask the owner whether the hitch also happens 30 s after joining (then it's not start-up work).
+
+**Unreleased (committed, not in 1.4.3):** ReminthHUD is switched on once for every Fabric/Quilt instance (`src/main/hudDefault.js`, marker `hud-on-by-default.json` in %APPDATA%\Reminth). Needs a release (1.4.4).
+
 ## 2. Decisions the owner must make (recommendation first)
 
 D1. **No more install-folder chooser** (one-click per-user installer). It's the price of no admin prompt; every
