@@ -3,7 +3,7 @@
 	"id": "reminthhud",
 	"version": "${version}",
 	"name": "ReminthHUD",
-	"description": "A lightweight custom HUD overlay: FPS, coordinates, and facing direction. Toggle with H.",
+	"description": "A lightweight HUD: a top-right bar with FPS, GPU and CPU load and your latency, plus coordinates and facing. Toggle with H; pick what shows in config/reminthhud.json.",
 	"authors": [
 		"Wxsted"
 	],
@@ -21,7 +21,7 @@
 	},
 	"depends": {
 		"fabricloader": "*",
-		"minecraft": "~26.3",
+		"minecraft": "~${minecraft_version}",
 		"java": ">=25",
 		"fabric-api": "*"
 	}

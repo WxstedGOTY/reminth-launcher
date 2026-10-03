@@ -1,55 +1,48 @@
-# WxHUD
+# ReminthHUD
 
-A minimal Fabric client mod for Minecraft 26.2. Adds a toggleable overlay
-(FPS, coordinates, facing direction) in the top-left of the screen.
+The small in-game overlay Reminth puts into Fabric instances (Minecraft 26.2 and 26.3).
+Client-side only, CC0.
 
-- Toggle key: **H** (rebindable in Options > Controls > Key Binds > WxHUD)
-- Client-side only — no effect on servers, safe to use anywhere
+## What it shows
 
-This was scaffolded from the official Fabric example mod template and
-verified against the current (26.1.2/26.2) Fabric API docs, but it has
-**not been compiled** — the build environment that generated it has no
-network access to Fabric's/Mojang's Maven repos. Building it locally
-(step 4 below) is the real first-compile check. If it doesn't build
-clean, feed the exact error to Claude Code — these are almost always a
-one-line fix (an import path or a renamed method).
+- **Top-right bar:** `FPS 240 | GPU 16 % | CPU 53 % | LAT 0 ms`
+  - **FPS**: the game's own frame counter.
+  - **GPU**: the whole PC's GPU load, the same number as Task Manager (Windows'
+    `\GPU Engine(*)\Utilization Percentage` counters, busiest engine). Read on a
+    background thread once a second through `pdh.dll` with Java's foreign-function
+    API, added up per GPU engine like Task Manager does. If this PC can't give it (not
+    Windows, counters missing), the item is simply left out.
+  - **CPU**: the whole PC's CPU load (mean of the last 3 seconds), Windows' "% Processor Time".
+    Windows 11's Task Manager shows "% Processor Utility" instead, which scales with the clock
+    speed, so the two can differ.
+  - **LAT**: your latency to the server as the game knows it (the player list's
+    number). 0 in singleplayer.
+  - The bar moves down under the potion-effect icons when there are some.
+- **Under the bar:** coordinates and the direction you're facing. Everything stays in the
+  top-right corner because minimap mods (Xaero's, JourneyMap) use the top-left.
+- **H** shows/hides everything (rebindable in Controls).
 
-## Setup
+## Config
 
-1. **Install JDK 25.** Minecraft 26.x requires it (up from Java 21).
-   Get the Microsoft Build of OpenJDK 25, or any JDK 25 distro.
-   Check with: `java -version`
+`config/reminthhud.json` in the instance, written with everything on the first time:
 
-2. **Install IntelliJ IDEA** (Community edition is free) — the standard
-   IDE for Fabric dev, has the best Gradle/Loom support.
+```json
+{ "fps": true, "gpu": true, "cpu": true, "lat": true, "coords": true }
+```
 
-3. **Open this folder** in IntelliJ as a Gradle project. Let it sync —
-   first sync downloads Minecraft + Fabric API + mappings, takes a
-   few minutes.
+Set an item to `false` to hide it. Read once when the game starts.
 
-4. **Run it.** Either:
-   - IntelliJ: open the Gradle tab > Tasks > fabric > `runClient`
-   - Terminal: `./gradlew runClient` (Linux/Mac) or `gradlew.bat runClient` (Windows)
+## Building (on Windows, Java 25)
 
-   This launches a real dev instance of Minecraft with the mod loaded.
-   Join any world or server and press **H**.
+One source builds both jars. 26.3 uses `gradle.properties`; 26.2 is given on the
+command line:
 
-## Project layout
+```
+cd hud
+gradlew build
+gradlew build -Pminecraft_version=26.2 -Pfabric_api_version=0.159.0+26.2 -Pversion=1.1.0+26.2
+```
 
-- `src/main/java/com/wxsted/wxhud/WxHud.java` — main entrypoint (runs everywhere)
-- `src/client/java/com/wxsted/wxhud/client/WxHudClient.java` — client entrypoint,
-  where the actual HUD rendering and keybind logic lives
-- `src/main/resources/fabric.mod.json` — mod metadata Fabric Loader reads
-- `gradle.properties` — Minecraft/Fabric/loader version pins
-
-## Extending it
-
-The render logic is one method, `WxHudClient#render`. Add more lines to
-the `lines` array to show more info (ping, biome, light level, whatever).
-Everything else (background box, positioning) already scales with the
-array length.
-
-## Publishing
-
-Once it builds and runs clean, `./gradlew build` produces a jar in
-`build/libs/`. That jar is what you'd upload to Modrinth/CurseForge.
+Each build leaves `build/libs/reminthhud-<version>.jar`; copy both jars into the
+launcher's `assets/mods/` (and remove the older ones). Reminth reads each jar's
+`fabric.mod.json` and installs the one whose Minecraft range fits the instance.
