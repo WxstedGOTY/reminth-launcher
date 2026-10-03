@@ -32,6 +32,7 @@ const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
 const atomic = require("./atomic");
 const projectPage = require("./projectPage");
+const windowRestore = require("./windowRestore");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -40,6 +41,9 @@ let cachedSettings = store.DEFAULT_SETTINGS;
 // instanceId -> { child, startedAt }. One game per instance at a time: two
 // copies of the same instance would write the same worlds at once.
 const running = new Map();
+// The window as it was when the first of the running games was launched
+// ({ wasMaximized, minimizedByUs }), until it has been put back after them.
+let windowBeforeGame = null;
 
 // Must run before app.whenReady() - Electron ignores this call once the GPU
 // process has started. Read synchronously on purpose: an async read can
@@ -156,6 +160,9 @@ function createWindow() {
   // the renderer draws its own and needs to know which icon to show.
   win.on("maximize", () => send("window:maximized", true));
   win.on("unmaximize", () => send("window:maximized", false));
+  // After a game: put the window back as it was (see restoreWindowAfterGame).
+  win.on("focus", () => restoreWindowAfterGame());
+  win.on("restore", () => restoreWindowAfterGame());
 
   // Opens maximized; restoring drops back to the windowed size set above.
   // maximize() on a still-hidden window doesn't reliably emit "maximize" on
@@ -1116,10 +1123,12 @@ async function startGame(inst, join, claim, worldRequest) {
   }
   claim.startedAt = Date.now();
   streamer.gameStarted();
+  // How the window is now, before a fullscreen game (or "launch minimized")
+  // changes it. A second game keeps what the first one found.
+  if (!windowBeforeGame && win && !win.isDestroyed()) windowBeforeGame = { wasMaximized: win.isMaximized(), minimizedByUs: false };
   // "Last played" is now, not only when the game closes - Home shows the
-  // instance being played straight away.
-  // Saved BEFORE "play:started" goes out: the page reloads the list on that
-  // event and must see the new value.
+  // instance being played straight away. Saved BEFORE "play:started" goes
+  // out: the page reloads the list on that event and must see the new value.
   try {
     await instances.update(inst.id, { lastPlayed: claim.startedAt });
   } catch {
@@ -1128,7 +1137,10 @@ async function startGame(inst, join, claim, worldRequest) {
   // The game can have ended during the save; "play:exited" has gone out then.
   if (running.get(inst.id) === claim) {
     send("play:started", { instanceId: inst.id, startedAt: claim.startedAt });
-    if (cachedSettings.launchMinimized) win.minimize();
+    if (cachedSettings.launchMinimized && win && !win.isDestroyed() && !win.isMinimized()) {
+      win.minimize();
+      if (windowBeforeGame) windowBeforeGame.minimizedByUs = true;
+    }
   }
   // When a world was asked for: did the game get told to open it?
   return worldAsked ? { launched: true, worldJoin: Boolean(world) && minecraft.supportsWorldJoin(installResult.profile) } : { launched: true };
@@ -1224,4 +1236,22 @@ function finishSession(inst, played, session) {
   // game on its next start and archived then.
   setTimeout(() => logs.importInstanceLogs(inst).catch(() => {}), 1500);
   send("play:exited", { instanceId: inst.id });
+  restoreWindowAfterGame();
+}
+
+/**
+ * Once no game runs any more: the window back the way it was when the game
+ * was launched (Windows un-maximizes it for a fullscreen game; "launch
+ * minimized" minimized it). Never while a game runs; never a window that
+ * wasn't maximized made maximized. Decided by windowRestore.afterGame.
+ */
+function restoreWindowAfterGame() {
+  if (!windowBeforeGame || !win || win.isDestroyed()) return;
+  const action = windowRestore.afterGame(windowBeforeGame, { isMaximized: win.isMaximized(), isMinimized: win.isMinimized(), anyGameRunning: running.size > 0 });
+  if (action === "wait") return;
+  windowBeforeGame = null;
+  if (action === "none") return;
+  if (action === "restore" || action === "restore-maximize") win.restore();
+  if (action === "maximize" || action === "restore-maximize") win.maximize();
+  send("window:maximized", win.isMaximized());
 }

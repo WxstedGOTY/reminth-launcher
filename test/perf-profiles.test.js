@@ -821,3 +821,74 @@ test("main: play:started goes out only after last played is saved; a failed save
   }
 });
 
+test("main: after a game the window goes back to maximized (never during the game, never if it wasn't)", async () => {
+  const w = FakeWindow.last;
+  const st = { max: true, min: false };
+  const did = [];
+  const realMethods = { isMaximized: w.isMaximized, isMinimized: w.isMinimized, maximize: w.maximize, restore: w.restore, minimize: w.minimize };
+  Object.assign(w, {
+    isMaximized: () => st.max,
+    isMinimized: () => st.min,
+    maximize: () => (did.push("maximize"), (st.max = true), (st.min = false)),
+    restore: () => (did.push("restore"), (st.min = false)),
+    minimize: () => (did.push("minimize"), (st.min = true)),
+  });
+  const play = async () => {
+    install = { promise: Promise.resolve({ removedMods: [] }) };
+    assert.deepEqual(await call("play:run", { instanceId: "i1" }), { launched: true });
+  };
+  const lastMaxState = () => [...toRenderer].reverse().find(([c]) => c === "window:maximized");
+  const saved = await call("settings:get");
+  try {
+    // 1. "launch minimized" on: minimized for the game, Windows un-maximizes it meanwhile
+    await call("settings:set", { launchMinimized: true });
+    await play();
+    assert.deepEqual(did, ["minimize"]);
+    st.max = false;
+    w.emit("focus");
+    w.emit("restore");
+    assert.deepEqual(did, ["minimize"], "nothing while the game runs");
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, ["minimize", "restore", "maximize"]);
+    assert.deepEqual(lastMaxState(), ["window:maximized", true]);
+
+    // 2. "launch minimized" off: the fullscreen game un-maximizes it; put back when the game ends
+    await call("settings:set", { launchMinimized: false });
+    did.length = 0;
+    await play();
+    st.max = false;
+    assert.deepEqual(did, []);
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, ["maximize"]);
+
+    // 3. not maximized when the game started: left as it is
+    did.length = 0;
+    st.max = false;
+    await play();
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    w.emit("focus");
+    assert.deepEqual(did, []);
+    assert.equal(st.max, false);
+
+    // 4. the player minimized it themselves: put back only when they bring it back
+    did.length = 0;
+    st.max = true;
+    await play();
+    st.max = false;
+    st.min = true;
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    assert.deepEqual(did, []);
+    st.min = false; // the player clicks it on the taskbar
+    w.emit("restore");
+    assert.deepEqual(did, ["maximize"]);
+    w.emit("focus");
+    assert.deepEqual(did, ["maximize"], "only once");
+  } finally {
+    Object.assign(w, realMethods);
+    await call("settings:set", { launchMinimized: saved.launchMinimized });
+  }
+});
