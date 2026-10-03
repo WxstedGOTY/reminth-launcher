@@ -4,10 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 5** (two bugs from the prompt-3
-  tests). Prompt 4 (project page) is also done but not yet tested on Windows.
-- **`main` is at:** `1fbc98d` (plus this file's commit). **`npm test`: 512 pass** on Linux (502 after
-  prompt 4, 470 before).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 6** (the window repair the real Win32
+  state showed was needed). Prompts 4 and 5 are also done; nothing of 4-6 is tested on Windows yet.
+- **`main` is at:** `cda41a3` (plus this file's commit). **`npm test`: 517 pass** on Linux (512 after
+  prompt 5, 502 after prompt 4).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +18,26 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 6 (window still small after a fullscreen game)
+
+The desktop window measured it: at game **start** Windows shrinks Reminth's window to 800x552 but leaves it
+flagged maximized (IsZoomed TRUE, `isMaximized()` true, title bar shows "restore"), so prompt 5's fix
+never acted. Now, once no game runs (game end, or the window's focus/restore), a window that was maximized
+when the game started, still says maximized, but doesn't fill its display's work area
+(`screen.getDisplayMatching(bounds).workArea`; full = width and height at least work area + 16 - 24 px) is
+**unmaximized then maximized**, then `window:maximized` true is sent. Once per game end (the snapshot is
+dropped before anything runs, and `repaired` blocks a second go). Also applied after a "launch minimized"
+window is restored, since that comes back flagged maximized too. One line goes to
+`%APPDATA%\Reminth\main-errors.log`: `window: After a game the window said maximized but was 816x568;
+repaired to 1936x1048.` (sizes are the outer rectangle, so 816x568 = the 800x552 client area).
+
+| Files | |
+|---|---|
+| `src/main/windowRestore.js` | `fillsWorkArea(bounds, workArea)` (new, pure), `afterGame` takes `boundsFillWorkArea` + `repaired`, new action `"repair"` |
+| `src/main/main.js` | `windowNow()`, `restoreWindowAfterGame()` runs the repair and logs it |
+| `test/window-restore.test.js` | +5 tests (12 now): bounds rule, repair / full / not maximized / game running / already repaired |
+| `test/perf-profiles.test.js` | fake window gets `getBounds`, fake screen `getDisplayMatching`; 3 more scenarios through the real main.js (repair + log line + only once; full = nothing; launch-minimized + small) |
 
 ### Prompt 5 (two bugs the desktop window found)
 
@@ -50,14 +70,6 @@ opening a page from inside it would need it to close and reopen with its ticks k
    after quitting a game, the one place to change is `windowRestore.afterGame` (return "wait" for the
    `minimizedByUs` case).
 
-1. **Privacy text - one wording change suggested (not made; the desktop window edits privacy text).**
-   The page now shows pictures from `cdn.modrinth.com` inside descriptions and galleries, and loads a
-   project's team / organisation from Modrinth. Both hosts are already named. Suggested exact change in the
-   in-app privacy text (`index.html`) and `site/privacy.html`:
-   replace `cdn.modrinth.com and avatars.githubusercontent.com (icons and creator pictures);`
-   with `cdn.modrinth.com and avatars.githubusercontent.com (icons, creator pictures, and pictures in project descriptions and galleries);`
-   and add after "...as with any internet request.": `Links on a project page open in your own web browser, not in Reminth.`
-   **Recommend: make both edits** (accurate, no new host). Pictures from any other host are never loaded.
 2. **Description parsing happens in the main process** (prompt said "renderer"): a huge description costs
    the main process up to 120 ms once per 5 minutes per project, never the window. **Recommend: keep.**
 3. **Relative links (`/mod/sodium`) go to modrinth.com** (that's where Modrinth itself sends them).
@@ -69,7 +81,8 @@ opening a page from inside it would need it to close and reopen with its ticks k
    open on old versions just starts the instance (**keep**); shader install needing Iris refused while
    running (**keep**); unsigned installer (nothing to do).
 
-Closed: privacy text for copies + game report; tied versions stay warnings; all replaced jars copied;
+Closed: privacy text for project-page pictures and links (made by the desktop window in `194863c`; re-upload
+`site/` with the release); privacy text for copies + game report; tied versions stay warnings; all replaced jars copied;
 Forge/NeoForge pack ON for new instances; profile on never-played instance writes options.txt;
 wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
@@ -77,8 +90,10 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 3. Known weak spots (say them, don't hide them)
 
-- **Bug 2 is a guess at the cause** (Windows un-maximizing for fullscreen); it works whether that happens at
-  game start or end, but it has never run on Windows. `win.restore()`/`maximize()` after a game may bring
+- **The window repair (prompt 6) has never run on Windows.** It follows the measured state exactly and the
+  repair the desktop window did by hand (unmaximize + maximize), but if Windows reports the small window's
+  bounds differently from `GetWindowRect` the size check could miss it - the log line shows whether it ran.
+  On a second monitor the work area of the monitor the window is on is used. `win.restore()`/`maximize()` after a game may bring
   Reminth to the front - intended, untested.
 - The window snapshot is taken when the game process is spawned. If Windows changed the window before
   that (it shouldn't - the game has no window yet), the snapshot would be wrong.
@@ -106,7 +121,7 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **512 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **517 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
@@ -114,11 +129,16 @@ you saw; stop and report on any FAIL that risks his files.
 P1. Home shows instance A as hero. Start instance **B** from its page → as soon as the game window appears
     (and certainly within 2 s), Home's hero shows **B** (name, Last played). No manual refresh.
 P2. Same with "launch minimized" ON: Reminth minimizes; open it from the taskbar during the game → hero is B.
-P3. Reminth maximized, "launch minimized" OFF, game set to **Start in fullscreen** → play, quit the game →
-    Reminth is **maximized** again, title-bar icon shows "restore" (two squares).
-P4. Same with "launch minimized" ON → when the game ends Reminth comes back on screen **maximized**.
-P5. During the game Reminth never pops up or takes focus (alt-tab around a bit).
-P6. Reminth NOT maximized (restore it to a window) → play fullscreen → quit → it stays a normal window.
+P3. **(prompt 6 - the main one)** Reminth maximized on the 1920x1080 display, "launch minimized" OFF, game
+    set to **Start in fullscreen** → play, quit the game → Reminth's window is **1920x1032 again** (fills the
+    screen above the taskbar; measure it the same way as before), title-bar icon shows "restore" (two
+    squares), and `%APPDATA%\Reminth\main-errors.log` has one new `window: After a game the window said
+    maximized but was ...; repaired to ...` line. Play and quit a second time → same, again one line.
+P4. Same with "launch minimized" ON → when the game ends Reminth comes back on screen **maximized at full
+    size** (1920x1032), not 800x552.
+P5. During the game Reminth never pops up, resizes or takes focus (alt-tab around a bit).
+P6. Reminth NOT maximized (restore it to a window) → play fullscreen → quit → it stays a normal window
+    of the same size, and no `window:` line is logged.
 P7. "launch minimized" OFF, minimize Reminth yourself during the game, quit the game → it stays minimized;
     click it on the taskbar → it comes back maximized.
 P8. Two instances running at once: Reminth is only put back after the **second** one closes.
