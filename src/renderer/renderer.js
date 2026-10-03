@@ -1950,12 +1950,15 @@ window.reminth.onInstallDone(({ instanceId }) => {
   $("progressFill" + suffix).classList.remove("busy");
 });
 
-window.reminth.onPlayStarted(({ instanceId }) => {
+window.reminth.onPlayStarted(({ instanceId, startedAt }) => {
   state.running.add(instanceId);
+  // Home's hero moves to this instance now, not after the list is read
+  // again (main.js has saved "last played" by the time this arrives).
+  state.instances = window.ReminthPure.markPlayed(state.instances, instanceId, startedAt || Date.now());
   renderRail();
+  renderHero();
   paintPlayButtons();
   if (currentPage === "instance") renderInstancePage();
-  // main.js stores "last played" at launch: Home's hero moves to this instance now.
   loadInstances();
 });
 window.reminth.onPlayExited(({ instanceId }) => {

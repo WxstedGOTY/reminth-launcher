@@ -1118,10 +1118,18 @@ async function startGame(inst, join, claim, worldRequest) {
   streamer.gameStarted();
   // "Last played" is now, not only when the game closes - Home shows the
   // instance being played straight away.
-  instances.update(inst.id, { lastPlayed: claim.startedAt }).catch(() => {});
-  send("play:started", { instanceId: inst.id });
-
-  if (cachedSettings.launchMinimized) win.minimize();
+  // Saved BEFORE "play:started" goes out: the page reloads the list on that
+  // event and must see the new value.
+  try {
+    await instances.update(inst.id, { lastPlayed: claim.startedAt });
+  } catch {
+    // a failed save never stops the game
+  }
+  // The game can have ended during the save; "play:exited" has gone out then.
+  if (running.get(inst.id) === claim) {
+    send("play:started", { instanceId: inst.id, startedAt: claim.startedAt });
+    if (cachedSettings.launchMinimized) win.minimize();
+  }
   // When a world was asked for: did the game get told to open it?
   return worldAsked ? { launched: true, worldJoin: Boolean(world) && minecraft.supportsWorldJoin(installResult.profile) } : { launched: true };
 }

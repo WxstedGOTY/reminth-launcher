@@ -24,6 +24,19 @@
   }
 
   /**
+   * The instance list with `instanceId` marked as played at `at` (ms), so
+   * Home's hero can move to it the moment its game starts, before the list
+   * is read again. A newer lastPlayed already there is kept. Returns a new
+   * list; the instances in it are copies only where something changed.
+   */
+  function markPlayed(list, instanceId, at) {
+    const items = Array.isArray(list) ? list : [];
+    const t = Number(at);
+    if (!Number.isFinite(t) || t <= 0) return items.slice();
+    return items.map((i) => (i && i.id === instanceId && !(Number(i.lastPlayed) >= t) ? { ...i, lastPlayed: t } : i));
+  }
+
+  /**
    * A server address as players write it: "host", "host:port",
    * "[ipv6]" / "[ipv6]:port", or a bare IPv6 address (more than one ":",
    * no brackets - no port can be told apart then). Returns
@@ -146,7 +159,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { heroInstance, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { heroInstance, markPlayed, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

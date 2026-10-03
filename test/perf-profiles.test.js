@@ -43,6 +43,7 @@ class FakeWindow extends EventEmitter {
   constructor() {
     super();
     this.webContents = new FakeWebContents();
+    FakeWindow.last = this; // main.js's window, for the window tests
   }
   loadFile() {
     setImmediate(() => this.webContents.emit("did-finish-load"));
@@ -780,3 +781,43 @@ test("main: link:open opens only checked https links in the default browser", as
     fakeElectron.shell.openExternal = real;
   }
 });
+
+const tick = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test("main: play:started goes out only after last played is saved; a failed save still starts the game", async () => {
+  const fakeUpdate = instances.update;
+  let finishSave = null;
+  instances.update = (id, patch) =>
+    new Promise((resolve) => {
+      finishSave = () => resolve({ ...INSTANCE, ...patch });
+    });
+  const startedSince = (from) => toRenderer.slice(from).filter(([c]) => c === "play:started");
+  try {
+    install = { promise: Promise.resolve({ removedMods: [] }) };
+    let from = toRenderer.length;
+    const launched = call("play:run", { instanceId: "i1" });
+    for (let i = 0; i < 400 && !finishSave; i++) await tick(5);
+    assert.ok(finishSave, "last played is being saved");
+    await tick(30);
+    assert.equal(startedSince(from).length, 0, "not before the save landed");
+    finishSave();
+    assert.deepEqual(await launched, { launched: true });
+    const [started] = startedSince(from);
+    assert.equal(started[1].instanceId, "i1");
+    assert.equal(typeof started[1].startedAt, "number");
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+    // a save that fails: the game still starts and the page is still told
+    instances.update = async () => {
+      throw new Error("EPERM: disk says no");
+    };
+    from = toRenderer.length;
+    assert.deepEqual(await call("play:run", { instanceId: "i1" }), { launched: true });
+    assert.equal(startedSince(from).length, 1);
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+  } finally {
+    instances.update = fakeUpdate;
+  }
+});
+

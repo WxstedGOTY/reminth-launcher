@@ -53,6 +53,24 @@ test("heroInstance: ties keep the earlier one; never played -> the selected one,
   assert.equal(pure.heroInstance(never, "gone").id, "a");
 });
 
+test("markPlayed: the instance just started becomes the hero at once (before the list is read again)", () => {
+  const list = [
+    { id: "a", name: "A", lastPlayed: 1000 },
+    { id: "b", name: "B", lastPlayed: 500 },
+  ];
+  assert.equal(pure.heroInstance(list, "a").id, "a");
+  const after = pure.markPlayed(list, "b", 2000);
+  assert.equal(pure.heroInstance(after, "a").id, "b");
+  assert.deepEqual(after[1], { id: "b", name: "B", lastPlayed: 2000 });
+  assert.equal(after[0], list[0], "the others are left as they were");
+  assert.equal(list[1].lastPlayed, 500, "the old list isn't changed");
+  // a newer value already there is kept; bad times and unknown ids change nothing
+  assert.equal(pure.markPlayed(list, "a", 900)[0].lastPlayed, 1000);
+  for (const bad of [NaN, 0, -5, "x", undefined]) assert.deepEqual(pure.markPlayed(list, "b", bad), list);
+  assert.deepEqual(pure.markPlayed(list, "gone", 3000), list);
+  assert.deepEqual(pure.markPlayed(null, "b", 3000), []);
+});
+
 test("heroInstance: bad input never throws", () => {
   assert.equal(pure.heroInstance(null, "x"), null);
   assert.equal(pure.heroInstance([], "x"), null);
