@@ -66,6 +66,37 @@
     return p === null ? null : { host: m[1], port: p, ipv6: false };
   }
 
+  /* ---------------- the Play warning ---------------- */
+
+  /**
+   * What Play asks about, from a compatibility answer:
+   *  - { kind: "blocked", issues } - mods that stop the game from starting
+   *    (always wins when both kinds are there);
+   *  - { kind: "risky", issues }   - mods built for (listed for) another
+   *    Minecraft version: they load, but can crash the game in play;
+   *  - null                        - nothing to ask.
+   * `skip` is the instance's "don't ask again" fingerprint: the risky
+   * question isn't asked while it equals the answer's modSet (the same
+   * switched-on mods). Blocked mods are never skipped by it.
+   */
+  function modWarning(result, skip) {
+    const issues = (result && Array.isArray(result.issues) ? result.issues : []).filter(Boolean);
+    const blocked = issues.filter((i) => i.severity === "blocked");
+    if (blocked.length) return { kind: "blocked", issues: blocked };
+    const risky = issues.filter((i) => i.file && i.reason === "wrong-mc" && i.listedElsewhere === true && i.severity === "warn");
+    if (!risky.length) return null;
+    if (skip && result.modSet && skip === result.modSet) return null;
+    return { kind: "risky", issues: risky };
+  }
+
+  /** The risky warning's sentence: "2 mods are built for another Minecraft version and may crash the game: A and B." */
+  function riskyText(issues) {
+    const names = (issues || []).map((i) => i.title || i.file).filter(Boolean);
+    const n = names.length;
+    const list = n <= 1 ? names.join("") : n === 2 ? `${names[0]} and ${names[1]}` : `${names.slice(0, -1).join(", ")} and ${names[n - 1]}`;
+    return `${n} ${n === 1 ? "mod is" : "mods are"} built for another Minecraft version and may crash the game: ${list}.`;
+  }
+
   /* ---------------- the project page ---------------- */
 
   const LOADER_NAMES = { fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge", vanilla: "Vanilla" };
@@ -159,7 +190,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { heroInstance, markPlayed, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { heroInstance, markPlayed, modWarning, riskyText, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

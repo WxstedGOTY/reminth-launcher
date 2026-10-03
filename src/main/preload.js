@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld("reminth", {
 
   // compatibility help (compat.js)
   compatCheck: (instanceId, options) => ipcRenderer.invoke("compat:check", instanceId, options || {}),
+  compatSkipModWarning: (instanceId, modSet) => ipcRenderer.invoke("compat:skipModWarning", instanceId, modSet),
   compatAdvise: (instanceId, options) => ipcRenderer.invoke("compat:advise", instanceId, options || {}),
   compatSupport: (instanceId, projectId) => ipcRenderer.invoke("compat:support", instanceId, projectId),
   compatServerVersions: (address) => ipcRenderer.invoke("compat:serverVersions", address),

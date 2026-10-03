@@ -4174,8 +4174,10 @@ async function compatBeforePlay(inst) {
     return true;
   }
   if (!result) return true;
-  const blocked = (result.issues || []).filter((i) => i.severity === "blocked");
-  if (!blocked.length) return true;
+  const warning = window.ReminthPure.modWarning(result, inst.skipModWarning);
+  if (!warning) return true;
+  if (warning.kind === "risky") return riskyBeforePlay(inst, result, warning.issues);
+  const blocked = warning.issues;
   const signature = compatSignature(blocked);
   if (compatUi.playAnyway[inst.id] === signature) return true;
 
@@ -4241,6 +4243,107 @@ async function compatBeforePlay(inst) {
               toast(`Fixed ${r.fixed.length} ${plural(r.fixed.length, "mod")}${addedNote(r.added)}.${warningNote(r.warnings)}`);
               answer = true;
               return true;
+            } finally {
+              fixing = false;
+              handle.buttons.forEach((b) => (b.disabled = false));
+            }
+          },
+        },
+      ],
+    });
+  });
+}
+
+/**
+ * Mods built for another Minecraft version that the game will still load -
+ * they can crash it in play (AppleSkin for 26.3 on 26.2). Asked every time
+ * (it's cheap) unless the player ticks "Don't ask again for this instance",
+ * which holds for exactly this set of switched-on mods (stored in the
+ * instance registry by main.js). "Play anyway" alone remembers nothing.
+ * "Fix and play" is the "Update mods to fit" swap for just these mods:
+ * stable builds of exactly this version only.
+ */
+function riskyBeforePlay(inst, result, risky) {
+  return new Promise((resolve) => {
+    let answer = false;
+    let fixing = false;
+    let dontAsk = false;
+    const body = el("div");
+    body.appendChild(el("p", null, window.ReminthPure.riskyText(risky)));
+    const list = el("div", "cp-list");
+    risky.forEach((issue) => list.appendChild(compatIssueRow(issue, { showFixText: true })));
+    body.appendChild(list);
+    const tick = el("button", "pick-item extra-item gate-skip");
+    tick.type = "button";
+    tick.setAttribute("role", "checkbox");
+    tick.setAttribute("aria-checked", "false");
+    tick.appendChild(el("span", "chk"));
+    tick.appendChild(el("span", "extra-why", "Don't ask again for this instance"));
+    tick.onclick = () => {
+      dontAsk = !dontAsk;
+      tick.classList.toggle("selected", dontAsk);
+      tick.setAttribute("aria-checked", dontAsk ? "true" : "false");
+    };
+    body.appendChild(tick);
+    const note = el("div", "cp-note");
+    note.hidden = true;
+    body.appendChild(note);
+    openModal({
+      title: "These mods may crash the game",
+      body,
+      canClose: () => !fixing,
+      onClose: () => resolve(answer),
+      buttons: [
+        { label: "Cancel", className: "outline" },
+        {
+          label: "Play anyway",
+          className: "outline",
+          onClick: () => {
+            if (fixing) return false;
+            if (dontAsk && result.modSet) {
+              inst.skipModWarning = result.modSet;
+              window.reminth.compatSkipModWarning(inst.id, result.modSet).catch(() => {});
+            }
+            answer = true;
+            return true;
+          },
+        },
+        {
+          label: "Fix and play",
+          className: "primary",
+          icon: "#i-check",
+          onClick: async (handle) => {
+            if (fixing) return false;
+            const why = compatFixBlocked(inst.id);
+            if (why) {
+              toast(why);
+              return false;
+            }
+            fixing = true;
+            handle.buttons.forEach((b) => (b.disabled = true));
+            note.hidden = false;
+            note.textContent = "Fixing…";
+            try {
+              const r = await window.reminth.syncMods(inst.id, { files: risky.map((i) => i.file) });
+              if (content.instanceId === inst.id) await loadContent(inst.id);
+              runCompatCheck(inst.id, true);
+              const applied = (r && r.applied) || [];
+              const failed = (r && r.failed) || [];
+              const left = [...((r && r.noBuild) || []), ...((r && r.unchecked) || [])];
+              if (failed.length || left.length) {
+                const bits = [];
+                if (applied.length) bits.push(`Updated ${applied.length} ${plural(applied.length, "mod")}.`);
+                if (failed.length) bits.push(`Couldn't update ${failed[0].title}: ${friendlyError(failed[0].error)}.`);
+                if (left.length) bits.push(`No stable ${inst.mcVersion} build for ${nameList(left.map((m) => m.title))} yet.`);
+                note.textContent = `${bits.join(" ")} You can still press Play anyway, or cancel and switch ${left.length + failed.length === 1 ? "it" : "them"} off in the Mods tab.`;
+                return false;
+              }
+              toast(`Updated ${applied.length} ${plural(applied.length, "mod")} to ${plural(applied.length, "its", "their")} ${inst.mcVersion} build${addedNote(r.added)}.${warningNote(r.warnings)}`);
+              answer = true;
+              return true;
+            } catch (err) {
+              note.textContent = `${friendlyError(err.message)} You can still press Play anyway.`;
+              return false;
             } finally {
               fixing = false;
               handle.buttons.forEach((b) => (b.disabled = false));

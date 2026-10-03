@@ -185,3 +185,42 @@ test("planSync: AppleSkin swapped to its stable 26.2 build; one with only a beta
   assert.equal(one.count, 1);
   assert.deepEqual(one.updates.map((u) => u.next.versionId), ["as262"]);
 });
+
+/* ---------------- job B: the Play warning ---------------- */
+
+const pure = require("../src/renderer/pure");
+
+test("modWarning: blocked wins; 'may not work' (listed for another version) is asked; other warnings aren't", () => {
+  const risky = { file: "appleskin.jar", title: "AppleSkin", severity: "warn", reason: "wrong-mc", listedElsewhere: true };
+  const blocked = { file: "csc.jar", title: "Client Side Crystals", severity: "blocked", reason: "wrong-mc" };
+  const other = { file: "x.jar", title: "X", severity: "warn", reason: "missing-dep" };
+  const set = "a".repeat(40);
+  assert.deepEqual(pure.modWarning({ issues: [risky, blocked, other], modSet: set }, null), { kind: "blocked", issues: [blocked] });
+  assert.deepEqual(pure.modWarning({ issues: [risky, other], modSet: set }, null), { kind: "risky", issues: [risky] });
+  assert.equal(pure.modWarning({ issues: [other], modSet: set }, null), null);
+  assert.equal(pure.modWarning(null, null), null);
+  // "Don't ask again": only for the same set of mods, and never for blocked ones
+  assert.equal(pure.modWarning({ issues: [risky], modSet: set }, set), null);
+  assert.equal(pure.modWarning({ issues: [risky], modSet: "b".repeat(40) }, set).kind, "risky", "the mods changed: asked again");
+  assert.equal(pure.modWarning({ issues: [risky, blocked], modSet: set }, set).kind, "blocked");
+  assert.equal(pure.modWarning({ issues: [risky] }, set).kind, "risky", "no fingerprint (an old answer): asked");
+});
+
+test("riskyText: the plain sentence with the names", () => {
+  assert.equal(pure.riskyText([{ title: "AppleSkin" }]), "1 mod is built for another Minecraft version and may crash the game: AppleSkin.");
+  assert.equal(pure.riskyText([{ title: "AppleSkin" }, { title: "JEI" }]), "2 mods are built for another Minecraft version and may crash the game: AppleSkin and JEI.");
+  assert.equal(pure.riskyText([{ title: "A" }, { title: "B" }, { file: "c.jar" }]), "3 mods are built for another Minecraft version and may crash the game: A, B and c.jar.");
+});
+
+test("instances: the 'don't ask again' fingerprint is kept only when it is one", async () => {
+  const instances = require("../src/main/instances");
+  const made = await instances.create({ name: "Warn", mcVersion: "26.2", loader: "fabric" });
+  let inst = await instances.update(made.id, { skipModWarning: "a".repeat(40) });
+  assert.equal(inst.skipModWarning, "a".repeat(40));
+  inst = await instances.update(made.id, { skipModWarning: "../../x" });
+  assert.equal(inst.skipModWarning, undefined, "junk is dropped");
+  inst = await instances.update(made.id, { skipModWarning: "b".repeat(40) });
+  inst = await instances.update(made.id, { skipModWarning: null });
+  assert.equal(inst.skipModWarning, undefined, "null forgets it");
+  assert.equal((await instances.get(made.id)).skipModWarning, undefined);
+});

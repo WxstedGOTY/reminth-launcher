@@ -2337,6 +2337,9 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .md-cut { margin-top: 1em; padding-top: 10px; border-top: 1px solid var(--line-soft); color: var(--text-3); font-size: 13px; }
 .md-group { display: block; }
 
+/* Play's "may crash the game" warning: its "Don't ask again" tick box. */
+.gate-skip { width: 100%; margin-top: 12px; align-items: center; }
+
 /* A gradient on a box with a see-through border used to wrap around under
    that border, drawing a thin line of the gradient's other end along the
    bottom and right edge (most visible on the highlighted sidebar button).

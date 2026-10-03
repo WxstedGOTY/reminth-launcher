@@ -680,10 +680,23 @@ ipcMain.handle("content:applyUpdates", async (_e, id, updates) => {
 
 // ---- compatibility help (compat.js) ----
 // Which mods won't load on this instance, why, and what fixes each.
-ipcMain.handle("compat:check", async (_e, id, options) =>
+ipcMain.handle("compat:check", async (_e, id, options) => {
+  const inst = await instances.require(id);
   // localOnly: the quick answer for the Play button (no hashing, no network).
-  compat.checkInstance(await instances.require(id), { force: Boolean(options && options.force), localOnly: Boolean(options && options.localOnly) })
-);
+  const result = await compat.checkInstance(inst, { force: Boolean(options && options.force), localOnly: Boolean(options && options.localOnly) });
+  // "Don't ask again" on the Play warning was for another set of mods: it's gone.
+  if (inst.skipModWarning && result && result.modSet && result.modSet !== inst.skipModWarning) {
+    instances.update(id, { skipModWarning: null }).catch(() => {});
+  }
+  return result;
+});
+// Play's "may crash the game" warning: "Don't ask again for this instance",
+// for exactly this set of switched-on mods (compat's modSet). null forgets it.
+ipcMain.handle("compat:skipModWarning", async (_e, id, modSet) => {
+  if (modSet !== null && !(typeof modSet === "string" && /^[0-9a-f]{40}$/.test(modSet))) throw new Error("That change isn't valid.");
+  await instances.update(id, { skipModWarning: modSet });
+  return { ok: true };
+});
 
 /** What a server says it accepts, read from its own status reply. Never throws. */
 async function serverAcceptsFromAddress(address) {

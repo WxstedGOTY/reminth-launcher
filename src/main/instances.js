@@ -106,6 +106,10 @@ function sanitizeInstance(raw) {
   // else; an unknown value falls back to the default.
   const perfProfile = perfProfiles.normaliseProfile(raw.perfProfile);
   if (perfProfile !== perfProfiles.DEFAULT_PROFILE) out.perfProfile = perfProfile;
+  // "Don't ask again" on Play's "may crash the game" warning: the
+  // fingerprint of the switched-on mods it was ticked for (compat modSet).
+  // A different set of mods means the question comes back.
+  if (typeof raw.skipModWarning === "string" && /^[0-9a-f]{40}$/.test(raw.skipModWarning)) out.skipModWarning = raw.skipModWarning;
   return out;
 }
 
@@ -460,7 +464,7 @@ async function updateLocked(id, patch) {
   if (idx < 0) throw new Error("That instance doesn't exist any more.");
   const current = all[idx];
   const allowed = {};
-  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile"]) {
+  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile", "skipModWarning"]) {
     if (key in (patch || {})) allowed[key] = patch[key];
   }
   // Changing version or loader invalidates a pinned loader version.

@@ -946,3 +946,32 @@ test("main: after a game the window goes back to maximized (never during the gam
     await call("settings:set", { launchMinimized: saved.launchMinimized });
   }
 });
+
+test("main: Play's 'don't ask again' is stored per instance, checked, and dropped when the switched-on mods change", async () => {
+  const compatMod = require("../src/main/compat");
+  const realCheck = compatMod.checkInstance;
+  const saved = INSTANCE;
+  try {
+    updates = [];
+    assert.deepEqual(await call("compat:skipModWarning", "i1", "a".repeat(40)), { ok: true });
+    assert.deepEqual(updates, [{ skipModWarning: "a".repeat(40) }]);
+    for (const bad of ["../x", "A".repeat(40), 5, undefined, "a".repeat(41)]) {
+      await assert.rejects(call("compat:skipModWarning", "i1", bad), /isn't valid/, String(bad));
+    }
+    await call("compat:skipModWarning", "i1", null);
+    assert.deepEqual(updates[updates.length - 1], { skipModWarning: null });
+    // the same mods: kept; other mods: forgotten
+    INSTANCE = { ...saved, loader: "fabric", skipModWarning: "a".repeat(40) };
+    compatMod.checkInstance = async () => ({ issues: [], modSet: "a".repeat(40) });
+    updates = [];
+    await call("compat:check", "i1", {});
+    assert.deepEqual(updates, []);
+    compatMod.checkInstance = async () => ({ issues: [], modSet: "c".repeat(40) });
+    await call("compat:check", "i1", {});
+    await tick(10);
+    assert.deepEqual(updates, [{ skipModWarning: null }]);
+  } finally {
+    compatMod.checkInstance = realCheck;
+    INSTANCE = saved;
+  }
+});
