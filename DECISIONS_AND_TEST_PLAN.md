@@ -1,135 +1,135 @@
-# Reminth: what you need to know, decide, and test (3 Oct 2026)
+# Reminth: what to know, decide and test
 
-Written by the cloud Claude Code session after it shipped performance profiles + UI (6b/6c), the
-"Update mods to fit" button and the launcher-update button. Everything is on `main` up to
-`4c181b1`. `npm test`: **442 pass** (Linux). Nothing below has run in real Electron, against live
-Modrinth/GitHub, or with Minecraft.
+**This is the one living hand-off file between the windows.** Every Claude Code session that finishes
+work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
+section 4 in order and report PASS/FAIL per step.
+
+- **Last updated:** 3 Oct 2026, by the cloud session, after prompt 2 (jobs C, D, E).
+- **`main` is at:** `fb4c47f`. **`npm test`: 456 pass** on Linux.
+- **Never run** in real Electron, against live Modrinth/GitHub, or with Minecraft: everything below
+  marked NOT TESTED needs the desktop window.
+- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1 (blunt, `npm test` after every batch, no `innerHTML`,
+  last CSS rule stays last, never delete a player's own mod, never install alpha/beta silently).
 
 ---
 
-## 1. What exists now (short)
+## 1. What changed since the last brief
 
-| Area | What it does | Main files |
+| Job | What it does now | Files |
 |---|---|---|
-| Performance profiles | Balanced / Max FPS / Far view per instance. Max FPS/Far view write a starting `options.txt` **only** into a never-played instance (no options.txt, no worlds, no `logs/latest.log`, never seeded before, not a modpack or copy). Far view gets the modpack memory default. Optional extra mods are offered, never auto-installed. | `gameOptions.js`, `perfProfiles.js`, `instances.js` |
-| Performance UI | Settings → Performance (GC choice, priority switch, graphics-card help), memory "Automatic: X GB", safe-mode notice, profile picker + pack switch/status/Restore in the instance dialog, "Performance pack" label in Mods tab | `features.js` §8, `renderer.js` |
-| Update mods to fit | Amber button next to Play when enabled mods are built for another version (and block start) or another loader. Swaps them to the newest **stable** build for that exact version+loader. No-build mods are listed, never deleted (switch off / find version / leave). Old jars are copied to `<instance>\.reminth\replaced-mods\<time>\` first (newest 5 kept). | `modsSync.js`, `content.js` (releaseOnly), `features.js` §9 |
-| Launcher updates | Settings "Check for updates" with clear states + "Download it manually" link on error. Auto-check 10 s after start and every 6 h, quiet unless something downloads. Never interrupts a game: no auto-check, no Restart, no install-on-quit while one runs. | `updater.js`, `main.js`, `renderer.js` |
+| C1 nested jars | The check reads the Minecraft requirement of mods packed inside other mods. Fabric loads the **highest version** of a mod id, so a multi-version bundle's 26.3 copy is what runs on 26.2 → the outer jar is "won't load" with a plain reason ("JEI contains MezzConfig, which needs Minecraft 26.3"). Only "blocked" when certain; ties stay warnings. | `compat.js` `findNestedMcProblems`, `content.js` (nested `name`/`mcDep`) |
+| C2 game's own report | After any game exit within 30 min of start, Reminth reads the end (max 512 KB) of **that instance's** `logs/latest.log` (written by this launch, no links). Fabric's "incompatible mods" lines about the Minecraft version are saved to `.reminth/launch-report.json`; those files count as "won't load" until the file changes or the instance's version/loader changes. A later start that gets past loading mods deletes the report. The Mods tab re-checks and toasts. | `compat.js` `parseIncompatibleMods`/`mapReportToFiles`, `main.js` `noteLaunchReport` |
+| C3/C4 | Both feed "Update mods to fit" (stable-only swap, or "No build yet" list). A packed mod's fix targets its outer file. | — |
+| D | Panel "Switch to X" / "Fix all" are now **stable-only** (a beta/alpha from Modrinth's lookup is replaced by the newest release, or only "Switch off" is offered). The normal update list and per-mod update button show **Beta/Alpha** tags. | `compat.js`, `content.js` `checkUpdates` (`next.channel`), `features.js` |
+| E | **Every** update path copies the old jar to `.reminth/replaced-mods/<time>/` first (newest 5 kept); a failed copy goes to `.reminth/replaced-mods.log` and the update continues. Mods tab: **"Restore replaced mods"** opens that folder. | `content.js` `applyUpdates`, `modsSync.js`, `main.js`, `features.js` |
+
+Earlier work still waiting for real-world testing: performance profiles + `options.txt` seeding, the
+Performance settings card, "Update mods to fit", the launcher-update button (see section 4).
 
 ---
 
-## 2. Decisions you need to make
+## 2. Decisions the owner must make (recommendation first)
 
-Each one has my recommendation first. Reply with the number + yes/no (or "other: …").
+Answer by number. Closed ones are listed at the end so nobody asks again.
 
-1. **The Mods-panel fixes ("Switch to X", "Fix all") can install beta/alpha builds.** They use Modrinth's
-   update lookup, which ignores the release channel. The new button doesn't have this problem.
-   **Recommend: yes, make the panel release-only too** (reuse `modsSync.pickStableBuild`, ~30 lines,
-   with tests). Breaks your own rule "never install alpha/beta silently" until fixed.
+1. **Privacy text is out of date in two places** (the code window may not edit it):
+   (a) `site/privacy.html` ~line 119 says copies of replaced mods are kept "when you press Update mods to
+   fit" - now **every** update keeps one; (b) nothing mentions that after a failed start Reminth reads the
+   instance's `logs/latest.log` and saves `.reminth/launch-report.json` (local only, nothing sent).
+   **Recommend: fix both in the next privacy edit** (desktop window, then re-upload `site/` to Cloudflare).
+2. **Tied versions stay a warning.** AnchorOptimizer's copies are `1.0.6+26.2` / `1.0.6+26.3`, which Fabric
+   treats as equal, so which one loads can't be known → warning before the first start; the game's report
+   makes it "won't load" after one failed start. **Recommend: keep** (your "false blocked is worst" rule).
+3. **All replaced mod jars are copied**, including ones Reminth installed itself (the prompt said "files
+   Reminth did not install"). **Recommend: keep** - the copy is cheap and "who installed it" is unreliable.
+4. **New Forge/NeoForge instances start with the performance pack ON.** **Recommend: keep only if test 4.17
+   passes**, otherwise flip `packOnByDefault` in `renderer.js` to off for Forge/NeoForge.
+5. **Max FPS / Far view on an existing never-played instance** writes `options.txt` at its first Play.
+   **Recommend: keep.**
+6. **Wrong-loader mods count toward "Update mods to fit".** **Recommend: keep.**
+7. **Six extra-mod slugs** (`dynamic-fps`, `badoptimizations`, `moreculling`, `distanthorizons`, `bobby`,
+   `c2me-fabric`) unverified live. **Recommend: confirm in test 4.15.**
+8. **Unsigned installer**: SmartScreen warns on manual downloads; nothing to do without paying for a
+   certificate. Never write "verified/signed" anywhere.
 
-2. **Normal mod updates delete the old jar permanently** (not Recycle Bin, no copy). Only the new button
-   keeps a copy. **Recommend: yes, send every replaced jar (Update all, per-mod update, panel fixes) through
-   the same `.reminth/replaced-mods` copy.** Cheap, and a bad update becomes undoable.
-
-3. **New Forge/NeoForge instances start with the performance pack ON** in the create dialog (existing ones
-   stay off, as the handoff said). **Recommend: keep, but only after test 4.6 below passes on Forge 1.20.1
-   and NeoForge 1.21.1.** If it fails, flip the default to off (one line in `packOnByDefault`, renderer.js).
-
-4. **Picking Max FPS/Far view on an existing but never-played instance** writes the starting `options.txt`
-   at its first Play. **Recommend: keep** (it is effectively new). Say no if you want "new instances only" literally.
-
-5. **The sync button also counts mods built for the wrong loader** (a Forge mod in a Fabric instance). They
-   don't stop the game; they just do nothing. **Recommend: keep** (swapping to the right loader's build is
-   what the player wants).
-
-6. **Privacy policy: two small facts aren't written down yet.** (a) the launcher re-checks GitHub for
-   updates every 6 hours while open; (b) the sync button keeps copies of replaced mod jars in the instance's
-   `.reminth\replaced-mods` folder. **Recommend: add one line each in the next privacy version.** Not urgent
-   (both local/same server as before), but your rule is "every statement true of the code".
-
-7. **Extra-mod slugs** (`dynamic-fps`, `badoptimizations`, `moreculling`, `distanthorizons`, `bobby`,
-   `c2me-fabric`) were not re-checked live (Modrinth was blocked in the cloud). A wrong slug only shows as
-   "No build", nothing breaks. **Recommend: just confirm them in step 15 of the test plan.**
-
-8. **Unsigned installer.** Every update will trigger Windows SmartScreen "unknown publisher" for people who
-   download manually; auto-update installs silently. Nothing to decide until you can pay for a certificate;
-   just don't promise "verified" anywhere.
-
-Already decided, no action: Max FPS does not change process priority (priority is already "above normal"
-by default); C2ME stays experimental behind a second confirm; balanced never writes `options.txt`.
+Closed: panel fixes release-only (done, job D); every update keeps a copy (done, job E); privacy six-hour
+check + replaced-mods line (added by desktop window in `deb2408`, now needs decision 1's correction);
+Mods-tab delete text unchanged on purpose - it really uses the Recycle Bin.
 
 ---
 
-## 3. Known weak spots (don't hide these)
+## 3. Known weak spots (say them, don't hide them)
 
-- No FPS number has been measured. Don't claim gains anywhere.
-- `options.txt` seeding is unproven per version family (1.16, 1.20, 1.21.x, 26.x). Commit `2dfbdc7`
-  adjusted it for 1.21.11/26.x, still needs a real launch each.
-- Safe mode still misses JVM errors that pop up a `javaw` dialog (from the earlier handoff).
-- The update path has never seen a real release: first real test is 1.3.0 → 1.4.0.
-- Whether the NSIS installer kills a running `javaw` is unknown, so install-on-quit is simply skipped while
-  a game runs (update installs on the next quit without a game).
+- No FPS number has ever been measured. No speed claims anywhere.
+- The nested-jar rule was tested on **fake jars shaped like** the real ones, not the real ClientSideCrystals /
+  AnchorOptimizer / JEI files. If a real bundle's outer jar has the same id and version as its newest packed
+  copy, it shows as a warning until the first failed start (then the report catches it).
+- The report parser was built from the three lines quoted from the owner's log; real Windows log formatting
+  (CRLF, timestamps, tabs) is assumed, not seen.
+- `options.txt` seeding unproven per version family (1.16, 1.20, 1.21, 1.21.11, 26.x).
+- Safe mode still misses JVM errors that show a `javaw` dialog.
+- The update path has never seen a real GitHub release.
+- Whether the NSIS installer kills a running `javaw` is unknown → install-on-quit is skipped while a game runs.
 
 ---
 
-## 4. For the desktop Claude Code window: test plan, in order
+## 4. Test plan for the desktop window (in order)
 
-Rules from `CLAUDE_CODE_HANDOFF_10.md` §0–1 apply. Don't touch the owner's screen while he plays.
-Report each step as PASS/FAIL with what you saw. Stop and report on any FAIL that risks his files.
+Don't touch the screen while the owner plays. Back up anything you are about to change. Report each step
+PASS/FAIL with what you saw; stop and report on any FAIL that risks his files.
 
-### 4.1 Basics
-1. `git pull`, `npm install` if needed, `npm test` → expect **442 pass** on Windows. Report any failure
-   verbatim (paths, CRLF, rename-over-open-file are the likely ones).
-2. `npm start`. Watch DevTools console and `%APPDATA%\Reminth\main-errors.log` the whole time.
+### Basics
+1. `git pull`, `npm install` if needed, `npm test` → **456 pass**. Report any Windows-only failure verbatim.
+2. `npm start`; watch DevTools console and `%APPDATA%\Reminth\main-errors.log` throughout.
 
-### 4.2 Settings
-3. Settings → Performance: switch GC to each option (setting saves, note text changes), toggle priority,
-   "Choose graphics card…" opens Windows Graphics settings and lists real `javaw.exe` paths; Copy works.
-4. Memory card: "Automatic: X GB for <instance>"; move the slider → "You picked…" + "Use automatic";
-   click it → back to automatic.
-5. Version card: "Check for updates" in `npm start` must say **"Updates only work in the installed app."**
+### The case that failed last time (jobs C, D, E) - most important
+3. Make a **fresh throwaway** Fabric 26.2 instance and copy in the 29 mods of the "Reminth" instance
+   (never work on his real instance).
+4. Before Play: the Mods panel should now list ClientSideCrystals and JEI as **won't load** with the new
+   reasons ("…carries a copy for each Minecraft version…", "JEI contains MezzConfig…"). AnchorOptimizer may
+   only be a warning (decision 2). Note exactly what each says.
+5. Click **"Update mods to fit 26.2 (N)"**. Check: swapped jars are **release** builds; every replaced jar is in
+   `.reminth\replaced-mods\<time>\`; nothing deleted without a copy; Reminth's own jars untouched.
+6. Play. If the game still refuses: confirm `.reminth\launch-report.json` appears listing the named mods with
+   the right jar (MezzConfig → the JEI jar), the Mods tab toast says "Minecraft named N mods…", and those
+   mods are now "won't load". Click the button again → swapped, or listed under "No 26.2 build yet" →
+   "Switch them off" → Play.
+7. **Expected end state: the game reaches the title screen.** Then quit normally and confirm
+   `launch-report.json` was deleted (a start that got past the mods clears it).
+8. "Restore replaced mods" (Mods tab) opens `.reminth\replaced-mods`. Copy one jar back by hand → it shows in
+   the list again.
+9. Mods tab → Check for updates on an instance with a mod whose newest build is a beta: the list and the
+   per-mod update button show a **Beta** tag. Panel "Switch to X" never offers a beta/alpha.
 
-### 4.3 Update mods to fit (his "Reminth" instance: 26.2 with 26.3 mods, perfect case)
-6. **Back up that instance's `mods` folder first** (copy it somewhere outside the instance).
-7. Amber "Update mods to fit 26.2 (N)" shows on the instance page and Home. Count matches the compat panel's
-   "won't load" mods for wrong version.
-8. Click once. Expect: busy label, then a toast "Updated X mods…", then the "No 26.2 build yet" window if
-   any. Check: new jars are **release** builds (compare with Modrinth), old jars are in
-   `.reminth\replaced-mods\<time>\`, Reminth's own jars (Sodium etc. from the pack, HUD, Fabric API) untouched.
-9. "Switch them off" → those files become `.jar.disabled`; button disappears when nothing blocks.
-10. Edit the instance → change version → Save → the one-time notice appears with the same button; X dismisses it.
-11. Play → game starts. Button must be hidden while running/installing.
+### Settings + launcher update
+10. Settings → Performance: each GC option saves, priority switch saves, "Choose graphics card…" opens Windows
+    Graphics settings and lists real `javaw.exe` paths; Copy works.
+11. Memory card: "Automatic: X GB for <instance>"; move slider → "You picked…" + "Use automatic" works.
+12. Version card in `npm start`: "Check for updates" → "Updates only work in the installed app."
 
-### 4.4 Profiles + options.txt (the part that most needs a real game)
-12. For each of **1.16.5, 1.20.1, 1.21.1, 1.21.11, 26.x** (Fabric): create a new instance with **Max FPS**,
-    Play once to the title screen, quit. Check `options.txt`: our keys kept their values
-    (renderDistance 10, simulationDistance 8 where it exists, particles 1, entityShadows false,
-    biomeBlendRadius 1, entityDistanceScaling 0.75, enableVsync false, maxFps 260), and the rest is
-    Minecraft's normal defaults (nothing reset weirdly, language/controls fine).
-    `.reminth\options-seeded.json` exists.
-13. Same once with **Far view** on 26.x: renderDistance 16/20/24 depending on the PC.
-14. Existing instance with its own `options.txt` → switch profile → Play → file **unchanged** (diff it).
-15. Suggested-mods window after picking a profile: rows load, no-build rows can't be ticked, C2ME asks a
-    second time, ticked mods install as normal mods. Confirm all six slugs resolve (decision 7).
+### Profiles + options.txt (needs the real game)
+13. For **1.16.5, 1.20.1, 1.21.1, 1.21.11, 26.x** (Fabric): new instance with **Max FPS**, Play to title,
+    quit. `options.txt` keeps renderDistance 10, simulationDistance 8 (where it exists), particles 1,
+    entityShadows false, biomeBlendRadius 1, entityDistanceScaling 0.75, enableVsync false, maxFps 260;
+    nothing else oddly reset; `.reminth\options-seeded.json` exists.
+14. **Far view** once on 26.x: renderDistance 16/20/24 by PC. Existing instance with its own `options.txt` →
+    change profile → Play → file unchanged (diff it).
+15. Suggested-mods window: rows load, no-build rows can't be ticked, C2ME asks twice, ticked mods install as
+    normal mods. All six slugs resolve (decision 7).
+16. Instance dialog: pack mod list per loader, "At the last Play" status, Restore (refused while running);
+    Mods tab "Performance pack" label.
+17. New **Forge 1.20.1** and **NeoForge 1.21.1** instance with the pack on → Play to title, no duplicate-id
+    crash, check `reminth-performance-mods.log` (decision 4).
 
-### 4.5 Performance pack UI
-16. Instance dialog shows the pack mod list per loader, "At the last Play" status after a Play,
-    Restore works (refused while the game runs). Mods tab shows the "Performance pack" label.
+### Release (only after 3-17 pass)
+18. Bump to 1.4.0, build, smoke-test the packaged app (Check for updates works or shows the error + manual
+    link).
+19. With a game running: "Restart and update" disabled ("Close Minecraft first"); quitting Reminth leaves the
+    game running and installs nothing; the next quit without a game installs.
+20. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`); an installed older copy finds it
+    (10 s after start or via the button), shows download %, then "ready".
+21. Fix the privacy text (decision 1) and re-upload `site/` to Cloudflare.
 
-### 4.6 Forge/NeoForge pack (decision 3)
-17. New **Forge 1.20.1** and **NeoForge 1.21.1** instance with the pack on → Play to title screen.
-    Check `reminth-performance-mods.log`, no duplicate mod id crash. If either fails: report, and flip the
-    create-dialog default to off for Forge/NeoForge.
-
-### 4.7 Launcher update (needs two builds)
-18. Bump to 1.4.0 only after 4.1–4.6 pass. Build. Smoke-test the packaged app (Settings → Check for updates
-    → "You're on the latest version" once 1.4.0 is published, or an error + "Download it manually" link
-    that opens the releases page in the browser).
-19. With a game running: "Restart and update" disabled with "Close Minecraft first"; quitting Reminth with
-    the game open must **not** close the game and must not install; next quit without a game installs.
-20. Owner creates the GitHub release (installer + `latest.yml` + `.blockmap`). Then an installed 1.3.0
-    should pick it up within 10 s of start (or via the button), show download %, then "ready".
-
-### 4.8 Then
-21. Re-upload `site/` to Cloudflare if any site text changed (decision 6).
-22. Report back: PASS/FAIL per step, anything surprising, and which decisions the owner answered.
+### Report back
+22. PASS/FAIL per step, anything surprising, the owner's answers to section 2, then **update this file**
+    (sections 1-4) before you stop.
