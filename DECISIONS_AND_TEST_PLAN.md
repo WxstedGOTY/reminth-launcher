@@ -4,11 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 11** ("Pick a Minecraft version for my
-  mods": jobs 1-4). **Prompt 10 (instance right-click menu, reorder, Undo) has NOT been done** - the owner
-  sent 11 first; 11 was built to stand alone (see decision P11-5). Prompt 9 is done too.
-- **`main` is at:** `8c258f3` (plus this file's commit). **`npm test`: 545 pass** on Linux (536 before
-  prompt 11).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 10** (instance menu, moving instances,
+  no surprise instances). Prompt 11 was done just before it (the owner sent 11 first); 10 now builds on it.
+- **`main` is at:** `c07b426` (plus this file's commit). **`npm test`: 554 pass** on Linux (545 after
+  prompt 11, 536 after prompt 9).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -19,6 +18,24 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 10 ("stop creating me a million instances that I can't delete simply")
+
+| Job | What it does now | Files |
+|---|---|---|
+| 1 - instance menu | **Right-click** (or the Menu key / Shift+F10 on a focused button) on a rail instance or a Library card, and the instance page's **⋮** button, open ONE menu (`openInstanceMenu`): Play, Open, Rename…, Open folder, Verify files, Move up / Move down / Move to top / Move to bottom, **Delete…** (red, last). The main "Reminth" instance's Delete is shown **off with the line "This is your main instance - it can't be deleted."**; a running instance can't be renamed or deleted ("Close the game first."). Stays inside the window, arrows/Home/End/Enter, Esc gives the focus back, closes on a click outside, scroll, blur or resize. **Rename…** = a name field (normal instances:update). **Delete…** says what goes: "<name> - 2 worlds, 1.4 GB. Everything inside it is deleted for good (worlds, mods, screenshots). There's no undo. Your other instances are not touched." (`instances:summary` in main: worlds = `saves/*/level.dat`, bytes with a 1.5 s cap → "about", links/junctions never followed). After deleting: the last played instance is selected, every list redrawn, "<name> deleted." The old static ⋮ dropdown is gone (its Open folder / Verify files / Delete are in the menu). | `renderer.js`, `pure.js` (`instanceMenuItems`, `summaryText`), `instances.js` (`summary`), `main.js` (`instances:summary`, one shared delete path), `preload.js`, `index.html`, `styles.css` |
+| 2 - moving instances | **Drag** a rail instance: it dims, a thin line shows where it lands, Esc or dropping outside the rail cancels, a long rail scrolls by itself at its top/bottom edge; selection and running state never change. The menu's Move up/down/top/bottom do the same (the impossible ones are off). Saved by `instances:reorder` (atomic, registry lock, refused unless the ids are exactly the instances there are - the old order stays); the main instance may move too; new instances still go at the **end**. Library > Instances sorts by **"My order"** by default (the other sorts stay) and shows each instance's size on disk (worked out lazily while Library is open, kept for the session). | `renderer.js` (`railDrag*`, `moveInstance`, `saveInstanceOrder`, Library), `pure.js` (`moveIndex`, `moveItem`, `dropGapToIndex`), `instances.js` (`reorder`, `normalise` keeps the saved order), `main.js`, `preload.js`, `styles.css` |
+| 3 - no surprise instances | **One question** before every instance the player didn't ask for in the New instance dialog (`confirmNewInstance`): "Reminth will make a new instance: <name> - Minecraft <v> <loader>. Your other instances are not changed." Create / Cancel - or, when an instance is already on that version and loader, **"Use <that>"** first and "Make a new one" second. Used by server Play's vanilla instance (both of its ways in - before, the "vanilla" choice after the mods question made one without asking). The version picker's new-instance card (prompt 11) shows the same sentence and offers "Use <instance>" there. **No two instances with the same name + version + loader**: " (2)", and the question says so (one rule in `pure.uniqueInstanceName`, used by `instances.create`). **madeFor** (cleaned, max 60 chars, text only): the server's name or "Copy of <instance>", shown under the instance name ("Made for Hypixel" / "Copy of Survival"). **Undo**: a toast button (~10 s) after the version picker made a new instance and its window was closed without playing; main deletes it only if never played and no world in `saves/`. | `renderer.js` (`confirmNewInstance`, `toastWithAction`, `offerUndoCreate`, madeFor line), `features.js` (server Play, picker), `pure.js` (`createSentence`, `reusableInstance`, `uniqueInstanceName`), `instances.js` (`madeFor`, `cleanMadeFor`, `undoAllowed`), `main.js` (`instances:undoCreate`, madeFor on copies), `index.html` (toast button), `styles.css` |
+
+Tests: `test/instance-menu.test.js` (new, 8): menu items for a normal / main / running / first / last instance,
+moves and drag gaps, summary text, the creation sentence and reuse, `cleanMadeFor` / `uniqueName` / `undoAllowed`,
+`reorder` round trip through the registry file + refusals + new-at-the-end + the main instance moving, `summary` on a
+temp folder (worlds, bytes, a junction not followed, the time cap), and an **audit of every `createInstance` /
+`copyInstanceToVersion` call** in the renderer (each must be in the New instance dialog, the picker, or a function
+that asks `confirmNewInstance`). `test/perf-profiles.test.js` (+1): `instances:undoCreate` on a fake Electron.
+Clicked through in headless Chromium: right-click menus (rail, Library, ⋮), keyboard, Move to top, Shift+F10,
+the delete numbers, drag with the line, "My order" with sizes, the question with and without an instance to use,
+Undo and its call, "Made for".
 
 ### Prompt 11 ("I pick a version and some mods still don't fit… stop creating me a million instances")
 
@@ -134,6 +151,16 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P10-1. **Undo is offered only after the version picker made a new instance and was closed without playing.**
+   A server's instance is played straight away (Play sets "last played"), so Undo can never apply there - its
+   menu has Delete. **Recommend: keep.**
+P10-2. **Installing a modpack doesn't get the extra question**: the player pressed Install on a modpack, which is
+   asking for a new instance. It does get " (2)" for a repeated name. **Recommend: keep.**
+P10-3. **The ⋮ button on the instance page now opens the same menu as a right-click** (Play, Rename, Move…, Delete
+   …); Verify files and Open folder moved into it. **Recommend: keep** (one menu everywhere).
+P10-4. **Library's default sort is "My order"** for players who never picked one; anyone who chose another sort
+   keeps it. **Recommend: keep.**
+
 P11-1. **Switching turns off EVERY mod the dialog listed under "No build for <v>"** - also one whose own file
    claims it would still load (the dialog promised it, and those are the ones that crash later). **Recommend:
    keep**; "Turn on anyway" is one click per mod on the result screen and in the Mods tab.
@@ -144,11 +171,6 @@ P11-3. **Switching to an OLDER version is allowed when the instance has no world
    with worlds); the main process counts `saves/*/level.dat` again before changing anything. **Recommend: keep.**
 P11-4. **The Mods toolbar keeps a "Pick a version" button** (renamed from "Version check") next to the panel's
    button: it's the only way in when the panel isn't showing (no problems). **Recommend: keep.**
-P11-5. **Prompt 10 was not done first.** Prompt 11's own pieces were built here: the new-instance confirmation
-   sentence, "Use <existing instance>", no duplicate names. Not done (they're prompt 10's): `madeFor`, the Undo
-   toast, the shared confirmation helper, the right-click menu. **Recommend: send prompt 10 next**; it should
-   reuse/merge with the confirmation and "Use existing" code in `openVersionAdvisor` instead of adding a
-   second one.
 P11-6. **A switch that stopped half way is finished with "Update mods to fit"**, not undone automatically.
    `.reminth/version-change.json` keeps the old version and loader version for a manual undo; there is no
    "Undo switch" button. **Recommend: keep for now**; add one later if testers hit it.
@@ -183,7 +205,7 @@ P9-4. **Privacy text: no new sentence needed.** Crash reports and mod files are 
    open on old versions just starts the instance (**keep**); shader install needing Iris refused while
    running (**keep**); unsigned installer (nothing to do).
 
-Closed: privacy text for project-page pictures and links (made by the desktop window in `194863c`; re-upload
+Closed: prompt 11's "send prompt 10 next" (done); privacy text for project-page pictures and links (made by the desktop window in `194863c`; re-upload
 `site/` with the release); privacy text for copies + game report; tied versions stay warnings; all replaced jars copied;
 Forge/NeoForge pack ON for new instances; profile on never-played instance writes options.txt;
 wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
@@ -198,7 +220,11 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
   for minutes, but on a slow connection a 29-mod switch can take a while - not timed.
 - "Turn on anyway" on the result screen assumes the file is `<name>.disabled` (what the switch just made); if
   the player renamed it meanwhile it says the file isn't there.
-- The prompt-10 parts the prompt mentions (`madeFor`, Undo toast) are missing - see P11-5.
+- **Prompt 10 never ran in Electron.** Drag and drop was driven with a mouse in headless Chromium (3 instances);
+  30 instances and the edge auto-scroll were not tried. Right-click on Windows (and the Menu key on a real
+  keyboard) not tried.
+- The delete question's numbers come from a walk of the folder capped at 1.5 s - a huge instance says "about".
+- Undo deletes for good (like Delete); it is only offered for an instance that was never played and has no world.
 
 - **Prompt 9 never met a real crash or real Modrinth.** The crash parser was tested on the report text from
   the prompt (head only) and made-up Mixin / Forge shapes; real reports from other mods may name nobody
@@ -242,11 +268,41 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **545 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **554 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
-### Prompt 11 - "Pick a Minecraft version for my mods" (test these first; a throwaway COPY of "Reminth", Fabric 26.2, 29 mods)
+### Prompt 10 - instance menu, moving, no surprise instances (test these first)
+I1. **Right-click** an instance in the rail → the menu opens next to the pointer, inside the window: Play, Open,
+    Rename…, Open folder, Verify files, Move up/down/top/bottom, Delete… (red, last). Arrow keys move, Esc closes
+    and the rail button has the focus again. Same menu from a **Library > Instances** card and from the instance
+    page's **⋮** button. Tab to a rail button and press **Shift+F10** (or the Menu key) → the same menu.
+I2. Right-click the main **"Reminth"** instance → Delete… is greyed out with "This is your main instance - it
+    can't be deleted." (shown, not hidden). With the game running on an instance: Rename and Delete are off.
+I3. Make a throwaway instance, play it once (create a world), quit. Right-click → Delete… → the question says
+    "<name> - 1 world, <size>. Everything inside it is deleted for good…". Compare the size with Explorer's
+    Properties of the instance folder (roughly equal). Delete → "<name> deleted.", the last played instance is
+    selected, the rail/Library/Home no longer show it, the folder is gone.
+I4. **Drag** the bottom rail instance to the top: it dims, a line shows the drop place; drop → it's at the top.
+    Drag one and press **Esc** → nothing moves; drag one off the rail and let go → nothing moves. Move up / Move
+    to bottom from the menu work; the first/last ones' impossible moves are off.
+I5. **Restart Reminth** → the order is the same. Library > Instances shows "My order" (same order) and each
+    instance's size. Make a new instance → it appears at the **bottom**.
+I6. Discover → Servers → Play a server whose version none of your instances has → the question "Make an
+    instance for <server>?" with "Reminth will make a new instance: <server> - Minecraft <v> vanilla. Your other
+    instances are not changed." → Create → it is made and joins. Its page shows "Made for <server>". Do it again
+    for the same server → it now just joins on that instance (no second one).
+I7. With a modded instance active, a server whose version none has → choose "New vanilla <v> instance" → the
+    same question appears (before: it made one without asking).
+I8. Version picker → pick a version → "Keep this one… make a new instance" → make it → Close the result window
+    (don't Play) → a toast "<name> was made." with **Undo** → Undo → "<name> removed.", the instance and its
+    folder are gone. Make another, wait 10 s → the toast is gone; the instance stays and shows "Copy of <name>".
+I9. New instance dialog with a name that already exists on the same version and loader → it is made as
+    "<name> (2)".
+I10. One instance only: the menu still opens (all Moves off, Delete off for "Reminth"). Many instances (make ~15
+    quick throwaways): the rail scrolls; dragging near its top/bottom edge scrolls it.
+
+### Prompt 11 - "Pick a Minecraft version for my mods" (a throwaway COPY of "Reminth", Fabric 26.2, 29 mods)
 V1. Mods tab → **"Pick a version that fits my mods"** (panel) or **"Pick a version"** (toolbar) → the dialog is
     titled "Pick a Minecraft version for my mods", with the intro line and the one-line "build" help. Within a few
     seconds: a green "Best match…" or "Fits most…" line, at most 5 versions, "Show more versions" if there are more.
@@ -266,10 +322,10 @@ V7. On the result screen (do V4 again on another copy): **Find a replacement** �
 V8. In a copy that has worlds, pick an **older** version (e.g. 1.21.4) → Next → the switch card is greyed out with
     "Your worlds were saved in Minecraft 26.2. Opening them in the older 1.21.4 can damage them…"; only the
     new-instance card can be picked (Recommended).
-V9. Make a new instance → the card says "Reminth will make a new instance: <name> — Minecraft <v> Fabric. Your
+V9. Make a new instance → the card says "Reminth will make a new instance: <name> - Minecraft <v> fabric. Your
     other instances are not changed." → it is made, worlds are not copied, its name doesn't repeat an existing
-    one. Open the dialog again on the original, same version → the new-instance card now offers **"Use <that
-    instance>"**, and using it makes no new instance. (`madeFor` isn't there yet - prompt 10.)
+    one, its page shows "Copy of <original>". Open the dialog again on the original, same version → the
+    new-instance card now offers **"Use <that instance>"**, and using it makes no new instance.
 V10. While the instance's game is running: the switch card is greyed out with "Close the game first…".
 V11. A modpack instance: the switch card is greyed out ("Its mods belong to the modpack…").
 V12. Play with a mod that has no version for 26.2 or anything newer (an old 1.20.1-only jar): "Minecraft won't
@@ -422,7 +478,7 @@ U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for 
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
-45. PASS/FAIL per step (V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (I1-I10, V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
