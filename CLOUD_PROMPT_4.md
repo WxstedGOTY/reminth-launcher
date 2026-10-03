@@ -13,6 +13,21 @@ CLAUDE.md says. Do NOT build, do NOT bump the version, do NOT touch the performa
 privacy/terms text (if this feature needs a new sentence there, list the exact sentence in the hand-off file for
 the desktop window).
 
+=== JOB 0 (small, do it first, commit it on its own): move the Play button on the Home "Jump back in" cards ===
+Today each card (renderer.js recentCard, styles.css .card.recent) has its Play button in the top-right corner of
+the picture area ("recent-art"), over the area next to the World/Server tag. The owner wants it in the text
+strip at the bottom of the card ("recent-body", the part that shows e.g. "My Survival" and "Forge old - 1h 0m -
+just now"): the Play button sits at the RIGHT edge of that strip, vertically centred in it, and the text is
+moved so it never runs under the button:
+ - the strip becomes two columns: text (flexible, min-width 0) and the button (fixed);
+ - the name gets an ellipsis if too long; the small meta line wraps onto a second line instead of going under
+   the button; nothing overlaps at any card width the grid produces (check the narrowest);
+ - the picture area is left clean (only the tag and the icon);
+ - same button, same behaviour (JOB 4 of Prompt 3 stays exactly as it is): only its place and the layout change;
+ - hover/focus states keep working, the button stays keyboard-reachable, and the card height does not jump
+   between cards with a short and a long meta line (keep one consistent height).
+styles.css is CRLF and its last rule stays last. No new JavaScript logic beyond moving the element.
+
 === THE FEATURE: click a card in Discover, see the whole project ===
 In Discover (mods, modpacks, resource packs, data packs, shaders) every result card gets a blue outline on hover
 but clicking does nothing. Modrinth has a full page per project: the long description with the author's rules
