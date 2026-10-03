@@ -322,7 +322,7 @@ V7. On the result screen (do V4 again on another copy): **Find a replacement** �
 V8. In a copy that has worlds, pick an **older** version (e.g. 1.21.4) → Next → the switch card is greyed out with
     "Your worlds were saved in Minecraft 26.2. Opening them in the older 1.21.4 can damage them…"; only the
     new-instance card can be picked (Recommended).
-V9. Make a new instance → the card says "Reminth will make a new instance: <name> - Minecraft <v> fabric. Your
+V9. Make a new instance → the card says "Reminth will make a new instance: <name> - Minecraft <v> Fabric. Your
     other instances are not changed." → it is made, worlds are not copied, its name doesn't repeat an existing
     one, its page shows "Copy of <original>". Open the dialog again on the original, same version → the
     new-instance card now offers **"Use <that instance>"**, and using it makes no new instance.
