@@ -2161,6 +2161,10 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .nb-item { cursor: default; }
 .nb-item:hover { border-color: var(--line); }
 
+/* Beta / Alpha next to an update that isn't a stable release */
+.up-channel { flex-shrink: 0; padding: 2px 8px; }
+.c-update .up-channel { margin-left: 6px; }
+
 /* A gradient on a box with a see-through border used to wrap around under
    that border, drawing a thin line of the gradient's other end along the
    bottom and right edge (most visible on the highlighted sidebar button).

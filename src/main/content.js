@@ -1332,6 +1332,9 @@ async function checkUpdates(instance) {
           sha1: file.hashes.sha1,
           filename: file.filename,
           size: file.size || 0,
+          // "Update all" is the player's own choice, but a beta or alpha is
+          // never silent: the list shows the channel next to the version.
+          channel: ["release", "beta", "alpha"].includes(version.version_type) ? version.version_type : null,
         },
       });
     }

@@ -342,6 +342,11 @@ function contentRow(item, ctx) {
     ub.title = "Update just this one";
     ub.appendChild(icon("#i-download"));
     ub.appendChild(el("span", null, `${version || "?"} → ${up.next.versionNumber}`));
+    const channel = channelTag(up.next.channel);
+    if (channel) {
+      ub.appendChild(channel);
+      ub.title = `Update just this one — it's a ${up.next.channel} build, not a stable release`;
+    }
     ub.onclick = async () => {
       const id = content.instanceId;
       if (content.updatesFor !== id) return; // not this instance's update
@@ -637,6 +642,14 @@ window.reminth.onContentChanged(({ instanceId }) => {
   );
 });
 
+/** A "Beta" / "Alpha" tag for an update that isn't a stable release, else null. */
+function channelTag(channel) {
+  if (channel !== "beta" && channel !== "alpha") return null;
+  const tag = el("span", "tag " + (channel === "beta" ? "amber" : "rose") + " up-channel", channel === "beta" ? "Beta" : "Alpha");
+  tag.title = `Not a stable release - the author marked this build ${channel}.`;
+  return tag;
+}
+
 /* ---- update everything ---- */
 function paintUpdateButton(progressPct) {
   const btn = $("updateAllBtn");
@@ -693,6 +706,8 @@ function renderUpdatePanel() {
     ver.appendChild(document.createTextNode(`${u.current || "?"} → `));
     ver.appendChild(el("b", null, u.next.versionNumber));
     row.appendChild(ver);
+    const channel = channelTag(u.next.channel);
+    if (channel) row.appendChild(channel);
     list.appendChild(row);
   }
   panel.appendChild(list);

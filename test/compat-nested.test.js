@@ -298,3 +298,24 @@ test("checkInstance: a beta offered by Modrinth's update lookup is swapped for t
   assert.equal(by["b.jar"].fix.type, "disable", "only an alpha exists: no automatic swap");
   assert.deepEqual(d.calls.projectVersions.map((c) => [c[0], c[1].gameVersions]).sort(), [["PA", ["26.2"]], ["PB", ["26.2"]]]);
 });
+
+test("content.checkUpdates: each update says its channel, so the list can tag a beta or alpha", async () => {
+  const modrinth = require("../src/main/modrinth");
+  const inst = await instanceWith("channels", "26.2", {
+    "a.jar": (out) => makeJar(out, { id: "a", version: "1" }),
+    "b.jar": (out) => makeJar(out, { id: "b", version: "1" }),
+  });
+  const real = { ...modrinth };
+  const v = (id, type) => ({ id, project_id: "P" + id, version_number: "2", version_type: type, files: [{ primary: true, url: "https://cdn.modrinth.com/" + id, filename: id + ".jar", hashes: { sha1: id.padEnd(40, "f") } }] });
+  Object.assign(modrinth, {
+    getVersionsFromHashes: async () => ({}),
+    getProjects: async () => [],
+    checkForUpdates: async (hashes) => Object.fromEntries(hashes.map((h, i) => [h, v(i ? "bb" : "aa", i ? "release" : "beta")])),
+  });
+  try {
+    const ups = await content.checkUpdates(inst);
+    assert.deepEqual(ups.map((u) => u.next.channel).sort(), ["beta", "release"]);
+  } finally {
+    Object.assign(modrinth, real);
+  }
+});
