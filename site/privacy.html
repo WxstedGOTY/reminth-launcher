@@ -23,7 +23,7 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 2 October 2026 · Version 5</p>
+    <p class="updated">Last updated: 3 October 2026 · Version 6</p>
 
     <div class="summary">
       <b>The short version.</b> Reminth has no servers, no accounts of its own, no analytics, no crash
@@ -113,10 +113,15 @@
         time and when you last played it.</li>
       <li><b>Bookkeeping inside each instance</b> (a <code>.reminth</code> folder in the instance): which
         files Reminth installed there and which Modrinth project each one came from, so it can update or
-        remove its own copies without touching yours.</li>
+        remove its own copies without touching yours; which performance-pack mods you switched off or
+        removed (so they are not put back) and what happened to each at the last Play; and, if you picked a
+        performance profile for a new instance, a note that Reminth wrote a starting
+        <code>options.txt</code> (see section 10).</li>
       <li><b>Skins</b>: a cached copy of your current skin and any skins you save to your library.</li>
       <li><b>Caches of public information</b>: a catalogue of public Modrinth listings, and which Modrinth
-        project each of your installed files is and who made it (creator name, profile picture address, icon).</li>
+        project each of your installed files is and who made it (creator name, profile picture address, icon);
+        and, for six hours, which stable build of each performance-pack mod Modrinth offered for a Minecraft
+        version and loader.</li>
       <li><b>Logs.</b> Launcher logs: <code>updater.log</code> (update checks), <code>auth.log</code> (sign-in
         errors) and <code>main-errors.log</code> (details of launcher errors and crashes). Sign-in tokens are
         removed before anything is written to these; they can still contain folder paths, which include your
@@ -169,10 +174,14 @@
         will load on your Minecraft version and which build would, the launcher sends Modrinth the
         <b>file fingerprints (SHA-1 hashes)</b> of the mods, packs and shaders in your instances, together with
         the Minecraft version and loader it is asking about. A fingerprint identifies a file, not you. Requests
-        identify the app as “reminth-launcher” and its version; no account information is sent.</li>
+        identify the app as “reminth-launcher” and its version; no account information is sent. To install
+        and update the performance pack the launcher also asks Modrinth which stable build of each pack mod
+        exists for your Minecraft version and loader (the mod's name, the version and the loader, nothing
+        else) and downloads that build from cdn.modrinth.com.</li>
       <li><b>GitHub</b> (api.github.com and GitHub's release download servers): to check for and download
-        Reminth updates, and to download the performance mods Reminth installs (Sodium, Lithium and
-        ScalableLux) from each project's own GitHub releases.</li>
+        Reminth updates, and, only when Modrinth cannot be reached and nothing is remembered from it, to
+        download Sodium, Lithium and ScalableLux from each project's own GitHub releases on Fabric and Quilt
+        instances.</li>
       <li><b>Modpack file hosts</b>: a modpack lists where each of its files is downloaded from. Reminth only
         accepts cdn.modrinth.com, github.com, raw.githubusercontent.com and gitlab.com, and downloads from
         those when you install such a pack.</li>
@@ -239,15 +248,30 @@
       Sign-in tokens are encrypted on your computer by Windows, as described in section 4. Minecraft's own
       files, its libraries and assets, Mojang's Java runtime, and everything downloaded from Modrinth or listed
       in a modpack are checked against the checksum their source publishes. A few sources publish no checksum:
-      the performance mods on GitHub, the fallback Java download from Microsoft, and some mod-loader files.
-      Those are downloaded over an encrypted connection from the project's official location, and Reminth
-      checks that a performance mod is actually built for your Minecraft version and loader before keeping it.
+      the performance mods when they come from GitHub (only as a fallback, see section 5), the fallback Java
+      download from Microsoft, and some mod-loader files. Those are downloaded over an encrypted connection
+      from the project's official location. Reminth checks that every performance mod is actually built for
+      your Minecraft version and loader before keeping it, and installs only stable releases of the
+      performance pack, never alpha or beta builds.
       The launcher contacts only the services listed above, over encrypted connections where the service
       supports them (Minecraft servers use the game's own protocol). No system is perfectly secure; if you
       find a security problem, please email us privately instead of posting details publicly.
     </p>
 
-    <h2>10. Changes to this policy</h2>
+    <h2>10. Things Reminth changes on your computer when you ask</h2>
+    <p>
+      Nothing here is sent anywhere. It is listed because it changes how Minecraft runs or what is on your
+      disk: (a) the Java settings Reminth starts Minecraft with are chosen per Java version, and you can pick
+      the garbage collector in Settings; (b) with the setting on (it is on by default) Reminth asks Windows to
+      run Minecraft one step above other programs, never higher, and not while streamer mode is on; (c) when you
+      create an instance and pick the Max FPS or Far view profile, Reminth writes a starting
+      <code>options.txt</code> into that new instance only if no <code>options.txt</code>, world or game log
+      exists there, and never changes one that exists; (d) &ldquo;Choose graphics card&hellip;&rdquo; only opens
+      Windows' own graphics settings page and shows you the path to copy; Reminth does not change that setting
+      or write to the Windows registry.
+    </p>
+
+    <h2>11. Changes to this policy</h2>
     <p>
       When what Reminth does changes, this page changes with it and the date at the top moves. If a change
       affects your data in a significant way, such as a new feature that stores data off your computer, we
@@ -255,6 +279,10 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 6, 3 October 2026</b>: the performance pack now comes from Modrinth (stable builds only,
+        checksum-checked) with GitHub only as a fallback, and has more mods and Forge/NeoForge support; added
+        process priority, starting <code>options.txt</code> files for performance profiles, the graphics-card
+        help, and the new bookkeeping and cache files.</li>
       <li><b>Version 5, 2 October 2026</b>: listed every service the launcher contacts (including modpack
         file hosts and the compatibility check's file fingerprints) and every file it keeps on your PC
         (including its logs); corrected the checksum statement and said that streamer mode's sound is
@@ -267,7 +295,7 @@
       <li><b>Version 1, 20 September 2026</b>: first published.</li>
     </ul>
 
-    <h2>11. Contact</h2>
+    <h2>12. Contact</h2>
     <p>
       Lefteris Psilopanagiotis (Reminth), Greece. Email:
       <a href="mailto:reminthsupport@gmail.com">reminthsupport@gmail.com</a>.

@@ -25,11 +25,23 @@ OR MICROSOFT. You need your own Minecraft: Java Edition licence.
   one-click fix ("Fix and play"), and can suggest the Minecraft version that
   fits all the mods (and a server), making a copy of the instance on that
   version. Copies never include worlds.
-- **Performance pack**: on Fabric and Quilt instances, Sodium, Lithium and
-  ScalableLux are fetched from each project's GitHub releases when a build
-  exists for that Minecraft version (plus Fabric API from Fabric's Maven).
-  Opt-out per instance (`performanceMods: false`). The player's own copies
-  always win.
+- **Performance pack** (`config.PERFORMANCE_PACK`): fetched from Modrinth,
+  release builds only, at least 48 h old, sha1-checked, then checked against
+  the instance by the jar's own metadata. Fabric/Quilt: Sodium, Lithium,
+  FerriteCore, ImmediatelyFast, Entity Culling, ScalableLux (plus Fabric API
+  from Fabric's Maven). NeoForge adds ModernFix; Forge gets Embeddium, Radium,
+  ModernFix, FerriteCore, Entity Culling, ImmediatelyFast. One rule,
+  `config.perfPackEnabled`: Fabric/Quilt on unless `performanceMods: false`;
+  Forge/NeoForge only with `performanceMods: true`; vanilla never; imported
+  modpacks never. The player's own copy of a mod, or a conflicting mod, always
+  wins; a pack jar the player disabled or deleted is not put back (Restore
+  resets). GitHub is only a fallback for Sodium/Lithium/ScalableLux when
+  Modrinth is down and nothing is cached.
+- **Performance profiles**: Balanced / Max FPS / Far view per instance. Max FPS
+  and Far view write a starting `options.txt` for a brand-new instance only
+  (never over an existing file; `graphicsPreset:"custom"` from 1.21.11 on).
+  Java flags are chosen per Java version (`buildJvmFlags`), Minecraft runs at
+  above-normal priority (setting), and Settings can open Windows' graphics page.
 - **ReminthHUD**: Reminth's own HUD mod, per-instance switch, bundled in
   `assets/mods/`.
 - **Skins and capes**: view, change, keep a library of skins.

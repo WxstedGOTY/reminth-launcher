@@ -23,7 +23,7 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Terms of Service</h1>
-    <p class="updated">Last updated: 2 October 2026 · Version 5</p>
+    <p class="updated">Last updated: 3 October 2026 · Version 6</p>
 
     <p class="note">
       <b>NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.</b>
@@ -135,13 +135,21 @@
 
     <h2>8. Mods Reminth installs, and third-party content</h2>
     <p>
-      On Fabric and Quilt instances, Reminth installs and updates a small set of mods: a performance pack of
-      well-known open-source mods (currently Sodium, Lithium and ScalableLux, downloaded from each project's own
-      GitHub releases when a build exists for your Minecraft version), Reminth's own HUD mod (ReminthHUD) where
-      it is switched on, and Fabric API (downloaded from Fabric's own server), which those mods need. You can
-      switch the performance pack and ReminthHUD off in the instance's settings. If you have your own copy of
-      one of these mods, yours is used instead of Reminth's. Reminth only ever removes copies it installed
-      itself; mods you added are never deleted unless you remove them. Section 7 applies to these mods too.
+      Reminth installs and updates a small set of mods: a performance pack of well-known open-source mods
+      (currently Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux on Fabric and
+      Quilt; the NeoForge and Forge equivalents on those loaders), taken from Modrinth as stable releases only
+      and only where a build exists for your Minecraft version, Reminth's own HUD mod (ReminthHUD) where it is
+      switched on, and Fabric API (downloaded from Fabric's own server) on Fabric and Quilt, which those mods
+      need. The pack is on by default for new Fabric and Quilt instances; on Forge and NeoForge it is only
+      installed where you switched it on, and it is never added to an imported modpack. You can switch the
+      performance pack and ReminthHUD off in the instance's settings. If you have your own copy of one of
+      these mods, or a mod that cannot run next to one, yours is used instead of Reminth's. If you switch off
+      or delete a pack mod yourself, Reminth does not put it back until you press Restore. Reminth only ever
+      removes copies it installed itself; mods you added are never deleted unless you remove them. Section 7
+      applies to these mods too. Reminth may also run Minecraft one step above other programs in Windows'
+      priority, may write a starting <code>options.txt</code> into a brand-new instance if you pick a
+      performance profile, and chooses the Java settings Minecraft starts with; none of this is a promise of
+      any particular speed, and you can change or switch off each of these in the launcher's settings.
     </p>
     <p>
       Mods, modpacks, resource packs, data packs and shaders you find through Reminth are made by other people
@@ -302,6 +310,9 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 6, 3 October 2026</b>: described the larger performance pack (from Modrinth, stable
+        builds only, also on Forge and NeoForge when switched on), that Reminth respects mods you switch off,
+        and the process priority, starting <code>options.txt</code> and Java-settings behaviour.</li>
       <li><b>Version 5, 2 October 2026</b>: described the compatibility check and that Reminth only changes your
         mods when you press the button for it; said that modpacks can download files from hosts other than
         Modrinth, that copies of an instance never include worlds, and that memory is not a paid feature.

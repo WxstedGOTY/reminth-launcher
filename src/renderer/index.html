@@ -829,8 +829,9 @@
                   <p><b>What Reminth sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
                     tracking. The launcher talks directly to: Microsoft and Xbox Live (sign-in); Mojang and Minecraft
                     Services (licence check, game and Java downloads, skins and capes); Fabric, Quilt, Forge and
-                    NeoForge (the loader you pick, and Fabric API); GitHub (Reminth updates, and the Sodium, Lithium and
-                    ScalableLux performance pack from those projects' own releases); Modrinth (Discover, installs,
+                    NeoForge (the loader you pick, and Fabric API); GitHub (Reminth updates, and Sodium, Lithium and
+                    ScalableLux from their own releases only if Modrinth can't be reached); Modrinth (Discover, installs,
+                    the performance pack,
                     updates and the compatibility check, which sends the <b>SHA-1 file fingerprints</b> of your mods —
                     they identify files, not you); the hosts a modpack lists for its files (Modrinth, GitHub or GitLab);
                     cdn.modrinth.com and avatars.githubusercontent.com (icons and creator pictures); and Minecraft
@@ -870,9 +871,10 @@
                     server's rules or the EULA. Don't resell Reminth or distribute modified copies of it.</p>
 
                   <p><b>Mods Reminth installs.</b> On Fabric and Quilt instances: Fabric API (from Fabric), ReminthHUD
-                    if you switch it on, and a performance pack (Sodium, Lithium and ScalableLux, downloaded from those
-                    projects' own GitHub releases). You can switch the performance pack off for any instance in its
-                    settings. Third-party content from Discover is made by other people and hosted by Modrinth;
+                    if you switch it on, and a performance pack (Sodium, Lithium, FerriteCore, ImmediatelyFast,
+                    Entity Culling and ScalableLux; stable releases from Modrinth; on Forge and NeoForge only if you
+                    switch it on). You can switch the performance pack off for any instance in its
+                    settings; mods you switch off or delete yourself are not put back. Third-party content from Discover is made by other people and hosted by Modrinth;
                     Reminth checks each file's checksum but doesn't vouch for it. A modpack may fetch files from the
                     hosts it lists (Modrinth, GitHub or GitLab).</p>
 
