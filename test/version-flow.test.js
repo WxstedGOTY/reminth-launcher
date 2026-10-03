@@ -107,3 +107,161 @@ test("versionChoices: switch for same/newer; only a new instance for an older ve
   assert.equal(pure.compareMc("26.1", "1.21.11"), 1);
   assert.equal(pure.compareMc("24w14a", "1.21"), null);
 });
+
+/* ---------------- job 2: "switch this instance" in the main process ---------------- */
+
+const versionSwitch = require("../src/main/versionSwitch");
+const content = require("../src/main/content");
+
+let seq = 0;
+/** A throwaway instance folder with these files in mods/ (and worlds in saves/). */
+async function folder({ mods = [], worlds = 0 } = {}) {
+  const gameDir = path.join(HOME, "inst", `s${++seq}`);
+  await fsp.mkdir(path.join(gameDir, "mods"), { recursive: true });
+  for (const f of mods) await fsp.writeFile(path.join(gameDir, "mods", f), "jar " + f);
+  for (let i = 0; i < worlds; i++) {
+    await fsp.mkdir(path.join(gameDir, "saves", `World ${i}`), { recursive: true });
+    await fsp.writeFile(path.join(gameDir, "saves", `World ${i}`, "level.dat"), "x");
+  }
+  return gameDir;
+}
+const filesIn = async (gameDir) => (await fsp.readdir(path.join(gameDir, "mods"))).sort();
+const noteOf = async (gameDir) => {
+  try {
+    return JSON.parse(await fsp.readFile(path.join(gameDir, versionSwitch.NOTE_FILE), "utf8"));
+  } catch {
+    return null;
+  }
+};
+
+function fakeDeps(gameDir, over = {}) {
+  const calls = { update: [], applySync: 0, resolve: [] };
+  let inst = { id: "i1", name: "Reminth copy", mcVersion: "26.2", loader: "fabric", loaderVersion: "0.17.0", modpack: null, gameDir, ...over.inst };
+  return {
+    calls,
+    deps: {
+      instances: {
+        isValidVersionId: (v) => /^[\w.-]{1,32}$/.test(String(v || "")),
+        require: async () => ({ ...inst }),
+        update: over.update || (async (id, patch) => (calls.update.push(patch), (inst = { ...inst, ...patch }), { ...inst })),
+      },
+      isRunning: over.isRunning || (() => false),
+      resolveLoaderVersion: over.resolveLoaderVersion || (async (loader, mc) => (calls.resolve.push([loader, mc]), "0.17.2")),
+      advise: async () => ({
+        mods: [{ title: "AppleSkin" }, { title: "Old Mod" }, { title: "Sodium" }, { title: "Anchor" }],
+        target: { version: "26.3", missing: [{ projectId: "PO", title: "Old Mod", files: ["old-mod.jar"] }], failed: [], unknown: [{ title: "Own Mod", file: "own.jar" }] },
+      }),
+      applySync:
+        over.applySync ||
+        (async () => {
+          calls.applySync++;
+          return { applied: ["AppleSkin"], failed: [], noBuild: [{ file: "anchor.jar", title: "Anchor", why: "No stable build for 26.3 yet" }], unchecked: [] };
+        }),
+      invalidate: () => {},
+    },
+  };
+}
+
+test("switchVersion: the instance moves, the stable swap runs, mods with no build are switched OFF with their reason - nothing deleted", async () => {
+  const gameDir = await folder({ mods: ["appleskin.jar", "old-mod.jar", "sodium.jar", "anchor.jar", "own.jar"] });
+  const f = fakeDeps(gameDir);
+  const r = await versionSwitch.switchVersion("i1", "26.3", f.deps);
+  assert.deepEqual(f.calls.update, [{ mcVersion: "26.3", loaderVersion: "0.17.2" }]);
+  assert.deepEqual(f.calls.resolve, [["fabric", "26.3"]]);
+  assert.equal(r.instance.mcVersion, "26.3");
+  assert.deepEqual(r.updated, ["AppleSkin"]);
+  assert.deepEqual(r.turnedOff.map((t) => [t.file, t.why]), [
+    ["old-mod.jar", "no version made for 26.3"],
+    ["anchor.jar", "no finished (stable) version made for 26.3 yet"],
+  ]);
+  assert.deepEqual(r.unknown, ["Own Mod"]);
+  assert.deepEqual(r.kept, ["Sodium"]);
+  assert.equal(r.incomplete, null);
+  // switched off by renaming - every file is still there
+  assert.deepEqual(await filesIn(gameDir), ["anchor.jar.disabled", "appleskin.jar", "old-mod.jar.disabled", "own.jar", "sodium.jar"]);
+  // the Mods tab can say why
+  const listed = (await content.listAll(gameDir)).mod;
+  assert.equal(listed.find((i) => i.file === "old-mod.jar.disabled").offReason, "no version made for 26.3");
+  assert.equal(listed.find((i) => i.file === "sodium.jar").offReason, null);
+  assert.equal(await noteOf(gameDir), null, "the note is gone after a finished run");
+});
+
+test("switchVersion: no loader build for the version -> stops before anything changed", async () => {
+  const gameDir = await folder({ mods: ["a.jar"] });
+  const f = fakeDeps(gameDir, {
+    resolveLoaderVersion: async () => {
+      throw new Error("Fabric doesn't have a build for Minecraft 26.9 yet.");
+    },
+  });
+  await assert.rejects(versionSwitch.switchVersion("i1", "26.9", f.deps), /doesn't have a build for Minecraft 26\.9/);
+  assert.deepEqual(f.calls.update, []);
+  assert.equal(f.calls.applySync, 0);
+  assert.equal(await noteOf(gameDir), null);
+  assert.deepEqual(await filesIn(gameDir), ["a.jar"]);
+});
+
+test("switchVersion: the instance update failing -> nothing else happened, the note is removed", async () => {
+  const gameDir = await folder({ mods: ["old-mod.jar"] });
+  const f = fakeDeps(gameDir, {
+    update: async () => {
+      throw new Error("EPERM: the registry is locked");
+    },
+  });
+  await assert.rejects(versionSwitch.switchVersion("i1", "26.3", f.deps), /EPERM/);
+  assert.equal(f.calls.applySync, 0);
+  assert.equal(await noteOf(gameDir), null);
+  assert.deepEqual(await filesIn(gameDir), ["old-mod.jar"]);
+});
+
+test("switchVersion: the mod swap stopping half way -> on the new version, said plainly, the note kept, nothing deleted", async () => {
+  const gameDir = await folder({ mods: ["old-mod.jar", "b.jar"] });
+  const f = fakeDeps(gameDir, {
+    applySync: async () => {
+      throw new Error("Modrinth couldn't be reached");
+    },
+  });
+  const r = await versionSwitch.switchVersion("i1", "26.3", f.deps);
+  assert.equal(r.instance.mcVersion, "26.3");
+  assert.match(r.incomplete, /^Reminth copy is now on Minecraft 26\.3, but updating its mods stopped: Modrinth couldn't be reached\. Press "Update mods to fit 26\.3"/);
+  const note = await noteOf(gameDir);
+  assert.deepEqual([note.state, note.from.mcVersion, note.from.loaderVersion, note.to.mcVersion], ["mods-pending", "26.2", "0.17.0", "26.3"]);
+  assert.deepEqual(await filesIn(gameDir), ["b.jar", "old-mod.jar"]);
+});
+
+test("switchVersion: refused for a running game, a modpack, the same version, and an older version over worlds", async () => {
+  const gameDir = await folder({ mods: ["a.jar"], worlds: 1 });
+  await assert.rejects(versionSwitch.switchVersion("i1", "26.3", fakeDeps(gameDir, { isRunning: () => true }).deps), /^Error: Close the game first/);
+  await assert.rejects(versionSwitch.switchVersion("i1", "26.3", fakeDeps(gameDir, { inst: { modpack: { projectId: "x" } } }).deps), /belong to its modpack/);
+  await assert.rejects(versionSwitch.switchVersion("i1", "26.2", fakeDeps(gameDir).deps), /already on Minecraft 26\.2/);
+  const older = fakeDeps(gameDir);
+  await assert.rejects(versionSwitch.switchVersion("i1", "1.21.4", older.deps), /worlds were saved in Minecraft 26\.2/);
+  assert.deepEqual(older.calls.update, []);
+  // older is fine without worlds
+  const empty = await folder({ mods: ["a.jar"] });
+  const ok = fakeDeps(empty);
+  await versionSwitch.switchVersion("i1", "1.21.4", ok.deps);
+  assert.deepEqual(ok.calls.update, [{ mcVersion: "1.21.4", loaderVersion: "0.17.2" }]);
+  assert.equal(await versionSwitch.countWorlds(gameDir), 1);
+});
+
+/* ---------------- job 3: "turned off by Reminth" reasons ---------------- */
+
+test("turned-off reasons: set, cleared when turned on or removed, kept on disk across a restart", async () => {
+  const gameDir = await folder({ mods: ["x.jar.disabled", "y.jar.disabled"] });
+  await content.setOffReason(gameDir, { kind: "mod", world: null, file: "x.jar.disabled" }, "no version made for 1.21.4");
+  await content.setOffReason(gameDir, { kind: "mod", world: null, file: "y.jar" }, "no version made for 1.21.4");
+  // on disk (what a restart reads): content.json's turnedOff
+  const onDisk = JSON.parse(await fsp.readFile(path.join(gameDir, ".reminth", "content.json"), "utf8"));
+  assert.deepEqual(Object.keys(onDisk.turnedOff).sort(), ["mods/x.jar", "mods/y.jar"]);
+  let listed = (await content.listAll(gameDir)).mod;
+  assert.equal(listed.find((i) => i.file === "x.jar.disabled").offReason, "no version made for 1.21.4");
+  // turned on by the player: forgotten, and turning it off again by hand says nothing
+  await content.setEnabled(gameDir, { kind: "mod", world: null, file: "x.jar.disabled" }, true);
+  await content.setEnabled(gameDir, { kind: "mod", world: null, file: "x.jar" }, false);
+  listed = (await content.listAll(gameDir)).mod;
+  assert.equal(listed.find((i) => i.file === "x.jar.disabled").offReason, null);
+  // removed (to the Recycle Bin): forgotten
+  await content.remove(gameDir, { kind: "mod", world: null, file: "y.jar.disabled" }, async (full) => fsp.rename(full, full + ".trashed"));
+  const after = JSON.parse(await fsp.readFile(path.join(gameDir, ".reminth", "content.json"), "utf8"));
+  assert.deepEqual(after.turnedOff, {});
+});

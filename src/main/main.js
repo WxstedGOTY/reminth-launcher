@@ -34,6 +34,7 @@ const atomic = require("./atomic");
 const projectPage = require("./projectPage");
 const windowRestore = require("./windowRestore");
 const crashReport = require("./crashReport");
+const versionSwitch = require("./versionSwitch");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -779,6 +780,26 @@ ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
     return { ...result, instance: withRunning(result.instance) };
   } finally {
     copyInFlight = false;
+  }
+});
+
+// "Switch this instance to <version>" (versionSwitch.js): the instance
+// itself moves, its mods are swapped to stable builds, the rest switched off.
+ipcMain.handle("compat:switchVersion", async (_e, id, request) => {
+  const r = request && typeof request === "object" ? request : {};
+  if (!instances.isValidVersionId(r.mcVersion)) throw new Error("Pick a Minecraft version first.");
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  if (copyInFlight || syncing.has(id)) throw new Error("Something is already changing that instance's mods - wait for it to finish.");
+  syncing.add(id);
+  try {
+    const result = await versionSwitch.switchVersion(id, r.mcVersion, {
+      isRunning: (iid) => running.has(iid),
+      resolveLoaderVersion,
+      onProgress: (p) => send("compat:progress", { instanceId: id, ...p }),
+    });
+    return { ...result, instance: withRunning(result.instance) };
+  } finally {
+    syncing.delete(id);
   }
 });
 

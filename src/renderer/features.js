@@ -4474,11 +4474,20 @@ function openVersionAdvisor(instanceId, options = {}) {
   stepView.hidden = true;
   body.appendChild(stepView);
 
+  // The new instance's name: the version in it swapped, never the same name
+  // as an instance that already exists (" (2)", " (3)"…).
   const newName = () => {
     if (!chosen) return inst.name;
-    const swapped = inst.name.includes(inst.mcVersion) ? inst.name.replace(inst.mcVersion, chosen.version) : `${inst.name} ${chosen.version}`;
-    return swapped.slice(0, 48);
+    const swapped = (inst.name.includes(inst.mcVersion) ? inst.name.replace(inst.mcVersion, chosen.version) : `${inst.name} ${chosen.version}`).slice(0, 44);
+    const taken = new Set(state.instances.map((i) => i.name.toLowerCase()));
+    if (!taken.has(swapped.toLowerCase())) return swapped;
+    for (let n = 2; n < 100; n++) if (!taken.has(`${swapped} (${n})`.toLowerCase())) return `${swapped} (${n})`;
+    return swapped;
   };
+  // An instance already on that version and loader: offered instead of making another one.
+  const existingOn = (v) => state.instances.find((i) => i.id !== inst.id && i.mcVersion === v && i.loader === inst.loader) || null;
+  let action = "switch"; // "switch" this instance, or "copy" to a new one
+  let result = null; // what the switch or copy did
 
   let handle = null;
   const done = new Promise((resolve) => {
@@ -4493,7 +4502,10 @@ function openVersionAdvisor(instanceId, options = {}) {
         token++;
         compatProgressListeners.delete(onProgress);
         resolve(copied);
-        if (copied && playAfter && server && server.play) server.play(copied);
+        if (copied && playAfter) {
+          if (server && server.play) server.play(copied);
+          else runPlay({ instanceId: copied.id });
+        }
       },
       buttons: [
         {
@@ -4509,7 +4521,7 @@ function openVersionAdvisor(instanceId, options = {}) {
           },
         },
         {
-          label: "Make a copy",
+          label: "Next",
           className: "primary",
           onClick: async () => {
             if (copying) return false;
@@ -4517,8 +4529,8 @@ function openVersionAdvisor(instanceId, options = {}) {
               if (chosen) showConfirm();
               return false;
             }
-            if (step === "confirm") return runCopy();
-            playAfter = Boolean(server && server.play); // step "done"
+            if (step === "confirm") return run();
+            playAfter = true; // step "done": the big Play button
             return true;
           },
         },
@@ -4536,15 +4548,17 @@ function openVersionAdvisor(instanceId, options = {}) {
     primary.disabled = copying;
     if (step === "pick") {
       setLabel(secondary, "Close");
-      setLabel(primary, chosen ? `Make a ${chosen.version} copy of ${shortName}` : "Pick a version");
+      setLabel(primary, chosen ? `Next: Minecraft ${chosen.version}` : "Pick a version");
       primary.disabled = !chosen;
     } else if (step === "confirm" || step === "running") {
       setLabel(secondary, "Back");
-      setLabel(primary, step === "running" ? "Making the copy…" : "Make the copy");
+      const label = action === "switch" ? `Switch ${shortName} to ${chosen.version}` : "Make the new instance";
+      setLabel(primary, step === "running" ? (action === "switch" ? "Switching…" : "Making the new instance…") : label);
     } else {
-      setLabel(secondary, "Not now");
-      secondary.hidden = !(server && server.play);
-      setLabel(primary, server && server.play ? `Play ${server.name}` : "Done");
+      // The result: one big Play, and a small Close.
+      setLabel(secondary, "Close");
+      setLabel(primary, server && server.play ? `Play ${server.name}` : "Play");
+      primary.disabled = !(result && result.instance);
     }
   }
   const paintButtonsSoon = () => setTimeout(paintButtons, 0);
@@ -4617,6 +4631,8 @@ function openVersionAdvisor(instanceId, options = {}) {
       bestBox.textContent = `${inst.name} is already on the best version for its mods${accepts ? " and this server" : ""}.`;
     }
     const select = (c, item) => {
+      // Another version: start again from what is recommended for it.
+      if (!chosen || chosen.version !== c.version) action = choicesFor(c).recommended;
       chosen = c;
       list.querySelectorAll(".pick-item").forEach((x) => x.classList.toggle("selected", x === item));
       paintGroups();
@@ -4737,7 +4753,7 @@ function openVersionAdvisor(instanceId, options = {}) {
     return ul;
   };
 
-  /* step 2: say exactly what the copy does */
+  /* step 2: two plain choices - switch THIS instance, or make a new one */
   const stepNote = el("div", "cp-note");
   function showConfirm(error) {
     step = "confirm";
@@ -4745,28 +4761,74 @@ function openVersionAdvisor(instanceId, options = {}) {
     stepView.hidden = false;
     stepView.textContent = "";
     const v = chosen.version;
+    const choices = choicesFor(chosen);
+    if (!choices[action] || !choices[action].allowed) action = choices.recommended;
     const loader = loaderLabel(inst);
-    const unknown = (advice && advice.unknown) || [];
-    stepView.appendChild(el("p", null, `This makes a new instance. ${inst.name} itself is not changed.`));
-    stepView.appendChild(
-      facts([
-        `New instance: ${newName()}, on Minecraft ${v} with ${loader}.`,
-        chosen.total ? `${chosen.supported} of ${chosen.total} ${plural(chosen.total, "mod")} ${chosen.supported === 1 ? "is" : "are"} downloaded again in ${chosen.supported === 1 ? "its" : "their"} ${v} ${plural(chosen.supported, "build")}, with anything those builds need.` : null,
-        chosen.missing && chosen.missing.length ? `Left out, because there is no ${v} build: ${chosen.missing.join(", ")}.` : null,
-        unknown.length ? `Left out, because Reminth can't look ${unknown.length === 1 ? "it" : "them"} up (not from Modrinth): ${unknown.join(", ")}. Add ${unknown.length === 1 ? "it" : "them"} by hand if there is a ${v} build.` : null,
-        "Your settings, server list, resource packs, shaders and mod settings are carried over.",
-        `Worlds stay in ${inst.name}. Opening a world in a different version can damage it, so they are not copied.`,
-        chosen.server === false ? "The server you checked does not take this version." : null,
-      ])
+    const existing = existingOn(v);
+
+    const cards = el("div", "adv-choices");
+    cards.setAttribute("role", "radiogroup");
+    const card = (id, title, sentence, extra) => {
+      const c = el("button", "adv-choice" + (action === id ? " selected" : ""));
+      c.type = "button";
+      c.setAttribute("role", "radio");
+      c.setAttribute("aria-checked", action === id ? "true" : "false");
+      const allowed = choices[id].allowed;
+      c.disabled = !allowed;
+      c.appendChild(el("span", "adv-radio"));
+      const main = el("div", "adv-choice-main");
+      const top = el("b", null, title);
+      if (choices.recommended === id) top.appendChild(el("span", "tag emerald", "Recommended"));
+      main.appendChild(top);
+      main.appendChild(el("span", null, allowed ? sentence : choices[id].why));
+      if (allowed && extra) main.appendChild(extra);
+      c.appendChild(main);
+      c.onclick = () => {
+        if (!allowed || action === id) return;
+        action = id;
+        showConfirm();
+      };
+      return c;
+    };
+    cards.appendChild(
+      card(
+        "switch",
+        `Switch this instance to ${v}`,
+        `Your mods are updated to fit. Mods with no build for ${v} are turned off (you can turn them on again). Your worlds stay. A backup of every replaced mod is kept.`
+      )
     );
-    stepView.appendChild(el("p", "set-note", "It can take a few minutes. You can keep using Reminth meanwhile, but this window stays open until it's done."));
+    const copyExtra = el("div", "adv-choice-extra");
+    copyExtra.appendChild(el("span", null, `Reminth will make a new instance: ${newName()} — Minecraft ${v} ${loader}. Your other instances are not changed.`));
+    cards.appendChild(card("copy", `Keep this one as it is and make a new instance on ${v}`, "Nothing here changes. It uses more disk space; worlds are not copied.", action === "copy" ? copyExtra : null));
+    stepView.appendChild(cards);
+
+    // Already have one on that version: use it instead of making another.
+    if (action === "copy" && existing) {
+      const reuse = el("div", "adv-reuse");
+      reuse.appendChild(el("span", null, `${existing.name} is already on Minecraft ${v} with ${loader}.`));
+      const use = button("btn outline sm", `Use ${existing.name}`);
+      use.onclick = async () => {
+        if (copying) return;
+        copied = existing;
+        await selectInstance(existing.id, options.open !== false);
+        playAfter = Boolean(server && server.play);
+        handle.close();
+      };
+      reuse.appendChild(use);
+      stepView.appendChild(reuse);
+    }
+
+    stepView.appendChild(el("h4", "adv-what", `What happens to your mods on ${v}:`));
+    stepView.appendChild(groupsView(chosen, action));
+    if (chosen.server === false) stepView.appendChild(el("p", "set-note warn-note", "The server you checked does not take this version."));
+    stepView.appendChild(el("p", "set-note", action === "switch" ? "It can take a minute or two. This window stays open until it's done." : "It can take a few minutes. This window stays open until it's done."));
     stepNote.textContent = error || "";
     stepNote.hidden = !error;
     stepView.appendChild(stepNote);
     paintButtonsSoon();
   }
 
-  /* step 3: the copy, with its progress */
+  /* step 3: doing it, with its progress */
   const prog = el("div", "progress modal-progress");
   const progRow = el("div", "progress-row");
   const progStage = el("span", null, "Starting…");
@@ -4789,12 +4851,18 @@ function openVersionAdvisor(instanceId, options = {}) {
   }
   compatProgressListeners.add(onProgress);
 
-  async function runCopy() {
+  async function run() {
     if (copying || !chosen) return false;
+    // Fixed at the click: the version, the choice, the name.
+    const target = chosen;
+    const doing = action;
+    const name = newName();
+    if (doing === "switch" && state.running.has(instanceId)) {
+      showConfirm("Close the game first — Windows won't let files in use be replaced.");
+      return false;
+    }
     copying = true;
     step = "running";
-    const target = chosen;
-    const name = newName();
     stepNote.hidden = true;
     progStage.textContent = "Starting…";
     progPct.textContent = "";
@@ -4804,13 +4872,21 @@ function openVersionAdvisor(instanceId, options = {}) {
     secondary.disabled = true;
     paintButtonsSoon();
     try {
-      const result = await window.reminth.copyInstanceToVersion(instanceId, { mcVersion: target.version, name });
-      copied = result.instance;
-      await loadInstances();
-      await selectInstance(copied.id, options.open !== false);
-      showDone(result, target);
+      if (doing === "switch") {
+        result = await window.reminth.switchInstanceVersion(instanceId, { mcVersion: target.version });
+        copied = result.instance;
+        await loadInstances();
+        if (content.instanceId === instanceId) await loadContent(instanceId);
+        runCompatCheck(instanceId, true);
+      } else {
+        result = await window.reminth.copyInstanceToVersion(instanceId, { mcVersion: target.version, name });
+        copied = result.instance;
+        await loadInstances();
+        await selectInstance(copied.id, options.open !== false);
+      }
+      showDone(doing, target);
     } catch (err) {
-      showConfirm(`The copy wasn't made: ${friendlyError(err.message)}`);
+      showConfirm(`${doing === "switch" ? "Nothing was changed" : "The new instance wasn't made"}: ${friendlyError(err.message)}`);
     } finally {
       copying = false;
       paintButtonsSoon();
@@ -4819,31 +4895,60 @@ function openVersionAdvisor(instanceId, options = {}) {
   }
 
   /* step 4: what happened */
-  function showDone(result, target) {
+  function showDone(doing, target) {
     step = "done";
     stepView.textContent = "";
-    const installed = result.installed || [];
-    const skipped = result.skipped || [];
-    const unknown = result.unknown || [];
-    stepView.appendChild(el("p", null, `${result.instance.name} is ready on Minecraft ${target.version}. The game files download the first time you press Play.`));
-    stepView.appendChild(
-      facts([
-        `${installed.length} ${plural(installed.length, "mod")} added.`,
-        skipped.length ? `${skipped.length} left out:` : null,
-      ])
-    );
-    if (skipped.length) {
-      const box = el("div", "adv-skipped");
-      for (const s of skipped) {
-        const row = el("div", "vpick-dep");
-        row.appendChild(el("b", null, s.title));
-        row.appendChild(el("span", "vpick-dep-state", s.why || "Not added"));
-        box.appendChild(row);
-      }
-      stepView.appendChild(box);
+    const r = result;
+    stepView.appendChild(el("h3", "adv-done", `Done — ${r.instance.name} is on Minecraft ${target.version}.`));
+    if (r.incomplete) stepView.appendChild(el("p", "set-note warn-note", r.incomplete));
+    const updated = doing === "switch" ? r.updated || [] : r.installed || [];
+    const off = doing === "switch" ? r.turnedOff || [] : (r.skipped || []).map((x) => ({ title: x.title, why: x.why }));
+    const unknown = r.unknown || [];
+    const section = (title, open) => {
+      const d = el("details", "adv-group");
+      d.open = open;
+      d.appendChild(el("summary", null, title));
+      stepView.appendChild(d);
+      return d;
+    };
+    if (updated.length) {
+      const d = section(`${doing === "switch" ? "Updated" : "Added"} (${updated.length})`, false);
+      const ul = el("ul", "adv-group-names");
+      updated.forEach((t) => ul.appendChild(el("li", null, t)));
+      d.appendChild(ul);
     }
-    if (unknown.length) stepView.appendChild(el("p", "set-note", `Not from Modrinth, so not copied: ${unknown.join(", ")}.`));
+    if (doing === "switch" && r.kept && r.kept.length) {
+      const d = section(`Already fitting, left as they were (${r.kept.length})`, false);
+      const ul = el("ul", "adv-group-names");
+      r.kept.forEach((t) => ul.appendChild(el("li", null, t)));
+      d.appendChild(ul);
+    }
+    if (off.length) {
+      const d = section(`${doing === "switch" ? "Turned off" : "Left out"} (${off.length})`, true);
+      for (const m of off) d.appendChild(offRow(m, doing, target));
+    }
+    if (unknown.length) {
+      const d = section(`Not checked (${unknown.length})`, unknown.length <= 6);
+      d.appendChild(el("p", "adv-group-what", doing === "switch" ? "Not from Modrinth (or Modrinth didn't answer), so Reminth left them as they were." : "Not from Modrinth, so they weren't copied. Add them by hand if they have a version for this Minecraft."));
+      const ul = el("ul", "adv-group-names");
+      unknown.forEach((t) => ul.appendChild(el("li", null, t)));
+      d.appendChild(ul);
+    }
+    if (r.failed && r.failed.length) {
+      stepView.appendChild(el("p", "set-note warn-note", `Couldn't change ${r.failed.length}: ${r.failed.map((f) => `${f.title} (${friendlyError(f.error)})`).join("; ")}`));
+    }
+    if (doing === "copy") stepView.appendChild(el("p", "set-note", "The game files download the first time you press Play."));
     paintButtonsSoon();
+  }
+
+  /** One mod that was turned off (or left out): its name, why, and what to do about it. */
+  function offRow(m, doing) {
+    const row = el("div", "adv-off");
+    const text = el("div", "adv-off-text");
+    text.appendChild(el("b", null, m.title));
+    text.appendChild(el("span", null, m.why || "No version for this Minecraft"));
+    row.appendChild(text);
+    return row;
   }
 
   paintButtons();

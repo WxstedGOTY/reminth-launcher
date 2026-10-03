@@ -1321,13 +1321,18 @@ const supportCache = new Map(); // "project|loaders" -> { at, versions: Set }
 const SUPPORT_TTL_MS = 15 * 60 * 1000;
 
 /** Every release a project has a build for on these loaders. */
-async function supportedReleases(projectId, loaders, api) {
-  const key = projectId + "|" + loaders.join(",");
+async function supportedReleases(projectId, loaders, api, { stableOnly = false } = {}) {
+  const key = projectId + "|" + loaders.join(",") + (stableOnly ? "|stable" : "");
   const hit = supportCache.get(key);
   if (hit && Date.now() - hit.at < SUPPORT_TTL_MS) return hit.versions;
   const versions = await api.getProjectVersions(projectId, { loaders });
   const set = new Set();
-  for (const v of versions || []) for (const g of v.game_versions || []) if (parseMcVersion(g)) set.add(g);
+  for (const v of versions || []) {
+    // stableOnly: a version only counts when it has a build Reminth would
+    // switch to by itself - never a beta or alpha.
+    if (stableOnly && (v.version_type === "beta" || v.version_type === "alpha")) continue;
+    for (const g of v.game_versions || []) if (parseMcVersion(g)) set.add(g);
+  }
   supportCache.set(key, { at: Date.now(), versions: set });
   if (supportCache.size > 2000) supportCache.delete(supportCache.keys().next().value);
   return set;
@@ -1403,7 +1408,7 @@ function rankVersions(mods, { accepts = null, loaderVersions = null, current = n
  *   best: candidate | null               first one that fits everything (and the server)
  * }
  */
-async function adviseVersions(instance, { accepts = null, loaderVersions = null, deps = {} } = {}) {
+async function adviseVersions(instance, { accepts = null, loaderVersions = null, target = null, deps = {} } = {}) {
   const api = deps.modrinth || modrinth;
   const listAll = deps.listAll || content.listAll;
   const gameDir = instance.gameDir;
@@ -1425,20 +1430,27 @@ async function adviseVersions(instance, { accepts = null, loaderVersions = null,
   if (hashes.size) found = (await api.getVersionsFromHashes([...new Set(hashes.values())], "sha1")) || {};
 
   const projects = new Map(); // project id -> title
+  const filesOf = new Map(); // project id -> the jar files that are it
   const unknown = [];
+  const unknownFiles = [];
   for (const item of jars) {
     const v = hashes.has(item) ? found[hashes.get(item)] : null;
     const pid = (v && v.project_id) || item.projectId || null;
     if (pid) {
       if (!projects.has(pid)) projects.set(pid, displayName(item));
-    } else unknown.push(displayName(item));
+      if (!filesOf.has(pid)) filesOf.set(pid, []);
+      filesOf.get(pid).push(item.file);
+    } else {
+      unknown.push(displayName(item));
+      unknownFiles.push({ title: displayName(item), file: item.file });
+    }
   }
 
   const ids = [...projects.keys()];
   let firstFailure = null;
   const sets = wanted.length
     ? await mapLimit(ids, 5, (pid) =>
-        supportedReleases(pid, wanted, api).catch((err) => {
+        supportedReleases(pid, wanted, api, { stableOnly: true }).catch((err) => {
           if (!firstFailure) firstFailure = err;
           throw err;
         })
@@ -1454,6 +1466,18 @@ async function adviseVersions(instance, { accepts = null, loaderVersions = null,
   const failed = mods.filter((m) => !m.versions).map((m) => m.title);
   const candidates = rankVersions(mods, { accepts, loaderVersions, current: instance.mcVersion });
   const best = candidates.find((c) => c.supported === c.total && c.total > 0 && c.server !== false) || null;
+  // For one chosen version: exactly which mods (and their files) have no
+  // stable build for it - the "switch this instance" step turns those off.
+  const withFiles = (m) => ({ projectId: m.projectId, title: m.title, files: filesOf.get(m.projectId) || [] });
+  const targetInfo =
+    target && parseMcVersion(target)
+      ? {
+          version: target,
+          missing: mods.filter((m) => m.versions && !m.versions.has(target)).map(withFiles),
+          failed: mods.filter((m) => !m.versions).map(withFiles),
+          unknown: unknownFiles,
+        }
+      : null;
   return {
     loader: instance.loader,
     mcVersion: instance.mcVersion,
@@ -1464,6 +1488,7 @@ async function adviseVersions(instance, { accepts = null, loaderVersions = null,
     failed,
     candidates,
     best,
+    ...(targetInfo ? { target: targetInfo } : {}),
   };
 }
 

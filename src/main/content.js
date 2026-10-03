@@ -617,7 +617,9 @@ async function listFolder(gameDir, kind, world, manifest) {
       valid = isDir || effective.endsWith(".zip");
       if (!valid) problem = "Not a pack — needs to be a .zip or a folder";
     }
-    const tracked = manifest.files[relKey(gameDir, full.replace(/\.disabled$/i, ""))] || null;
+    const key = relKey(gameDir, full.replace(/\.disabled$/i, ""));
+    const tracked = manifest.files[key] || null;
+    const off = disabled && manifest.turnedOff && typeof manifest.turnedOff === "object" ? manifest.turnedOff[key] : null;
     const item = {
       kind,
       world: world || null,
@@ -636,6 +638,8 @@ async function listFolder(gameDir, kind, world, manifest) {
       icon: null,
       name: null,
       modVersion: null,
+      // Switched off by Reminth (a version change): why, in plain words.
+      offReason: off && typeof off.reason === "string" ? off.reason : null,
     };
     if (kind === "mod" && valid) {
       const meta = await readJarMeta(full, stat);
@@ -773,7 +777,34 @@ async function setEnabled(gameDir, { kind, world, file }, enabled) {
   if (enabled === !isDisabled) return { file };
   const target = enabled ? current.replace(/\.disabled$/i, "") : current + ".disabled";
   await fsp.rename(current, target);
+  // Turned on again by the player: "turned off by Reminth because…" no longer applies.
+  if (enabled) await clearOffReason(gameDir, current);
   return { file: path.basename(target) };
+}
+
+/* "Turned off by Reminth: <why>" - kept in content.json (turnedOff), keyed
+   like its files (the name without .disabled), until the player turns the
+   file on again or removes it. */
+
+/** Remembers why Reminth switched a file off (or forgets it with reason null). */
+async function setOffReason(gameDir, { kind, world, file }, reason) {
+  const full = within(folderFor(gameDir, kind, world), safeFileName(file));
+  const key = relKey(gameDir, full.replace(/\.disabled$/i, ""));
+  await updateManifest(gameDir, (manifest) => {
+    if (reason) {
+      if (!manifest.turnedOff || typeof manifest.turnedOff !== "object" || Array.isArray(manifest.turnedOff)) manifest.turnedOff = {};
+      manifest.turnedOff[key] = { reason: String(reason).slice(0, 160), at: new Date().toISOString() };
+    } else if (manifest.turnedOff && typeof manifest.turnedOff === "object") delete manifest.turnedOff[key];
+  });
+}
+
+async function clearOffReason(gameDir, full) {
+  const key = relKey(gameDir, full.replace(/\.disabled$/i, ""));
+  const manifest = await readManifest(gameDir);
+  if (!manifest.turnedOff || !manifest.turnedOff[key]) return; // nothing to forget: no write
+  await updateManifest(gameDir, (m) => {
+    if (m.turnedOff && typeof m.turnedOff === "object") delete m.turnedOff[key];
+  });
 }
 
 /** Moves to the Recycle Bin (via the trash function main.js passes in), so a mis-click is undoable. */
@@ -782,7 +813,9 @@ async function remove(gameDir, { kind, world, file }, trash) {
   const full = within(dir, safeFileName(file));
   await trash(full);
   await updateManifest(gameDir, (manifest) => {
-    delete manifest.files[relKey(gameDir, full.replace(/\.disabled$/i, ""))];
+    const key = relKey(gameDir, full.replace(/\.disabled$/i, ""));
+    delete manifest.files[key];
+    if (manifest.turnedOff && typeof manifest.turnedOff === "object") delete manifest.turnedOff[key];
   });
   return { ok: true };
 }
@@ -1824,6 +1857,7 @@ async function lookupCreators(gameDir) {
 module.exports = {
   KINDS,
   listAll,
+  setOffReason,
   watchInstance,
   unwatch,
   setEnabled,
