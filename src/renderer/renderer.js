@@ -561,7 +561,7 @@ function paintUpdate(next) {
     idle: "Updates download by themselves and install when you restart Reminth.",
     dev: s.message || "Updates only work in the installed app.",
     checking: "Checking…",
-    "up-to-date": `You're on the latest version (${s.version || s.currentVersion || (state.info && state.info.appVersion) || ""}).`,
+    "up-to-date": `You're on the latest version (${s.currentVersion || s.version || (state.info && state.info.appVersion) || ""}).`,
     downloading: `Downloading ${v}… ${Number.isFinite(s.percent) ? s.percent + "%" : ""}`.trim(),
     ready: playing ? `${v} is ready. Close Minecraft first.` : `${v} is ready.`,
     error: s.message || "Couldn't check for updates.",

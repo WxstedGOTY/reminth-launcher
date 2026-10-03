@@ -109,6 +109,43 @@ test("manual check, nothing new: Checking -> up to date (1.3.0)", async () => {
   assert.deepEqual(states(), ["checking", "checking", "up-to-date"]);
 });
 
+test("up to date names the RUNNING version: feed equal, feed older, feed missing", async () => {
+  for (const [label, info, feedVersion] of [
+    ["feed equal", { version: "1.3.0" }, "1.3.0"],
+    ["feed older (only an old release published)", { version: "1.1.1" }, "1.1.1"],
+    ["feed missing", null, null],
+    ["feed without a version", {}, null],
+  ]) {
+    const { u, sent } = setup({
+      script: async (au) => {
+        au.emit("update-not-available", info);
+        return {};
+      },
+    });
+    u.start();
+    const r = await u.check();
+    assert.equal(r.state, "up-to-date", label);
+    assert.equal(r.version, "1.3.0", label);
+    assert.equal(r.currentVersion, "1.3.0", label);
+    assert.equal(r.feedVersion, feedVersion, label);
+    const told = sent.filter(([, p]) => p.state === "up-to-date").map(([, p]) => p.version);
+    assert.deepEqual(told, ["1.3.0"], label);
+  }
+});
+
+test("feed newer: downloading names the NEW version, the running one stays currentVersion", async () => {
+  const { u, sent } = setup({
+    script: async (au) => {
+      au.emit("update-available", { version: "1.4.0" });
+      return {};
+    },
+  });
+  u.start();
+  const r = await u.check();
+  assert.deepEqual([r.state, r.version, r.currentVersion], ["downloading", "1.4.0", "1.3.0"]);
+  assert.ok(!sent.some(([, p]) => p.state === "up-to-date"));
+});
+
 test("manual check, new version: downloading with progress, then ready", async () => {
   const { u, sent } = setup({ script: newVersion });
   u.start();

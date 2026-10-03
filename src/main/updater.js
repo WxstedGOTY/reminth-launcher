@@ -90,7 +90,10 @@ function createUpdater({ app, loadUpdater, notify = () => {}, isGameRunning = ()
     });
     au.on("update-not-available", (info) => {
       log(`up to date (latest ${info && info.version})`);
-      set({ state: "up-to-date", version: (info && info.version) || safeVersion() }, { tell: manual });
+      // "Up to date" names the version that is RUNNING: the feed's newest can
+      // be older (1.4.0 checking a feed whose only release is 1.1.1). The
+      // feed's number is kept apart, only for diagnostics.
+      set({ state: "up-to-date", version: safeVersion(), feedVersion: (info && typeof info.version === "string" && info.version) || null }, { tell: manual });
       manual = false;
     });
     au.on("update-available", (info) => {
