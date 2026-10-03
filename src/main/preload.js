@@ -59,6 +59,14 @@ contextBridge.exposeInMainWorld("reminth", {
   checkUpdates: (instanceId) => ipcRenderer.invoke("content:checkUpdates", instanceId),
   applyUpdates: (instanceId, updates) => ipcRenderer.invoke("content:applyUpdates", instanceId, updates),
 
+  // compatibility help (compat.js)
+  compatCheck: (instanceId, options) => ipcRenderer.invoke("compat:check", instanceId, options || {}),
+  compatAdvise: (instanceId, options) => ipcRenderer.invoke("compat:advise", instanceId, options || {}),
+  compatSupport: (instanceId, projectId) => ipcRenderer.invoke("compat:support", instanceId, projectId),
+  compatServerVersions: (address) => ipcRenderer.invoke("compat:serverVersions", address),
+  copyInstanceToVersion: (instanceId, request) => ipcRenderer.invoke("compat:copyToVersion", instanceId, request),
+  onCompatProgress: on("compat:progress"),
+
   // what the player has played (read-only, from their own save files)
   recent: () => ipcRenderer.invoke("game:recent"),
   instanceData: (instanceId) => ipcRenderer.invoke("game:instanceData", instanceId),
@@ -72,6 +80,10 @@ contextBridge.exposeInMainWorld("reminth", {
   searchServers: (params) => ipcRenderer.invoke("servers:search", params),
   pingServers: (addresses) => ipcRenderer.invoke("servers:ping", addresses),
   addServer: (instanceId, server) => ipcRenderer.invoke("servers:add", instanceId, server),
+
+  // performance help (main.js "perf:*")
+  perfInfo: (instanceId) => ipcRenderer.invoke("perf:info", instanceId),
+  perfGpuHelp: () => ipcRenderer.invoke("perf:gpuHelp"),
 
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
@@ -104,6 +116,7 @@ contextBridge.exposeInMainWorld("reminth", {
   onPlayCrashed: on("play:crashed"),
   onPlayStarted: on("play:started"),
   onPlayExited: on("play:exited"),
+  onSafeMode: on("play:safeMode"),
   onContentChanged: on("content:changed"),
   onContentProgress: on("content:progress"),
   onModpackProgress: on("modpack:progress"),

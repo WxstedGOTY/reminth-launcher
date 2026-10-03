@@ -55,6 +55,44 @@ function assertNoUnsafeEntries(entryList) {
   }
 }
 
+// How much a pack's own files (overrides) may unpack to. Real packs are a
+// few hundred MB at the very most; without a ceiling a tiny crafted
+// .mrpack that claims terabytes of zeros would fill the disk.
+const MAX_UNPACKED_BYTES = 4 * 1024 * 1024 * 1024;
+const MAX_PACK_ENTRIES = 200000;
+
+/** Throws if the archive would unpack to more than a pack reasonably holds. Sizes are the ones the archive declares. */
+function assertReasonableSize(entryList) {
+  if (entryList.length > MAX_PACK_ENTRIES) {
+    throw new Error(`This pack holds ${entryList.length} files, more than any real modpack. Refusing to unpack it.`);
+  }
+  let total = 0;
+  for (const e of entryList) total += Number(e.size) || 0;
+  if (total > MAX_UNPACKED_BYTES) {
+    throw new Error(`This pack would unpack to ${(total / 1024 ** 3).toFixed(1)} GB, more than the ${MAX_UNPACKED_BYTES / 1024 ** 3} GB limit. Refusing to unpack it.`);
+  }
+}
+
+/** Pure: true if a pack file path lands in the instance's ".reminth" folder, however it is spelled. */
+function isReminthPath(rel) {
+  // Resolved the way the file system will: "./.reminth/x" and
+  // "mods/../.reminth/x" are the same folder. Windows also treats
+  // ".Reminth" and ".reminth. " as that folder (case, trailing dots/spaces).
+  const first = path.posix.normalize(String(rel || "").replace(/\\/g, "/")).split("/").find((seg) => seg && seg !== ".");
+  return /^\.reminth[. ]*$/i.test(first || "");
+}
+
+/**
+ * Throws if any file the pack lists would be written into ".reminth". That
+ * folder is Reminth's own bookkeeping (which files it may update or delete);
+ * copyTree already keeps overrides out of it, and the download list must not
+ * be a second way in.
+ */
+function assertNoReminthPaths(files) {
+  const bad = (Array.isArray(files) ? files : []).find((f) => f && isReminthPath(f.path));
+  if (bad) throw new Error(`This modpack tries to write into Reminth's own folder (${String(bad.path).slice(0, 80)}). Refusing to install it.`);
+}
+
 function assertPackUrl(url) {
   const parsed = new URL(String(url));
   if (parsed.protocol !== "https:" || !ALLOWED_PACK_HOSTS.some((re) => re.test(parsed.hostname))) {
@@ -95,9 +133,20 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
       report(`Downloading ${project.title}`, got, total || packFile.size || 1)
     );
 
-    const zip = await zipread.openZip(packPath);
+    // strict: this archive is handed to extract-zip below, so the scan must
+    // see exactly the entries that will be unpacked (see zipread.openZip).
+    const zip = await zipread.openZip(packPath, { strict: true });
     let index;
     try {
+      // extract-zip (GHSA-jmr9-qjv8-65gv / GHSA-7pqw-9j4j-h8q3) can be tricked
+      // by a symlink entry into writing later entries outside extractDir, and
+      // unpacks whatever size the archive holds - so the archive is scanned
+      // and rejected here, before an instance is made or anything unpacked.
+      // (extract-zip's reader stops at an entry that turns out bigger than
+      // it declared, so the declared sizes are what can reach the disk.)
+      const entryList = zip.list();
+      assertNoUnsafeEntries(entryList);
+      assertReasonableSize(entryList);
       const raw = await zip.read("modrinth.index.json");
       if (!raw) throw new Error("This file isn't a Modrinth modpack (no modrinth.index.json).");
       index = JSON.parse(raw.toString("utf8"));
@@ -108,12 +157,18 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
     const target = loaderFromDependencies(index.dependencies);
     if (target.error) throw new Error(target.error);
     if (!instances.isValidVersionId(target.mcVersion)) throw new Error("The pack names an invalid Minecraft version.");
+    // Checked before the instance exists or a single file is fetched.
+    assertNoReminthPaths(index.files);
 
     instance = await instances.create({
       name: name || project.title,
       mcVersion: target.mcVersion,
       loader: target.loader,
       loaderVersion: target.loaderVersion,
+      // The pack's author already chose its mods (often their own Sodium
+      // fork or a different renderer): Reminth's performance pack isn't
+      // added on top. The player can switch it on in the instance's settings.
+      performanceMods: false,
       modpack: {
         projectId: project.id,
         versionId: version.id,
@@ -145,17 +200,7 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
 
     // 2. overrides/ then client-overrides/ (the second wins on conflicts, per spec).
     report("Copying pack settings", 0, 1);
-    // extract-zip (GHSA-jmr9-qjv8-65gv / GHSA-7pqw-9j4j-h8q3) can be tricked
-    // by a symlink entry into writing later entries outside extractDir, so
-    // the archive is pre-scanned and rejected before extract-zip ever runs.
-    const zipForScan = await zipread.openZip(packPath);
-    let entryList;
-    try {
-      entryList = zipForScan.list();
-    } finally {
-      await zipForScan.close();
-    }
-    assertNoUnsafeEntries(entryList);
+    // (The archive was scanned for unsafe entries and size above.)
     const extractDir = path.join(tmpDir, "x");
     const extractZip = require("extract-zip");
     await extractZip(packPath, { dir: extractDir });
@@ -164,13 +209,13 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
     }
 
     // Remember what the pack installed so the instance's lists show real names.
-    const manifest = await content.readManifest(gameDir);
-    for (const f of files) {
-      const rel = String(f.path).split("\\").join("/");
-      const kind = rel.startsWith("mods/") ? "mod" : rel.startsWith("resourcepacks/") ? "resourcepack" : rel.startsWith("shaderpacks/") ? "shader" : null;
-      if (kind) manifest.files[rel] = { kind, world: null, projectId: null, versionId: null, versionNumber: null, title: null, iconUrl: null, sha1: f.hashes.sha1, installedAt: Date.now(), fromPack: project.id };
-    }
-    await content.writeManifest(gameDir, manifest);
+    await content.updateManifest(gameDir, (manifest) => {
+      for (const f of files) {
+        const rel = String(f.path).split("\\").join("/");
+        const kind = rel.startsWith("mods/") ? "mod" : rel.startsWith("resourcepacks/") ? "resourcepack" : rel.startsWith("shaderpacks/") ? "shader" : null;
+        if (kind) manifest.files[rel] = { kind, world: null, projectId: null, versionId: null, versionNumber: null, title: null, iconUrl: null, sha1: f.hashes.sha1, installedAt: Date.now(), fromPack: project.id };
+      }
+    });
 
     report("Done", 1, 1);
     return instance;
@@ -183,7 +228,13 @@ async function installModpack({ projectId, versionId, name }, onProgress) {
   }
 }
 
-async function copyTree(src, destRoot) {
+/**
+ * Copies a pack's overrides folder into the game folder. A top-level
+ * ".reminth" folder is never copied: that is where Reminth keeps its own
+ * notes about which files it may update or delete (content.json,
+ * managed-mods.json), and a pack must not be able to plant those.
+ */
+async function copyTree(src, destRoot, top = true) {
   let entries;
   try {
     entries = await fsp.readdir(src, { withFileTypes: true });
@@ -191,11 +242,14 @@ async function copyTree(src, destRoot) {
     return; // pack has no such folder
   }
   for (const entry of entries) {
+    // Any spelling: Windows treats ".Reminth" and ".reminth" as one folder,
+    // and ignores trailing dots and spaces in a name.
+    if (top && /^\.reminth[. ]*$/i.test(entry.name)) continue;
     const from = path.join(src, entry.name);
     const to = content.within(destRoot, entry.name);
     if (entry.isDirectory()) {
       await fsp.mkdir(to, { recursive: true });
-      await copyTree(from, to);
+      await copyTree(from, to, false);
     } else if (entry.isFile()) {
       await fsp.mkdir(path.dirname(to), { recursive: true });
       await fsp.copyFile(from, to);
@@ -203,4 +257,4 @@ async function copyTree(src, destRoot) {
   }
 }
 
-module.exports = { installModpack, loaderFromDependencies, resolveVersion, isUnsafeEntryName, assertNoUnsafeEntries };
+module.exports = { installModpack, loaderFromDependencies, resolveVersion, isUnsafeEntryName, assertNoUnsafeEntries, assertReasonableSize, MAX_UNPACKED_BYTES, copyTree, isReminthPath, assertNoReminthPaths };

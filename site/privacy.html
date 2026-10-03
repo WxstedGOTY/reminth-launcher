@@ -23,7 +23,7 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 1 October 2026 · Version 3</p>
+    <p class="updated">Last updated: 2 October 2026 · Version 5</p>
 
     <div class="summary">
       <b>The short version.</b> Reminth has no servers, no accounts of its own, no analytics, no crash
@@ -62,22 +62,17 @@
     <h3>a) Visiting this website</h3>
     <p>
       The site is a static page. It sets no cookies, uses no local storage, runs no analytics, trackers or
-      advertising, and has no forms.
+      advertising, and has no forms. It loads no third-party fonts, scripts or images.
     </p>
     <ul>
       <li>
-        <b>Hosting (Netlify).</b> The site is hosted by Netlify, Inc. (USA), which acts as our processor.
+        <b>Hosting (Cloudflare).</b> The site (<code>reminth.pages.dev</code>) is hosted on Cloudflare Pages by Cloudflare, Inc. (USA), which acts as our processor.
         Like any web server, it receives your IP address, browser user agent, the page requested and the time,
         and keeps short-lived server logs. <b>Purpose:</b> delivering the site and protecting it from abuse.
         <b>Legal basis:</b> our legitimate interest in running a working, secure website (GDPR Art. 6(1)(f)).
-        <b>Retention:</b> as set by Netlify for its logs; we do not export, combine or analyse them.
-        <b>Transfer outside the EU:</b> covered by Netlify's data processing agreement and the safeguards it
+        <b>Retention:</b> as set by Cloudflare for its logs; we do not export, combine or analyse them.
+        <b>Transfer outside the EU:</b> covered by Cloudflare's data processing agreement and the safeguards it
         provides, such as the EU Standard Contractual Clauses.
-      </li>
-      <li>
-        <b>Fonts (Google).</b> The main page currently loads its typefaces from Google Fonts
-        (fonts.googleapis.com and fonts.gstatic.com), which means your browser sends your IP address and user
-        agent to Google LLC when the page loads. The legal pages load nothing external.
       </li>
       <li>
         <b>Downloading Reminth (GitHub).</b> The download button points at a GitHub release. Downloading is a
@@ -104,24 +99,41 @@
 
     <h2>4. The launcher: what stays on your computer</h2>
     <p>
-      Everything the launcher saves lives on your own computer, mainly in <code>%APPDATA%\Reminth</code>.
-      None of it is sent to us. We have no access to it.
+      Everything the launcher saves lives on your own computer, mainly in <code>%APPDATA%\Reminth</code>, which
+      also holds your instance folders. None of it is uploaded or sent to us. We have no access to it.
     </p>
     <ul>
-      <li><b>Your sign-in tokens</b> (<code>account.json</code>), so you don't have to sign in every time.
-        They are encrypted with your Windows account's own key (DPAPI, via Electron's safeStorage) and are only
-        ever sent to Microsoft and Mojang to keep you signed in.</li>
-      <li><b>Your settings and instances</b>: memory, accent colour, and each instance's version, loader and options.</li>
+      <li><b>Your sign-in tokens</b> (<code>account.json</code> and a backup copy of it): your Microsoft and
+        Minecraft sign-in tokens, your Minecraft username and player ID, so you don't have to sign in every
+        time. The file is encrypted by Windows with your Windows account's own key (DPAPI, via Electron's
+        safeStorage). If Windows encryption is not available on a PC, the tokens are not saved at
+        all and you sign in again the next time you start Reminth. The tokens are only ever sent to Microsoft and Mojang to keep you signed in.</li>
+      <li><b>Your settings and instance list</b> (<code>settings.json</code>, <code>instances.json</code>):
+        memory, accent colour, streamer-mode options, and each instance's name, version, loader, options, play
+        time and when you last played it.</li>
+      <li><b>Bookkeeping inside each instance</b> (a <code>.reminth</code> folder in the instance): which
+        files Reminth installed there and which Modrinth project each one came from, so it can update or
+        remove its own copies without touching yours.</li>
       <li><b>Skins</b>: a cached copy of your current skin and any skins you save to your library.</li>
-      <li><b>Game logs</b>: an archive of your game logs, so older sessions stay viewable in the Logs tab.</li>
       <li><b>Caches of public information</b>: a catalogue of public Modrinth listings, and which Modrinth
         project each of your installed files is and who made it (creator name, profile picture address, icon).</li>
-      <li><b>An update log</b> (<code>updater.log</code>) recording update checks.</li>
-      <li><b>The game itself</b>: Minecraft, mod loaders, Java, your mods and your worlds.</li>
-      <li><b>Streamer mode</b> (only if you turn it on): screenshots and saved clips go to
-        <code>Videos\Reminth</code>, and a short rolling recording buffer of the Minecraft window is kept in
-        <code>%APPDATA%\Reminth\replay-buffer</code> until you save a clip or it is overwritten. It records only
-        the Minecraft window, only while streamer mode is on and the game is running.</li>
+      <li><b>Logs.</b> Launcher logs: <code>updater.log</code> (update checks), <code>auth.log</code> (sign-in
+        errors) and <code>main-errors.log</code> (details of launcher errors and crashes). Sign-in tokens are
+        removed before anything is written to these; they can still contain folder paths, which include your
+        Windows user name. Game logs: the output of the last game session of each instance
+        (<code>launch-logs</code>), the logs and crash reports Minecraft writes in each instance's own
+        <code>logs</code> folder, and an archive of those (<code>log-archive</code>) so older sessions stay
+        viewable in the Logs tab. Game logs can contain your username, chat and the addresses of servers you
+        joined. Reminth does not delete the archive on its own, and no log is ever uploaded.</li>
+      <li><b>The game itself</b>: Minecraft, mod loaders, Java, your mods, packs and your worlds.</li>
+      <li><b>Streamer mode</b> (only if you turn it on): while it is on and the game is running, Reminth
+        records the picture of the Minecraft window, not the rest of your screen. If “Record sound” is on
+        (it is on by default), the recording also contains <b>all the sound your PC is playing</b>, not only
+        the game: for example music or a voice call. The recording is a temporary rolling buffer in
+        <code>%APPDATA%\Reminth\replay-buffer</code> that holds only the last 30 seconds to 30 minutes (your
+        choice); older parts are deleted as it records, and what is left is cleared the next time recording
+        starts. Clips and screenshots you take are saved to <code>Videos\Reminth</code> and stay there until
+        you delete them.</li>
     </ul>
     <p>
       To fill in Home, your instances and Player Statistics, the launcher reads your worlds, server lists,
@@ -136,25 +148,40 @@
       see your IP address, as with any request on the internet.
     </p>
     <ul>
-      <li><b>Microsoft and Xbox Live</b>: to sign you in to your own Microsoft account, on Microsoft's own
-        sign-in page. Reminth never sees your password.</li>
-      <li><b>Minecraft Services and Mojang</b>: to verify that you own the game, load your profile and skin, look
-        up another player's skin when you use “copy a skin by username”, and change your skin or cape when you
-        press Save.</li>
-      <li><b>Mojang's download servers and Microsoft's Java download</b>: to download the game and Java.</li>
-      <li><b>Fabric, Quilt, Forge and NeoForge</b>: to download the mod loader you pick, and Fabric API from
-        Fabric's own server.</li>
-      <li><b>GitHub</b>: to check for and download Reminth updates, and to download the performance mods
-        Reminth installs (Sodium, Lithium and ScalableLux) from each project's own GitHub releases.</li>
-      <li><b>Modrinth</b>: to browse, search, install and update content. To show who made each mod and whether
-        an update exists, the launcher sends Modrinth the <b>file fingerprints (SHA-1 hashes)</b> of the mods,
-        packs and shaders in your instances. A fingerprint identifies a file, not you. Requests identify the
-        app as “reminth-launcher” and its version; no account information is sent.</li>
+      <li><b>Microsoft and Xbox Live</b> (login.microsoftonline.com, user.auth.xboxlive.com,
+        xsts.auth.xboxlive.com): to sign you in to your own Microsoft account, on Microsoft's own sign-in
+        page. Reminth never sees your password.</li>
+      <li><b>Minecraft Services and Mojang</b> (api.minecraftservices.com, api.mojang.com,
+        sessionserver.mojang.com, textures.minecraft.net): to verify that you own the game, load your profile,
+        skin and capes, look up another player's skin when you use “copy a skin by username”, and change your
+        skin or cape when you press Save.</li>
+      <li><b>Mojang's download servers</b> (piston-meta.mojang.com, launchermeta.mojang.com,
+        resources.download.minecraft.net, libraries.minecraft.net and the download addresses Mojang's own
+        version files point to): to download the game, its libraries and assets, and the Java runtime Mojang
+        publishes for each version. If that Java download fails, Java is downloaded from Microsoft instead
+        (aka.ms).</li>
+      <li><b>Fabric, Quilt, Forge and NeoForge</b> (meta.fabricmc.net, maven.fabricmc.net, meta.quiltmc.org,
+        files.minecraftforge.net, maven.minecraftforge.net, maven.neoforged.net): to list and download the mod
+        loader you pick, and Fabric API from Fabric's own server. A Forge or NeoForge installer can name
+        further library servers, and the launcher downloads from those when you install that loader.</li>
+      <li><b>Modrinth</b> (api.modrinth.com, cdn.modrinth.com): to browse, search, install and update content
+        and to list servers in Discover. To show who made each mod, whether an update exists, whether a mod
+        will load on your Minecraft version and which build would, the launcher sends Modrinth the
+        <b>file fingerprints (SHA-1 hashes)</b> of the mods, packs and shaders in your instances, together with
+        the Minecraft version and loader it is asking about. A fingerprint identifies a file, not you. Requests
+        identify the app as “reminth-launcher” and its version; no account information is sent.</li>
+      <li><b>GitHub</b> (api.github.com and GitHub's release download servers): to check for and download
+        Reminth updates, and to download the performance mods Reminth installs (Sodium, Lithium and
+        ScalableLux) from each project's own GitHub releases.</li>
+      <li><b>Modpack file hosts</b>: a modpack lists where each of its files is downloaded from. Reminth only
+        accepts cdn.modrinth.com, github.com, raw.githubusercontent.com and gitlab.com, and downloads from
+        those when you install such a pack.</li>
       <li><b>Image servers</b>: mod icons and creators' profile pictures load from cdn.modrinth.com and, for
         creators who use a GitHub picture, avatars.githubusercontent.com.</li>
       <li><b>Minecraft servers</b>: when you view servers in the launcher, it contacts each server directly to
-        show whether it's online, its player count and your ping, the same way the game's multiplayer screen
-        does.</li>
+        show whether it's online, its player count, its version and your ping, the same way the game's
+        multiplayer screen does. That server sees your IP address. When you join a server, the game itself
+        connects to it.</li>
     </ul>
     <p>
       Mods you install are made by third parties and may make their own network requests once the game is
@@ -209,10 +236,15 @@
 
     <h2>9. Security</h2>
     <p>
-      Sign-in tokens are encrypted on your computer, every downloaded file is checked against the checksum its
-      source publishes, and the launcher contacts only the services listed above over encrypted connections
-      where the service supports them. No system is perfectly secure; if you find a security problem, please
-      email us privately instead of posting details publicly.
+      Sign-in tokens are encrypted on your computer by Windows, as described in section 4. Minecraft's own
+      files, its libraries and assets, Mojang's Java runtime, and everything downloaded from Modrinth or listed
+      in a modpack are checked against the checksum their source publishes. A few sources publish no checksum:
+      the performance mods on GitHub, the fallback Java download from Microsoft, and some mod-loader files.
+      Those are downloaded over an encrypted connection from the project's official location, and Reminth
+      checks that a performance mod is actually built for your Minecraft version and loader before keeping it.
+      The launcher contacts only the services listed above, over encrypted connections where the service
+      supports them (Minecraft servers use the game's own protocol). No system is perfectly secure; if you
+      find a security problem, please email us privately instead of posting details publicly.
     </p>
 
     <h2>10. Changes to this policy</h2>
@@ -223,6 +255,11 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 5, 2 October 2026</b>: listed every service the launcher contacts (including modpack
+        file hosts and the compatibility check's file fingerprints) and every file it keeps on your PC
+        (including its logs); corrected the checksum statement and said that streamer mode's sound is
+        everything your PC is playing.</li>
+      <li><b>Version 4, 2 October 2026</b>: moved website hosting to Cloudflare Pages and removed Google Fonts, so the website no longer makes any request to Google.</li>
       <li><b>Version 3, 1 October 2026</b>: named the operator and a contact email; added legal bases,
         retention periods, your GDPR rights and the right to complain; added the performance-mod downloads
         from GitHub; added the Mojang/Microsoft disclaimer.</li>

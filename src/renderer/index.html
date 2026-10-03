@@ -143,7 +143,7 @@
         </div>
 
         <button class="account-chip" id="accountBtn">
-          <span class="avatar" id="topAvatar"><span class="avatar-letter">?</span></span>
+          <span class="avatar pii" id="topAvatar"><span class="avatar-letter">?</span></span>
           <span class="account-text">
             <span class="account-name pii" id="topName">Not signed in</span>
             <span class="account-state" id="topState">Offline</span>
@@ -207,7 +207,7 @@
                 <p class="lede" id="heroLede">Your instance is set up and ready. One click and you're in.</p>
                 <div class="hero-actions">
                   <button class="btn primary xl" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
-                  <button class="btn primary danger-fill" id="stopBtn" hidden><svg class="i"><use href="#i-x"/></svg>Stop</button>
+                  <button class="btn primary danger-fill" id="stopBtn" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
                   <button class="btn outline" data-page="instance">Instance</button>
                 </div>
               </div>
@@ -261,15 +261,11 @@
             <div class="instance-art" id="instArt"><span class="instance-chip">R</span></div>
             <div class="ib-info">
               <h2 id="instName">Reminth</h2>
-              <div class="ib-meta">
+              <div class="ib-meta sep-list">
                 <span class="ib-m"><svg class="i"><use href="#i-cube"/></svg><span id="instLoader">Fabric</span><span id="instVersion">—</span></span>
-                <span class="ib-dot"></span>
                 <span class="ib-m"><svg class="i"><use href="#i-clock"/></svg><span id="instPlaytime">—</span></span>
-                <span class="ib-dot"></span>
                 <span class="ib-m"><svg class="i"><use href="#i-clock-old"/></svg><span id="instLastPlayed">Never played</span></span>
-                <span class="ib-dot"></span>
                 <span class="ib-m"><svg class="i"><use href="#i-world"/></svg><span id="instWorlds">—</span>worlds</span>
-                <span class="ib-dot"></span>
                 <span class="ib-m"><span id="instMods">—</span>mods on</span>
                 <span class="ib-m ib-pack" id="instPack" hidden>—</span>
                 <span class="ib-state" id="instState">Ready</span>
@@ -277,7 +273,7 @@
             </div>
             <div class="ib-actions">
               <button class="btn primary ib-play" id="instPlayBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
-              <button class="btn primary danger-fill ib-play" id="instStopBtn" hidden><svg class="i"><use href="#i-x"/></svg>Stop</button>
+              <button class="btn primary danger-fill ib-play" id="instStopBtn" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
               <button class="ib-round" id="instEditBtn" title="Version &amp; name"><svg class="i"><use href="#i-gear"/></svg></button>
               <div class="sort-dd ib-more" id="instMore">
                 <button class="ib-round ib-kebab" id="instMoreBtn" title="More"><span class="kebab"></span></button>
@@ -314,12 +310,13 @@
               <div class="sort-dd" id="contentSort"></div>
               <div class="toolbar-spacer"></div>
               <button class="ct-link" id="updateAllBtn"><svg class="i"><use href="#i-download"/></svg><span id="updateAllText">Check for updates</span></button>
+              <button class="ct-link plain" id="versionCheckBtn" title="Which Minecraft version has builds of all your mods"><svg class="i"><use href="#i-check"/></svg><span>Version check</span></button>
               <button class="ct-link plain" id="contentRefresh"><svg class="i"><use href="#i-refresh"/></svg><span>Refresh</span></button>
             </div>
           </div>
           <div class="update-panel" id="updatePanel" hidden></div>
 
-          <div class="tab-pane active" id="tabMods"><div class="mod-grid" id="instManagedMods"></div><div class="content-list" id="listMods"></div></div>
+          <div class="tab-pane active" id="tabMods"><div class="compat-panel" id="compatPanel" hidden></div><div class="mod-grid" id="instManagedMods"></div><div class="content-list" id="listMods"></div></div>
           <div class="tab-pane" id="tabPacks"><div class="content-list" id="listPacks"></div></div>
           <div class="tab-pane" id="tabShaders"><div class="content-list" id="listShaders"></div></div>
           <div class="tab-pane" id="tabDatapacks"><div class="content-list" id="listDatapacks"></div></div>
@@ -359,7 +356,11 @@
                   <button class="btn outline sm" id="logCopyBtn" title="Copies the lines you're looking at, with the date - ready to paste into a ticket"><svg class="i"><use href="#i-copy"/></svg>Copy shown</button>
                 </div>
                 <div class="log-meta" id="logMeta">Pick a session on the left.</div>
-                <div class="log-view" id="logView"><div class="log-spacer" id="logSpacer"></div><div class="log-rows" id="logRows"></div></div>
+                <div class="log-pane">
+                  <div class="log-view" id="logView"><div class="log-spacer" id="logSpacer"></div><div class="log-rows" id="logRows"></div></div>
+                  <!-- Streamer mode's "Hide personal info": the log stays blurred until this is clicked. -->
+                  <button class="log-veil" id="logVeil" type="button"><svg class="i"><use href="#i-eye-off"/></svg><span>Logs are hidden while Hide personal info is on — click to show</span></button>
+                </div>
               </div>
             </div>
           </div>
@@ -404,18 +405,9 @@
                 <div class="eyebrow">Discover</div>
                 <h1 class="display">Find something new</h1>
                 <p class="lede">Modpacks, mods, packs, shaders and servers from Modrinth.</p>
-                <!-- Which instance Install puts things into - switchable right here. -->
-                <div class="install-target"><span>Installing into</span><div class="sort-dd target-dd" id="discoverTargetDd"></div><b id="discoverTarget" hidden></b></div>
-              </div>
-              <!-- "In your mods folder" panel - hidden from the UI on purpose; the
-                   code that fills it still runs, it just isn't shown. -->
-              <div class="head-mods" hidden>
-                <div class="head-mods-top">
-                  <svg class="i"><use href="#i-cube"/></svg>
-                  <span class="head-mods-label">In your mods folder</span>
-                  <span class="head-mods-count" id="modsFolderNote"></span>
-                </div>
-                <div class="head-mods-list" id="installedMods"></div>
+                <!-- The instance whose version and loader the list is filtered for (and
+                     whose "Installed" marks are shown). Install itself asks which instance. -->
+                <div class="install-target"><span>Showing what fits</span><div class="sort-dd target-dd" id="discoverTargetDd"></div></div>
               </div>
               <button class="btn outline" id="openModsFolder"><svg class="i"><use href="#i-folder"/></svg>Open mods folder</button>
             </div>
@@ -567,7 +559,7 @@
             <div class="plus-copy">
               <div class="plus-badge"><svg class="i"><use href="#i-gem"/></svg>Reminth+</div>
               <h1 class="display">Your own server, minus the landlord.</h1>
-              <p class="lede">The launcher is free and stays that way — every version, every loader, all the RAM your PC can spare. Plus is for when you want a server for you and your friends without renting one somewhere else.</p>
+              <p class="lede">The launcher is free and stays that way — every version, every loader, as much memory as your PC can spare, up to 16&nbsp;GB. Plus is for when you want a server for you and your friends without renting one somewhere else.</p>
               <div class="row-actions">
                 <button class="btn primary lg is-soon" disabled>Get Reminth+<em class="soon">Soon</em></button>
                 <span class="set-note" id="plusStatus">Not on sale yet — nothing's being charged for.</span>
@@ -598,7 +590,7 @@
             <div class="cmp-row"><span>Every instance, version and modpack</span><b class="yes">✓</b><b class="yes">✓</b></div>
             <div class="cmp-row"><span>Mods, packs, shaders, servers from Discover</span><b class="yes">✓</b><b class="yes">✓</b></div>
             <div class="cmp-row"><span>Streamer mode, clips and screenshots</span><b class="yes">✓</b><b class="yes">✓</b></div>
-            <div class="cmp-row"><span>RAM for Minecraft</span><b class="yes">All you can spare</b><b class="yes">All you can spare</b></div>
+            <div class="cmp-row"><span>RAM for Minecraft</span><b class="yes">Up to 16 GB</b><b class="yes">Up to 16 GB</b></div>
             <div class="cmp-row"><span>Hosted server</span><b class="no">—</b><b class="plus-col">Included</b></div>
           </div>
         </div>
@@ -656,7 +648,7 @@
             </div>
             <div class="card set">
               <div class="set-head"><h2>On stream</h2></div>
-              <div class="toggle-row"><div><b>Hide personal info</b><span>Blurs your username, email-looking text, server IPs and folder paths in Reminth while streamer mode is on.</span></div><button class="switch" id="toggleHideInfo" role="switch"></button></div>
+              <div class="toggle-row"><div><b>Hide personal info</b><span>Blurs your username, server addresses, folder paths and the log viewer in this window, so they don't show on stream. It doesn't change the game itself.</span></div><button class="switch" id="toggleHideInfo" role="switch"></button></div>
               <div class="toggle-row"><div><b>Pop-up when something's saved</b><span>A small Windows notification, so you know the clip took.</span></div><button class="switch" id="toggleNotify" role="switch"></button></div>
               <div class="toggle-row"><div><b>Where captures go</b><span class="mono pii" id="capturesPath">—</span></div><button class="btn outline sm" id="capFolderBtn2">Open</button></div>
             </div>
@@ -690,7 +682,7 @@
             <div class="card set">
               <div class="set-head"><h2>Account</h2></div>
               <div class="account-row">
-                <span class="avatar lg" id="settingsAvatar"><span class="avatar-letter">?</span></span>
+                <span class="avatar lg pii" id="settingsAvatar"><span class="avatar-letter">?</span></span>
                 <div class="account-meta">
                   <b class="pii" id="settingsName">Not signed in</b>
                   <span id="settingsState">Not connected</span>
@@ -702,7 +694,7 @@
             <div class="card set">
               <div class="set-head">
                 <h2>Memory</h2>
-                <p>How much RAM Minecraft may use. 2&nbsp;GB is plenty for vanilla and light mod lists; big modpacks want 4–6&nbsp;GB. No limits beyond what this PC has.</p>
+                <p>How much RAM Minecraft may use. 2&nbsp;GB is plenty for vanilla and light mod lists; big modpacks want 4–6&nbsp;GB. Give Minecraft as much memory as this PC can spare, up to 16&nbsp;GB.</p>
               </div>
               <div class="slider-row">
                 <div class="slider-head"><span>RAM allocation</span><b id="ramVal">—</b></div>
@@ -728,6 +720,7 @@
                   <input type="number" id="gameHeight" min="240" max="4320" placeholder="Height" />
                 </div>
               </div>
+              <p class="set-note warn-note" id="resolutionNote" hidden></p>
             </div>
 
             <div class="card set">
@@ -790,26 +783,31 @@
               <details class="legal">
                 <summary>Privacy Policy</summary>
                 <div class="legal-body">
-                  <p><b>Last updated: 1 October 2026 · Version 3.</b> This is a summary. The full policy is at
+                  <p><b>Last updated: 2 October 2026 · Version 5.</b> This is a summary. The full policy is at
                     <a href="https://reminth.pages.dev/privacy.html" target="_blank">reminth.pages.dev/privacy.html</a>
                     and is what applies.</p>
 
                   <p><b>Who's responsible.</b> Reminth is run by Lefteris Psilopanagiotis, an individual developer in
                     Greece, who is the data controller under the GDPR. Contact: reminthsupport@gmail.com.</p>
 
-                  <p><b>What stays on your computer.</b> Your Microsoft sign-in tokens are saved to
-                    <span class="mono">%APPDATA%\Reminth\account.json</span>, encrypted with your Windows account's
-                    own key (DPAPI). Your settings, instances, skins, game-log archive, update log, and caches of public
-                    Modrinth information are stored in the same folder. Streamer mode keeps a short rolling recording
-                    buffer of the Minecraft window there and saves clips and screenshots to
-                    <span class="mono">Videos\Reminth</span>. None of this is ever sent to us.</p>
+                  <p><b>What stays on your computer.</b> Your Microsoft sign-in tokens are stored encrypted by
+                    Windows, with your Windows account's own key. If Windows encryption isn't available, they are not
+                    saved at all and you sign in again next time. Reminth keeps its files in
+                    <span class="mono">%APPDATA%\Reminth</span>: your settings, instances, saved skins, caches of
+                    public Modrinth information, and logs (<span class="mono">updater.log</span>,
+                    <span class="mono">auth.log</span>, <span class="mono">main-errors.log</span>, the last game
+                    log and the archive of your older game logs). Streamer mode's recording captures the Minecraft
+                    window's picture and, when sound is on, everything the PC plays; it keeps a short rolling
+                    recording there and saves clips and screenshots to <span class="mono">Videos\Reminth</span>.
+                    None of this is ever sent to us.</p>
 
                   <p><b>What Reminth sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
                     tracking. The launcher talks directly to: Microsoft and Xbox Live (sign-in); Mojang and Minecraft
                     Services (licence check, game and Java downloads, skins and capes); Fabric, Quilt, Forge and
                     NeoForge (the loader you pick, and Fabric API); GitHub (Reminth updates, and the Sodium, Lithium and
-                    ScalableLux performance mods); Modrinth (Discover, installs and updates, including the
-                    <b>SHA-1 file fingerprints</b> of your installed content, which identify files, not you);
+                    ScalableLux performance pack from those projects' own releases); Modrinth (Discover, installs,
+                    updates and the compatibility check, which sends the <b>SHA-1 file fingerprints</b> of your mods —
+                    they identify files, not you); the hosts a modpack lists for its files (Modrinth, GitHub or GitLab);
                     cdn.modrinth.com and avatars.githubusercontent.com (icons and creator pictures); and Minecraft
                     servers you look at (status and ping). Each can see your IP address, as with any internet request.</p>
 
@@ -827,9 +825,9 @@
               <details class="legal">
                 <summary>Terms of Service</summary>
                 <div class="legal-body">
-                  <p><b>Last updated: 1 October 2026 · Version 3.</b> This is a summary. The full terms are at
+                  <p><b>Last updated: 2 October 2026 · Version 5.</b> This is a summary. The full terms are at
                     <a href="https://reminth.pages.dev/terms.html" target="_blank">reminth.pages.dev/terms.html</a>
-                    and are what applies.</p>
+                    and are what applies. Contact: reminthsupport@gmail.com.</p>
 
                   <p><b>What this is.</b> Reminth is an independent launcher for Minecraft: Java Edition, run by
                     Lefteris Psilopanagiotis (Greece). You need your own legitimate Minecraft licence, and you must
@@ -846,10 +844,12 @@
                   <p><b>Fair play.</b> No cheats, hacks, exploits or ban evasion. Don't use Reminth to break any
                     server's rules or the EULA. Don't resell Reminth or distribute modified copies of it.</p>
 
-                  <p><b>Mods Reminth installs.</b> Fabric API (from Fabric), ReminthHUD, and a performance pack (Sodium,
-                    Lithium and ScalableLux, from their own GitHub releases), which you can turn off per instance.
-                    Third-party content from Discover is made by other people and hosted by Modrinth; Reminth checks
-                    each file's checksum but doesn't vouch for it.</p>
+                  <p><b>Mods Reminth installs.</b> On Fabric and Quilt instances: Fabric API (from Fabric), ReminthHUD
+                    if you switch it on, and a performance pack (Sodium, Lithium and ScalableLux, downloaded from those
+                    projects' own GitHub releases). You can switch the performance pack off for any instance in its
+                    settings. Third-party content from Discover is made by other people and hosted by Modrinth;
+                    Reminth checks each file's checksum but doesn't vouch for it. A modpack may fetch files from the
+                    hosts it lists (Modrinth, GitHub or GitLab).</p>
 
                   <p><b>Paid features and refunds.</b> Reminth+ and Reminth Hosting aren't available yet; previews may
                     change and show made-up names. When they launch, they start immediately and <b>we don't give
@@ -881,7 +881,7 @@
         <div class="card side-card">
           <div class="side-head"><span class="eyebrow">Playing as</span></div>
           <div class="side-account">
-            <span class="avatar lg" id="sideAvatar"><span class="avatar-letter">?</span></span>
+            <span class="avatar lg pii" id="sideAvatar"><span class="avatar-letter">?</span></span>
             <div class="account-meta">
               <b class="pii" id="sideName">—</b>
               <span id="sideState">—</span>

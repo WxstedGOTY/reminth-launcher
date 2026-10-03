@@ -7,38 +7,169 @@
 const fs = require("fs");
 const fsp = fs.promises;
 const { safeStorage } = require("electron");
+const path = require("path");
 const paths = require("./paths");
+const atomic = require("./atomic");
 
-async function saveAccount(account) {
-  await fsp.mkdir(paths.ROOT, { recursive: true });
-  const json = JSON.stringify(account);
-  if (safeStorage.isEncryptionAvailable()) {
-    const enc = safeStorage.encryptString(json);
-    await fsp.writeFile(paths.ACCOUNTS_FILE, enc);
-  } else {
-    await fsp.writeFile(paths.ACCOUNTS_FILE, json, "utf8");
+const BUSY_CODES = ["EBUSY", "EPERM", "EACCES"];
+
+/** Deletes one file, waiting out the short locks Windows (antivirus, the indexer) takes on it. */
+async function removeWithRetry(file) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await fsp.rm(file, { force: true });
+      return;
+    } catch (err) {
+      if (attempt >= 5 || !BUSY_CODES.includes(err && err.code)) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)));
+    }
   }
 }
 
-async function loadAccount() {
-  try {
-    const raw = await fsp.readFile(paths.ACCOUNTS_FILE);
-    if (safeStorage.isEncryptionAvailable() && isLikelyEncrypted(raw)) {
-      return JSON.parse(safeStorage.decryptString(raw));
+/** Pure: JSON text without a leading byte-order mark (Windows editors add one; JSON.parse refuses it). */
+function stripBom(text) {
+  return String(text).replace(/^\uFEFF/, "");
+}
+
+/** Removes account.json / account.json.bak if they hold the account as readable text. Never throws. */
+async function removePlaintextAccount() {
+  for (const file of [`${paths.ACCOUNTS_FILE}.bak`, paths.ACCOUNTS_FILE]) {
+    try {
+      const raw = await fsp.readFile(file);
+      if (!isLikelyEncrypted(raw)) await removeWithRetry(file);
+    } catch {
+      // not there, or locked right now - the next save tries again
     }
-    return JSON.parse(raw.toString("utf8"));
+  }
+}
+
+/**
+ * Saves the account, encrypted. Returns { persisted }.
+ *
+ * When the OS key store isn't available the account is NOT written at all:
+ * the file would hold the Microsoft refresh token as readable text, which is
+ * exactly what the privacy policy says never happens. The player stays
+ * signed in for this session (the account lives in memory in main.js) and
+ * signs in again next start. That branch never throws - a sign-in must not
+ * fail because there was nothing safe to write.
+ */
+async function saveAccount(account) {
+  if (!safeStorage.isEncryptionAvailable()) {
+    // A readable copy left by an older version goes too.
+    await removePlaintextAccount();
+    return { persisted: false };
+  }
+  const data = safeStorage.encryptString(JSON.stringify(account));
+  // Temp file + rename: a crash mid-write used to leave a truncated
+  // account.json, which reads as "nobody signed in". The same bytes are
+  // kept as account.json.bak in case the file is ever damaged anyway.
+  await atomic.writeFileAtomic(paths.ACCOUNTS_FILE, data, { backup: true });
+  return { persisted: true };
+}
+
+/**
+ * What a stored account file holds: { account }, { corrupt: true } when the
+ * bytes can't be an account, or { undecided: true } when it's an encrypted
+ * file and the OS key store isn't available right now - that one says
+ * nothing about the file, so it must never be treated as damaged.
+ */
+function decodeAccount(raw) {
+  let text;
+  if (isLikelyEncrypted(raw)) {
+    if (!safeStorage.isEncryptionAvailable()) return { undecided: true };
+    try {
+      text = safeStorage.decryptString(raw);
+    } catch {
+      return { corrupt: true };
+    }
+  } else {
+    text = raw.toString("utf8");
+  }
+  try {
+    const parsed = JSON.parse(stripBom(text));
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return { account: parsed };
+  } catch {
+    // falls through to corrupt
+  }
+  return { corrupt: true };
+}
+
+/**
+ * An account that was read from a file holding it as readable text (written
+ * by an older version) is saved again straight away: saveAccount encrypts
+ * it, or - when the OS key store isn't available - removes the readable
+ * file. It used to stay on disk as text until the next sign-in or token
+ * refresh happened to rewrite it. Either way the account that was read is
+ * still the one returned, so nobody is signed out for this session.
+ */
+async function resaveIfPlaintext(raw, account) {
+  if (!account || isLikelyEncrypted(raw)) return;
+  try {
+    await saveAccount(account);
+  } catch {
+    // couldn't be rewritten right now - the next save tries again
+  }
+}
+
+async function loadAccountBackup() {
+  try {
+    const raw = await fsp.readFile(`${paths.ACCOUNTS_FILE}.bak`);
+    const account = decodeAccount(raw).account || null;
+    await resaveIfPlaintext(raw, account);
+    return account;
   } catch {
     return null;
   }
 }
 
+async function loadAccount() {
+  let raw;
+  try {
+    raw = await fsp.readFile(paths.ACCOUNTS_FILE);
+  } catch (err) {
+    // Gone (first run, or moved aside below on an earlier start): the
+    // backup, if there is one. Any other error says nothing about the file.
+    return err && err.code === "ENOENT" ? loadAccountBackup() : null;
+  }
+  const main = decodeAccount(raw);
+  if (main.account) {
+    await resaveIfPlaintext(raw, main.account);
+    return main.account;
+  }
+  if (main.undecided) return null;
+  // Unreadable: keep it as account.json.corrupt-<time> rather than letting
+  // the next sign-in overwrite the evidence, and fall back to the backup.
+  await atomic.quarantine(paths.ACCOUNTS_FILE);
+  return loadAccountBackup();
+}
+
 function isLikelyEncrypted(buf) {
-  // Plain JSON always starts with "{" (0x7b); DPAPI/keychain blobs don't.
-  return buf.length > 0 && buf[0] !== 0x7b;
+  // Plain JSON always starts with "{" (0x7b) - after a UTF-8 byte-order
+  // mark, if an editor added one; DPAPI/keychain blobs don't.
+  const start = buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf ? 3 : 0;
+  return buf.length > start && buf[start] !== 0x7b;
 }
 
 async function clearAccount() {
-  await fsp.rm(paths.ACCOUNTS_FILE, { force: true });
+  // The copies go FIRST and account.json last. loadAccount falls back to
+  // account.json.bak when the main file is missing, so the old order
+  // (main file, then backup) meant a backup that couldn't be deleted - or
+  // the app closing between the two - signed the player back in on the
+  // next start. This way, whatever goes wrong part-way, either everything
+  // is gone or the main file is still there and sign-out visibly failed.
+  const dir = path.dirname(paths.ACCOUNTS_FILE);
+  const base = path.basename(paths.ACCOUNTS_FILE);
+  let names = [];
+  try {
+    names = await fsp.readdir(dir);
+  } catch {
+    // no folder yet - nothing to clear
+  }
+  // Signing out must not leave the token behind in the backup, in a copy
+  // that was moved aside, or in a half-written temp file.
+  const copies = names.filter((name) => name === `${base}.bak` || name.startsWith(`${base}.corrupt-`) || (name.startsWith(`${base}.`) && name.endsWith(".tmp")));
+  for (const name of copies) await removeWithRetry(path.join(dir, name));
+  await removeWithRetry(paths.ACCOUNTS_FILE);
 }
 
 // ---- app settings (RAM override, launch-minimized, etc.) ----
@@ -47,6 +178,13 @@ async function clearAccount() {
 // missing/corrupt file just falls back cleanly instead of breaking launch.
 const DEFAULT_SETTINGS = {
   maxMemoryMb: null, // null = auto (see minecraft.js:computeDefaultMaxMemoryMb)
+  // Garbage collector: "auto" lets Reminth pick per Java version and PC
+  // (see minecraft.js:buildJvmFlags); "g1" and "zgc" are the off switches
+  // for that choice.
+  gc: "auto",
+  // "above-normal" asks Windows to favour the game a little over background
+  // apps; "normal" leaves it alone. Always normal while streamer mode is on.
+  processPriority: "above-normal",
   launchMinimized: true, // most launchers get out of the way once the game starts
   hardwareAcceleration: true, // only takes effect on next app start - see main.js
   accent: "cyan", // UI accent colour (renderer only)
@@ -144,6 +282,15 @@ function sanitizeSettings(partial, { strict = false } = {}) {
     if (typeof partial[key] === "boolean") clean[key] = partial[key];
   }
 
+  // One of a fixed list each. Anything else (a typo in settings.json, a
+  // value from a newer Reminth) falls back to the default instead of
+  // reaching the launch code as something it doesn't know.
+  const choices = { gc: ["auto", "g1", "zgc"], processPriority: ["above-normal", "normal"] };
+  for (const [key, allowed] of Object.entries(choices)) {
+    if (!(key in partial)) continue;
+    clean[key] = allowed.includes(partial[key]) ? partial[key] : DEFAULT_SETTINGS[key];
+  }
+
   if (typeof partial.accent === "string" && /^[a-z-]{1,16}$/.test(partial.accent)) {
     clean.accent = partial.accent;
   }
@@ -175,24 +322,70 @@ function sanitizeSettings(partial, { strict = false } = {}) {
   return clean;
 }
 
+function parseSettingsText(text) {
+  try {
+    const parsed = JSON.parse(stripBom(text));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The settings object on disk, or null when there isn't one yet.
+ *
+ * A settings.json that exists but can't be parsed is moved aside as
+ * settings.json.corrupt-<time> and the last good copy (settings.json.bak)
+ * is used instead. It used to be read as "no settings", and the next save
+ * then wrote defaults over the player's real file for good.
+ *
+ * Throws when the file can't be read at all (locked, no permission): that
+ * isn't "no settings" either, and saveSettings must not overwrite it.
+ */
+async function readSettingsFile() {
+  let text = null;
+  try {
+    text = await fsp.readFile(paths.SETTINGS_FILE, "utf8");
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") throw err;
+  }
+  if (text !== null) {
+    const parsed = parseSettingsText(text);
+    if (parsed) return parsed;
+    await atomic.quarantine(paths.SETTINGS_FILE);
+  }
+  try {
+    return parseSettingsText(await fsp.readFile(`${paths.SETTINGS_FILE}.bak`, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function settingsFrom(parsed) {
+  if (!parsed) return { ...DEFAULT_SETTINGS };
+  const clean = sanitizeSettings(parsed);
+  return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed.streamer) };
+}
+
 async function loadSettings() {
   try {
-    const raw = await fsp.readFile(paths.SETTINGS_FILE, "utf8");
-    const parsed = JSON.parse(raw);
-    const clean = sanitizeSettings(parsed);
-    return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed && parsed.streamer) };
+    return settingsFrom(await readSettingsFile());
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
 }
 
 async function saveSettings(partial) {
-  const current = await loadSettings();
-  const input = partial && typeof partial === "object" ? { ...partial, _currentStreamer: current.streamer } : partial;
-  const next = { ...current, ...sanitizeSettings(input, { strict: true }) };
-  await fsp.mkdir(paths.ROOT, { recursive: true });
-  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify(next, null, 2), "utf8");
-  return next;
+  // One save at a time: this is read-change-write, and two overlapping
+  // saves each used to write back their own stale copy, losing the other's
+  // change.
+  return atomic.withLock("store:settings", async () => {
+    const current = settingsFrom(await readSettingsFile());
+    const input = partial && typeof partial === "object" ? { ...partial, _currentStreamer: current.streamer } : partial;
+    const next = { ...current, ...sanitizeSettings(input, { strict: true }) };
+    await atomic.writeJsonAtomic(paths.SETTINGS_FILE, next, { space: 2, backup: true });
+    return next;
+  });
 }
 
 module.exports = {

@@ -121,6 +121,21 @@ function dateFromName(name) {
 }
 
 /**
+ * Pure: is a source file with this name and size already in the archive
+ * under some other stored name? Entries written before `src` existed don't
+ * have it, so for those the source name is worked out from the stored one
+ * ("2026-09-23-1-1727000000000.log.gz" came from "2026-09-23-1.log.gz").
+ */
+function alreadyImported(index, name, size) {
+  for (const [stored, info] of Object.entries((index && index.files) || {})) {
+    if (!info || info.size !== size) continue;
+    const src = typeof info.src === "string" ? info.src : stored.replace(/-\d{13}(\.log\.gz|\.txt)$/, "$1");
+    if (src === name) return true;
+  }
+  return false;
+}
+
+/**
  * Copies anything new from the instance's logs/ and crash-reports/ into
  * the permanent archive. Safe to call any time; cheap when there's nothing new.
  */
@@ -149,6 +164,12 @@ async function importInstanceLogs(instance) {
       }
       const existing = index.files[name];
       if (existing && existing.size === stat.size) continue;
+      // Already imported under another stored name? When the name was taken
+      // by a different file, the copy went in as "name-<timestamp>" - and
+      // because only index.files[name] was looked at, that same source was
+      // copied again on every single call, forever. `src` records which
+      // source name an entry came from so each (name, size) is imported once.
+      if (alreadyImported(index, name, stat.size)) continue;
       // Same file name, different contents (e.g. the game folder was reset
       // and dates repeat) - keep both rather than overwrite history.
       const storeName = existing ? name.replace(/(\.log\.gz|\.txt)$/, `-${Date.now()}$1`) : name;
@@ -161,6 +182,7 @@ async function importInstanceLogs(instance) {
         counts = null;
       }
       index.files[storeName] = {
+        src: name,
         size: stat.size,
         kind,
         date: dateFromName(name) || Math.round(stat.mtimeMs),

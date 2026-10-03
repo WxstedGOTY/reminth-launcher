@@ -24,6 +24,7 @@ const MAX_DECOMPRESSED_LOG_BYTES = 64 * 1024 * 1024;
 
 const paths = require("./paths");
 const nbt = require("./nbt");
+const { renameWithRetry } = require("./downloader");
 
 const TICKS_PER_SECOND = 20;
 const MAX_WORLD_ICON_BYTES = 512 * 1024; // world icons are ~8KB; this is purely a sanity clamp
@@ -409,6 +410,8 @@ async function recentActivity(accountUuid, limit = 5, instances) {
   };
 }
 
+const SERVER_LIST_UNREADABLE = "Couldn't read this instance's server list \u2014 it wasn't changed.";
+
 /**
  * Adds a server to an instance's multiplayer list (servers.dat), unless one
  * with the same address is already there. Returns { added }.
@@ -416,12 +419,34 @@ async function recentActivity(accountUuid, limit = 5, instances) {
 async function addServer(gameDir, { name, address }) {
   const addr = String(address || "").trim();
   if (!/^[A-Za-z0-9.\-_:[\]]{1,255}$/.test(addr)) throw new Error("That server address doesn't look right.");
+  const file = serversFile(gameDir);
   let existing = [];
+  let hadFile = true;
+  let raw = null;
   try {
-    const root = nbt.parse(await fsp.readFile(serversFile(gameDir)));
-    existing = Array.isArray(root.servers) ? root.servers : [];
-  } catch {
-    // no list yet
+    raw = await fsp.readFile(file);
+  } catch (err) {
+    // Only "there is no servers.dat" means an empty list. Anything else
+    // (locked by the game, permissions, a disk error) used to be treated the
+    // same way - and then the file was rewritten with just the new server,
+    // wiping the player's whole list.
+    if (!err || err.code !== "ENOENT") throw new Error(SERVER_LIST_UNREADABLE);
+    hadFile = false;
+  }
+  // A zero-byte servers.dat (a crash while the game was writing it) holds no
+  // list to lose. It used to be parsed, fail, and block "add server" for
+  // good; it is "no list yet", and not worth a .bak either.
+  if (raw && raw.length === 0) hadFile = false;
+  if (raw && raw.length) {
+    let root;
+    try {
+      root = nbt.parse(raw);
+    } catch {
+      throw new Error(SERVER_LIST_UNREADABLE);
+    }
+    // A list Reminth can't make sense of is left alone too, not replaced.
+    if (!root || (root.servers !== undefined && !Array.isArray(root.servers))) throw new Error(SERVER_LIST_UNREADABLE);
+    existing = root.servers || [];
   }
   if (existing.some((s) => s && String(s.ip).toLowerCase() === addr.toLowerCase())) return { added: false };
   // Keep only fields servers.dat actually stores; nbt.writeServersDat types them.
@@ -437,10 +462,25 @@ async function addServer(gameDir, { name, address }) {
   // No acceptTextures: absent means "ask me", which is what a fresh add should do.
   clean.push({ name: String(name || addr).slice(0, 64), ip: addr });
   await fsp.mkdir(gameDir, { recursive: true });
-  const file = serversFile(gameDir);
-  const tmp = file + ".reminth.tmp";
-  await fsp.writeFile(tmp, nbt.writeServersDat(clean));
-  await fsp.rename(tmp, file);
+  // The previous list is kept as servers.dat.bak before it's replaced, so
+  // there's always one step back if this write turns out wrong.
+  // Best-effort: a backup that can't be made (a read-only or locked .bak)
+  // must not stop the server being added - the write below is still atomic.
+  if (hadFile) {
+    try {
+      await fsp.copyFile(file, file + ".bak");
+    } catch (err) {
+      console.warn(`[servers] couldn't back up servers.dat before changing it: ${(err && err.message) || err}`);
+    }
+  }
+  const tmp = `${file}.${process.pid}.${Date.now()}.reminth.tmp`;
+  try {
+    await fsp.writeFile(tmp, nbt.writeServersDat(clean));
+    await renameWithRetry(tmp, file);
+  } catch (err) {
+    await fsp.rm(tmp, { force: true }).catch(() => {});
+    throw err;
+  }
   return { added: true };
 }
 

@@ -1,104 +1,110 @@
 # Reminth Launcher
 
-A custom Windows Minecraft launcher: sign in with your own Microsoft
-account, it downloads vanilla Minecraft 26.2 + Fabric + ReminthHUD
-automatically, and launches the game. No official Minecraft Launcher, no
-Modrinth dependency, anywhere in the shipped product.
+An independent Minecraft: Java Edition launcher for Windows. Sign in with
+your own Microsoft account, pick a version and a mod loader, press Play:
+Reminth downloads the game, the loader and the right Java for you, and keeps
+each setup in its own instance.
 
-## Status
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG
+OR MICROSOFT. You need your own Minecraft: Java Edition licence.
 
-Confirmed working end-to-end on a real Windows PC, against real
-Mojang/Fabric/Microsoft infrastructure: sign-in (Microsoft device-code flow
-→ Xbox Live → XSTS → Minecraft Services), the full install pipeline (Java,
-version manifest, Fabric merge, libraries, natives, assets, Fabric API,
-ReminthHUD, optional performance mods), and an actual successful Minecraft
-launch into a joinable world/server. 33/33 unit tests pass (`npm test`).
+## What it does
 
-Two real bugs were found and fixed along the way, both worth knowing about
-if you're touching `minecraft.js`:
+- **Instances**: any Minecraft version, with Fabric, Quilt, Forge, NeoForge
+  or no loader. Each instance has its own mods, worlds, packs and logs.
+- **Sign-in**: Microsoft device-code flow (Microsoft → Xbox Live → XSTS →
+  Minecraft Services). Tokens are stored with Electron safeStorage (Windows
+  DPAPI).
+- **Java**: Mojang's own runtime for each version, installed privately
+  (Microsoft's OpenJDK as a fallback). System Java is never touched.
+- **Discover**: browse and install mods, modpacks (`.mrpack`), resource
+  packs, data packs and shaders from Modrinth; see and install updates;
+  browse and ping servers.
+- **Compatibility check**: before the game starts, Reminth works out which
+  mods won't load on the instance's version/loader and why, offers a
+  one-click fix ("Fix and play"), and can suggest the Minecraft version that
+  fits all the mods (and a server), making a copy of the instance on that
+  version. Copies never include worlds.
+- **Performance pack**: on Fabric and Quilt instances, Sodium, Lithium and
+  ScalableLux are fetched from each project's GitHub releases when a build
+  exists for that Minecraft version (plus Fabric API from Fabric's Maven).
+  Opt-out per instance (`performanceMods: false`). The player's own copies
+  always win.
+- **ReminthHUD**: Reminth's own HUD mod, per-instance switch, bundled in
+  `assets/mods/`.
+- **Skins and capes**: view, change, keep a library of skins.
+- **Logs**: game logs and crash reports per instance, archived.
+- **Streamer mode**: screenshots and a replay buffer ("save the last N
+  seconds") of the Minecraft window.
+- **Auto-update**: electron-updater against this repo's GitHub releases;
+  downloads in the background, installs on restart/quit.
 
-- **Silent launch failures**: the game process used to be spawned with
-  `stdio: "ignore"` and no error/exit handlers, so any crash was completely
-  invisible — the launcher reported "launched: true" no matter what
-  actually happened. Fixed: stdout/stderr now go to
-  `%AppData%\Reminth\latest_log.txt`, and a crash within the first 15s
-  surfaces in the UI.
-- **Mojang's conditional argument objects**: `arguments.jvm`/`arguments.game`
-  in Mojang's version JSON mix plain strings with rule-gated objects like
-  `{rules: [...], value: "..."}` (macOS-only flags, `--demo`,
-  `--width`/`--height`, `--quickPlay*`). These used to be concatenated
-  unresolved, so one could reach `spawn()` unfiltered, get stringified to
-  `"[object Object]"`, and get misread by Java as the main class to load.
-  Fixed by `resolveArguments()`, which filters by OS/feature rules before
-  anything reaches the spawned process.
+No telemetry, analytics or crash reporting. No cheats of any kind.
+Reminth+ and server hosting are previews only; nothing is sold.
 
-## Setup
-
-### 1. Azure app registration (required, free)
-
-Every third-party Minecraft launcher needs its own Microsoft app ID — this
-is what makes "Sign in with Microsoft" work, and it needs Microsoft's
-approval to actually reach the Minecraft Services API (takes about a week;
-until approved, sign-in completes through Microsoft/Xbox fine but the final
-token exchange 403s with "Invalid app registration" — that's expected, not
-a bug).
-
-1. https://portal.azure.com → **Azure Active Directory** → **App
-   registrations** → **New registration**
-2. **Supported account types**: "Personal Microsoft accounts only"
-3. Redirect URI: leave blank (not needed for device code flow)
-4. Register, copy the **Application (client) ID**
-5. Submit for Minecraft API access: https://aka.ms/mce-reviewappid
-6. Put the client ID in `src/main/config.js` as `MS_CLIENT_ID`, or set env
-   var `REMINTH_MS_CLIENT_ID`
-
-No client secret needed — public client (device code) flow, same as
-MultiMC/Prism.
-
-### 2. Install & run
+## Run, test, build
 
 ```
 npm install
-npm test    # pure-logic unit tests, node --test, zero extra packages
-npm start
+npm start          # run the launcher (Electron)
+npm test           # node --test, a few hundred pure-logic tests, no extra packages
+build-dist.bat     # builds the installer -> dist\Reminth-Setup.exe
 ```
 
-### 3. Package the Windows installer
+The build is electron-builder (NSIS target); `npm run dist` is the
+underlying script. The installer is not code-signed, so SmartScreen warns
+on first run.
+
+Sign-in uses the Azure app registration in `src/main/config.js`
+(`MS_CLIENT_ID`, overridable with `REMINTH_MS_CLIENT_ID`).
+
+## Publishing
+
+- **App**: bump `version` in `package.json`, build, and attach
+  `Reminth-Setup.exe`, its `.blockmap` and `latest.yml` to a new GitHub
+  release. Installed launchers update themselves from the latest release,
+  and the website's download button points at
+  `releases/latest/download/Reminth-Setup.exe`.
+- **Website**: the `site/` folder, uploaded by hand to Cloudflare Pages
+  (https://reminth.pages.dev). It is static and must not load anything from
+  a third party. `site/privacy.html` and `site/terms.html` are the legal
+  texts; the in-app summaries (Settings) must say the same thing. When the
+  app's behaviour changes, update them and bump their version.
+
+## Layout
 
 ```
-npm run dist
+src/main/        Electron main process
+  main.js          entry point, IPC, launch flow
+  msAuth.js        Microsoft/Xbox/Minecraft sign-in     store.js   account + settings on disk
+  minecraft.js     install + launch                     java.js    Java runtimes
+  loaders.js forge.js   loader metadata and installs    downloader.js  verified downloads
+  instances.js     instance list and folders            migrate.js copy an instance to another version
+  modrinth.js content.js mrpack.js catalogCache.js      Discover, installs, updates, modpacks
+  compat.js        mod compatibility check and version advice
+  skin.js skinLibrary.js   skins and capes              logs.js gameData.js nbt.js   logs, worlds, stats
+  serverPing.js    server list ping                     streamer.js webm.js   screenshots and clips
+  updater.js       auto-update                          entitlements.js   RAM cap, Reminth+ stub
+  paths.js config.js atomic.js zip.js zipread.js preload.js
+src/renderer/    UI (index.html, renderer.js, features.js, styles.css, skinview.js)
+site/            public website and legal pages
+test/            node --test suites
+assets/          icons and the bundled ReminthHUD jars (not in every checkout)
+REMINTH_STATE.md working notes and history
 ```
 
-Outputs an NSIS `.exe` installer to `dist/`. Unsigned for now (no code
-signing cert) — first-run SmartScreen warning is expected until that's
-addressed.
+## Where data lives
 
-## Project layout
+Everything is on the player's PC, under `%APPDATA%\Reminth`:
 
-```
-src/main/main.js        Electron entry point, IPC wiring
-src/main/msAuth.js      Microsoft -> Xbox Live -> XSTS -> Minecraft auth (device code flow)
-src/main/minecraft.js   Version resolution, download, Fabric merge, launch
-src/main/java.js        Downloads a private JDK 25 (never touches system Java)
-src/main/store.js       Encrypted-at-rest account/refresh-token storage (Electron safeStorage)
-src/main/config.js      <-- fill in MS_CLIENT_ID and REMINTHHUD_UPDATE_MANIFEST_URL here
-src/renderer/           UI (glassmorphism, charcoal + electric teal, per the brand doc)
-```
+- `account.json` (encrypted sign-in tokens), `settings.json`, `instances.json`
+- `instance\` (the original instance and the shared game files) and
+  `instances\<id>\` (every other instance: `mods`, `saves`, `logs`, …);
+  each has a `.reminth\` folder recording what Reminth installed there
+- `java\`, `runtimes\` (Java), `skins\`, `skin-cache\`, `catalog-cache\`,
+  `creators-cache.json`
+- `updater.log`, `auth.log`, `main-errors.log`, `launch-logs\` (last game
+  output per instance), `log-archive\`
+- `replay-buffer\` (temporary); clips and screenshots go to `Videos\Reminth`
 
-## Known gaps (not blockers, just not done yet)
-
-- **No auto-updater.** Every future fix needs a fresh manual download.
-- **ReminthHUD has no update manifest yet** (`REMINTHHUD_UPDATE_MANIFEST_URL`
-  is unset) — it ships as a static bundled jar; updating it means a new
-  Reminth release, not a hot-update.
-- **Sodium / ScalableLux** have no published Fabric build for Minecraft
-  26.2 yet — that's upstream, not us. The installer already handles this
-  gracefully (logs it, skips, doesn't fail the install).
-- Only ever verified on one PC. Not yet tested on a genuinely clean
-  machine with zero prior Java/Minecraft history.
-
-## What this deliberately does NOT include
-
-No targeting/aimbot, ESP, or packet-manipulation modules. Those were
-scoped out from day one. This is a clean launcher + cosmetic HUD overlay
-only.
+Reminth never touches the official `.minecraft` folder.

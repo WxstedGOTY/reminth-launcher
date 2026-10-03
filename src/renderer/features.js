@@ -10,6 +10,7 @@
  *   4. Logs viewer
  *   5. Skins
  *   6. Streamer mode
+ *   7. Compatibility help: what won't load, one-click fixes, version advisor
  */
 
 /* ================================================================== *
@@ -29,18 +30,20 @@ const content = {
   search: "",
   sort: localGet("sort.content", "az"),
   updates: null, // null = not checked; [] = none
-  updating: false,
+  updatesFor: null, // instance id `updates` was checked for - never apply them anywhere else
+  updating: false, // false | "check" | "apply"
+  updatingFor: null, // instance id that check/apply is running for
   selected: new Set(), // itemKey()s ticked in the list
   creators: {}, // itemKey() -> { author, avatar, title, iconUrl } from Modrinth
   creatorsFor: null, // instance id the creators map belongs to
-  creatorsBusy: false,
+  creatorsBusy: null, // instance id whose lookup is in flight
 };
 
 /** Real creator names + profile pictures, looked up on Modrinth in the
  *  background so the list never waits on the network. */
 async function loadCreators(id) {
   if (content.creatorsBusy) return;
-  content.creatorsBusy = true;
+  content.creatorsBusy = id;
   try {
     const found = await window.reminth.contentCreators(id);
     if (id !== content.instanceId) return;
@@ -50,7 +53,11 @@ async function loadCreators(id) {
   } catch {
     // offline - the names read out of the jars stay
   } finally {
-    content.creatorsBusy = false;
+    content.creatorsBusy = null;
+    // The instance changed while this was in flight: that request was turned
+    // away above and this result was thrown out, so ask again for the one
+    // now on screen or it never gets its creators.
+    if (content.instanceId && content.instanceId !== id) loadCreators(content.instanceId);
   }
 }
 
@@ -73,6 +80,7 @@ wireTabs("instanceTabs", (tab) => {
   $("updatePanel").hidden = !isContent || !content.updates || !content.updates.length;
   if (isContent) renderContentTab();
   if (tab === "tabLogs") loadLogSessions();
+  veilLogs();
   if (tab === "tabWorlds" || tab === "tabServers") loadInstanceData();
 });
 
@@ -81,40 +89,61 @@ $("contentSearch").addEventListener("input", (e) => {
   renderContentTab();
 });
 $("contentRefresh").onclick = () => loadContent(content.instanceId || state.activeId);
-$("openContentFolder").onclick = () => openFolder(CONTENT_TABS[content.tab] ? CONTENT_TABS[content.tab].folder : "game");
+$("openContentFolder").onclick = () => openFolder(CONTENT_TABS[content.tab] ? CONTENT_TABS[content.tab].folder : "game", content.instanceId);
 $("addContentBtn").onclick = () => {
   const t = CONTENT_TABS[content.tab];
   switchPage("discover");
   setDiscoverType(t ? t.discover : "mod");
 };
 
-async function loadContent(instanceId) {
-  const id = instanceId || state.activeId;
+let contentSeq = 0;
+let contentLatest = null; // the newest loadContent() call's promise
+
+/** Only the newest call paints. An older one that answers late waits for the
+ *  newest instead, so `await loadContent(x)` still means "the lists are fresh". */
+function loadContent(instanceId) {
+  const seq = ++contentSeq;
+  contentLatest = loadContentNow(instanceId || state.activeId, seq);
+  return contentLatest;
+}
+
+async function loadContentNow(id, seq) {
   let data;
   try {
     data = await window.reminth.content(id);
   } catch (err) {
     data = { mod: [], resourcepack: [], shader: [], datapack: [], worlds: [], error: err.message };
   }
+  // A slower, older answer must not overwrite a newer one (wrong instance's
+  // lists, counts and Installed marks).
+  if (seq !== contentSeq) return contentLatest;
   if (id !== content.instanceId) {
     content.updates = null;
+    content.updatesFor = null;
     content.selected.clear();
     content.creators = {};
     content.creatorsFor = null;
     $("updatePanel").hidden = true;
   }
+  const switched = id !== content.instanceId;
   content.instanceId = id;
   content.data = data;
+  // The panel is about one instance: on a switch it shows what's already
+  // known about the new one (or nothing) until its own check answers.
+  if (switched) renderCompatPanel();
   for (const t of Object.values(CONTENT_TABS)) {
     const n = (data[t.kind] || []).filter((i) => i.valid).length;
     $(t.count).textContent = n ? String(n) : "";
   }
   $("instMods").textContent = String((data.mod || []).filter((i) => i.valid && i.enabled).length);
   if (currentPage === "instance") renderContentTab();
-  if (id === state.activeId) renderHeadMods(data.mod || []);
   loadCreators(id);
   paintUpdateButton();
   refreshInstalledMarks();
+  // On every page, not only the instance's own: Play can be pressed from
+  // Home, and the first check of a big instance takes longer than Play
+  // waits. Run now, the answer is ready (and remembered) by then.
+  scheduleCompatCheck(id);
 }
 
 /** Installed Modrinth project ids in the active instance - for "Installed" badges in Discover. */
@@ -196,15 +225,14 @@ function rowMenu(item) {
     menu.appendChild(it);
   };
   const t = Object.values(CONTENT_TABS).find((x) => x.kind === item.kind);
-  add("Open folder", "#i-folder", () => openFolder(t ? t.folder : "game"));
+  add("Open folder", "#i-folder", () => openFolder(t ? t.folder : "game", content.instanceId));
   add("Copy file name", "#i-copy", () => {
     navigator.clipboard.writeText(item.file).then(() => toast("File name copied."), () => {});
   });
+  btn.setAttribute("aria-label", `More for ${itemName(item)}`);
   btn.onclick = (e) => {
     e.stopPropagation();
-    const open = !wrap.classList.contains("dd-open");
-    document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
-    wrap.classList.toggle("dd-open", open);
+    toggleMenu(wrap);
   };
   wrap.appendChild(btn);
   wrap.appendChild(menu);
@@ -310,19 +338,25 @@ function contentRow(item, ctx) {
     ub.appendChild(el("span", null, `${version || "?"} → ${up.next.versionNumber}`));
     ub.onclick = async () => {
       const id = content.instanceId;
+      if (content.updatesFor !== id) return; // not this instance's update
       if (state.running.has(id)) return toast("Close the game first — Windows won't let files in use be replaced.");
       ub.disabled = true;
       try {
         const result = await window.reminth.applyUpdates(id, [up]);
-        if (result.failed.length) toast(`Couldn't update ${itemName(item)}: ${result.failed[0].error}`);
-        else toast(`${itemName(item)} updated to ${up.next.versionNumber}.`);
-        content.updates = (content.updates || []).filter((u) => u !== up);
-        paintUpdateButton();
-        renderUpdatePanel();
+        const failed = result.failed || [];
+        if (failed.length) toast(`Couldn't update ${itemName(item)}: ${friendlyError(failed[0].error)}`);
+        else toast(`${itemName(item)} updated to ${up.next.versionNumber}${addedNote(result.added)}.${warningNote(result.warnings)}`);
+        // Switched instance meanwhile: the list on screen isn't this one's.
+        if (content.instanceId === id && content.updates) {
+          content.updates = content.updates.filter((u) => u !== up);
+          paintUpdateButton();
+          renderUpdatePanel();
+        }
       } catch (err) {
         toast(friendlyError(err.message));
       } finally {
-        await loadContent(id);
+        ub.disabled = false;
+        if (content.instanceId === id) await loadContent(id);
       }
     };
     actions.appendChild(ub);
@@ -331,12 +365,23 @@ function contentRow(item, ctx) {
     const sw = el("button", "switch" + (item.enabled ? " on" : ""));
     sw.type = "button";
     sw.title = item.enabled ? "Turn off" : "Turn on";
+    sw.setAttribute("role", "switch");
+    sw.setAttribute("aria-checked", item.enabled ? "true" : "false");
+    sw.setAttribute("aria-label", `${itemName(item)} on or off`);
     sw.onclick = async () => {
+      // One call at a time: a second click used to rename a file that the
+      // first had already renamed, and show the raw error.
+      if (sw.disabled) return;
+      sw.disabled = true;
+      const id = content.instanceId; // fixed now - the instance on screen can change while this runs
       try {
-        await window.reminth.setContentEnabled(content.instanceId, itemRef(item), !item.enabled);
-        await loadContent(content.instanceId);
+        await window.reminth.setContentEnabled(id, itemRef(item), !item.enabled);
       } catch (err) {
         toast(friendlyError(err.message));
+      } finally {
+        // Either way the list is read again (this row is rebuilt with it).
+        if (content.instanceId === id) await loadContent(id);
+        sw.disabled = false;
       }
     };
     actions.appendChild(sw);
@@ -346,16 +391,19 @@ function contentRow(item, ctx) {
   del.title = "Move to Recycle Bin";
   del.appendChild(icon("#i-trash"));
   del.onclick = async () => {
+    const id = content.instanceId; // the instance this row belongs to, whatever is on screen after the question
     const ok = await confirmModal(`Remove ${itemName(item)}?`, "It goes to the Recycle Bin, so you can get it back if you change your mind.", "Remove", true);
     if (!ok) return;
+    del.disabled = true; // until the list is redrawn without this row
     try {
-      await window.reminth.removeContent(content.instanceId, itemRef(item));
+      await window.reminth.removeContent(id, itemRef(item));
       toast(`${itemName(item)} moved to the Recycle Bin.`);
       content.selected.delete(key);
-      await loadContent(content.instanceId);
     } catch (err) {
       toast(friendlyError(err.message));
     }
+    if (content.instanceId === id) await loadContent(id);
+    del.disabled = false;
   };
   actions.appendChild(del);
   actions.appendChild(rowMenu(item));
@@ -390,7 +438,9 @@ function visibleItems() {
 }
 
 function paintSelection() {
-  const bar = document.querySelector(".content-list .c-bulk");
+  // Every tab has its own bar; the first one in the page is always Mods'.
+  const t = CONTENT_TABS[content.tab];
+  const bar = t && $(t.list).querySelector(".c-bulk");
   if (!bar) return;
   const picked = visibleItems().filter((i) => content.selected.has(itemKey(i)));
   bar.classList.toggle("show", picked.length > 0);
@@ -421,7 +471,8 @@ async function bulkApply(op) {
 }
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && content.selected.size && currentPage === "instance") {
+  // Not while a dialog is open: Esc there answers the dialog, the selection stays.
+  if (e.key === "Escape" && content.selected.size && currentPage === "instance" && !modalStack.length) {
     content.selected.clear();
     renderContentTab();
   }
@@ -496,7 +547,7 @@ function renderContentTab() {
   if (q) items = items.filter((i) => itemName(i).toLowerCase().includes(q) || i.file.toLowerCase().includes(q));
   items = sortItems(items, content.sort, itemName, (i) => i.addedAt);
   list.textContent = "";
-  if (content.data.error) return renderEmpty(list, "Couldn't read this instance's folders", content.data.error);
+  if (content.data.error) return renderEmpty(list, "Couldn't read this instance's folders", friendlyError(content.data.error));
   if (!items.length) {
     if (q) return renderEmpty(list, "Nothing matches that", "Try a different name.");
     if (t.kind === "mod" && inst && inst.loader === "vanilla") {
@@ -559,37 +610,25 @@ function renderContentTab() {
   bulk.appendChild(clear);
   list.appendChild(bulk);
   paintSelection();
+  if (t.kind === "mod") paintCompatTags();
 }
 
-/* ---- the "Head" panel on Discover: what's in the active instance's mods folder ---- */
+// Jars Reminth puts in and keeps up to date itself.
 const MANAGED_JAR = /^(fabric-api|reminthhud)-/i;
-function renderHeadMods(mods) {
-  const list = $("installedMods");
-  const valid = mods.filter((m) => m.valid);
-  const other = mods.length - valid.length;
-  $("modsFolderNote").textContent = `${valid.length} mod${valid.length === 1 ? "" : "s"}` + (other ? ` · ${other} other file${other === 1 ? "" : "s"}` : "");
-  list.textContent = "";
-  if (!mods.length) {
-    const inst = activeInstance();
-    renderEmpty(list, "Empty", inst && inst.loader === "vanilla" ? "This instance is vanilla — no mods folder in use." : "Drop .jar files in and they appear here instantly.");
-    return;
-  }
-  const sorted = sortItems(mods, "az", (m) => (m.valid ? "0" : "1") + itemName(m), () => 0);
-  for (const m of sorted) {
-    const row = el("div", "mod-row" + (m.valid ? "" : " invalid"));
-    row.title = m.problem || m.file;
-    row.appendChild(el("span", "jar", m.file));
-    if (!m.valid) row.appendChild(el("span", "tag amber", m.folder ? "Folder" : "Not a mod"));
-    else if (!m.enabled) row.appendChild(el("span", "tag dim", "Off"));
-    else if (MANAGED_JAR.test(m.file) && activeInstance() && activeInstance().hud) row.appendChild(el("span", "tag cyan", "Reminth"));
-    else row.appendChild(el("span", "tag dim", "Yours"));
-    list.appendChild(row);
-  }
-}
 
 // Live: the main process watches the active instance's folders.
+// One event arrives per file, so installing a pack's jars fires dozens in a
+// row: wait for them to settle instead of re-reading the folders each time.
+const contentChangeTimers = new Map(); // instanceId -> timer
 window.reminth.onContentChanged(({ instanceId }) => {
-  if (instanceId === state.activeId) loadContent(instanceId);
+  clearTimeout(contentChangeTimers.get(instanceId));
+  contentChangeTimers.set(
+    instanceId,
+    setTimeout(() => {
+      contentChangeTimers.delete(instanceId);
+      if (instanceId === state.activeId) loadContent(instanceId);
+    }, 250)
+  );
 });
 
 /* ---- update everything ---- */
@@ -599,7 +638,8 @@ function paintUpdateButton(progressPct) {
   btn.classList.remove("ready", "busy", "muted");
   btn.style.setProperty("--p", "0%");
   btn.disabled = false;
-  if (content.updating) {
+  // Busy only for the instance the check or update is running for.
+  if (content.updating && content.updatingFor === content.instanceId) {
     btn.classList.add("busy");
     btn.disabled = true;
     btn.style.setProperty("--p", (progressPct || 0) + "%");
@@ -654,37 +694,67 @@ function renderUpdatePanel() {
 }
 
 $("updateAllBtn").onclick = async () => {
-  if (content.updating) return;
+  if (content.updating) return toast("Another instance is still being checked — try again in a moment.");
+  // Fixed at click time: the player can switch instance while this runs.
   const id = content.instanceId || state.activeId;
   if (content.updates && content.updates.length) {
+    if (content.updatesFor !== id) {
+      // Checked for a different instance - applying them here would put that
+      // instance's files into this one. Drop them and ask for a fresh check.
+      content.updates = null;
+      content.updatesFor = null;
+      paintUpdateButton();
+      renderUpdatePanel();
+      return;
+    }
     if (state.running.has(id)) {
       toast("Close the game first — Windows won't let files in use be replaced.");
       return;
     }
+    const updates = content.updates;
     content.updating = "apply";
+    content.updatingFor = id;
     paintUpdateButton(0);
     try {
-      const result = await window.reminth.applyUpdates(id, content.updates);
-      content.updates = null;
-      toast(result.failed.length ? `Updated ${result.applied.length}, ${result.failed.length} failed: ${result.failed[0].error}` : `Updated ${result.applied.length} item${result.applied.length === 1 ? "" : "s"}.`);
+      const result = await window.reminth.applyUpdates(id, updates);
+      if (content.instanceId === id) {
+        content.updates = null;
+        content.updatesFor = null;
+      }
+      const applied = result.applied || [];
+      const failed = result.failed || [];
+      toast(
+        (failed.length
+          ? `Updated ${applied.length}${addedNote(result.added)}. ${failed.length} failed — ${failed[0].title}: ${friendlyError(failed[0].error)}`
+          : `Updated ${applied.length} item${applied.length === 1 ? "" : "s"}${addedNote(result.added)}.`) + warningNote(result.warnings)
+      );
     } catch (err) {
       toast(friendlyError(err.message));
     } finally {
       content.updating = false;
-      $("updatePanel").hidden = true;
-      await loadContent(id);
+      if (content.instanceId === id) {
+        $("updatePanel").hidden = true;
+        await loadContent(id);
+      } else paintUpdateButton(); // another instance is on screen - leave its lists alone
     }
     return;
   }
   content.updating = "check";
+  content.updatingFor = id;
   paintUpdateButton(0);
+  let found = null;
   try {
-    content.updates = await window.reminth.checkUpdates(id);
+    found = await window.reminth.checkUpdates(id);
   } catch (err) {
-    content.updates = null;
     toast("Couldn't check for updates: " + friendlyError(err.message));
   } finally {
     content.updating = false;
+    // Only keep the answer if the instance it was asked for is still the one
+    // on screen; otherwise it would be offered (and applied) to the wrong one.
+    if (content.instanceId === id || (!content.instanceId && state.activeId === id)) {
+      content.updates = found;
+      content.updatesFor = found ? id : null;
+    }
     paintUpdateButton();
     renderUpdatePanel();
     renderContentTab();
@@ -692,7 +762,7 @@ $("updateAllBtn").onclick = async () => {
 };
 
 window.reminth.onContentProgress((p) => {
-  if (p.op === "update" && content.updating === "apply") {
+  if (p.op === "update" && content.updating === "apply" && content.updatingFor === content.instanceId) {
     paintUpdateButton(p.total ? Math.min(100, Math.round((p.current / p.total) * 100)) : 0);
   }
   if (p.op === "install") installProgress(p);
@@ -707,9 +777,12 @@ async function loadInstanceData() {
   } catch (err) {
     data = { worlds: [], servers: [], worldCount: 0, error: err.message };
   }
+  if (inst.id !== state.activeId) return; // another instance was opened while this was read
   $("instWorlds").textContent = String(data.worldCount || 0);
-  fillGrid("worldGrid", data.worlds || [], "worldsNote", { emptyTitle: "No worlds yet", emptyNote: "Any world you create in this instance shows up here." });
-  fillGrid("instServerGrid", data.servers || [], "instServersNote", { emptyTitle: "No servers saved here", emptyNote: "Add one in game, or from Discover → Servers." });
+  // A folder that couldn't be read is not the same as an empty one.
+  const failed = data.error ? friendlyError(data.error) : null;
+  fillGrid("worldGrid", data.worlds || [], "worldsNote", failed ? { emptyTitle: "Couldn't read this instance's worlds", emptyNote: failed } : { emptyTitle: "No worlds yet", emptyNote: "Any world you create in this instance shows up here." });
+  fillGrid("instServerGrid", data.servers || [], "instServersNote", failed ? { emptyTitle: "Couldn't read this instance's server list", emptyNote: failed } : { emptyTitle: "No servers saved here", emptyNote: "Add one in game, or from Discover → Servers." });
 }
 
 window.onInstancePageOpen = (inst) => {
@@ -718,16 +791,19 @@ window.onInstancePageOpen = (inst) => {
   if (content.tab === "tabLogs") loadLogSessions();
   const isContent = Boolean(CONTENT_TABS[content.tab]);
   $("contentToolbar").hidden = !isContent;
+  // Nothing to check without a mod loader.
+  $("versionCheckBtn").hidden = inst.loader === "vanilla";
 };
 
 /* ================================================================== *
  * installing from Discover / Home                                     *
  * ================================================================== */
-const pendingInstalls = new Map(); // projectId -> { buttons: Set<HTMLElement> }
+const pendingInstalls = new Map(); // `${instanceId}:${projectId}` -> { buttons: Set<HTMLElement> }
 
 function installProgress(p) {
   const pct = p.total > 1 ? Math.min(100, Math.round((p.current / p.total) * 100)) : null;
-  for (const [, entry] of pendingInstalls) {
+  for (const [key, entry] of pendingInstalls) {
+    if (p.instanceId && !key.startsWith(p.instanceId + ":")) continue;
     for (const b of entry.buttons) {
       b.style.setProperty("--p", (pct || 0) + "%");
       const label = b.querySelector("span");
@@ -763,8 +839,11 @@ async function pickWorld(inst) {
 }
 
 /**
- * Installs a project into the active instance. `buttons`: elements that
- * should show progress / the installed state.
+ * Installs a project into an instance. Every caller that can pass
+ * `instanceId` does, taken when the player clicked: the active instance can
+ * change while a dialog is open, and the install must still go where the
+ * screen said it would. `buttons`: elements that show progress / the
+ * installed state.
  */
 async function installProject({ projectId, projectType, title, versionId, instanceId }, buttons = []) {
   const inst = instanceId ? instanceById(instanceId) : activeInstance();
@@ -772,7 +851,9 @@ async function installProject({ projectId, projectType, title, versionId, instan
   if (projectType === "modpack") return installModpackFlow({ projectId, title });
   const kind = { mod: "mod", resourcepack: "resourcepack", shader: "shader", datapack: "datapack" }[projectType];
   if (!kind) return false;
-  if (pendingInstalls.has(projectId)) {
+  // Per instance: the same mod can go into two instances at once.
+  const pendingKey = `${inst.id}:${projectId}`;
+  if (pendingInstalls.has(pendingKey)) {
     // A second click landed while the first install for this project was
     // still in flight - the caller's own "done" check can't catch this,
     // since that class isn't set until the first install finishes. Refuse
@@ -784,23 +865,26 @@ async function installProject({ projectId, projectType, title, versionId, instan
     toast(`${inst.name} is a vanilla instance — ${kind === "mod" ? "mods" : "shaders"} need a loader. Edit it and pick Fabric, Quilt, Forge or NeoForge first.`);
     return false;
   }
-  let world = null;
-  if (kind === "datapack") {
-    world = await pickWorld(inst);
-    if (!world) return false;
-  }
+  // Marked pending before anything is awaited: the "Which world?" dialog
+  // below used to leave a gap where a second click started a second install.
   const entry = { buttons: new Set(buttons) };
-  pendingInstalls.set(projectId, entry);
+  pendingInstalls.set(pendingKey, entry);
   for (const b of buttons) {
     b.disabled = true;
     b.classList.add("busy");
   }
   try {
+    let world = null;
+    if (kind === "datapack") {
+      world = await pickWorld(inst);
+      if (!world) return false; // cancelled - the finally below un-marks it
+    }
     // versionId: set only when the player picked one (chooseModVersion);
     // otherwise content.install picks the best match itself, as before.
     const result = await window.reminth.installContent(inst.id, { projectId, kind, world, ...(versionId ? { versionId } : {}) });
-    const extra = result.installed.length > 1 ? ` (+${result.installed.length - 1} it needs)` : "";
-    toast(`${title || result.installed[0]?.title || "Installed"} added to ${inst.name}${extra}.`);
+    const installed = result.installed || [];
+    const extra = installed.length > 1 ? ` (+${installed.length - 1} it needs)` : "";
+    toast(`${title || installed[0]?.title || "Installed"} added to ${inst.name}${extra}.${warningNote(result.warnings)}`);
     // Green check until the player leaves this page, then grey for good.
     freshAdds.add(`${inst.id}:${projectId}`);
     // Keep the open lists pointed at the active instance even when installing elsewhere.
@@ -808,10 +892,13 @@ async function installProject({ projectId, projectType, title, versionId, instan
     if (window.loadPresence) window.loadPresence();
     return true;
   } catch (err) {
+    // No build for this instance: say which versions it does have builds
+    // for, and offer the way out, instead of only an error.
+    if (kind === "mod" && /has no version for Minecraft/i.test(err.message) && (await explainNoBuild(inst, projectId, title))) return false;
     toast(friendlyError(err.message));
     return false;
   } finally {
-    pendingInstalls.delete(projectId);
+    pendingInstalls.delete(pendingKey);
     for (const b of buttons) {
       b.disabled = false;
       b.classList.remove("busy");
@@ -839,6 +926,7 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
   body.appendChild(prog);
   return new Promise((resolve) => {
     let result = null;
+    let installing = false;
     const off = (p) => {
       const determinate = p.total > 1;
       stage.textContent = p.stage;
@@ -851,6 +939,9 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
     openModal({
       title: `Install ${title || "modpack"}?`,
       body,
+      // Esc or a click on the backdrop used to close this mid-install: the
+      // install carried on unseen and could be started a second time.
+      canClose: () => !installing,
       onClose: () => {
         modpackListeners.delete(off);
         resolve(result);
@@ -862,6 +953,8 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
           className: "primary",
           icon: "#i-download",
           onClick: async (handle) => {
+            if (installing) return false;
+            installing = true;
             prog.hidden = false;
             handle.buttons.forEach((b) => (b.disabled = true));
             try {
@@ -877,6 +970,8 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
               fill.style.width = "0%";
               handle.buttons.forEach((b) => (b.disabled = false));
               return false;
+            } finally {
+              installing = false;
             }
           },
         },
@@ -891,8 +986,10 @@ window.reminth.onModpackProgress((p) => modpackListeners.forEach((fn) => fn(p)))
  * "Choose version…": the optional slow path next to a mod's Install   *
  * ------------------------------------------------------------------ */
 // Mirrors content.js loadersFor("mod") so the list only offers versions
-// content.install would accept for this instance.
+// content.install would accept for this instance. Empty for vanilla (or no
+// instance): nothing can load a mod there.
 function modLoadersFor(inst) {
+  if (!inst) return [];
   if (inst.loader === "fabric") return ["fabric"];
   if (inst.loader === "quilt") return ["quilt", "fabric"];
   if (inst.loader === "forge") return ["forge"];
@@ -903,12 +1000,22 @@ function modLoadersFor(inst) {
 const defaultVersion = (versions) => versions.find((v) => v.version_type === "release") || versions[0] || null;
 const DEP_LABELS = { required: "Required", optional: "Optional", incompatible: "Incompatible", embedded: "Bundled inside" };
 
-async function chooseModVersion({ projectId, title }, buttons = []) {
-  const inst = activeInstance();
+async function chooseModVersion({ projectId, title, instanceId }, buttons = []) {
+  // Fixed when the dialog opens. Everything below - the versions listed, the
+  // name shown and the install itself - is for this instance, whichever one
+  // is active by the time Install is pressed.
+  const inst = instanceId ? instanceById(instanceId) : activeInstance();
   if (!inst) return false;
   const loaders = modLoadersFor(inst);
-  if (!loaders.length) return installProject({ projectId, projectType: "mod", title }, buttons); // shows the vanilla message
-  if (content.instanceId !== inst.id || !content.data) await loadContent(inst.id);
+  if (!loaders.length) return installProject({ projectId, projectType: "mod", title, instanceId: inst.id }, buttons); // shows the vanilla message
+  // What this instance already has, for the "Already installed" notes.
+  let have = new Set();
+  try {
+    const data = content.instanceId === inst.id && content.data ? content.data : await window.reminth.content(inst.id);
+    for (const kind of PRESENCE_KINDS) for (const item of data[kind] || []) if (item.projectId) have.add(item.projectId);
+  } catch {
+    have = new Set();
+  }
 
   const body = el("div", "vpick");
   body.appendChild(el("p", "vpick-note", `Versions that work on ${inst.name} (${loaderLabel(inst)} ${inst.mcVersion}). The highlighted one is what Install picks on its own.`));
@@ -924,7 +1031,7 @@ async function chooseModVersion({ projectId, title }, buttons = []) {
   let settle;
   const done = new Promise((resolve) => (settle = resolve));
   const handle = openModal({
-    title: `Install ${title || "mod"}`,
+    title: `Install ${title || "mod"} into ${inst.name}`,
     body,
     wide: true,
     onClose: () => settle(installed),
@@ -936,7 +1043,7 @@ async function chooseModVersion({ projectId, title }, buttons = []) {
         icon: "#i-download",
         onClick: async () => {
           if (!chosen) return false;
-          installed = await installProject({ projectId, projectType: "mod", title, versionId: chosen.id }, buttons);
+          installed = await installProject({ projectId, projectType: "mod", title, versionId: chosen.id, instanceId: inst.id }, buttons);
           return installed ? true : false;
         },
       },
@@ -966,7 +1073,6 @@ async function chooseModVersion({ projectId, title }, buttons = []) {
     return done;
   }
 
-  const have = installedProjectIds();
   const paintDeps = async (version) => {
     depsBox.textContent = "";
     depsBox.appendChild(el("h4", null, `What ${version.version_number} needs`));
@@ -1107,8 +1213,10 @@ function discoverCard(mod) {
   add.dataset.project = mod.id;
   add.addEventListener("contextmenu", async (e) => {
     e.preventDefault();
-    if (add.classList.contains("done")) return toast(`${mod.name} is already in ${activeInstance().name}.`);
-    if (await chooseModVersion({ projectId: mod.id, title: mod.name }, [add])) paintHomeCards();
+    const inst = activeInstance(); // the instance at this click
+    if (!inst) return;
+    if (add.classList.contains("done")) return toast(`${mod.name} is already in ${inst.name}.`);
+    if (await chooseModVersion({ projectId: mod.id, title: mod.name, instanceId: inst.id }, [add])) paintHomeCards();
   });
   add.onclick = (e) => {
     e.stopPropagation();
@@ -1204,7 +1312,11 @@ function paintHomeCards() {
     add.classList.toggle("fresh", fresh);
     add.textContent = "";
     add.appendChild(icon(installed ? "#i-check" : "#i-plus"));
-    add.title = installed ? `In ${inst.name} - click to add it to another instance` : "Pick an instance to add it to (right-click to choose a version)";
+    const only = (state.instances || []).length === 1;
+    add.title = installed
+      ? only ? `Already in ${inst.name}` : `In ${inst.name} — click to add it to another instance`
+      : `${only ? `Add to ${inst.name}` : "Choose which instance to add it to"} (right-click to choose a version)`;
+    add.setAttribute("aria-label", `${mod.name}: ${add.title}`);
     del.hidden = !installed;
     del.title = inst ? `Remove from ${inst.name}` : "Remove";
   }
@@ -1212,6 +1324,7 @@ function paintHomeCards() {
 
 async function removeFromInstance(mod, inst) {
   if (!inst) return;
+  closeCardMenu(); // the question that follows must not sit under the panel
   const item = itemFor(inst.id, mod.id);
   if (!item) return toast(`${mod.name} isn't in ${inst.name}.`);
   const ok = await confirmModal(`Remove ${mod.name} from ${inst.name}?`, "It goes to the Recycle Bin, so you can get it back if you change your mind.", "Remove", true);
@@ -1237,7 +1350,11 @@ function closeCardMenu() {
  * { id, name, type }. One instance and not installed yet → just installs.
  */
 async function pickInstanceFor(project, anchor) {
-  if (cardMenu && cardMenu.dataset.project === project.id && cardMenu._anchor === anchor) return closeCardMenu();
+  if (cardMenu && cardMenu.dataset.project === project.id && cardMenu._anchor === anchor) {
+    // The second click of a double-click must not close what the first opened.
+    if (performance.now() - cardMenu._openedAt < 350) return;
+    return closeCardMenu();
+  }
   const list = state.instances || [];
   if (list.length === 1 && !itemFor(list[0].id, project.id)) {
     closeCardMenu();
@@ -1253,6 +1370,9 @@ function openCardMenu(mod, anchor) {
   cardMenu.dataset.project = mod.id;
   cardMenu._mod = mod;
   cardMenu._anchor = anchor;
+  cardMenu._openedAt = performance.now();
+  cardMenu.setAttribute("role", "dialog");
+  cardMenu.setAttribute("aria-label", `Add ${mod.name} to an instance`);
   cardMenu.addEventListener("click", (e) => e.stopPropagation());
   document.body.appendChild(cardMenu);
   renderCardMenu();
@@ -1260,15 +1380,26 @@ function openCardMenu(mod, anchor) {
 }
 function renderCardMenu() {
   if (!cardMenu) return;
+  // The button it hangs off was redrawn (a new search, another page of results).
+  if (!cardMenu._anchor.isConnected) return closeCardMenu();
   const mod = cardMenu._mod;
+  const scrolled = cardMenu.scrollTop;
   cardMenu.textContent = "";
   const type = mod.type || "mod";
   cardMenu.appendChild(el("div", "dcp-title", `Add ${mod.name} to…`));
-  for (const inst of state.instances || []) {
+  // Instances the mod has a build for come first; the rest stay pickable
+  // (the search hit can be out of date) but say why they may not work.
+  const misfits = new Map((state.instances || []).map((i) => [i.id, modMisfit(mod, i)]));
+  const rank = (i) => (i.loader === "vanilla" && (type === "mod" || type === "shader") ? 2 : misfits.get(i.id) ? 1 : 0);
+  const ordered = [...(state.instances || [])].sort((a, b) => rank(a) - rank(b));
+  for (const inst of ordered) {
     const row = el("div", "dcp-row" + (inst.id === state.activeId ? " current" : ""));
     const name = el("div", "dcp-name");
     name.appendChild(el("b", null, inst.name));
-    name.appendChild(el("small", null, `${loaderLabel(inst)} ${inst.mcVersion}`));
+    name.title = inst.name;
+    const sub = el("small", null, `${loaderLabel(inst)} ${inst.mcVersion}`);
+    if (misfits.get(inst.id)) sub.appendChild(el("span", "dcp-misfit", ` · ${misfits.get(inst.id)}`));
+    name.appendChild(sub);
     row.appendChild(name);
     const item = itemFor(inst.id, mod.id);
     if (item) {
@@ -1279,6 +1410,7 @@ function renderCardMenu() {
       const bin = el("button", "icon-btn danger dcp-bin");
       bin.type = "button";
       bin.title = `Remove from ${inst.name}`;
+      bin.setAttribute("aria-label", bin.title);
       bin.appendChild(icon("#i-trash"));
       bin.onclick = () => removeFromInstance(mod, inst);
       row.appendChild(bin);
@@ -1289,9 +1421,17 @@ function renderCardMenu() {
       go.type = "button";
       go.appendChild(icon("#i-plus"));
       go.appendChild(el("span", null, "Install"));
+      go.setAttribute("aria-label", `Install into ${inst.name}`);
+      // Still in flight from a click before the panel was redrawn.
+      if (pendingInstalls.has(`${inst.id}:${mod.id}`)) {
+        go.disabled = true;
+        go.classList.add("busy");
+        pendingInstalls.get(`${inst.id}:${mod.id}`).buttons.add(go);
+      }
       go.onclick = async () => {
+        // `inst` is this row's instance, whichever one is active by now.
         // The button that opened the panel shows progress too when it's for the active instance.
-        const btns = inst.id === state.activeId && cardMenu._anchor ? [go, cardMenu._anchor] : [go];
+        const btns = inst.id === state.activeId && cardMenu && cardMenu._anchor ? [go, cardMenu._anchor] : [go];
         const ok = await installProject({ projectId: mod.id, projectType: type, title: mod.name, instanceId: inst.id }, btns);
         if (ok) await loadPresence();
       };
@@ -1299,14 +1439,46 @@ function renderCardMenu() {
     }
     cardMenu.appendChild(row);
   }
-  const r = cardMenu._anchor.getBoundingClientRect();
   cardMenu.style.display = "flex";
+  placeCardMenu();
+  cardMenu.scrollTop = scrolled;
+}
+
+/** Keeps the panel inside the window: below its button, or above it when there's more room there; scrolls inside when long. */
+function placeCardMenu() {
+  if (!cardMenu) return;
+  const gap = 6;
+  const edge = 8;
+  const r = cardMenu._anchor.getBoundingClientRect();
+  // Never over the instance rail on the left.
+  const rail = document.querySelector(".rail");
+  const minLeft = (rail ? rail.getBoundingClientRect().right : 0) + edge;
+  const below = window.innerHeight - r.bottom - gap - edge;
+  const above = r.top - gap - edge;
+  cardMenu.style.maxHeight = "";
+  const wanted = cardMenu.offsetHeight;
+  const up = wanted > below && above > below;
+  cardMenu.style.maxHeight = Math.max(120, Math.min(wanted, up ? above : below)) + "px";
   const w = cardMenu.offsetWidth;
-  cardMenu.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w)) + "px";
-  cardMenu.style.top = r.bottom + 6 + "px";
+  const h = cardMenu.offsetHeight;
+  cardMenu.style.left = Math.max(minLeft, Math.min(window.innerWidth - w - edge, r.right - w)) + "px";
+  cardMenu.style.top = Math.max(edge, Math.min(window.innerHeight - h - edge, up ? r.top - gap - h : r.bottom + gap)) + "px";
 }
 document.addEventListener("click", closeCardMenu);
-$("pages").addEventListener("scroll", closeCardMenu, { passive: true });
+$("pages").addEventListener("scroll", () => {
+  // A scroll still settling from before the click must not close the panel it just opened.
+  if (cardMenu && performance.now() - cardMenu._openedAt < 350) return placeCardMenu();
+  closeCardMenu();
+}, { passive: true });
+window.addEventListener("resize", closeCardMenu);
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !cardMenu) return;
+  const anchor = cardMenu._anchor;
+  closeCardMenu();
+  if (anchor && anchor.isConnected) anchor.focus();
+});
+// A dialog opening puts the panel away, so it never sits on top of it.
+window.onModalOpen = closeCardMenu;
 
 // Leaving the page turns this visit's green checks grey for good.
 document.addEventListener("reminth:page", (e) => {
@@ -1356,6 +1528,13 @@ function refreshInstalledMarks() {
   });
 }
 
+/** What an Install button does when pressed: with two or more instances it asks which one. */
+function installTip(installed) {
+  const list = state.instances || [];
+  if (list.length !== 1) return "Choose which instance to add it to";
+  return installed ? `Already in ${list[0].name}` : `Add to ${list[0].name}`;
+}
+
 /** Install button in a Discover row: + Install → ✓ Installed (green this visit, grey after). */
 function paintInstallButton(b, installed) {
   if (b.classList.contains("busy")) return;
@@ -1363,6 +1542,7 @@ function paintInstallButton(b, installed) {
   b.classList.toggle("fresh", installed && freshAdds.has(`${state.activeId}:${b.dataset.project}`));
   const label = b.querySelector("span");
   if (label) label.textContent = installed ? "Installed" : "Install";
+  b.title = installTip(installed);
   const want = installed ? "#i-check" : "#i-plus";
   const svg = b.querySelector("svg");
   if (svg && svg.querySelector("use").getAttribute("href") !== want) svg.replaceWith(icon(want));
@@ -1440,8 +1620,14 @@ document.querySelectorAll("#browseTabs .tab").forEach((b) => {
   b.onclick = () => setDiscoverType(b.dataset.type);
 });
 
+let browseTimer = null;
+
 function setDiscoverType(type) {
   if (!DTYPES[type]) return;
+  // A search still waiting out its typing delay belongs to the tab being
+  // left; let it fire and it searches the new tab for text the (now empty)
+  // box no longer shows.
+  clearTimeout(browseTimer);
   disc.type = type;
   disc.page = 1;
   disc.query = "";
@@ -1459,12 +1645,14 @@ function setDiscoverType(type) {
   runBrowse();
 }
 
-let browseTimer = null;
 $("browseSearch").addEventListener("input", (e) => {
   clearTimeout(browseTimer);
   const value = e.target.value;
   browseTimer = setTimeout(() => {
-    disc.query = value;
+    // Only spaces is not a search.
+    const query = value.trim() ? value : "";
+    if (query === disc.query) return;
+    disc.query = query;
     disc.page = 1;
     // Typing a search switches to "relevance" the way every store does.
     if (value.trim() && disc.type !== "server" && disc.sort === "downloads") {
@@ -1480,7 +1668,9 @@ async function loadTags() {
   try {
     disc.tags = await window.reminth.getCatalogTags("category");
   } catch {
-    disc.tags = [];
+    // Not kept: one failed request (offline at that moment) used to hide the
+    // category filters until Reminth was restarted. Asked for again next time.
+    return [];
   }
   return disc.tags;
 }
@@ -1523,16 +1713,6 @@ function fpOption(label, on, onClick) {
   return o;
 }
 
-/** Pure-ish: the Modrinth loaders whose mods can run on this instance. */
-function modLoadersFor(inst) {
-  if (!inst) return ["__none__"];
-  if (inst.loader === "fabric") return ["fabric"];
-  if (inst.loader === "quilt") return ["quilt", "fabric"];
-  if (inst.loader === "forge") return ["forge"];
-  if (inst.loader === "neoforge") return inst.mcVersion === "1.20.1" ? ["neoforge", "forge"] : ["neoforge"];
-  return ["__none__"];
-}
-
 function fpPills(options, value, onChange) {
   const row = el("div", "fp-pills");
   for (const [v, label] of options) {
@@ -1567,7 +1747,12 @@ function filtersChanged() {
   runBrowse();
 }
 
+let filterPanelToken = 0;
 async function renderFilterPanel() {
+  // Every call empties the panel and then fills it in across awaits; an
+  // older call that is still going must stop, or its sections land in the
+  // newer call's panel as duplicates.
+  const token = ++filterPanelToken;
   const panel = $("filterPanel");
   panel.textContent = "";
   const type = disc.type;
@@ -1575,12 +1760,17 @@ async function renderFilterPanel() {
   const f = disc.filters;
 
   if (type !== "modpack" && type !== "server" && inst) {
+    // The note follows the switch (it used to keep saying "Only showing…"
+    // after the switch was turned off, until the panel was next rebuilt).
+    const noteText = (on) => (on ? `Only showing ${DTYPES[type].label} for ${loaderLabel(inst)} ${inst.mcVersion}.` : "Showing everything — some of it may not run on this instance.");
+    const note = el("div", "fp-note", noteText(f.compatible));
     const nodes = [
       fpToggle(`Works with ${inst.name}`, f.compatible, (on) => {
         f.compatible = on;
+        note.textContent = noteText(on);
         filtersChanged();
       }),
-      el("div", "fp-note", f.compatible ? `Only showing ${DTYPES[type].label} for ${loaderLabel(inst)} ${inst.mcVersion}.` : "Showing everything - some of it may not run on this instance."),
+      note,
     ];
     panel.appendChild(fpSection("Your instance", nodes));
   }
@@ -1611,7 +1801,7 @@ async function renderFilterPanel() {
   }
 
   const tags = (await loadTags()).filter((t) => t.project_type === DTYPES[type].tagType);
-  if (disc.type !== type) return; // switched tabs while tags loaded
+  if (token !== filterPanelToken) return; // a newer render took over while tags loaded
   const byHeader = new Map();
   for (const t of tags) {
     if (["fabric", "forge", "neoforge", "quilt", "iris", "optifine", "canvas", "vanilla", "datapack", "minecraft", "liteloader", "modloader", "rift"].includes(t.name)) continue;
@@ -1647,6 +1837,7 @@ async function renderFilterPanel() {
     } catch {
       // version list unavailable - "Any version" only
     }
+    if (token !== filterPanelToken) return;
     sel.value = f.gameVersion;
     sel.onchange = () => {
       f.gameVersion = sel.value;
@@ -1723,7 +1914,12 @@ function searchParamsFor() {
   };
   if (type !== "modpack" && f.compatible && inst) {
     params.gameVersions = [inst.mcVersion];
-    if (type === "mod") params.loaders = modLoadersFor(inst);
+    if (type === "mod") {
+      // No loader (vanilla) must match nothing; an empty list would mean
+      // "any loader" to the search and show every mod.
+      const loaders = modLoadersFor(inst);
+      params.loaders = loaders.length ? loaders : ["__none__"];
+    }
     if (type === "shader") params.loaders = ["iris", "optifine"];
   } else if (f.gameVersion) {
     params.gameVersions = [f.gameVersion];
@@ -1783,6 +1979,12 @@ async function runBrowse() {
     }
   }
   if (reqId !== disc.requestId) return;
+  // Past the last page (the list got shorter: another instance, another
+  // filter): back to page 1 instead of "nothing found" with no way back.
+  if (!hits.length && disc.page > 1) {
+    disc.page = 1;
+    return runBrowse();
+  }
   grid.classList.remove("loading");
   disc.total = Math.min(total, 10000);
   renderProjectRows(hits, offlineNote);
@@ -1828,6 +2030,15 @@ function projectRow(p) {
     t.appendChild(document.createTextNode(prettyTag(l)));
     tags.appendChild(t);
   });
+  // From what the search hit already says: this mod won't go into the
+  // instance installs are aimed at. (Only seen with "Works with…" off.)
+  const fit = { id: p.project_id || p.id, name: p.title, type, versions: Array.isArray(p.versions) ? p.versions : null, loaders };
+  const misfit = type === "mod" ? modMisfit(fit, activeInstance()) : null;
+  if (misfit) {
+    const t = el("span", "tag dim fit-hint", misfit.replace(/^n/, "N"));
+    t.title = `${p.title}: ${misfit} — ${activeInstance().name} is ${loaderLabel(activeInstance())} ${activeInstance().mcVersion}`;
+    tags.appendChild(t);
+  }
   main.appendChild(tags);
   row.appendChild(main);
 
@@ -1838,10 +2049,7 @@ function projectRow(p) {
   btn.dataset.project = pid;
   if (type !== "modpack") {
     btn.dataset.installable = "1";
-    // Always names the current target, even if it was switched after this row was drawn.
-    btn.addEventListener("mouseenter", () => {
-      btn.title = "Pick which instance to add it to";
-    });
+    btn.title = installTip(installed);
   }
   if (type === "modpack") {
     btn.onclick = () => installProject({ projectId: pid, projectType: type, title: p.title }, [btn]);
@@ -1850,7 +2058,7 @@ function projectRow(p) {
     // Opens the "which instance?" panel (or installs straight away with only one instance).
     btn.onclick = (e) => {
       e.stopPropagation();
-      pickInstanceFor({ id: pid, name: p.title, type }, btn);
+      pickInstanceFor(fit, btn);
     };
   }
   if (type === "mod") {
@@ -1860,7 +2068,8 @@ function projectRow(p) {
     pick.title = "Choose version…";
     pick.setAttribute("aria-label", `Choose a version of ${p.title}`);
     pick.appendChild(icon("#i-chevron"));
-    pick.onclick = () => chooseModVersion({ projectId: pid, title: p.title }, [btn]);
+    // The instance the list is showing for, as it is at this click.
+    pick.onclick = () => chooseModVersion({ projectId: pid, title: p.title, instanceId: state.activeId }, [btn]);
     const group = el("div", "install-group");
     group.appendChild(btn);
     group.appendChild(pick);
@@ -1893,7 +2102,9 @@ function renderProjectRows(hits, note) {
       el(
         "span",
         null,
-        disc.filters.compatible && disc.type !== "modpack" && inst
+        note
+          ? "Try again when you're back online."
+          : disc.filters.compatible && disc.type !== "modpack" && inst
           ? `Nothing like that for ${loaderLabel(inst)} ${inst.mcVersion} yet. Turn off “Works with ${inst.name}” to see everything.`
           : "Try fewer filters or a different word."
       )
@@ -1974,6 +2185,10 @@ async function runServerBrowse(reqId) {
     return;
   }
   if (reqId !== disc.requestId) return;
+  if (!result.hits.length && disc.page > 1) {
+    disc.page = 1;
+    return runBrowse();
+  }
   grid.classList.remove("loading");
   let hits = result.hits;
   if (disc.filters.onlineOnly) hits = hits.filter((h) => h.online);
@@ -2032,6 +2247,7 @@ function serverRow(s) {
     img.src = src;
     img.alt = "";
     img.loading = "lazy";
+    img.addEventListener("error", () => img.replaceWith(el("div", "mrow-ico", (s.title || "?").slice(0, 1))));
     row.appendChild(img);
   } else row.appendChild(el("div", "mrow-ico", (s.title || "?").slice(0, 1)));
   const main = el("div", "mrow-main");
@@ -2055,6 +2271,20 @@ function serverRow(s) {
   const badge = el("span", "ping-badge wait", s.modrinthPingMs !== null ? "…" : "…");
   stats.appendChild(badge);
   if (s.region) stats.appendChild(el("span", "tag dim", REGION_LABELS[s.region] || prettyTag(s.region)));
+  // Which versions it takes, and whether the instance in use is one of them.
+  const takes = serverTakes(s);
+  if (takes.label) {
+    const v = el("span", "tag dim srv-ver", takes.label);
+    const all = sortedReleases(takes.list).reverse();
+    v.title = all.length > 1 ? `Takes Minecraft ${all.join(", ")}` : `Runs Minecraft ${takes.label}`;
+    stats.appendChild(v);
+    const mine = activeInstance();
+    if (s.content.kind !== "modpack" && instanceFitsServer(mine, s) === false) {
+      const hint = el("span", "srv-note", `Not ${mine.mcVersion}`);
+      hint.title = `${mine.name} is on ${mine.mcVersion} — this server takes ${takes.label}. Play still works: Reminth finds or makes an instance that fits.`;
+      stats.appendChild(hint);
+    }
+  }
   (s.categories || []).slice(0, 3).forEach((c) => stats.appendChild(el("span", "tag dim", prettyTag(c))));
   if ((s.categories || []).length > 3) stats.appendChild(el("span", "tag dim", `+${s.categories.length - 3}`));
   if (s.content.kind === "modpack" && s.content.projectName) {
@@ -2070,14 +2300,26 @@ function serverRow(s) {
   const side = el("div", "mrow-side");
   const actions = el("div", "mrow-actions");
   const add = button("btn outline sm square", null, "#i-plus");
-  add.title = `Add to ${activeInstance() ? activeInstance().name : "your"} server list`;
+  // Named when hovered, so it's right even after the instance was switched.
+  const addTip = () => `Add to ${activeInstance() ? activeInstance().name + "'s" : "your"} server list`;
+  add.title = addTip();
+  add.setAttribute("aria-label", "Add to server list");
+  add.addEventListener("mouseenter", () => (add.title = addTip()));
   add.onclick = async () => {
     if (!s.address) return toast("This server hasn't published an address.");
+    // The instance at this click; nothing below reads the active one again.
+    const inst = activeInstance();
+    if (!inst || add.disabled) return;
+    add.disabled = true;
     try {
-      const r = await window.reminth.addServer(state.activeId, { name: s.title, address: s.address });
-      toast(r.added ? `${s.title} added to ${activeInstance().name}'s server list.` : `${s.title} is already in that list.`);
+      const r = await window.reminth.addServer(inst.id, { name: s.title, address: s.address });
+      // Still added - but say so when this instance can't actually join it.
+      const cant = s.content.kind !== "modpack" && instanceFitsServer(inst, s) === false ? ` ${inst.name} is on ${inst.mcVersion} — this server takes ${serverTakes(s).label}.` : "";
+      toast(r.added ? (cant ? `${s.title} added.${cant}` : `${s.title} added to ${inst.name}'s server list.`) : `${s.title} is already in that list.${cant}`);
     } catch (err) {
       toast(friendlyError(err.message));
+    } finally {
+      add.disabled = false;
     }
   };
   const play = button("btn sm play-btn", "Play", "#i-play");
@@ -2098,14 +2340,30 @@ function parseAddress(address) {
  * Plays a server: finds (or makes) an instance that can join it, then
  * launches straight into it. Modpack servers get their pack installed.
  */
+let playServerBusy = false;
 async function playServer(s, btn) {
+  // One at a time: a double-click used to open two confirm dialogs, make two
+  // instances and launch twice. Covers the questions and the set-up; the
+  // launch itself isn't waited for (runPlay has its own guard).
+  if (playServerBusy) return;
+  playServerBusy = true;
+  btn.disabled = true;
+  try {
+    await prepareAndPlayServer(s);
+  } finally {
+    playServerBusy = false;
+    btn.disabled = false;
+  }
+}
+
+async function prepareAndPlayServer(s) {
   if (!state.signedIn) return toast("Sign in first.");
   const join = parseAddress(s.address);
   if (!join) return toast("This server hasn't published an address.");
   const c = s.content;
   if (c.kind === "modpack") {
     const existing = state.instances.find((i) => i.modpack && i.modpack.projectId === c.projectId);
-    if (existing) return runPlay({ instanceId: existing.id, join });
+    if (existing) return void runPlay({ instanceId: existing.id, join });
     await installModpackFlow({
       projectId: c.projectId,
       versionId: c.versionId,
@@ -2117,22 +2375,39 @@ async function playServer(s, btn) {
   const supported = c.supportedVersions || [];
   const fits = (inst) => !supported.length || supported.includes(inst.mcVersion);
   const active = activeInstance();
-  if (active && fits(active)) return runPlay({ instanceId: active.id, join });
+  if (active && fits(active)) return void runPlay({ instanceId: active.id, join });
   const other = state.instances.find(fits);
   if (other) {
     const ok = await confirmModal(`Play ${s.title} on ${other.name}?`, `${s.title} runs ${supported.slice(0, 3).join(", ")}${supported.length > 3 ? "…" : ""}. ${other.name} (${other.mcVersion}) can join it.`, "Play");
     if (ok) runPlay({ instanceId: other.id, join });
     return;
   }
-  const version = c.recommendedVersion || supported[0];
+  const takes = serverTakes(s);
+  const version = takes.version;
   if (!version) return toast("This server doesn't say which version it runs.");
-  const ok = await confirmModal(
-    `Make an instance for ${s.title}?`,
-    [`${s.title} runs Minecraft ${version}, and none of your instances are on it. Reminth can make a vanilla ${version} instance and join straight away.`],
-    "Create and play"
-  );
-  if (!ok) return;
-  btn.disabled = true;
+  // The instance in use has mods: offer to bring them along instead of only
+  // a bare vanilla instance.
+  const modCount = active && active.loader !== "vanilla" ? await ownModCount(active) : 0;
+  if (modCount > 0) {
+    const choice = await chooseServerInstance(s, active, version, takes.label || version, modCount);
+    if (!choice) return;
+    if (choice === "copy") {
+      // The advisor shows how many mods have a build for what the server
+      // takes, makes the copy, then joins on it.
+      await openVersionAdvisor(active.id, {
+        open: false,
+        server: { name: s.title, address: s.address, accepts: supported.length ? supported : [version], play: (inst) => runPlay({ instanceId: inst.id, join }) },
+      });
+      return;
+    }
+  } else {
+    const ok = await confirmModal(
+      `Make an instance for ${s.title}?`,
+      [`${s.title} runs Minecraft ${version}, and none of your instances are on it. Reminth can make a vanilla ${version} instance and join straight away.`],
+      "Create and play"
+    );
+    if (!ok) return;
+  }
   try {
     const inst = await window.reminth.createInstance({ name: `${s.title}`.slice(0, 40), mcVersion: version, loader: "vanilla" });
     await loadInstances();
@@ -2140,14 +2415,12 @@ async function playServer(s, btn) {
     runPlay({ instanceId: inst.id, join });
   } catch (err) {
     toast(friendlyError(err.message));
-  } finally {
-    btn.disabled = false;
   }
 }
 
-/** "Installing into [instance ▾]" on Discover. Picking another instance makes it the
- *  active one, so the compatibility filter, the "Installed" marks and Install itself
- *  all follow it - before, Discover only ever used whichever instance was opened last. */
+/** "Showing what fits [instance ▾]" on Discover. Picking another instance makes it the
+ *  active one, so the compatibility filter and the "Installed" marks follow it.
+ *  It is NOT where Install puts things: with more than one instance, Install asks. */
 function renderInstallTarget() {
   const box = $("discoverTargetDd");
   if (!box) return;
@@ -2165,12 +2438,21 @@ function renderInstallTarget() {
     onChange: (id) => {
       selectInstance(id, false);
       const inst = instanceById(id);
-      if (inst) toast(`Installs from Discover now go into ${inst.name}.`);
+      if (inst) toast(`Discover now shows what fits ${inst.name}.`);
     },
   });
 }
 
 pageHooks.discover = () => {
+  const inst = activeInstance();
+  const fit = inst ? `${inst.id}|${inst.name}|${inst.loader}|${inst.mcVersion}` : "";
+  // Changed while Discover was closed: what's on screen is another instance's list.
+  const stale = Boolean(sortDd) && fit !== disc.fit;
+  disc.fit = fit;
+  if (stale) {
+    disc.page = 1;
+    runBrowse();
+  }
   renderInstallTarget();
   if (!sortDd) setDiscoverType(disc.type);
   else renderFilterPanel();
@@ -2179,28 +2461,51 @@ pageHooks.discover = () => {
 /* ================================================================== *
  * 4. logs                                                             *
  * ================================================================== */
-const logState = { sessions: [], current: null, data: null, show: new Set([0, 1, 2, 3, 4]), search: "", rows: [] };
+const logState = { instanceId: null, sessions: [], current: null, data: null, show: new Set([0, 1, 2, 3, 4]), search: "", rows: [], listReq: 0, readReq: 0 };
 const ROW_H = 20;
+
+/** Forgets the open log: nothing of it left to scroll, filter or copy. */
+function clearLogView(note) {
+  logState.readReq++; // a read still in flight is for a log we no longer show
+  logState.current = null;
+  logState.data = null;
+  logState.rows = [];
+  for (const id of ["lcImportant", "lcError", "lcWarn", "lcChat", "lcInfo"]) $(id).textContent = "0";
+  $("logMeta").textContent = note;
+  $("logRows").textContent = "";
+  $("logSpacer").style.height = "0px";
+}
 
 async function loadLogSessions() {
   const inst = activeInstance();
+  if (!inst) return;
+  const req = ++logState.listReq;
   const box = $("logSessions");
+  // Session ids repeat across instances (every one has a "latest" log), so
+  // what's open can't be carried over: it would show the last instance's lines.
+  if (logState.instanceId !== inst.id) {
+    logState.instanceId = inst.id;
+    logState.sessions = [];
+    clearLogView("");
+  }
   box.textContent = "";
   box.appendChild(el("div", "fp-note", "Reading logs…"));
+  let sessions;
   try {
-    logState.sessions = await window.reminth.logs(inst.id);
+    sessions = await window.reminth.logs(inst.id);
   } catch (err) {
+    if (req !== logState.listReq) return;
     logState.sessions = [];
     box.textContent = "";
     box.appendChild(el("div", "fp-note", friendlyError(err.message)));
     return;
   }
+  if (req !== logState.listReq) return; // a newer list (maybe another instance's) is on its way
+  logState.sessions = sessions;
   box.textContent = "";
   if (!logState.sessions.length) {
     box.appendChild(el("div", "fp-note", "No logs yet. Play once and every session is kept here for good."));
-    $("logMeta").textContent = "Nothing to show yet.";
-    $("logRows").textContent = "";
-    $("logSpacer").style.height = "0px";
+    clearLogView("Nothing to show yet.");
     return;
   }
   for (const s of logState.sessions) {
@@ -2217,21 +2522,29 @@ async function loadLogSessions() {
     b.onclick = () => openLog(s.id);
     box.appendChild(b);
   }
-  if (!logState.current || !logState.sessions.some((s) => s.id === logState.current)) openLog(logState.sessions[0].id);
+  // Always read it again: the live log has the same id every time but grows
+  // while the game runs, so keeping what was read before shows old lines.
+  openLog(logState.sessions.some((s) => s.id === logState.current) ? logState.current : logState.sessions[0].id);
 }
 
 async function openLog(id) {
-  const inst = activeInstance();
+  const instanceId = logState.instanceId;
+  const req = ++logState.readReq;
   logState.current = id;
   document.querySelectorAll(".log-session").forEach((b, i) => b.classList.toggle("active", logState.sessions[i] && logState.sessions[i].id === id));
   $("logMeta").textContent = "Loading…";
+  let data;
   try {
-    logState.data = await window.reminth.readLog(inst.id, id);
+    data = await window.reminth.readLog(instanceId, id);
   } catch (err) {
+    if (req !== logState.readReq) return;
     logState.data = null;
     $("logMeta").textContent = friendlyError(err.message);
     return;
   }
+  // A slow read of a session picked earlier must not paint over this one.
+  if (req !== logState.readReq) return;
+  logState.data = data;
   const c = logState.data.counts;
   $("lcImportant").textContent = c.important;
   $("lcError").textContent = c.error;
@@ -2300,22 +2613,31 @@ document.querySelectorAll("#logFilters .log-chip").forEach((chip) => {
     const cat = Number(chip.dataset.cat);
     if (logState.show.has(cat)) logState.show.delete(cat);
     else logState.show.add(cat);
-    chip.classList.toggle("active", logState.show.has(cat));
+    paintLogFilters();
     filterLog();
   };
 });
+/** The chips and the "Only important" button, from what is actually shown. */
+function paintLogFilters() {
+  document.querySelectorAll("#logFilters .log-chip").forEach((c) => c.classList.toggle("active", logState.show.has(Number(c.dataset.cat))));
+  const only = logState.show.size === 1 && logState.show.has(4);
+  $("logOnlyImportant").lastChild.textContent = only ? "Show everything" : "Only important";
+}
 $("logOnlyImportant").onclick = () => {
   const only = logState.show.size === 1 && logState.show.has(4);
   logState.show = only ? new Set([0, 1, 2, 3, 4]) : new Set([4]);
-  document.querySelectorAll("#logFilters .log-chip").forEach((c) => c.classList.toggle("active", logState.show.has(Number(c.dataset.cat))));
-  $("logOnlyImportant").lastChild.textContent = only ? "Only important" : "Show everything";
+  paintLogFilters();
   filterLog();
 };
+// "Hide personal info": the log is blurred until asked for, and again after leaving it.
+$("logVeil").onclick = () => $("logVeil").parentElement.classList.add("revealed");
+const veilLogs = () => $("logVeil").parentElement.classList.remove("revealed");
+document.addEventListener("reminth:page", veilLogs);
 $("logCopyBtn").onclick = async () => {
   const d = logState.data;
   if (!d || !logState.rows.length) return toast("Nothing to copy.");
   const session = logState.sessions.find((s) => s.id === logState.current);
-  const inst = activeInstance();
+  const inst = instanceById(logState.instanceId) || activeInstance();
   const header = [
     `Minecraft log — ${inst.name} (${loaderLabel(inst)} ${inst.mcVersion})`,
     `Session: ${session ? new Date(session.date).toLocaleString() : d.name} · file ${d.name} · fingerprint ${d.sha1}`,
@@ -2333,7 +2655,7 @@ $("logCopyBtn").onclick = async () => {
 /* ================================================================== *
  * 5. skins                                                            *
  * ================================================================== */
-const skins = { viewer: null, profile: null, library: [], defaults: null, profileLoaded: false, autoSaved: false };
+const skins = { viewer: null, profile: null, library: [], defaults: null, profileLoaded: false, autoSaved: false, applying: false };
 
 function currentSkinTexture() {
   const s = state.accountSkin;
@@ -2386,25 +2708,30 @@ function skinTile({ dataUrl, variant, label, current, onClick, onRename, onDelet
   const viewer = new SkinViewer(vp, { scale: 4.2, animate: false, interactive: false, yaw: -28, pitch: -6 });
   viewer.setSkin(dataUrl, variant);
   if (current) tile.appendChild(el("span", "current-badge", "Wearing"));
-  tile.appendChild(el("span", "skin-label", label));
+  // "<username>'s skin" is blurred with the rest of the personal info.
+  tile.appendChild(el("span", "skin-label" + (state.username && String(label).includes(state.username) ? " pii" : ""), label));
   if (onRename || onDelete) {
     const actions = el("div", "tile-actions");
     const action = (title, iconId, fn, cls) => {
       const b = el("button", cls);
       b.type = "button";
       b.title = title;
+      b.setAttribute("aria-label", `${title}: ${label}`);
       b.appendChild(icon(iconId));
       b.onclick = (e) => {
         e.stopPropagation();
         fn();
       };
+      // Enter on this button is not Enter on the tile around it.
+      b.addEventListener("keydown", (e) => e.stopPropagation());
       actions.appendChild(b);
     };
     if (onRename) action("Rename", "#i-edit", onRename);
     if (onDelete) action("Forget this skin", "#i-trash", onDelete, "danger");
     tile.appendChild(actions);
   }
-  tile.onclick = onClick;
+  clickable(tile, onClick);
+  tile.setAttribute("aria-label", `${label}${current ? ", wearing" : ""}`);
   return tile;
 }
 
@@ -2413,7 +2740,7 @@ function addSkinTile() {
   tile.appendChild(icon("#i-upload"));
   tile.appendChild(el("b", null, "Add a skin"));
   tile.appendChild(el("span", null, "Drop a PNG here or click"));
-  tile.onclick = () => $("skinFile").click();
+  clickable(tile, () => $("skinFile").click());
   tile.addEventListener("dragover", (e) => {
     e.preventDefault();
     tile.classList.add("drag");
@@ -2432,8 +2759,25 @@ function readSkinFile(file) {
   if (!/png$/i.test(file.type) && !/\.png$/i.test(file.name)) return toast("Skins are PNG files.");
   if (file.size > 256 * 1024) return toast("That image is too big to be a skin.");
   const reader = new FileReader();
-  reader.onload = () => openSkinEditor({ dataUrl: reader.result, variant: "classic", name: file.name.replace(/\.png$/i, ""), source: "upload" });
+  reader.onload = async () => {
+    // Checked here, not only when saving: a text file renamed .png, or a
+    // picture of the wrong size, never gets as far as the editor.
+    const problem = await skinImageProblem(reader.result);
+    if (problem) return toast(problem);
+    openSkinEditor({ dataUrl: reader.result, variant: "classic", name: file.name.replace(/\.png$/i, ""), source: "upload" });
+  };
+  reader.onerror = () => toast("Couldn't read that file.");
   reader.readAsDataURL(file);
+}
+
+/** Why a picture can't be a skin (Mojang takes 64×64, or the old 64×32), or null when it can. */
+function skinImageProblem(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img.width === 64 && (img.height === 64 || img.height === 32) ? null : `Skins have to be 64×64 or 64×32 pixels — that one is ${img.width}×${img.height}.`);
+    img.onerror = () => resolve("That file isn't a PNG image.");
+    img.src = dataUrl;
+  });
 }
 $("skinFile").onchange = (e) => {
   const file = e.target.files && e.target.files[0];
@@ -2461,7 +2805,22 @@ async function loadSkinLibrary() {
         onClick: () => openSkinEditor({ dataUrl: s.dataUrl, variant: s.variant, name: s.name, source: s.source }),
         onRename: () => renameSkinModal(s),
         onDelete: async () => {
-          await window.reminth.skinLibraryRemove(s.id);
+          if (skins.applying) return toast("Wait for the skin that's being saved to finish first.");
+          const wearing = s.id === wearingId;
+          const ok = await confirmModal(
+            `Forget ${s.name}?`,
+            wearing ? "It's removed from Your skins and can't be brought back. You keep wearing it in game until you pick another." : "It's removed from Your skins and can't be brought back.",
+            "Forget",
+            true
+          );
+          if (!ok) return;
+          if (skins.applying) return toast("Wait for the skin that's being saved to finish first.");
+          try {
+            await window.reminth.skinLibraryRemove(s.id);
+            toast(`${s.name} forgotten.`);
+          } catch (err) {
+            toast(friendlyError(err.message));
+          }
           loadSkinLibrary();
         },
       })
@@ -2580,11 +2939,20 @@ function capeCanvas(dataUrl) {
  * The "Editing skin" dialog: a live 3D preview on the left, texture, arm
  * style and cape on the right. Save applies it to the account for real.
  */
+let skinEditorOpening = false;
 async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isCurrent }) {
   if (!state.signedIn) return toast("Sign in to change your skin.");
+  // The profile is fetched before the dialog opens; a second click in that
+  // gap used to open a second editor on top of the first.
+  if (skinEditorOpening) return;
   const draft = { dataUrl, variant: variant === "slim" ? "slim" : "classic", name, source, capeId: undefined };
   if (!skins.profileLoaded) {
-    await loadSkinProfile();
+    skinEditorOpening = true;
+    try {
+      await loadSkinProfile();
+    } finally {
+      skinEditorOpening = false;
+    }
     skins.profileLoaded = true;
   }
   const capes = (skins.profile && skins.profile.capes) || [];
@@ -2674,7 +3042,9 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
     picker.value = "";
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
+      const problem = await skinImageProblem(reader.result);
+      if (problem) return toast(problem);
       draft.dataUrl = reader.result;
       draft.source = "upload";
       draft.name = file.name.replace(/\.png$/i, "");
@@ -2683,10 +3053,13 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
     reader.readAsDataURL(file);
   };
 
+  // Saving talks to Mojang and can take a while: the dialog stays until it's done.
+  let saving = false;
   openModal({
     title: "Editing skin",
     body,
     wide: true,
+    canClose: () => !saving,
     onClose: () => viewer.destroy(),
     buttons: [
       { label: "Cancel", className: "outline", icon: "#i-x" },
@@ -2694,11 +3067,15 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
         label: "Save skin",
         className: "primary",
         icon: "#i-check",
-        onClick: async () => {
+        onClick: async (handle) => {
+          if (saving) return false;
           if (draft.dataUrl === fallbackSkinTexture()) {
             toast("Pick a skin first — that's Reminth's placeholder figure.");
             return false;
           }
+          saving = true;
+          skins.applying = true;
+          handle.buttons[0].disabled = true;
           try {
             await window.reminth.skinApply({ dataUrl: draft.dataUrl, variant: draft.variant, name: draft.name, source: draft.source, capeId: draft.capeId });
             toast("Skin saved to your account. Servers pick it up next time you join.");
@@ -2710,8 +3087,24 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
             loadSkinLibrary();
             return true;
           } catch (err) {
+            if (signedOutByBackend(err)) return false; // it has closed this dialog and shown the sign-in card
             toast(friendlyError(err.message));
+            if (/Skin changed, but the cape couldn't be set/.test(err.message)) {
+              // The skin itself DID change - only the cape didn't. Show the
+              // new skin everywhere and close, as after any other save.
+              skins.profileLoaded = false;
+              skins.autoSaved = true;
+              await refreshSkin();
+              await loadSkinProfile();
+              skins.profileLoaded = true;
+              loadSkinLibrary();
+              return true;
+            }
             return false;
+          } finally {
+            saving = false;
+            skins.applying = false;
+            handle.buttons[0].disabled = false;
           }
         },
       },
@@ -2755,6 +3148,7 @@ function applyStreamerUi(settings, problems) {
   if (privacy !== Boolean(state.privacy)) {
     state.privacy = privacy;
     document.body.classList.toggle("privacy", privacy);
+    veilLogs();
     refreshSkin();
   }
   if (!on && (currentPage === "captures" || currentPage === "streamer")) switchPage("home");
@@ -2788,9 +3182,24 @@ function paintSeg(id, options, value, onPick) {
   }
 }
 
+/**
+ * One save at a time. Changes made while a save is running are collected and
+ * sent together in the next one, on top of what that save returned - each
+ * used to be built on the same stale copy, so the last to finish undid the
+ * others.
+ */
+let streamerPatch = null;
+let streamerSaves = Promise.resolve(true);
 function saveStreamer(patch) {
-  const current = (state.settings && state.settings.streamer) || {};
-  return saveSetting({ streamer: { ...current, ...patch } });
+  streamerPatch = { ...(streamerPatch || {}), ...patch };
+  streamerSaves = streamerSaves.then(() => {
+    if (!streamerPatch) return true; // already sent along with an earlier change
+    const pending = streamerPatch;
+    streamerPatch = null;
+    const current = (state.settings && state.settings.streamer) || {};
+    return saveSetting({ streamer: { ...current, ...pending } });
+  });
+  return streamerSaves;
 }
 
 window.onSettingsSaved = (settings, problems) => applyStreamerUi(settings, problems);
@@ -2809,24 +3218,39 @@ for (const [id, key] of [["toggleAudio", "audio"], ["toggleHideInfo", "hidePerso
 }
 
 /* hotkey capture: click the key button, press a key (Esc cancels, Backspace clears) */
+/** Stops listening and puts every key button's own label back. */
+function endKeyCapture() {
+  streamerUi.listening = null;
+  document.querySelectorAll(".key-btn").forEach((b) => b.classList.remove("listening"));
+  applyStreamerUi(state.settings);
+}
+function cancelKeyCapture() {
+  if (streamerUi.listening) endKeyCapture();
+}
 document.querySelectorAll(".key-btn").forEach((btn) => {
   btn.onclick = () => {
-    document.querySelectorAll(".key-btn").forEach((b) => b.classList.remove("listening"));
+    // Ends a capture on the other button first, or it keeps reading "Press a key…".
+    cancelKeyCapture();
     streamerUi.listening = btn.dataset.key;
     btn.classList.add("listening");
     btn.textContent = "Press a key…";
   };
 });
+// Walking away cancels it. Without these the capture stayed armed and ate the
+// next key pressed anywhere in the launcher.
+document.addEventListener("pointerdown", (e) => {
+  if (!streamerUi.listening) return;
+  const btn = e.target instanceof Element ? e.target.closest(".key-btn") : null;
+  if (btn && btn.dataset.key === streamerUi.listening) return;
+  cancelKeyCapture();
+}, true);
+window.addEventListener("blur", cancelKeyCapture);
 document.addEventListener("keydown", (e) => {
   if (!streamerUi.listening) return;
   e.preventDefault();
   e.stopPropagation();
   const key = streamerUi.listening;
-  const done = () => {
-    streamerUi.listening = null;
-    document.querySelectorAll(".key-btn").forEach((b) => b.classList.remove("listening"));
-    applyStreamerUi(state.settings);
-  };
+  const done = endKeyCapture;
   if (e.key === "Escape") return done();
   if (e.key === "Backspace" || e.key === "Delete") {
     saveStreamer({ [key]: "" });
@@ -2843,10 +3267,11 @@ document.addEventListener("keydown", (e) => {
     return done();
   }
   const other = key === "clipKey" ? "screenshotKey" : "clipKey";
-  if (state.settings.streamer[other] === accel) {
+  if (((state.settings && state.settings.streamer) || {})[other] === accel) {
     toast("That key is already your other hotkey.");
     return done();
   }
+  streamerUi.listening = null; // the key is taken - don't swallow more while it saves
   saveStreamer({ [key]: accel }).then(done);
 }, true);
 
@@ -2924,14 +3349,20 @@ window.reminth.onStreamerSaved(({ title, body }) => {
 });
 
 $("capShotBtn").onclick = async () => {
-  const r = await window.reminth.screenshot();
-  if (r && r.error) toast(r.error);
+  try {
+    const r = await window.reminth.screenshot();
+    if (r && r.error) toast(r.error);
+  } catch (err) {
+    toast(friendlyError(err.message));
+  }
 };
 $("capClipBtn").onclick = async () => {
   $("capClipBtn").disabled = true;
   try {
     const r = await window.reminth.saveClip();
     if (r && r.error) toast(r.error);
+  } catch (err) {
+    toast(friendlyError(err.message));
   } finally {
     $("capClipBtn").disabled = false;
   }
@@ -2996,12 +3427,16 @@ function renderCaptures() {
     const folder = el("button", "icon-btn");
     folder.title = "Show in folder";
     folder.appendChild(icon("#i-folder"));
-    folder.onclick = () => window.reminth.openCapture(c.path, "folder");
+    folder.onclick = () => window.reminth.openCapture(c.path, "folder").catch((err) => toast(friendlyError(err.message)));
     const del = el("button", "icon-btn danger");
     del.title = "Move to Recycle Bin";
     del.appendChild(icon("#i-trash"));
     del.onclick = async () => {
-      await window.reminth.deleteCapture(c.path);
+      try {
+        await window.reminth.deleteCapture(c.path);
+      } catch (err) {
+        toast(friendlyError(err.message));
+      }
       loadCaptures();
     };
     body.appendChild(folder);
@@ -3020,6 +3455,1021 @@ pageHooks.streamer = () => {
 };
 
 /* ================================================================== *
+ * 7. compatibility help                                               *
+ *                                                                     *
+ * Says which mods won't load BEFORE the game refuses to start, and    *
+ * fixes them in one click (main/compat.js does the judging):          *
+ *   - the panel above an instance's mod list                          *
+ *   - the question in front of Play when the game can't start         *
+ *   - "Which Minecraft version should I use?" + the copy it offers    *
+ *   - what a server takes, and what to do when no instance fits       *
+ * ================================================================== */
+const compatUi = {
+  results: new Map(), // instance id -> the last compatCheck answer for it
+  inflight: new Map(), // instance id -> the one check running for it
+  again: new Map(), // instance id -> force flag of a check asked for while one was running
+  timers: new Map(), // instance id -> debounce timer
+  fixing: null, // instance id a fix from the panel is being applied to
+  playAnyway: localGet("compat.playAnyway", {}), // instance id -> the issues the player chose to launch with
+};
+
+const plural = (n, one, many) => (n === 1 ? one : many || one + "s");
+
+/** "a, b, c +2 more" */
+function nameList(names, max = 3) {
+  const list = names || [];
+  return list.length > max ? `${list.slice(0, max).join(", ")} +${list.length - max} more` : list.join(", ");
+}
+
+/** "a, b and c" */
+function sentenceList(names) {
+  const list = names || [];
+  return list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}` : list.join("");
+}
+
+const addedNote = (added) => (added && added.length ? `, and added ${sentenceList(added)}` : "");
+
+/** Things the backend wants said although the job went through: " Note: …" for the end of a toast. */
+const warningNote = (warnings) => {
+  const list = (warnings || []).filter(Boolean).map((w) => friendlyError(w));
+  return list.length ? ` Note: ${list[0]}${list.length > 1 ? ` (+${list.length - 1} more)` : ""}` : "";
+};
+
+/** A release version as numbers ("1.21.4" -> [1, 21, 4]); null for snapshots and the like. */
+function mcParts(v) {
+  const m = /^(\d+)\.(\d+)(?:\.(\d+))?$/.exec(String(v || "").trim());
+  return m ? [Number(m[1]), Number(m[2]), m[3] === undefined ? 0 : Number(m[3])] : null;
+}
+
+/** Oldest first; releases only, each once. */
+function sortedReleases(list) {
+  return [...new Set((list || []).filter((v) => mcParts(v)))].sort((a, b) => {
+    const pa = mcParts(a);
+    const pb = mcParts(b);
+    for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+    return 0;
+  });
+}
+
+/** ["1.21.4"] -> "1.21.4"; a list -> "1.8 – 1.21.4"; nothing usable -> null. */
+function versionRangeLabel(list) {
+  const releases = sortedReleases(list);
+  if (!releases.length) return (list && list[0]) || null;
+  return releases.length === 1 ? releases[0] : `${releases[0]} – ${releases[releases.length - 1]}`;
+}
+
+/** What a server from Discover takes: { list, label, version } - list empty when it doesn't say. */
+function serverTakes(s) {
+  const c = (s && s.content) || {};
+  const list = Array.isArray(c.supportedVersions) ? c.supportedVersions.filter((v) => typeof v === "string") : [];
+  const releases = sortedReleases(list);
+  return {
+    list,
+    label: versionRangeLabel(list) || c.recommendedVersion || null,
+    // The one to build an instance on: what the server recommends, else the newest it takes.
+    version: c.recommendedVersion || releases[releases.length - 1] || list[0] || null,
+  };
+}
+
+/** Can this instance join? true / false, or null when the server doesn't say what it takes. */
+function instanceFitsServer(inst, s) {
+  const { list } = serverTakes(s);
+  if (!inst || !list.length) return null;
+  return list.includes(inst.mcVersion);
+}
+
+/**
+ * Why a mod from Discover won't go into this instance, from what the search
+ * hit already says (no extra request): "no build for 1.21.9" / "not for
+ * Fabric", or null when it fits or can't be told.
+ */
+function modMisfit(project, inst) {
+  if (!project || !inst || (project.type || "mod") !== "mod" || inst.loader === "vanilla") return null;
+  const loaders = project.loaders || [];
+  const wanted = modLoadersFor(inst);
+  if (loaders.length && !loaders.some((l) => wanted.includes(l))) return `not for ${loaderLabel(inst)}`;
+  const versions = project.versions;
+  if (Array.isArray(versions) && versions.length && !versions.includes(inst.mcVersion)) return `no build for ${inst.mcVersion}`;
+  return null;
+}
+
+/* ---- checking ---- */
+
+/**
+ * The one way a check is run: never two at once for an instance. A request
+ * that arrives while one is running makes it run once more when it ends, so
+ * the answer is never older than the last thing that changed.
+ */
+function runCompatCheck(id, force = false) {
+  if (compatUi.inflight.has(id)) {
+    compatUi.again.set(id, Boolean(compatUi.again.get(id)) || force);
+    return compatUi.inflight.get(id);
+  }
+  const run = (async () => {
+    let result = null;
+    let forced = force;
+    try {
+      for (;;) {
+        try {
+          result = await window.reminth.compatCheck(id, { force: forced });
+        } catch {
+          result = null; // instance gone, or the folder couldn't be read - nothing to show
+        }
+        if (!compatUi.again.has(id)) break;
+        forced = compatUi.again.get(id);
+        compatUi.again.delete(id);
+      }
+    } finally {
+      compatUi.inflight.delete(id);
+    }
+    if (result) compatUi.results.set(id, result);
+    else compatUi.results.delete(id);
+    // Only the instance on screen is painted; another one's answer is kept
+    // for when it's opened (and for its Play button).
+    if (content.instanceId === id) renderCompatPanel();
+    return result;
+  })();
+  compatUi.inflight.set(id, run);
+  return run;
+}
+
+/** After the lists reload: look again, once the changes have settled. */
+function scheduleCompatCheck(id) {
+  const inst = instanceById(id);
+  clearTimeout(compatUi.timers.get(id));
+  if (!inst || inst.loader === "vanilla") {
+    compatUi.results.delete(id);
+    if (content.instanceId === id) renderCompatPanel();
+    return;
+  }
+  compatUi.timers.set(
+    id,
+    setTimeout(() => {
+      compatUi.timers.delete(id);
+      runCompatCheck(id);
+    }, 350)
+  );
+}
+
+/* ---- fixing ---- */
+
+/**
+ * Applies the fixes of `issues`. Every "update" goes in one applyUpdates
+ * call, then the installs one by one, then (only when asked) the switch-offs.
+ * Never throws. Returns { fixed: [titles], failed: [{ title, error }],
+ * left: [titles not touched], added: [titles the new builds brought in],
+ * warnings: [text] }. `id` is the instance the issues were found in - the
+ * callers fix it when the player clicks, and nothing here reads the active one.
+ */
+async function applyCompatFixes(id, issues, { includeDisable = false } = {}) {
+  const out = { fixed: [], failed: [], left: [], added: [], warnings: [] };
+  const updates = issues.filter((i) => i.fix && i.fix.type === "update" && i.fix.update);
+  const installs = issues.filter((i) => i.fix && i.fix.type === "install" && i.fix.projectId);
+  const disables = issues.filter((i) => i.fix && i.fix.type === "disable" && i.file);
+  for (const i of issues) if (!updates.includes(i) && !installs.includes(i) && !disables.includes(i)) out.left.push(i.title);
+
+  if (updates.length) {
+    try {
+      const r = await window.reminth.applyUpdates(id, updates.map((i) => i.fix.update));
+      // Matched by file: two mods can share a title, a file name can't be shared.
+      const failed = r.failed || [];
+      const badFile = new Map(failed.filter((f) => f.file).map((f) => [f.file, f.error]));
+      const badTitle = new Map(failed.filter((f) => !f.file).map((f) => [f.title, f.error]));
+      for (const i of updates) {
+        const file = i.fix.update.file || i.file;
+        const title = i.fix.update.title || i.title;
+        const error = badFile.has(file) ? badFile.get(file) : badTitle.get(title);
+        if (error !== undefined) out.failed.push({ title: i.title, error: friendlyError(error) });
+        else out.fixed.push(i.title);
+      }
+      out.added.push(...(r.added || []));
+      out.warnings.push(...(r.warnings || []));
+    } catch (err) {
+      for (const i of updates) out.failed.push({ title: i.title, error: friendlyError(err.message) });
+    }
+  }
+  const asked = new Set();
+  for (const i of installs) {
+    const key = `${i.fix.projectId}|${i.fix.versionId || ""}`;
+    if (asked.has(key)) {
+      out.fixed.push(i.title);
+      continue;
+    }
+    asked.add(key);
+    try {
+      const r = await window.reminth.installContent(id, { projectId: i.fix.projectId, kind: "mod", ...(i.fix.versionId ? { versionId: i.fix.versionId } : {}) });
+      out.fixed.push(i.title);
+      out.warnings.push(...((r && r.warnings) || []));
+    } catch (err) {
+      out.failed.push({ title: i.title, error: friendlyError(err.message) });
+    }
+  }
+  for (const i of disables) {
+    if (!includeDisable) {
+      out.left.push(i.title);
+      continue;
+    }
+    try {
+      await window.reminth.setContentEnabled(id, { kind: "mod", world: null, file: i.file }, false);
+      out.fixed.push(i.title);
+    } catch (err) {
+      out.failed.push({ title: i.title, error: friendlyError(err.message) });
+    }
+  }
+  return out;
+}
+
+/** Why fixes can't be applied right now, or null when they can. */
+function compatFixBlocked(id) {
+  if (state.running.has(id)) return "Close the game first — Windows won't let files in use be replaced.";
+  if (content.updating) return "Wait for the update that's running to finish first.";
+  if (compatUi.fixing) return "A fix is already being applied.";
+  return null;
+}
+
+/** Runs fixes from the panel: busy state, then fresh lists and a fresh check. */
+async function compatFixFromPanel(id, issues, { includeDisable, busyButton, all }) {
+  const why = compatFixBlocked(id);
+  if (why) return toast(why);
+  const inst = instanceById(id);
+  compatUi.fixing = id;
+  $("compatPanel").querySelectorAll("button").forEach((b) => (b.disabled = true));
+  if (busyButton) {
+    busyButton.classList.add("busy");
+    const label = busyButton.querySelector("span");
+    if (label) label.textContent = "Working…";
+  }
+  try {
+    const r = await applyCompatFixes(id, issues, { includeDisable });
+    if (all) {
+      const parts = [];
+      if (r.fixed.length) parts.push(`Fixed ${r.fixed.length} ${plural(r.fixed.length, "mod")}${addedNote(r.added)}.`);
+      if (r.failed.length) parts.push(`${r.failed.length} couldn't be fixed — ${r.failed[0].title}: ${r.failed[0].error}`);
+      if (r.left.length) parts.push(`Left for you to switch off: ${nameList(r.left)}.`);
+      toast((parts.join(" ") || "Nothing to fix.") + warningNote(r.warnings));
+    } else if (r.failed.length) {
+      toast(`Couldn't fix ${r.failed[0].title}: ${r.failed[0].error}`);
+    } else if (r.fixed.length) {
+      const issue = issues[0];
+      const fix = issue.fix;
+      const note = warningNote(r.warnings);
+      if (fix.type === "update") toast(`${issue.title} switched to ${fix.update.next.versionNumber}${addedNote(r.added)}.${note}`);
+      else if (fix.type === "install") toast(`${fix.title || issue.title} added to ${inst ? inst.name : "the instance"}.${note}`);
+      else toast(`${issue.title} switched off.${note}`);
+    }
+  } finally {
+    compatUi.fixing = null;
+    // Another instance may be on screen by now: its lists are left alone.
+    if (content.instanceId === id) await loadContent(id);
+    await runCompatCheck(id, true);
+    if (content.instanceId === id) renderCompatPanel();
+  }
+}
+
+/* ---- the panel above the mod list ---- */
+
+function compatIcon(issue) {
+  const item = issue.file && content.data ? (content.data.mod || []).find((m) => m.file === issue.file) : null;
+  const c = item ? creatorOf(item) : null;
+  const src = safeIconUrl(issue.iconUrl) || (item && (safeIconUrl(item.iconUrl) || safeIconUrl(c && c.iconUrl) || safeIconUrl(item.icon)));
+  const letter = () => el("div", "cp-ico", (issue.title || "?").slice(0, 1).toUpperCase());
+  if (!src) return letter();
+  const img = el("img", "cp-ico");
+  img.src = src;
+  img.alt = "";
+  img.loading = "lazy";
+  img.addEventListener("error", () => img.replaceWith(letter()));
+  return img;
+}
+
+/** One issue: icon, name, the sentence about it, and (optionally) its fix button. */
+function compatIssueRow(issue, { onFix, showFixText } = {}) {
+  const row = el("div", "cp-row");
+  row.appendChild(compatIcon(issue));
+  const main = el("div", "cp-main");
+  const top = el("div", "cp-top");
+  top.appendChild(el("span", "cp-name", issue.title));
+  top.appendChild(el("span", "tag " + (issue.severity === "blocked" ? "rose" : "amber"), issue.severity === "blocked" ? "Won't load" : "May not work"));
+  main.appendChild(top);
+  main.appendChild(el("div", "cp-detail", issue.detail));
+  if (showFixText && issue.fix) main.appendChild(el("div", "cp-does", `Fix: ${issue.fix.label}`));
+  row.appendChild(main);
+  if (onFix && issue.fix) {
+    const b = button("btn outline sm cp-fix", issue.fix.label);
+    b.title = issue.fix.label;
+    b.onclick = () => onFix(issue, b);
+    row.appendChild(b);
+  }
+  return row;
+}
+
+function renderCompatPanel() {
+  const panel = $("compatPanel");
+  if (!panel) return;
+  const id = content.instanceId;
+  // A fix is running from this very panel: its buttons keep their busy state
+  // until it's done, and it repaints then.
+  if (compatUi.fixing && compatUi.fixing === id && !panel.hidden) return;
+  const result = id ? compatUi.results.get(id) : null;
+  const inst = id ? instanceById(id) : null;
+  panel.textContent = "";
+  if (!result || !inst || inst.loader === "vanilla" || !result.issues || !result.issues.length) {
+    panel.hidden = true;
+    paintCompatTags();
+    return;
+  }
+  const blocked = result.issues.filter((i) => i.severity === "blocked").length;
+  const warned = result.issues.length - blocked;
+  panel.className = "compat-panel " + (blocked ? "blocked" : "warn");
+
+  const head = el("div", "cp-head");
+  head.appendChild(icon("#i-alert"));
+  const title = el("b", "cp-title");
+  if (blocked) {
+    title.textContent = `${blocked} ${plural(blocked, "mod")} will stop Minecraft from starting`;
+    if (warned) title.appendChild(el("small", null, `${warned} more may not work`));
+  } else {
+    title.textContent = `${warned} ${plural(warned, "mod")} may not work on ${result.mcVersion || inst.mcVersion}`;
+  }
+  head.appendChild(title);
+  const actions = el("div", "cp-actions");
+  const auto = result.issues.filter((i) => i.fix && (i.fix.type === "update" || i.fix.type === "install"));
+  if (auto.length >= 2) {
+    const all = button("btn primary sm pill-like", "Fix all", "#i-check");
+    all.title = "Switches every mod that has a matching build to it, and adds what's missing";
+    all.onclick = () => compatFixFromPanel(id, result.issues, { includeDisable: false, busyButton: all, all: true });
+    actions.appendChild(all);
+  }
+  const advise = button("btn outline sm", "Find a version that fits everything");
+  advise.onclick = () => openVersionAdvisor(id);
+  actions.appendChild(advise);
+  head.appendChild(actions);
+  panel.appendChild(head);
+  if (result.online === false) panel.appendChild(el("div", "cp-note", "Couldn't reach Modrinth — only checks that work offline were run."));
+
+  const list = el("div", "cp-list");
+  for (const issue of result.issues) {
+    list.appendChild(
+      compatIssueRow(issue, {
+        onFix: (i, b) => compatFixFromPanel(id, [i], { includeDisable: true, busyButton: b, all: false }),
+      })
+    );
+  }
+  panel.appendChild(list);
+  panel.hidden = false;
+  paintCompatTags();
+}
+
+/** "Won't load" / "May not work" on the rows of the mod list the panel is about. */
+function paintCompatTags() {
+  const list = $("listMods");
+  if (!list) return;
+  list.querySelectorAll(".c-compat").forEach((n) => n.remove());
+  const result = content.instanceId ? compatUi.results.get(content.instanceId) : null;
+  if (!result || !result.issues || !result.issues.length) return;
+  const byKey = new Map();
+  for (const issue of result.issues) {
+    if (!issue.file) continue;
+    const key = `mod//${issue.file}`;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(issue);
+  }
+  list.querySelectorAll(".content-row[data-key]").forEach((row) => {
+    const issues = byKey.get(row.dataset.key);
+    const top = row.querySelector(".c-top");
+    if (!issues || !top) return;
+    const blocked = issues.some((i) => i.severity === "blocked");
+    const tag = el("span", "tag c-compat " + (blocked ? "rose" : "amber"), blocked ? "Won't load" : "May not work");
+    tag.title = issues.map((i) => i.detail).join("\n");
+    top.appendChild(tag);
+  });
+}
+
+/* ---- before Play ---- */
+
+const compatSignature = (issues) => issues.map((i) => `${i.file || ""}|${i.reason}|${i.title}`).sort().join("\n");
+
+/**
+ * Called by runPlay before a modded instance launches. Resolves true to go
+ * ahead, false when the player backed out. Never keeps Play waiting more
+ * than a few seconds, and only ever asks about mods that stop the game.
+ *
+ * The full check (which reads every jar and asks Modrinth) gets about 2.5
+ * seconds. If it hasn't answered - a big instance checked for the first
+ * time - the quick check decides instead: it only uses what the jars say
+ * themselves, which is everything that can stop the game. Giving up after
+ * the wait, as this used to, let exactly the big instances start unchecked.
+ * The full check carries on by itself and paints the panel when it's done;
+ * the quick answer is used here only and never stored.
+ */
+async function compatBeforePlay(inst) {
+  if (!inst || inst.loader === "vanilla" || state.running.has(inst.id)) return true;
+  const after = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));
+  let result = null;
+  try {
+    result = await Promise.race([runCompatCheck(inst.id), after(2500)]);
+    if (!result) {
+      result = await Promise.race([window.reminth.compatCheck(inst.id, { localOnly: true }).catch(() => null), after(2500)]);
+    }
+  } catch {
+    return true;
+  }
+  if (!result) return true;
+  const blocked = (result.issues || []).filter((i) => i.severity === "blocked");
+  if (!blocked.length) return true;
+  const signature = compatSignature(blocked);
+  if (compatUi.playAnyway[inst.id] === signature) return true;
+
+  return new Promise((resolve) => {
+    let answer = false;
+    let fixing = false;
+    const n = blocked.length;
+    const body = el("div");
+    body.appendChild(
+      el("p", null, `${n} ${plural(n, "mod")} in ${inst.name} ${n === 1 ? "stops" : "stop"} the game from starting. Reminth can fix ${n === 1 ? "it" : "them"} now, then start the game.`)
+    );
+    const list = el("div", "cp-list");
+    blocked.forEach((issue) => list.appendChild(compatIssueRow(issue, { showFixText: true })));
+    body.appendChild(list);
+    const note = el("div", "cp-note");
+    note.hidden = true;
+    body.appendChild(note);
+    openModal({
+      title: "Minecraft won't start like this",
+      body,
+      canClose: () => !fixing,
+      onClose: () => resolve(answer),
+      buttons: [
+        { label: "Cancel", className: "outline" },
+        {
+          label: "Play anyway",
+          className: "outline",
+          onClick: () => {
+            if (fixing) return false;
+            // Not asked again for this instance until its problems change.
+            compatUi.playAnyway[inst.id] = signature;
+            localSet("compat.playAnyway", compatUi.playAnyway);
+            answer = true;
+            return true;
+          },
+        },
+        {
+          label: "Fix and play",
+          className: "primary",
+          icon: "#i-check",
+          onClick: async (handle) => {
+            if (fixing) return false;
+            const why = compatFixBlocked(inst.id);
+            if (why) {
+              toast(why);
+              return false;
+            }
+            fixing = true;
+            handle.buttons.forEach((b) => (b.disabled = true));
+            note.hidden = false;
+            note.textContent = "Fixing…";
+            try {
+              const r = await applyCompatFixes(inst.id, blocked, { includeDisable: true });
+              if (content.instanceId === inst.id) await loadContent(inst.id);
+              runCompatCheck(inst.id, true);
+              if (r.failed.length || r.left.length) {
+                const bits = [];
+                if (r.failed.length) bits.push(`Couldn't fix ${r.failed[0].title}: ${r.failed[0].error}`);
+                if (r.left.length) bits.push(`No automatic fix for ${nameList(r.left)}.`);
+                note.textContent = `${bits.join(" ")} You can still press Play anyway, or cancel and sort it out in the Mods tab.`;
+                return false;
+              }
+              toast(`Fixed ${r.fixed.length} ${plural(r.fixed.length, "mod")}${addedNote(r.added)}.${warningNote(r.warnings)}`);
+              answer = true;
+              return true;
+            } finally {
+              fixing = false;
+              handle.buttons.forEach((b) => (b.disabled = false));
+            }
+          },
+        },
+      ],
+    });
+  });
+}
+
+/* ---- after an install ---- */
+// An install swaps Reminth's own jars and the backend forgets its answer:
+// look again now, so the answer is there by the time Play is pressed (also
+// for an instance that isn't the one on screen).
+window.reminth.onInstallDone(({ instanceId }) => {
+  if (instanceId && instanceById(instanceId)) scheduleCompatCheck(instanceId);
+});
+
+/* ---- after the version or loader of an instance was changed ---- */
+async function compatAfterEdit(id, mcVersion) {
+  const result = await runCompatCheck(id, true);
+  if (!result || !result.issues) return;
+  const n = result.issues.filter((i) => i.fix && i.fix.type === "update").length;
+  if (!n) return;
+  toast(n === 1 ? `1 mod needs its ${mcVersion} build — open Mods to fix it in one click.` : `${n} mods need their ${mcVersion} builds — open Mods to fix them in one click.`);
+}
+
+/* ---- "Which Minecraft version should I use?" ---- */
+
+const compatProgressListeners = new Set();
+window.reminth.onCompatProgress((p) => compatProgressListeners.forEach((fn) => fn(p)));
+
+let advisorOpen = false;
+
+/**
+ * The advisor: which Minecraft version the instance's mods (and a server,
+ * if one is given) all have builds for, and a copy of the instance on it.
+ *   options.server  { name, address, accepts: [versions], play(instance) }
+ *   options.open    false = select the copy without leaving the current page
+ * Resolves with the new instance when a copy was made, else null.
+ */
+function openVersionAdvisor(instanceId, options = {}) {
+  const inst = instanceById(instanceId);
+  if (!inst || advisorOpen) return Promise.resolve(null);
+  if (inst.loader === "vanilla") {
+    toast(`${inst.name} is a vanilla instance — it has no mods to check.`);
+    return Promise.resolve(null);
+  }
+  advisorOpen = true;
+  const server = options.server || null;
+  const shortName = inst.name.length > 26 ? inst.name.slice(0, 25) + "…" : inst.name;
+
+  let step = "pick"; // pick -> confirm -> running -> done
+  let advice = null;
+  let chosen = null;
+  let accepts = server && server.accepts && server.accepts.length ? server.accepts : null;
+  let token = 0;
+  let copying = false;
+  let copied = null;
+  let playAfter = false;
+
+  const body = el("div", "adv");
+  /* step 1: pick */
+  const pickView = el("div");
+  const context = el("p", "vpick-note");
+  pickView.appendChild(context);
+  const field = el("div", "field");
+  field.appendChild(el("label", null, "Server address (optional)"));
+  const fieldRow = el("div", "field-row");
+  const addressInput = el("input");
+  addressInput.type = "text";
+  addressInput.placeholder = "e.g. play.example.net";
+  addressInput.maxLength = 260;
+  addressInput.spellcheck = false;
+  addressInput.className = "pii"; // a server address: blurred by "Hide personal info"
+  if (server && server.address) addressInput.value = server.address;
+  const checkBtn = button("btn outline", "Check");
+  fieldRow.appendChild(addressInput);
+  fieldRow.appendChild(checkBtn);
+  field.appendChild(fieldRow);
+  const serverNote = el("p", "set-note");
+  serverNote.textContent = server && accepts ? `${server.name} takes ${versionRangeLabel(accepts) || "the versions below"}.` : "Add a server to see which versions it lets in.";
+  field.appendChild(serverNote);
+  pickView.appendChild(field);
+  const list = el("div", "pick-list vpick-list");
+  pickView.appendChild(list);
+  body.appendChild(pickView);
+  /* steps 2-4: confirm, progress, result */
+  const stepView = el("div");
+  stepView.hidden = true;
+  body.appendChild(stepView);
+
+  const newName = () => {
+    if (!chosen) return inst.name;
+    const swapped = inst.name.includes(inst.mcVersion) ? inst.name.replace(inst.mcVersion, chosen.version) : `${inst.name} ${chosen.version}`;
+    return swapped.slice(0, 48);
+  };
+
+  let handle = null;
+  const done = new Promise((resolve) => {
+    handle = openModal({
+      title: "Which Minecraft version should I use?",
+      body,
+      wide: true,
+      // Not while the copy runs: it would carry on behind a closed dialog.
+      canClose: () => !copying,
+      onClose: () => {
+        advisorOpen = false;
+        token++;
+        compatProgressListeners.delete(onProgress);
+        resolve(copied);
+        if (copied && playAfter && server && server.play) server.play(copied);
+      },
+      buttons: [
+        {
+          label: "Close",
+          className: "outline",
+          onClick: () => {
+            if (copying) return false;
+            if (step === "confirm") {
+              showPick();
+              return false;
+            }
+            return true;
+          },
+        },
+        {
+          label: "Make a copy",
+          className: "primary",
+          onClick: async () => {
+            if (copying) return false;
+            if (step === "pick") {
+              if (chosen) showConfirm();
+              return false;
+            }
+            if (step === "confirm") return runCopy();
+            playAfter = Boolean(server && server.play); // step "done"
+            return true;
+          },
+        },
+      ],
+    });
+  });
+  const [secondary, primary] = handle.buttons;
+  const setLabel = (b, text) => (b.querySelector("span").textContent = text);
+
+  /** Footer buttons for the step on screen. Deferred: openModal re-enables a button after its own click. */
+  function paintButtons() {
+    if (handle.closed) return;
+    secondary.hidden = false;
+    secondary.disabled = copying;
+    primary.disabled = copying;
+    if (step === "pick") {
+      setLabel(secondary, "Close");
+      setLabel(primary, chosen ? `Make a ${chosen.version} copy of ${shortName}` : "Pick a version");
+      primary.disabled = !chosen;
+    } else if (step === "confirm" || step === "running") {
+      setLabel(secondary, "Back");
+      setLabel(primary, step === "running" ? "Making the copy…" : "Make the copy");
+    } else {
+      setLabel(secondary, "Not now");
+      secondary.hidden = !(server && server.play);
+      setLabel(primary, server && server.play ? `Play ${server.name}` : "Done");
+    }
+  }
+  const paintButtonsSoon = () => setTimeout(paintButtons, 0);
+
+  function showPick() {
+    step = "pick";
+    stepView.hidden = true;
+    pickView.hidden = false;
+    paintButtonsSoon();
+  }
+
+  function modsLine(c) {
+    if (!c.total) return "No mods to check";
+    if (c.supported === c.total) return c.total === 1 ? "Your mod has a build for it" : `All ${c.total} mods`;
+    return `${c.supported} of ${c.total} mods — no build of ${nameList(c.missing)}`;
+  }
+
+  function paintList() {
+    list.textContent = "";
+    const a = advice;
+    const bits = [];
+    if (a.total) bits.push(`${a.total} of your mods ${a.total === 1 ? "is" : "are"} on Modrinth and ${a.total === 1 ? "was" : "were"} checked.`);
+    else bits.push("None of this instance's mods are on Modrinth, so there is nothing to compare.");
+    if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth): ${nameList(a.unknown)}.`);
+    if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now: ${nameList(a.failed)}.`);
+    context.textContent = bits.join(" ");
+    context.title = [...(a.unknown || []), ...(a.failed || [])].join(", ");
+    const rows = a.candidates || [];
+    if (!rows.length) {
+      list.appendChild(el("div", "vpick-empty", "No version to suggest."));
+      return;
+    }
+    if (a.best && a.best.current) {
+      list.appendChild(el("div", "vpick-empty", `${inst.name} is already on the best version for its mods${accepts ? " and this server" : ""}.`));
+    } else if (!a.best && a.total) {
+      list.appendChild(el("div", "vpick-empty", `No version has every mod${accepts ? " and is taken by this server" : ""}. The closest ones are first.`));
+    }
+    const select = (c, item) => {
+      chosen = c;
+      list.querySelectorAll(".pick-item").forEach((x) => x.classList.toggle("selected", x === item));
+      paintButtons();
+    };
+    for (const c of rows) {
+      const item = el("button", "pick-item vpick-item");
+      item.type = "button";
+      const main = el("div", "vpick-main");
+      main.appendChild(el("b", null, `Minecraft ${c.version}`));
+      const line = el("span", null, modsLine(c));
+      if (c.missing && c.missing.length) line.title = `No build for ${c.version}: ${c.missing.join(", ")}`;
+      main.appendChild(line);
+      item.appendChild(main);
+      const tags = el("div", "vpick-tags");
+      if (a.best && a.best.version === c.version) tags.appendChild(el("span", "tag emerald", "Best fit"));
+      if (c.server === true) tags.appendChild(el("span", "tag cyan", "Server ok"));
+      else if (c.server === false) tags.appendChild(el("span", "tag rose", "Server won't take it"));
+      if (c.current) tags.appendChild(el("span", "tag dim", "Current"));
+      item.appendChild(tags);
+      if (c.current) {
+        // The instance is already on it - there is nothing to copy to.
+        item.disabled = true;
+        item.title = `${inst.name} is on ${c.version} now`;
+      } else item.onclick = () => select(c, item);
+      list.appendChild(item);
+      if (a.best && a.best.version === c.version && !c.current) select(c, item);
+    }
+    // Nothing fits everything, but a server was given: start on the closest
+    // version it takes (they are ranked first) rather than on nothing.
+    if (!chosen && !(a.best && a.best.current) && accepts) {
+      const at = rows.findIndex((c) => c.server === true && !c.current);
+      const items = list.querySelectorAll(".pick-item");
+      if (at >= 0 && items[at]) select(rows[at], items[at]);
+    }
+  }
+
+  async function load() {
+    const mine = ++token;
+    advice = null;
+    chosen = null;
+    paintButtons();
+    context.textContent = "";
+    list.textContent = "";
+    const wait = el("div", "vpick-empty", "Checking each of your mods on Modrinth — this takes a moment…");
+    const track = el("div", "track adv-wait");
+    const fill = el("div", "fill busy");
+    fill.style.width = "100%";
+    track.appendChild(fill);
+    list.appendChild(wait);
+    list.appendChild(track);
+    try {
+      const a = await window.reminth.compatAdvise(instanceId, accepts ? { accepts } : {});
+      if (handle.closed || mine !== token) return; // closed, or a newer check took over
+      advice = a;
+      paintList();
+    } catch (err) {
+      if (handle.closed || mine !== token) return;
+      list.textContent = "";
+      list.appendChild(el("div", "vpick-empty", `Couldn't check your mods: ${friendlyError(err.message)}`));
+      const retry = button("btn outline sm", "Try again", "#i-refresh");
+      retry.onclick = () => load();
+      list.appendChild(retry);
+    }
+  }
+
+  let checking = false;
+  async function checkServer() {
+    if (checking || step !== "pick") return;
+    const address = addressInput.value.trim();
+    if (!address) {
+      if (accepts) {
+        accepts = null;
+        load();
+      }
+      serverNote.textContent = "Add a server to see which versions it lets in.";
+      return;
+    }
+    checking = true;
+    checkBtn.disabled = true;
+    serverNote.textContent = "Asking the server…";
+    try {
+      const r = await window.reminth.compatServerVersions(address);
+      if (handle.closed) return;
+      if (!r) serverNote.textContent = "Couldn't reach that server. Check the address and try again.";
+      else if (!r.online) serverNote.textContent = "That server didn't answer — it may be offline. The list below ignores it.";
+      else if (!r.accepts) serverNote.textContent = r.versionName ? `Server says: ${r.versionName} — that doesn't name a Minecraft version, so the list below ignores it.` : "The server didn't say which version it runs.";
+      else {
+        serverNote.textContent = `Server says: ${r.versionName}`;
+        accepts = r.accepts;
+        load();
+      }
+    } catch (err) {
+      if (!handle.closed) serverNote.textContent = `Couldn't ask the server: ${friendlyError(err.message)}`;
+    } finally {
+      checking = false;
+      checkBtn.disabled = false;
+    }
+  }
+  checkBtn.onclick = checkServer;
+  addressInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") checkServer();
+  });
+
+  const facts = (lines) => {
+    const ul = el("ul", "change-list adv-facts");
+    lines.filter(Boolean).forEach((line) => ul.appendChild(el("li", null, line)));
+    return ul;
+  };
+
+  /* step 2: say exactly what the copy does */
+  const stepNote = el("div", "cp-note");
+  function showConfirm(error) {
+    step = "confirm";
+    pickView.hidden = true;
+    stepView.hidden = false;
+    stepView.textContent = "";
+    const v = chosen.version;
+    const loader = loaderLabel(inst);
+    const unknown = (advice && advice.unknown) || [];
+    stepView.appendChild(el("p", null, `This makes a new instance. ${inst.name} itself is not changed.`));
+    stepView.appendChild(
+      facts([
+        `New instance: ${newName()}, on Minecraft ${v} with ${loader}.`,
+        chosen.total ? `${chosen.supported} of ${chosen.total} ${plural(chosen.total, "mod")} ${chosen.supported === 1 ? "is" : "are"} downloaded again in ${chosen.supported === 1 ? "its" : "their"} ${v} ${plural(chosen.supported, "build")}, with anything those builds need.` : null,
+        chosen.missing && chosen.missing.length ? `Left out, because there is no ${v} build: ${chosen.missing.join(", ")}.` : null,
+        unknown.length ? `Left out, because Reminth can't look ${unknown.length === 1 ? "it" : "them"} up (not from Modrinth): ${unknown.join(", ")}. Add ${unknown.length === 1 ? "it" : "them"} by hand if there is a ${v} build.` : null,
+        "Your settings, server list, resource packs, shaders and mod settings are carried over.",
+        `Worlds stay in ${inst.name}. Opening a world in a different version can damage it, so they are not copied.`,
+        chosen.server === false ? "The server you checked does not take this version." : null,
+      ])
+    );
+    stepView.appendChild(el("p", "set-note", "It can take a few minutes. You can keep using Reminth meanwhile, but this window stays open until it's done."));
+    stepNote.textContent = error || "";
+    stepNote.hidden = !error;
+    stepView.appendChild(stepNote);
+    paintButtonsSoon();
+  }
+
+  /* step 3: the copy, with its progress */
+  const prog = el("div", "progress modal-progress");
+  const progRow = el("div", "progress-row");
+  const progStage = el("span", null, "Starting…");
+  const progPct = el("span");
+  progRow.appendChild(progStage);
+  progRow.appendChild(progPct);
+  const progTrack = el("div", "track");
+  const progFill = el("div", "fill busy");
+  progTrack.appendChild(progFill);
+  prog.appendChild(progRow);
+  prog.appendChild(progTrack);
+  function onProgress(p) {
+    if (!p || p.instanceId !== instanceId || step !== "running") return;
+    const determinate = p.total > 1;
+    const pct = determinate ? Math.min(100, Math.round((p.current / p.total) * 100)) : null;
+    progStage.textContent = p.stage || "Working…";
+    progPct.textContent = pct !== null ? `${p.current} of ${p.total}` : "";
+    progFill.style.width = pct !== null ? pct + "%" : "100%";
+    progFill.classList.toggle("busy", !determinate);
+  }
+  compatProgressListeners.add(onProgress);
+
+  async function runCopy() {
+    if (copying || !chosen) return false;
+    copying = true;
+    step = "running";
+    const target = chosen;
+    const name = newName();
+    stepNote.hidden = true;
+    progStage.textContent = "Starting…";
+    progPct.textContent = "";
+    progFill.style.width = "100%";
+    progFill.classList.add("busy");
+    stepView.appendChild(prog);
+    secondary.disabled = true;
+    paintButtonsSoon();
+    try {
+      const result = await window.reminth.copyInstanceToVersion(instanceId, { mcVersion: target.version, name });
+      copied = result.instance;
+      await loadInstances();
+      await selectInstance(copied.id, options.open !== false);
+      showDone(result, target);
+    } catch (err) {
+      showConfirm(`The copy wasn't made: ${friendlyError(err.message)}`);
+    } finally {
+      copying = false;
+      paintButtonsSoon();
+    }
+    return false; // the result (or the error) is shown in this same window
+  }
+
+  /* step 4: what happened */
+  function showDone(result, target) {
+    step = "done";
+    stepView.textContent = "";
+    const installed = result.installed || [];
+    const skipped = result.skipped || [];
+    const unknown = result.unknown || [];
+    stepView.appendChild(el("p", null, `${result.instance.name} is ready on Minecraft ${target.version}. The game files download the first time you press Play.`));
+    stepView.appendChild(
+      facts([
+        `${installed.length} ${plural(installed.length, "mod")} added.`,
+        skipped.length ? `${skipped.length} left out:` : null,
+      ])
+    );
+    if (skipped.length) {
+      const box = el("div", "adv-skipped");
+      for (const s of skipped) {
+        const row = el("div", "vpick-dep");
+        row.appendChild(el("b", null, s.title));
+        row.appendChild(el("span", "vpick-dep-state", s.why || "Not added"));
+        box.appendChild(row);
+      }
+      stepView.appendChild(box);
+    }
+    if (unknown.length) stepView.appendChild(el("p", "set-note", `Not from Modrinth, so not copied: ${unknown.join(", ")}.`));
+    paintButtonsSoon();
+  }
+
+  paintButtons();
+  load();
+  return done;
+}
+
+/* ---- a mod with no build for this instance ---- */
+
+/**
+ * Shown instead of a bare "has no version" error: which versions the mod
+ * does have builds for, and the way out. Resolves false when nothing could
+ * be shown (the caller falls back to its toast).
+ */
+async function explainNoBuild(inst, projectId, title) {
+  let support;
+  try {
+    support = await window.reminth.compatSupport(inst.id, projectId);
+  } catch {
+    return false;
+  }
+  if (!support || !Array.isArray(support.here)) return false;
+  const name = title || "This mod";
+  const loader = LOADER_LABELS[support.loader] || loaderLabel(inst);
+  const mc = support.mcVersion || inst.mcVersion;
+  const body = el("div");
+  const here = support.here;
+  body.appendChild(
+    el(
+      "p",
+      null,
+      here.length
+        ? `${name} has no ${loader} build for ${mc}. It has builds for ${here.slice(0, 3).join(", ")}${here.length > 3 ? ` (+${here.length - 3} more)` : ""}.`
+        : `${name} has no ${loader} build for ${mc}, or for any other version.`
+    )
+  );
+  const others = support.otherLoaders || [];
+  if (others.length) body.appendChild(el("p", null, `For ${mc} it only exists for ${sentenceList(others)}.`));
+  closeCardMenu(); // the "which instance?" panel this install came from
+  if (here.length) body.appendChild(el("p", "set-note", `Reminth can work out which version has builds of everything in ${inst.name}, and make a copy of it on that version.`));
+  openModal({
+    title: `No ${mc} build of ${name}`,
+    body,
+    buttons: [
+      { label: "Close", className: "outline" },
+      {
+        label: "Find a version that fits everything",
+        className: "primary",
+        onClick: () => {
+          // After this dialog has closed, so the two never stack.
+          setTimeout(() => openVersionAdvisor(inst.id, { open: false }), 0);
+          return true;
+        },
+      },
+    ],
+  });
+  return true;
+}
+
+/* ---- servers: no instance fits, and the active one has mods ---- */
+
+/** How many of the player's own mods are switched on in an instance. */
+async function ownModCount(inst) {
+  try {
+    const data = content.instanceId === inst.id && content.data ? content.data : await window.reminth.content(inst.id);
+    return (data.mod || []).filter((m) => m.valid && m.enabled && !MANAGED_JAR.test(m.file)).length;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * "Copy my instance with its mods" / "new vanilla instance" / cancel.
+ * Resolves "copy", "vanilla" or null.
+ */
+function chooseServerInstance(s, active, version, takesLabel, modCount) {
+  return new Promise((resolve) => {
+    let choice = null;
+    const body = el("div");
+    body.appendChild(el("p", null, `${s.title} takes Minecraft ${takesLabel}, and none of your instances are on it. ${active.name} is on ${active.mcVersion}.`));
+    const list = el("div", "pick-list");
+    const handle = openModal({
+      title: `Play ${s.title}`,
+      body,
+      onClose: () => resolve(choice),
+      buttons: [{ label: "Cancel", className: "outline" }],
+    });
+    const option = (value, iconId, title, note) => {
+      const item = el("button", "pick-item");
+      item.type = "button";
+      item.appendChild(icon(iconId));
+      const main = el("div", "vpick-main");
+      main.appendChild(el("b", null, title));
+      main.appendChild(el("span", null, note));
+      item.appendChild(main);
+      item.onclick = () => {
+        choice = value;
+        handle.close();
+      };
+      list.appendChild(item);
+    };
+    option("copy", "#i-copy", `Copy ${active.name} to ${version} with your mods`, `Shows how many of your ${modCount} ${plural(modCount, "mod")} have a ${version} build before anything is made.`);
+    option("vanilla", "#i-plus", `New vanilla ${version} instance`, "Plain Minecraft, no mods. Joins straight away.");
+    body.appendChild(list);
+  });
+}
+
+$("versionCheckBtn").onclick = () => openVersionAdvisor(content.instanceId || state.activeId);
+
+/* ================================================================== *
  * wiring that depends on instances                                    *
  * ================================================================== */
 window.onInstancesChanged = () => {
@@ -3030,7 +4480,17 @@ window.onInstancesChanged = () => {
   loadPresence();
   $("gameDirPath").textContent = inst.gameDir || "—";
   loadContent(inst.id);
-  if (currentPage === "discover") renderFilterPanel().then(() => runBrowse());
+  // Discover lists what fits this instance. Only when THAT changed (another
+  // instance, or its version/loader/name) is the list fetched again - from
+  // page 1, since page 3 of the old list may not exist in the new one. A game
+  // closing also lands here and must not throw the player back to the top.
+  const fit = `${inst.id}|${inst.name}|${inst.loader}|${inst.mcVersion}`;
+  const changed = fit !== disc.fit;
+  disc.fit = fit;
+  if (changed && currentPage === "discover") {
+    disc.page = 1;
+    renderFilterPanel().then(() => runBrowse());
+  }
 };
 
 window.bootFeatures = () => {

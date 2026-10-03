@@ -33,17 +33,58 @@ async function writeIndex(list) {
   await fsp.rename(INDEX() + ".tmp", INDEX());
 }
 
+const pngPath = (id) => path.join(paths.SKIN_LIBRARY_DIR, `${id}.png`);
+
+async function pngExists(id) {
+  try {
+    await fsp.access(pngPath(id));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Every change to the index is read-modify-write, and the skin page fires
+ * several at once (auto-save of the current skin while the player saves
+ * another). Run one at a time or the later write drops the earlier entry.
+ */
+let queue = Promise.resolve();
+function mutate(fn) {
+  const run = queue.then(fn);
+  queue = run.catch(() => {});
+  return run;
+}
+
 /** Newest-used first, each with its image as a data URL. */
 async function list() {
   const entries = await readIndex();
   const out = [];
+  const missing = [];
   for (const e of entries) {
     try {
-      const buf = await fsp.readFile(path.join(paths.SKIN_LIBRARY_DIR, `${e.id}.png`));
+      const buf = await fsp.readFile(pngPath(e.id));
       out.push({ ...e, dataUrl: "data:image/png;base64," + buf.toString("base64") });
-    } catch {
-      // image went missing - drop it from the listing
+    } catch (err) {
+      // Only "the file is gone" means the entry is dead; a file that's
+      // merely locked right now is left alone and shows up next time.
+      if (err && err.code === "ENOENT") missing.push(e.id);
     }
+  }
+  if (missing.length) {
+    // Drop them from the index too, or they sit there forever counting
+    // towards MAX_SKINS. Re-checked inside the queue: an add() running
+    // alongside may have just put the image back.
+    await mutate(async () => {
+      const gone = new Set();
+      for (const id of missing) if (!(await pngExists(id))) gone.add(id);
+      if (!gone.size) return;
+      const current = await readIndex();
+      const kept = current.filter((e) => !gone.has(e.id));
+      if (kept.length !== current.length) await writeIndex(kept);
+    }).catch(() => {
+      // listing still works; the index gets tidied on a later call
+    });
   }
   return out.sort((a, b) => (b.lastUsed || b.addedAt) - (a.lastUsed || a.addedAt));
 }
@@ -52,10 +93,22 @@ async function list() {
  * Adds (or refreshes) a skin. `png` is a Buffer. Returns the entry.
  * Adding one that's already saved just bumps it to the front.
  */
-async function add({ png, variant, name, source, used }) {
+function add(skin) {
+  return mutate(() => addNow(skin));
+}
+
+async function addNow({ png, variant, name, source, used }) {
   const problem = validateSkinPng(png);
   if (problem) throw new Error(problem);
   const id = crypto.createHash("sha1").update(png).digest("hex");
+  // Written whenever it isn't on disk, not only for a new entry - saving a
+  // skin whose image was deleted has to bring the image back. Temp file +
+  // rename so a half-written PNG is never taken for a complete one.
+  if (!(await pngExists(id))) {
+    await fsp.mkdir(paths.SKIN_LIBRARY_DIR, { recursive: true });
+    await fsp.writeFile(pngPath(id) + ".tmp", png);
+    await fsp.rename(pngPath(id) + ".tmp", pngPath(id));
+  }
   const entries = await readIndex();
   const now = Date.now();
   const existing = entries.find((e) => e.id === id);
@@ -64,8 +117,6 @@ async function add({ png, variant, name, source, used }) {
     if (used) existing.lastUsed = now;
     if (name && !existing.renamed) existing.name = String(name).slice(0, 40);
   } else {
-    await fsp.mkdir(paths.SKIN_LIBRARY_DIR, { recursive: true });
-    await fsp.writeFile(path.join(paths.SKIN_LIBRARY_DIR, `${id}.png`), png);
     entries.push({
       id,
       name: String(name || "Skin").slice(0, 40),
@@ -84,7 +135,11 @@ async function add({ png, variant, name, source, used }) {
   return entries.find((e) => e.id === id);
 }
 
-async function rename(id, name) {
+function rename(id, name) {
+  return mutate(() => renameNow(id, name));
+}
+
+async function renameNow(id, name) {
   const entries = await readIndex();
   const e = entries.find((x) => x.id === id);
   if (!e) throw new Error("That saved skin is gone.");
@@ -94,7 +149,11 @@ async function rename(id, name) {
   return e;
 }
 
-async function remove(id) {
+function remove(id) {
+  return mutate(() => removeNow(id));
+}
+
+async function removeNow(id) {
   if (!/^[0-9a-f]{40}$/.test(String(id))) throw new Error("Unknown skin.");
   const entries = (await readIndex()).filter((e) => e.id !== id);
   await fsp.rm(path.join(paths.SKIN_LIBRARY_DIR, `${id}.png`), { force: true });

@@ -28,7 +28,7 @@ const crypto = require("crypto");
 const { spawn } = require("child_process");
 
 const paths = require("./paths");
-const { downloadFile, fetchMavenSha1, fileExists } = require("./downloader");
+const { downloadFile, fetchMavenSha1, fileExists, writeFileAtomic } = require("./downloader");
 const { openZip } = require("./zipread");
 
 const WORK_DIR = path.join(paths.ROOT, "cache", "loader-installers");
@@ -177,9 +177,28 @@ async function prepare({ installer, assertUrl, report }) {
     throw err;
   }
 
-  const zip = await openZip(installerPath);
+  // An installer that won't open as a zip (or has no readable profile) is a
+  // bad download. Delete it, or the "already downloaded" check would hand
+  // the same broken jar back on every retry - with no sha1 sidecar to catch
+  // it, forever.
+  const discardInstaller = async (err) => {
+    await fsp.rm(installerPath, { force: true }).catch(() => {});
+    return new Error(`The loader installer was damaged and has been removed - try again. (${err.message})`);
+  };
+  let zip;
   try {
-    const profile = JSON.parse(String(await zip.read("install_profile.json")));
+    zip = await openZip(installerPath);
+  } catch (err) {
+    throw await discardInstaller(err);
+  }
+  try {
+    let profile;
+    try {
+      profile = JSON.parse(String(await zip.read("install_profile.json")));
+    } catch (err) {
+      await zip.close().catch(() => {}); // Windows can't delete a file that's still open
+      throw await discardInstaller(err);
+    }
     let versionJson;
     let processorLibraries = [];
     let processors = [];
@@ -212,7 +231,9 @@ async function prepare({ installer, assertUrl, report }) {
       const buf = await zip.read(b.entry);
       if (!buf) continue;
       await fsp.mkdir(path.dirname(dest), { recursive: true });
-      await fsp.writeFile(dest, buf);
+      // Atomic: these are skipped next time purely because they exist, so a
+      // half-written one must never be left under the real name.
+      await writeFileAtomic(dest, buf);
     }
 
     // Data files processors read from inside the installer (binary patches).

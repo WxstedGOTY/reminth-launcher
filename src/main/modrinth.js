@@ -14,7 +14,18 @@
  */
 
 const BASE_URL = "https://api.modrinth.com/v2";
-const USER_AGENT = "reminth-launcher/reminth/1.1.0 (github.com/WxstedGOTY/reminth-launcher)";
+// The real app version, so Modrinth's logs (and anyone there debugging a
+// misbehaving client) see which release made a request. A hard-coded number
+// here went stale with the first release after it was typed.
+function appVersion() {
+  try {
+    const v = require("../../package.json").version;
+    return typeof v === "string" && /^[\w.+-]{1,32}$/.test(v) ? v : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+const USER_AGENT = `reminth-launcher/reminth/${appVersion()} (github.com/WxstedGOTY/reminth-launcher)`;
 
 // Modrinth documents 300 req/min but a live community report observed 200 -
 // never hardcode a limit, just track what the server actually tells us on
@@ -36,7 +47,109 @@ function readRateLimitHeaders(res) {
 
 const BASE_URL_V3 = "https://api.modrinth.com/v3";
 
-async function request(path, { method = "GET", body, query, base = BASE_URL } = {}) {
+/* ---- retrying ---- */
+
+const MAX_ATTEMPTS = 3;
+const REQUEST_TIMEOUT_MS = 20000; // per attempt - a hung connection must not hang an install forever
+const BACKOFF_MS = [500, 1500]; // wait before attempt 2, then before attempt 3
+const MAX_RATE_LIMIT_WAIT_MS = 10000;
+
+let retryDelay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** For tests: swap the function that waits between attempts. Returns the previous one. */
+function setRetryDelay(fn) {
+  const previous = retryDelay;
+  retryDelay = typeof fn === "function" ? fn : previous;
+  return previous;
+}
+
+/**
+ * Pure: how long a 429 response asks us to wait, in ms, capped (10s unless
+ * the caller allows more) so the UI never sits for minutes.
+ */
+function rateLimitWaitMs(headers, maxWaitMs = MAX_RATE_LIMIT_WAIT_MS) {
+  const seconds = (name) => {
+    const raw = headers && headers.get(name);
+    if (raw === null || raw === undefined || raw === "") return null;
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+    const when = Date.parse(raw); // Retry-After may also be an HTTP date
+    return Number.isFinite(when) ? (when - Date.now()) / 1000 : null;
+  };
+  let wait = seconds("retry-after");
+  if (wait === null) wait = seconds("x-ratelimit-reset");
+  if (wait === null) wait = 5;
+  const cap = Number.isFinite(Number(maxWaitMs)) && Number(maxWaitMs) > 0 ? Number(maxWaitMs) : MAX_RATE_LIMIT_WAIT_MS;
+  return Math.min(cap, Math.max(250, Math.round(wait * 1000)));
+}
+
+/** The error a caller sees once every attempt has failed without an answer. */
+function unreachableError(err) {
+  const timedOut = err && (err.name === "TimeoutError" || err.name === "AbortError");
+  return new Error(timedOut ? "Modrinth took too long to answer — check your connection and try again." : `Couldn't reach Modrinth: ${(err && err.message) || err}`, { cause: err });
+}
+
+/**
+ * The retry loop behind fetchWithRetry and request(). `consume(res)`, when
+ * given, reads the response body INSIDE the attempt: the per-attempt timeout
+ * covers the body as well as the headers, so a body that arrives too slowly
+ * or is cut off has to count as a failed attempt and be retried like any
+ * other network error - not escape as a raw "TimeoutError". Resolves with
+ * { res, body } (body undefined without consume).
+ */
+async function attemptWithRetry(url, init, { attempts = MAX_ATTEMPTS, timeoutMs = REQUEST_TIMEOUT_MS, maxWaitMs = MAX_RATE_LIMIT_WAIT_MS } = {}, consume = null) {
+  const backoff = (attempt) => BACKOFF_MS[attempt - 1] || BACKOFF_MS[BACKOFF_MS.length - 1];
+  for (let attempt = 1; ; attempt++) {
+    const last = attempt >= attempts;
+    let res;
+    try {
+      res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (err) {
+      if (last) throw unreachableError(err);
+      await retryDelay(backoff(attempt));
+      continue;
+    }
+    readRateLimitHeaders(res);
+    const retryable = res.status === 429 || res.status >= 500;
+    if (retryable && !last) {
+      const waitMs = res.status === 429 ? rateLimitWaitMs(res.headers, maxWaitMs) : backoff(attempt);
+      try {
+        if (res.body) await res.body.cancel(); // free the connection before waiting
+      } catch {
+        // nothing to free
+      }
+      await retryDelay(waitMs);
+      continue;
+    }
+    if (!consume) return { res, body: undefined };
+    try {
+      return { res, body: await consume(res) };
+    } catch (err) {
+      // An error answer (404, 400...) is final whatever happened to its
+      // text; only a good answer whose body didn't arrive is worth asking for again.
+      if (!res.ok) return { res, body: "" };
+      if (last) throw unreachableError(err);
+      await retryDelay(backoff(attempt));
+    }
+  }
+}
+
+/**
+ * fetch() for Modrinth's API with the retry policy every caller should get:
+ * up to 3 attempts; a 429 waits for as long as the server says (Retry-After,
+ * else X-Ratelimit-Reset, capped at 10s - or at `maxWaitMs` for background
+ * work that can afford to sit out a full rate-limit window); a 5xx or a
+ * network error/timeout backs off 0.5s then 1.5s; any other 4xx is the
+ * caller's mistake and comes straight back. Returns the last Response
+ * (which may still be a 429/5xx - callers check res.ok as before) or throws
+ * the last network error. The caller reads the body itself, so a body that
+ * times out is NOT retried here - request() below does that.
+ */
+async function fetchWithRetry(url, init = {}, options = {}) {
+  return (await attemptWithRetry(url, init, options)).res;
+}
+
+async function request(path, { method = "GET", body, query, base = BASE_URL, maxWaitMs } = {}) {
   const url = new URL(base + path);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
@@ -44,22 +157,27 @@ async function request(path, { method = "GET", body, query, base = BASE_URL } = 
       url.searchParams.set(key, value);
     }
   }
-  const res = await fetch(url, {
-    method,
-    headers: {
-      "User-Agent": USER_AGENT,
-      ...(body ? { "Content-Type": "application/json" } : {}),
+  // Every call here is a lookup (the POSTs too), so repeating one is safe.
+  const { res, body: answer } = await attemptWithRetry(
+    url,
+    {
+      method,
+      headers: {
+        "User-Agent": USER_AGENT,
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
     },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  readRateLimitHeaders(res);
+    maxWaitMs ? { maxWaitMs } : {},
+    (r) => (r.ok ? r.json() : r.text())
+  );
   if (res.status === 429) {
     throw new Error(`Modrinth rate limit hit - resets in ${rateLimit.resetSeconds ?? "?"}s`);
   }
   if (!res.ok) {
-    throw new Error(`Modrinth API ${method} ${path} failed: ${res.status} ${await res.text()}`);
+    throw new Error(`Modrinth API ${method} ${path} failed: ${res.status} ${answer}`);
   }
-  return res.json();
+  return answer;
 }
 
 /**
@@ -109,9 +227,10 @@ async function searchProjects({
   index = "relevance",
   offset = 0,
   limit = 20,
-} = {}) {
+} = {}, { maxWaitMs } = {}) {
   const facets = buildFacets({ projectType, loaders, gameVersions, categories, environment, openSource });
   return request("/search", {
+    maxWaitMs,
     query: {
       query: String(query || "").slice(0, 200),
       index: SEARCH_INDEXES.includes(index) ? index : "relevance",
@@ -144,10 +263,8 @@ async function searchServers({ query = "", categories, index = "popular", offset
   url.searchParams.set("index", SERVER_INDEXES[index] || SERVER_INDEXES.popular);
   url.searchParams.set("offset", String(Math.max(0, Math.min(100000, Number(offset) || 0))));
   url.searchParams.set("limit", String(Math.max(1, Math.min(Number(limit) || 20, 100))));
-  const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-  readRateLimitHeaders(res);
+  const { res, body } = await attemptWithRetry(url, { headers: { "User-Agent": USER_AGENT } }, {}, (r) => (r.ok ? r.json() : r.text()));
   if (!res.ok) throw new Error(`Modrinth server search failed: ${res.status}`);
-  const body = await res.json();
   // Trimmed to the fields the UI uses - v3 hits carry 100+ dependency ids each.
   return {
     total: body.total_hits || 0,
@@ -190,6 +307,11 @@ async function searchServers({ query = "", categories, index = "popular", offset
 
 async function getVersion(versionId) {
   return request(`/version/${encodeURIComponent(versionId)}`);
+}
+
+/** Batch version lookup - one call for a known set of version ids instead of N. */
+async function getVersions(ids) {
+  return request("/versions", { query: { ids: JSON.stringify(ids) } });
 }
 
 async function getProject(idOrSlug) {
@@ -268,6 +390,7 @@ module.exports = {
   USER_AGENT,
   searchServers,
   getVersion,
+  getVersions,
   buildFacets,
   searchProjects,
   getProject,
@@ -280,4 +403,7 @@ module.exports = {
   getOrganizations,
   getTags,
   rateLimitStatus,
+  fetchWithRetry,
+  setRetryDelay,
+  rateLimitWaitMs,
 };

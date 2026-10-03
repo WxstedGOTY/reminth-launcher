@@ -49,3 +49,56 @@ test("buildZip + readZipEntries: round-trips nested files byte-for-byte", async 
     await fsp.rm(outDir, { recursive: true, force: true });
   }
 });
+
+test("buildZip: names are flagged UTF-8, so non-ASCII file names survive", async () => {
+  const srcDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zip-test-utf8-"));
+  const outDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zip-test-utf8-out-"));
+  const outPath = path.join(outDir, "pack.mrpack");
+  const name = "overrides/resourcepacks/Schöne Blöcke ブロック.zip";
+  try {
+    await fsp.mkdir(path.join(srcDir, "overrides", "resourcepacks"), { recursive: true });
+    await fsp.writeFile(path.join(srcDir, name), "pack");
+    await buildZip(srcDir, outPath);
+
+    const buf = await fsp.readFile(outPath);
+    const FLAG_UTF8 = 0x0800;
+    assert.equal(buf.readUInt16LE(6) & FLAG_UTF8, FLAG_UTF8, "local header flag");
+    const centralStart = buf.readUInt32LE(buf.length - 22 + 16);
+    assert.equal(buf.readUInt32LE(centralStart), 0x02014b50);
+    assert.equal(buf.readUInt16LE(centralStart + 8) & FLAG_UTF8, FLAG_UTF8, "central directory flag");
+
+    assert.deepEqual((await readZipEntries(outPath)).map((e) => e.name), [name]);
+    // and the launcher's own reader agrees
+    const zip = await require("../src/main/zipread").openZip(outPath);
+    try {
+      assert.deepEqual(zip.names(), [name]);
+      assert.equal((await zip.read(name)).toString("utf8"), "pack");
+    } finally {
+      await zip.close();
+    }
+  } finally {
+    await fsp.rm(srcDir, { recursive: true, force: true });
+    await fsp.rm(outDir, { recursive: true, force: true });
+  }
+});
+
+test("buildZip: more files than a zip can count is a clear error, not a silently truncated pack", async (t) => {
+  const { MAX_ENTRIES } = require("../src/main/zip");
+  const outDir = await fsp.mkdtemp(path.join(os.tmpdir(), "zip-test-many-"));
+  const outPath = path.join(outDir, "huge.mrpack");
+  // Pretend the folder holds one file too many (making 65,535 real files would only slow the suite down).
+  const realReaddir = fsp.readdir;
+  fsp.readdir = async () =>
+    Array.from({ length: MAX_ENTRIES + 1 }, (_, i) => ({ name: `f${i}.txt`, isDirectory: () => false, isFile: () => true }));
+  t.after(() => {
+    fsp.readdir = realReaddir;
+  });
+  try {
+    await assert.rejects(buildZip(path.join(outDir, "src"), outPath), /Too many files to pack \(65535\)/);
+    fsp.readdir = realReaddir;
+    await assert.rejects(fsp.access(outPath), /ENOENT/, "nothing was written");
+  } finally {
+    fsp.readdir = realReaddir;
+    await fsp.rm(outDir, { recursive: true, force: true });
+  }
+});

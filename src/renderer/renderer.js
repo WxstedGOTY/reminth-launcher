@@ -20,8 +20,12 @@ const state = {
   stats: null,
   installing: new Set(), // instance ids with an install/launch in flight
   running: new Set(), // instance ids whose game is running
+  stopping: new Set(), // instance ids asked to stop, until the backend confirms the exit
+  stopClickAt: 0, // when a Stop button was last pressed (or went away)
   logError: false,
-  progress: new Map(), // instanceId -> { stage, pct }
+  progress: new Map(), // instanceId -> { stage, pct, short }
+  progressShown: null, // instance id whose run the progress bar is painting
+  lastStage: null, // last stage written to the log, so each is logged once per run
 };
 
 /* ================================================================== *
@@ -56,7 +60,9 @@ function toast(message) {
   $("toastText").textContent = message;
   $("toast").classList.add("show");
   clearTimeout(window._toast);
-  window._toast = setTimeout(() => $("toast").classList.remove("show"), 3600);
+  // Long messages (an error with its reason) get longer to be read.
+  const ms = Math.min(9000, 3600 + Math.max(0, String(message).length - 60) * 45);
+  window._toast = setTimeout(() => $("toast").classList.remove("show"), ms);
 }
 
 /** Ticks -> "3h 12m". Minecraft counts play time in 20-tick seconds. */
@@ -168,6 +174,16 @@ function formatRelativeTime(iso) {
 function friendlyError(message) {
   const m = String(message || "");
   const clean = m.replace(/^Error invoking remote method '[^']+': (Error: )?/, "");
+  // Already written for the player - never reworded by the rules below (an
+  // instance called "Hypixel Network" would otherwise turn "Couldn't delete
+  // Hypixel Network" into a connection error).
+  if (/^(Your Microsoft sign-in has expired|Sign-in was cancelled|Couldn't delete |Couldn't read this instance's server list)/.test(clean)) return clean;
+  if (/^Skin changed, but the cape couldn't be set/.test(clean)) {
+    // The skin DID change; only the reason the cape didn't is tidied up.
+    return /fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network/i.test(clean)
+      ? "Skin changed, but the cape couldn't be set. Check your internet connection and try again."
+      : clean;
+  }
   if (/Invalid app registration/i.test(clean)) {
     return "Sign-in almost worked, but Microsoft hasn't finished approving Reminth's app yet. Nothing's wrong with your account — try again later.";
   }
@@ -177,7 +193,32 @@ function friendlyError(message) {
   if (/fetch failed|ENOTFOUND|ECONNREFUSED|ETIMEDOUT|network/i.test(clean)) {
     return "Couldn't reach the server. Check your internet connection and try again.";
   }
-  return clean;
+  // Raw file-system errors ("ENOENT: no such file or directory, rename 'C:\…'"):
+  // a plain sentence instead, never the code or the path.
+  const fsCode = /\b(ENOENT|EBUSY|EPERM|EACCES|ENOTEMPTY|ENOSPC|EEXIST)\b/.exec(clean);
+  if (fsCode) {
+    if (fsCode[1] === "EEXIST") return "Something with that name is already there — pick another name.";
+    if (fsCode[1] === "ENOENT") return "That file isn't there any more — the list has been refreshed.";
+    if (fsCode[1] === "ENOSPC") return "The disk is full — free some space and try again.";
+    return "That file is in use — close Minecraft and try again.";
+  }
+  // Anything else that still carries a Windows path or an error code loses it.
+  return clean
+    .replace(/'[A-Za-z]:\\[^']*'|"[A-Za-z]:\\[^"]*"|[A-Za-z]:\\[^\s,;]+/g, "the file")
+    .replace(/\bE[A-Z]{3,}: /g, "");
+}
+
+/** A div that acts as a button: reachable with Tab, pressed with Enter or Space. */
+function clickable(node, onClick) {
+  node.setAttribute("role", "button");
+  node.tabIndex = 0;
+  node.onclick = onClick;
+  node.addEventListener("keydown", (e) => {
+    if (e.target !== node || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    node.click();
+  });
+  return node;
 }
 
 function localGet(key, fallback) {
@@ -210,14 +251,25 @@ function renderEmpty(container, title, note) {
 let modalStack = [];
 
 /**
- * openModal({ title, body: Node, buttons: [{ label, className, onClick, icon }], wide, onClose })
+ * openModal({ title, body: Node, buttons: [{ label, className, onClick, icon }], wide, onClose, canClose })
  * onClick may return false to keep the modal open (e.g. while validating).
+ * focusCancel: focus starts on the first button (Cancel) instead of the last -
+ * for answers that can't be undone.
+ * canClose: optional () => boolean. While it returns false the player can't
+ * dismiss the modal (Esc, backdrop, the x, a plain Cancel) - for work that
+ * must not carry on behind a closed dialog. handle.close() always closes.
  */
-function openModal({ title, body, buttons = [], wide = false, onClose }) {
+function openModal({ title, body, buttons = [], wide = false, onClose, canClose, focusCancel = false }) {
   const root = $("modalRoot");
   const modal = el("div", "modal" + (wide ? " wide" : ""));
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.tabIndex = -1;
   const head = el("div", "modal-head");
-  head.appendChild(el("h2", null, title));
+  const heading = el("h2", null, title);
+  heading.id = "modalTitle" + ++modalSeq;
+  modal.setAttribute("aria-labelledby", heading.id);
+  head.appendChild(heading);
   const x = el("button", "modal-close");
   x.type = "button";
   x.setAttribute("aria-label", "Close");
@@ -228,20 +280,37 @@ function openModal({ title, body, buttons = [], wide = false, onClose }) {
   if (body) bodyWrap.appendChild(body);
   modal.appendChild(bodyWrap);
   const foot = el("div", "modal-foot");
-  const handle = { modal, bodyWrap, foot, buttons: [], closed: false };
+  // What had focus goes back to having it when the dialog closes.
+  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const handle = { modal, bodyWrap, foot, buttons: [], closed: false, openedAt: performance.now() };
   const close = () => {
     if (handle.closed) return;
     handle.closed = true;
     modal.remove();
     modalStack = modalStack.filter((h) => h !== handle);
-    if (!modalStack.length) root.hidden = true;
+    const below = modalStack[modalStack.length - 1];
+    if (below) below.modal.inert = false;
+    else {
+      root.hidden = true;
+      $("app").inert = false;
+    }
     onClose && onClose();
+    // Unless closing opened something else, or focus was already put somewhere.
+    const top = modalStack[modalStack.length - 1];
+    const loose = !document.activeElement || document.activeElement === document.body;
+    if (loose && opener && opener.isConnected && (top ? top.modal.contains(opener) : true)) opener.focus();
   };
   handle.close = close;
+  // What the player's own "go away" gestures call; close() stays unconditional.
+  const dismiss = () => {
+    if (canClose && !canClose()) return;
+    close();
+  };
+  handle.dismiss = dismiss;
   for (const spec of buttons) {
     const b = button("btn " + (spec.className || "outline"), spec.label, spec.icon);
     b.addEventListener("click", async () => {
-      if (!spec.onClick) return close();
+      if (!spec.onClick) return dismiss();
       b.disabled = true;
       try {
         const keep = await spec.onClick(handle);
@@ -254,18 +323,86 @@ function openModal({ title, body, buttons = [], wide = false, onClose }) {
     handle.buttons.push(b);
   }
   if (buttons.length) modal.appendChild(foot);
-  x.onclick = close;
+  x.onclick = dismiss;
+  // Anything floating over the page (menus, the "which instance?" panel) is put away first.
+  document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
+  if (window.onModalOpen) window.onModalOpen();
+  // The page, and any dialog underneath, can't be clicked, tabbed into or read out.
+  const below = modalStack[modalStack.length - 1];
+  if (below) below.modal.inert = true;
+  $("app").inert = true;
   root.appendChild(modal);
   root.hidden = false;
   modalStack.push(handle);
+  // Focus moves in: the first field, else the main button (Cancel when asked for).
+  const focusIn = () => {
+    const field = bodyWrap.querySelector("input:not([type=file]):not([hidden]):not(:disabled), select:not(:disabled), textarea:not(:disabled)");
+    const main = handle.buttons[focusCancel ? 0 : handle.buttons.length - 1];
+    const target = field || (main && !main.disabled ? main : null) || modalFocusables(modal)[0] || modal;
+    target.focus();
+  };
+  focusIn();
+  // Callers often fill the body, or switch a button off, right after this returns.
+  setTimeout(() => {
+    if (handle.closed || modalStack[modalStack.length - 1] !== handle) return;
+    const active = document.activeElement;
+    if (!modal.contains(active) || active === modal || active.disabled) focusIn();
+  }, 0);
   return handle;
 }
+let modalSeq = 0;
 
+function modalFocusables(modal) {
+  return [...modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")].filter(
+    (n) => !n.disabled && n.type !== "file" && n.getClientRects().length
+  );
+}
+
+// A double-click on whatever opened the dialog used to land its second click
+// on the backdrop and close it again, so a fresh dialog ignores the backdrop.
+const BACKDROP_GRACE_MS = 350;
 $("modalRoot").addEventListener("mousedown", (e) => {
-  if (e.target === $("modalRoot") && modalStack.length) modalStack[modalStack.length - 1].close();
+  if (e.target !== $("modalRoot") || !modalStack.length) return;
+  const top = modalStack[modalStack.length - 1];
+  if (performance.now() - top.openedAt < BACKDROP_GRACE_MS) return;
+  top.dismiss();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && modalStack.length) modalStack[modalStack.length - 1].close();
+  if (e.key === "Escape") {
+    // An open menu closes first; the dialog (and what was typed in it) stays.
+    const menus = document.querySelectorAll(".dd-open");
+    if (menus.length) {
+      menus.forEach((d) => d.classList.remove("dd-open"));
+      e.stopImmediatePropagation();
+      return;
+    }
+    if (modalStack.length) {
+      modalStack[modalStack.length - 1].dismiss();
+      e.stopImmediatePropagation(); // Esc answered the dialog; it doesn't also clear what's behind it
+    }
+    return;
+  }
+  if (!modalStack.length) return;
+  const modal = modalStack[modalStack.length - 1].modal;
+  // A held-down Enter or Space must not answer the dialog it just opened.
+  if ((e.key === "Enter" || e.key === " ") && e.repeat) return e.preventDefault();
+  if (e.key !== "Tab") return;
+  // Tab and Shift+Tab go round inside the top dialog.
+  const items = modalFocusables(modal);
+  const active = document.activeElement;
+  if (!items.length) {
+    e.preventDefault();
+    modal.focus();
+  } else if (!modal.contains(active) || active === modal) {
+    e.preventDefault();
+    items[e.shiftKey ? items.length - 1 : 0].focus();
+  } else if (e.shiftKey && active === items[0]) {
+    e.preventDefault();
+    items[items.length - 1].focus();
+  } else if (!e.shiftKey && active === items[items.length - 1]) {
+    e.preventDefault();
+    items[0].focus();
+  }
 });
 
 function confirmModal(title, text, confirmLabel = "Confirm", danger = false) {
@@ -292,6 +429,36 @@ function confirmModal(title, text, confirmLabel = "Confirm", danger = false) {
  * makeDropdown(container, { options: [{ value, label, icon }], value, prefix, onChange, align })
  * Returns { set(value), get() }.
  */
+/** Opens or closes a dropdown (closing any other), and keeps its menu inside the window. */
+function toggleMenu(container) {
+  const open = !container.classList.contains("dd-open");
+  document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
+  container.classList.toggle("dd-open", open);
+  if (open) placeMenu(container);
+}
+
+/** Above the button when there's no room below, never taller than the room there is, never past the right edge. */
+function placeMenu(container) {
+  const menu = container.querySelector(".dd-menu");
+  if (!menu || container.classList.contains("build-dd")) return; // that one always opens upwards (styles.css)
+  menu.classList.remove("up");
+  menu.style.maxHeight = "";
+  menu.style.left = "";
+  const edge = 10;
+  const box = container.getBoundingClientRect();
+  // Menus on a page are cut off by the page's own scroll area, not the window.
+  const scroller = container.closest(".pages, .modal-body, .app-side");
+  const top = scroller ? scroller.getBoundingClientRect().top : 0;
+  const below = window.innerHeight - box.bottom - 6 - edge;
+  const above = box.top - top - 6 - edge;
+  const wanted = menu.offsetHeight;
+  const up = wanted > below && above > below;
+  menu.classList.toggle("up", up);
+  if (wanted > (up ? above : below)) menu.style.maxHeight = Math.max(96, up ? above : below) + "px";
+  const over = menu.getBoundingClientRect().right - (window.innerWidth - edge);
+  if (over > 0 && !menu.classList.contains("right")) menu.style.left = -over + "px";
+}
+
 function makeDropdown(container, { options, value, prefix, onChange, align }) {
   container.textContent = "";
   let current = value;
@@ -322,11 +489,10 @@ function makeDropdown(container, { options, value, prefix, onChange, align }) {
       menu.appendChild(item);
     }
   };
+  btn.setAttribute("aria-haspopup", "true");
   btn.onclick = (e) => {
     e.stopPropagation();
-    const open = !container.classList.contains("dd-open");
-    document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
-    container.classList.toggle("dd-open", open);
+    toggleMenu(container);
   };
   container.appendChild(btn);
   container.appendChild(menu);
@@ -476,7 +642,11 @@ let tipTimer = null;
 function showTipFor(node) {
   const text = node.dataset.tip;
   if (!text) return;
+  clearTimeout(tipTimer);
   tipTimer = setTimeout(() => {
+    // The rail is rebuilt whenever instances change; a button that's gone
+    // can't fire mouseleave, so its tip would never be hidden again.
+    if (!node.isConnected) return;
     const box = node.getBoundingClientRect();
     tip.textContent = node.dataset.tip;
     tip.classList.add("show");
@@ -608,10 +778,12 @@ function applyAccountUI() {
   $("settingsState").textContent = signedIn ? "Microsoft account connected" : "Not connected";
   $("settingsAuthBtn").textContent = signedIn ? "Sign out" : "Sign in";
   $("sideName").textContent = name;
-  $("sideState").textContent = signedIn ? "Microsoft account · online" : "Not connected";
+  $("sideState").textContent = signedIn ? "Microsoft · online" : "Not connected";
   $("signInHero").hidden = signedIn;
   $("homeMain").hidden = !signedIn;
-  $("heroGreeting").textContent = signedIn ? `Welcome back, ${state.username}` : "Ready to play?";
+  const greeting = $("heroGreeting");
+  greeting.textContent = signedIn ? "Welcome back, " : "Ready to play?";
+  if (signedIn) greeting.appendChild(el("span", "pii", state.username));
   // The same sign-in card gates the whole app, not just Home: signed out, the
   // rail, top actions and sidebar are hidden (styles.css, #app.signed-out)
   // and switchPage refuses every page but Home.
@@ -627,24 +799,57 @@ async function doSignIn(btn) {
     state.signedIn = true;
     state.username = username;
     $("codePanel").hidden = true;
+    // An earlier "Sign-in failed" line must not still be on the card after signing out again.
+    dismissLog("Out");
     applyAccountUI();
+    // A download started while signed out carries on in the signed-in bar.
+    paintActiveProgress();
     loadRecent();
-    toast(`Signed in as ${username}`);
+    toast(state.privacy ? "Signed in." : `Signed in as ${username}`);
   } catch (err) {
     $("codePanel").hidden = true;
-    appendLog("Sign-in failed: " + friendlyError(err.message), true, "Out");
-    toast("Sign-in didn't finish — see the message below.");
+    const why = friendlyError(err.message);
+    appendLog("Sign-in failed: " + why, true, "Out");
+    toast(`Sign-in didn't finish: ${why}`);
   } finally {
     if (btn) btn.disabled = false;
   }
 }
 
 async function doSignOut() {
-  await window.reminth.signOut();
+  try {
+    await window.reminth.signOut();
+  } catch (err) {
+    toast(friendlyError(err.message));
+    return;
+  }
   state.signedIn = false;
   state.username = null;
   applyAccountUI();
   toast("Signed out.");
+}
+
+/**
+ * "Your Microsoft sign-in has expired": the backend has signed the account
+ * out. Shows the sign-in card with the reason on it. Returns true when that
+ * was the error (the caller has nothing more to say).
+ */
+function signedOutByBackend(err) {
+  if (!err || !/sign-in has expired/i.test(err.message || "")) return false;
+  const why = friendlyError(err.message);
+  state.signedIn = false;
+  state.username = null;
+  while (modalStack.length) modalStack[modalStack.length - 1].close();
+  applyAccountUI();
+  dismissLog("");
+  $("progressStageOut").textContent = "Signed out";
+  $("progressPctOut").textContent = "";
+  $("progressFillOut").style.width = "0%";
+  $("progressFillOut").classList.remove("busy");
+  $("logOut").textContent = "";
+  appendLog(why, true, "Out");
+  toast(why);
+  return true;
 }
 
 $("signInBtn").onclick = () => doSignIn($("signInBtn"));
@@ -698,13 +903,16 @@ function instanceChip(inst, xl) {
 async function loadInstances() {
   try {
     state.instances = await window.reminth.instances();
-  } catch {
+    state.instancesError = null;
+  } catch (err) {
     state.instances = [];
+    state.instancesError = friendlyError(err.message) || "unknown error";
   }
   state.running = new Set(state.instances.filter((i) => i.running).map((i) => i.id));
   if (!instanceById(state.activeId)) state.activeId = state.instances[0] ? state.instances[0].id : "reminth";
   renderRail();
   renderHero();
+  paintActiveProgress();
   $("sideInstances").textContent = String(state.instances.length || 1);
   if (currentPage === "instance") renderInstancePage();
   if (currentPage === "library") renderLibraryInstances();
@@ -713,6 +921,7 @@ async function loadInstances() {
 
 function renderRail() {
   const rail = $("railInstances");
+  hideTip(); // the button it belongs to is about to be thrown away
   rail.textContent = "";
   for (const inst of state.instances) {
     // Only start it selected/ringed if we're actually rebuilding the rail
@@ -742,15 +951,31 @@ async function selectInstance(id, open) {
     state.activeId = id;
     renderRail();
     renderHero();
+    paintActiveProgress();
     saveSetting({ activeInstance: id });
     if (window.onInstancesChanged) window.onInstancesChanged();
+    // Already on the instance page and not asked to (re)open it: the header,
+    // worlds, servers and logs would otherwise stay those of the instance
+    // that was showing before.
+    if (!open && currentPage === "instance") renderInstancePage();
   }
   if (open) switchPage("instance");
 }
 
 function renderHero() {
   const inst = activeInstance();
-  if (!inst) return;
+  if (!inst) {
+    // The instance list couldn't be read: say so instead of "set up and ready".
+    $("heroLoader").textContent = "—";
+    $("heroLoader").className = "tag dim";
+    $("heroVersion").textContent = "—";
+    $("heroInstance").textContent = "—";
+    $("heroLede").textContent = state.instancesError
+      ? "Reminth couldn't read your instances. Restart Reminth — your worlds and mods are not touched."
+      : "No instance yet. Make one with the + on the left.";
+    for (const id of ["playBtn", "instPlayBtn"]) $(id).disabled = true;
+    return;
+  }
   $("heroLoader").textContent = loaderLabel(inst);
   $("heroLoader").className = loaderTag(inst);
   $("heroVersion").textContent = "Minecraft " + inst.mcVersion;
@@ -758,7 +983,6 @@ function renderHero() {
   $("heroLede").textContent = inst.modpack
     ? `${inst.modpack.title} is installed and ready. One click and you're in.`
     : `Your ${loaderLabel(inst)} ${inst.mcVersion} instance is set up and ready. One click and you're in.`;
-  $("discoverTarget").textContent = `${inst.name} (${loaderLabel(inst)} ${inst.mcVersion})`;
   paintPlayButtons();
 }
 
@@ -767,7 +991,8 @@ function paintPlayButtons() {
   const inst = activeInstance();
   if (!inst) return;
   const busy = state.installing.has(inst.id);
-  const runningNow = state.running.has(inst.id);
+  const stopping = state.stopping.has(inst.id);
+  const runningNow = state.running.has(inst.id) || stopping;
   const p = state.progress.get(inst.id);
   for (const id of ["playBtn", "instPlayBtn"]) {
     const btn = $(id);
@@ -785,7 +1010,10 @@ function paintPlayButtons() {
     const btn = $(id);
     if (!btn) continue;
     btn.hidden = !runningNow;
-    btn.disabled = false;
+    // Stays in place, busy, until the backend says the game is gone - so
+    // nothing else slides under the cursor of someone who double-clicked it.
+    btn.disabled = stopping;
+    btn.querySelector("span").textContent = stopping ? "Stopping…" : "Stop";
   }
 }
 
@@ -820,6 +1048,7 @@ function openInstanceModal(existing) {
     version: existing ? existing.mcVersion : null,
     build: existing ? existing.loaderVersion : null,
     hud: existing ? Boolean(existing.hud) : true,
+    perf: existing ? existing.performanceMods !== false : true, // missing = on
     types: new Set(["release"]),
     query: "",
   };
@@ -852,12 +1081,15 @@ function openInstanceModal(existing) {
       if (v && !supports(v)) {
         pick.version = null;
         versionLabel.textContent = "Minecraft version";
+        // The name Reminth filled in was for that version.
+        if (nameInput.dataset.auto === "1") nameInput.value = "";
       }
       if (nameInput.dataset.auto === "1" && pick.version) nameInput.value = `${l.label} ${pick.version}`;
       paintLoader();
       paintList();
       paintBuilds();
       paintHud();
+      paintPerf();
     };
     loaderBtns[l.key] = b;
     loaderRow.appendChild(b);
@@ -918,11 +1150,37 @@ function openInstanceModal(existing) {
   const hudSwitch = el("button", "switch");
   hudSwitch.type = "button";
   hudSwitch.setAttribute("role", "switch");
+  hudSwitch.setAttribute("aria-label", "ReminthHUD");
   hudRow.appendChild(hudText);
   hudRow.appendChild(hudSwitch);
   hudField.appendChild(hudRow);
   extras.appendChild(hudField);
+  // The performance pack: on unless this instance switches it off.
+  const perfField = el("div", "field hud-field perf-field");
+  perfField.appendChild(el("label", null, "Performance pack"));
+  const perfRow = el("div", "toggle-row compact");
+  const perfText = el("div");
+  perfText.appendChild(el("b", null, "Sodium, Lithium and ScalableLux"));
+  perfText.appendChild(el("span", null, "Kept up to date by Reminth. Switch off if you'd rather pick your own."));
+  const perfSwitch = el("button", "switch");
+  perfSwitch.type = "button";
+  perfSwitch.setAttribute("role", "switch");
+  perfSwitch.setAttribute("aria-label", "Performance pack");
+  perfRow.appendChild(perfText);
+  perfRow.appendChild(perfSwitch);
+  perfField.appendChild(perfRow);
+  extras.appendChild(perfField);
   body.appendChild(extras);
+  const perfEligible = () => pick.loader === "fabric" || pick.loader === "quilt";
+  function paintPerf() {
+    perfField.hidden = !perfEligible();
+    perfSwitch.classList.toggle("on", pick.perf);
+    perfSwitch.setAttribute("aria-checked", pick.perf ? "true" : "false");
+  }
+  perfSwitch.onclick = () => {
+    pick.perf = !pick.perf;
+    paintPerf();
+  };
 
   const note = el("p", "set-note");
   body.appendChild(note);
@@ -1051,6 +1309,7 @@ function openInstanceModal(existing) {
   paintLoader();
   paintBuilds();
   paintHud();
+  paintPerf();
   if (pick.version) versionLabel.textContent = `Minecraft version — ${pick.version}`;
 
   getVersions()
@@ -1068,30 +1327,45 @@ function openInstanceModal(existing) {
       list.appendChild(el("div", "vp-empty", "Couldn't load Mojang's version list. Check your connection and try again."));
     });
 
+  // Esc, the backdrop and Cancel wait for a save that's running: closing the
+  // dialog used to leave it running unseen (and then jump to the new instance).
+  let saving = false;
   openModal({
     title: editing ? `Edit ${existing.name}` : "New instance",
     body,
     wide: true,
+    canClose: () => !saving,
     buttons: [
       { label: "Cancel", className: "outline" },
       {
         label: editing ? "Save" : "Create instance",
         className: "primary",
         icon: editing ? "#i-check" : "#i-plus",
-        onClick: async () => {
+        onClick: async (handle) => {
+          if (saving) return false;
           if (!pick.version) {
             toast("Pick a Minecraft version first.");
             return false;
           }
           const name = nameInput.value.trim() || `${LOADER_LABELS[pick.loader]} ${pick.version}`;
           const hud = (pick.loader === "fabric" || pick.loader === "quilt") && !hudSwitch.disabled && pick.hud;
+          // Only instances the pack applies to say anything about it.
+          const perf = perfEligible() ? { performanceMods: pick.perf } : {};
+          saving = true;
+          handle.buttons[0].disabled = true;
           try {
             if (editing) {
-              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud });
-              toast(`${name} saved. Anything new downloads next time you press Play.`);
+              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf });
+              const perfOff = perfEligible() && !pick.perf && existing.performanceMods !== false;
+              toast(perfOff ? "Performance pack off — Reminth removes its copies the next time you press Play." : `${name} saved. Anything new downloads next time you press Play.`);
               await loadInstances();
+              // A different version or loader can leave every mod on the wrong
+              // build: look straight away and say so (features.js, section 7).
+              if ((pick.version !== existing.mcVersion || pick.loader !== existing.loader) && typeof compatAfterEdit === "function") {
+                compatAfterEdit(existing.id, pick.version);
+              }
             } else {
-              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud });
+              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf });
               await loadInstances();
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);
@@ -1100,21 +1374,20 @@ function openInstanceModal(existing) {
           } catch (err) {
             toast(friendlyError(err.message));
             return false;
+          } finally {
+            saving = false;
+            handle.buttons[0].disabled = false;
           }
         },
       },
     ],
   });
-  setTimeout(() => nameInput.focus(), 50);
 }
 
 $("railAdd").onclick = () => openInstanceModal(null);
 $("instMoreBtn").onclick = (e) => {
   e.stopPropagation();
-  const wrap = $("instMore");
-  const open = !wrap.classList.contains("dd-open");
-  document.querySelectorAll(".dd-open").forEach((d) => d.classList.remove("dd-open"));
-  wrap.classList.toggle("dd-open", open);
+  toggleMenu($("instMore"));
 };
 $("instMore").querySelectorAll(".dd-item").forEach((b) => b.addEventListener("click", () => $("instMore").classList.remove("dd-open")));
 $("instEditBtn").onclick = () => {
@@ -1124,22 +1397,43 @@ $("instEditBtn").onclick = () => {
 $("instDeleteBtn").onclick = async () => {
   const inst = activeInstance();
   if (!inst || inst.id === "reminth") return;
-  const ok = await confirmModal(
-    `Delete ${inst.name}?`,
-    ["This deletes the instance's whole folder — its mods, packs, worlds and screenshots. There's no undo.", "Your saved logs stay in Reminth's archive."],
-    "Delete forever",
-    true
-  );
-  if (!ok) return;
-  try {
-    await window.reminth.deleteInstance(inst.id);
-    state.activeId = "reminth";
-    await loadInstances();
-    switchPage("home");
-    toast(`${inst.name} deleted.`);
-  } catch (err) {
-    toast(friendlyError(err.message));
-  }
+  const body = el("div");
+  body.appendChild(el("p", null, "This deletes the instance's whole folder — its mods, packs, worlds and screenshots. There's no undo."));
+  body.appendChild(el("p", null, "Your saved logs stay in Reminth's archive."));
+  // The delete runs inside the dialog, which can't be closed while it does.
+  let deleting = false;
+  openModal({
+    title: `Delete ${inst.name}?`,
+    body,
+    focusCancel: true,
+    canClose: () => !deleting,
+    buttons: [
+      { label: "Cancel", className: "outline" },
+      {
+        label: "Delete forever",
+        className: "primary danger-fill",
+        onClick: async (handle) => {
+          if (deleting) return false;
+          deleting = true;
+          handle.buttons[0].disabled = true;
+          try {
+            await window.reminth.deleteInstance(inst.id);
+            if (state.activeId === inst.id) state.activeId = "reminth";
+            await loadInstances();
+            if (currentPage === "instance") switchPage("home");
+            toast(`${inst.name} deleted.`);
+            return true;
+          } catch (err) {
+            toast(friendlyError(err.message));
+            return false;
+          } finally {
+            deleting = false;
+            handle.buttons[0].disabled = false;
+          }
+        },
+      },
+    ],
+  });
 };
 
 /* ---- instance page (the header; tabs live in features.js) ---- */
@@ -1180,10 +1474,33 @@ async function runPlay(options = {}) {
     return;
   }
   if (state.installing.has(inst.id)) return;
-  const onHome = inst.id === state.activeId;
+  // Marked in flight before anything is awaited, so a second click (or a
+  // second Play button) can't start another run while the mods are looked at
+  // or the "won't start" question is open.
   state.installing.add(inst.id);
+  if (inst.loader !== "vanilla" && typeof compatBeforePlay === "function") {
+    state.progress.set(inst.id, { stage: "Checking mods", pct: null, short: "Checking" });
+    paintPlayButtons();
+    let go = true;
+    try {
+      go = await compatBeforePlay(inst);
+    } catch {
+      go = true; // the check is a courtesy - it never stands in the way of Play
+    }
+    state.progress.delete(inst.id);
+    if (!go) {
+      state.installing.delete(inst.id);
+      paintPlayButtons();
+      return;
+    }
+  }
+  const onHome = inst.id === state.activeId;
   state.logError = false;
+  // The stage de-dup is for one run: without this, a second run whose first
+  // stage matches the last run's final one never gets its first log line.
+  state.lastStage = null;
   if (onHome) {
+    state.progressShown = inst.id;
     $("progressWrap").hidden = false;
     $("log").hidden = false;
     $("log").textContent = "";
@@ -1192,17 +1509,30 @@ async function runPlay(options = {}) {
   paintPlayButtons();
   try {
     const result = await window.reminth.play({ instanceId: inst.id, join: options.join || null });
+    if (result && result.cancelled) {
+      // The player backed out of something the backend asked: not a failure.
+      if (onHome && !state.logError) {
+        $("progressWrap").hidden = true;
+        $("log").hidden = true;
+      }
+      return;
+    }
     if (result && result.launched === false) throw new Error("The game didn't start.");
-    toast(options.join ? `Minecraft is starting — joining ${options.join.host}…` : "Minecraft is starting…");
-    scheduleHideProgress("");
+    toast(options.join ? (state.privacy ? "Minecraft is starting — joining the server…" : `Minecraft is starting — joining ${options.join.host}…`) : "Minecraft is starting…");
+    scheduleHideProgress();
   } catch (err) {
+    // The saved sign-in is no good any more: the sign-in card comes back,
+    // with the reason on it, instead of a launch error on a page that can't
+    // be used until the player signs in.
+    if (signedOutByBackend(err)) return;
     // "Already running" isn't a fault to fix - it goes stale the moment the
     // game closes, so it's shown briefly instead of pinned.
     const alreadyRunning = /already running/i.test(err.message);
-    appendLog("Couldn't launch: " + friendlyError(err.message), !alreadyRunning);
-    toast(alreadyRunning ? "Minecraft is already running." : "Launch failed — see the message on Home.");
-    if (alreadyRunning) scheduleHideProgress("");
-    else if (!onHome) switchPage("home");
+    const why = friendlyError(err.message);
+    appendLog(`Couldn't launch ${inst.name}: ${why}`, !alreadyRunning);
+    // Says it all itself: the player may be on any page.
+    toast(alreadyRunning ? `${inst.name} is already running.` : `Couldn't launch ${inst.name}: ${why}`);
+    if (alreadyRunning) scheduleHideProgress();
   } finally {
     state.installing.delete(inst.id);
     state.progress.delete(inst.id);
@@ -1211,21 +1541,28 @@ async function runPlay(options = {}) {
   }
 }
 
-function scheduleHideProgress(suffix) {
+/** Puts the progress bars away a little after a run ends - both, since signing in or out mid-run moves it from one to the other. */
+function scheduleHideProgress() {
   clearTimeout(window._hideProgress);
   window._hideProgress = setTimeout(() => {
     if (state.logError || state.installing.has(state.activeId)) return;
-    $("progressWrap" + suffix).hidden = true;
-    $("log" + suffix).hidden = true;
+    for (const suffix of ["", "Out"]) {
+      $("progressWrap" + suffix).hidden = true;
+      $("log" + suffix).hidden = true;
+    }
   }, 6000);
 }
 
 async function runInstall(instanceId) {
   const inst = instanceId ? instanceById(instanceId) : activeInstance();
   if (!inst || state.installing.has(inst.id)) return;
+  if (state.running.has(inst.id)) return toast(`Close ${inst.name} first — files in use can't be checked or replaced.`);
+  // The bar in use is asked for each time: signing in while this runs moves it.
   const suffix = progressSuffix();
   state.installing.add(inst.id);
   state.logError = false;
+  state.lastStage = null; // see runPlay
+  state.progressShown = inst.id;
   $("progressWrap" + suffix).hidden = false;
   $("log" + suffix).hidden = false;
   $("log" + suffix).textContent = "";
@@ -1234,13 +1571,15 @@ async function runInstall(instanceId) {
   try {
     const result = await window.reminth.install(inst.id);
     if (result && result.removedMods && result.removedMods.length) {
-      appendLog("Removed mods Reminth no longer installs for you: " + result.removedMods.join(", "), false, suffix);
+      appendLog("Removed mods Reminth no longer installs for you: " + result.removedMods.join(", "), false, progressSuffix());
     }
     toast(`${inst.name} is up to date.`);
-    scheduleHideProgress(suffix);
+    scheduleHideProgress();
   } catch (err) {
-    appendLog("Update failed: " + friendlyError(err.message), true, suffix);
-    toast("Couldn't finish updating — see the message on Home.");
+    if (signedOutByBackend(err)) return;
+    const why = friendlyError(err.message);
+    appendLog("Update failed: " + why, true, progressSuffix());
+    toast(`Couldn't update ${inst.name}: ${why}`);
   } finally {
     state.installing.delete(inst.id);
     state.progress.delete(inst.id);
@@ -1248,30 +1587,45 @@ async function runInstall(instanceId) {
   }
 }
 
-$("playBtn").onclick = () => runPlay();
-$("instPlayBtn").onclick = () => runPlay();
+// A click that lands on Play just after Stop was pressed (the second half of
+// a double-click, once Stop has gone) must not start the game again.
+const STOP_GRACE_MS = 600;
+const playClick = () => {
+  if (Date.now() - state.stopClickAt < STOP_GRACE_MS) return;
+  runPlay();
+};
+$("playBtn").onclick = playClick;
+$("instPlayBtn").onclick = playClick;
+
+/** The game is gone (or never answered): Stop goes away, Play comes back. */
+function stopFinished(instanceId) {
+  if (!state.stopping.delete(instanceId)) return;
+  clearTimeout(stopTimers.get(instanceId));
+  stopTimers.delete(instanceId);
+  state.running.delete(instanceId);
+  state.stopClickAt = Date.now(); // Play is about to appear where Stop was
+  paintPlayButtons();
+}
+const stopTimers = new Map(); // instance id -> fallback timer
 
 async function stopGame() {
   const inst = activeInstance();
-  if (!inst) return;
-  for (const id of ["stopBtn", "instStopBtn"]) {
-    const btn = $(id);
-    if (btn) btn.disabled = true;
-  }
+  if (!inst || state.stopping.has(inst.id)) return;
+  state.stopClickAt = Date.now();
+  state.stopping.add(inst.id);
+  paintPlayButtons();
   try {
-    await window.reminth.stopGame({ instanceId: inst.id });
-    // The backend clears its own state and fires play:exited right away
-    // (it doesn't wait on the process' real exit event) - reflect that here
-    // immediately too instead of waiting for the round trip.
-    state.running.delete(inst.id);
-    paintPlayButtons();
+    const result = await window.reminth.stopGame({ instanceId: inst.id });
     toast(`Stopped ${inst.name}.`);
+    // Nothing was running after all (a stale "Playing"): no exit will be announced.
+    if (result && result.wasRunning === false) return stopFinished(inst.id);
+    // play:exited normally follows at once. If it never comes, don't leave
+    // the button on "Stopping…" for good.
+    if (state.stopping.has(inst.id)) stopTimers.set(inst.id, setTimeout(() => stopFinished(inst.id), 4000));
   } catch (err) {
+    state.stopping.delete(inst.id);
+    paintPlayButtons();
     toast(friendlyError(err.message));
-    for (const id of ["stopBtn", "instStopBtn"]) {
-      const btn = $(id);
-      if (btn) btn.disabled = false;
-    }
   }
 }
 $("stopBtn").onclick = () => stopGame();
@@ -1315,18 +1669,45 @@ window.reminth.onInstallProgress(({ instanceId, stage, current, total }) => {
   state.progress.set(instanceId, { stage, pct, short });
   paintPlayButtons();
   if (instanceId !== state.activeId) return;
-  const suffix = progressSuffix();
-  $("progressWrap" + suffix).hidden = false;
-  $("progressStage" + suffix).textContent = stage;
-  $("progressPct" + suffix).textContent = determinate ? pct + "%" : "";
-  $("progressFill" + suffix).style.width = determinate ? pct + "%" : "100%";
-  $("progressFill" + suffix).classList.toggle("busy", !determinate);
+  paintProgress(instanceId);
   // Only stage changes go in the log - not every tick of the counter.
   if (state.lastStage !== stage) {
     state.lastStage = stage;
-    appendLog(stage, false, suffix);
+    appendLog(stage, false, progressSuffix());
   }
 });
+
+/** Paints the bar from the latest progress kept for that instance. */
+function paintProgress(instanceId) {
+  const p = state.progress.get(instanceId);
+  if (!p) return;
+  const suffix = progressSuffix();
+  const determinate = p.pct !== null;
+  state.progressShown = instanceId;
+  $("progressWrap" + suffix).hidden = false;
+  $("progressStage" + suffix).textContent = p.stage;
+  $("progressPct" + suffix).textContent = determinate ? p.pct + "%" : "";
+  $("progressFill" + suffix).style.width = determinate ? p.pct + "%" : "100%";
+  $("progressFill" + suffix).classList.toggle("busy", !determinate);
+}
+
+/**
+ * Run when the active instance changes. Progress events for an instance that
+ * isn't active are only stored, so without this the bar kept showing the
+ * instance you came from until the next event (or for good, if none came).
+ */
+function paintActiveProgress() {
+  const id = state.activeId;
+  if (state.installing.has(id) && state.progress.has(id)) return paintProgress(id);
+  // The bar is still painting another instance's run: put it away, unless
+  // it's pinned open on an error the player hasn't dismissed yet.
+  if (state.progressShown && state.progressShown !== id && !state.logError) {
+    const suffix = progressSuffix();
+    $("progressWrap" + suffix).hidden = true;
+    $("log" + suffix).hidden = true;
+    state.progressShown = null;
+  }
+}
 
 window.reminth.onInstallDone(({ instanceId }) => {
   if (instanceId !== state.activeId) return;
@@ -1345,17 +1726,23 @@ window.reminth.onPlayStarted(({ instanceId }) => {
 });
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);
+  stopFinished(instanceId);
   loadInstances();
   loadRecent();
   loadStats();
 });
 window.reminth.onPlayCrashed(({ instanceId, code, signal, error, logPath }) => {
   state.running.delete(instanceId);
+  stopFinished(instanceId);
   paintPlayButtons();
-  const reason = error ? error : signal ? `the game process was killed (${signal})` : `the game process exited immediately (code ${code})`;
-  if (instanceId !== state.activeId) selectInstance(instanceId, false);
-  appendLog(`Minecraft closed right after launching — ${reason}. Check the Logs tab on the instance, or the launch log: ${logPath}`, true);
-  toast("Minecraft closed right after launching — see the message on Home.");
+  const reason = error ? friendlyError(error) : signal ? `the game process was killed (${signal})` : `the game process exited immediately (code ${code})`;
+  const inst = instanceById(instanceId);
+  const name = inst ? inst.name : "Minecraft";
+  // The message goes in the Home log under the instance's own name; the
+  // active instance is left alone (a dialog may be open that is about it).
+  // With "Hide personal info" on, the path (it has the Windows user name in it) is left out.
+  appendLog(`${name} closed right after launching — ${reason}. Check the Logs tab on the instance${logPath && !state.privacy ? `, or the launch log: ${logPath}` : ""}.`, true);
+  toast(`${name} closed right after launching — ${reason}. Its Logs tab has the details.`);
 });
 
 /* ================================================================== *
@@ -1375,15 +1762,21 @@ function recentCard(entry, { showInstance } = {}) {
   const art = el("div", "recent-art " + entry.type);
   art.appendChild(el("span", "recent-kind " + entry.type, entry.type === "world" ? "World" : "Server"));
   const tile = el("div", "icon-tile");
+  const glyph = () => {
+    tile.classList.add("is-glyph");
+    tile.appendChild(icon(entry.type === "world" ? "#i-block" : "#i-server", entry.type === "world" ? "block-mark" : "server-mark"));
+  };
   if (entry.icon) {
     const img = el("img");
     img.src = entry.icon;
     img.alt = "";
+    // An icon that won't load gets the drawn mark, not a broken-image glyph.
+    img.addEventListener("error", () => {
+      img.remove();
+      glyph();
+    });
     tile.appendChild(img);
-  } else {
-    tile.classList.add("is-glyph");
-    tile.appendChild(icon(entry.type === "world" ? "#i-block" : "#i-server", entry.type === "world" ? "block-mark" : "server-mark"));
-  }
+  } else glyph();
   art.appendChild(tile);
   const body = el("div", "recent-body");
   body.appendChild(el("div", "recent-name", entry.name));
@@ -1399,10 +1792,9 @@ function recentCard(entry, { showInstance } = {}) {
   }
   const when = formatWhen(entry.lastPlayed);
   if (when) bits.push([when]);
-  bits.forEach(([text, cls], i) => {
-    if (i) meta.appendChild(el("span", "dot", "·"));
-    meta.appendChild(el("span", cls || null, text));
-  });
+  // The "·" between them is drawn by CSS (.sep-list), so a line never starts or ends with one.
+  meta.classList.add("sep-list");
+  bits.forEach(([text, cls]) => meta.appendChild(el("span", cls || null, text)));
   body.appendChild(meta);
   card.appendChild(art);
   card.appendChild(body);
@@ -1422,7 +1814,7 @@ function addInstanceTile() {
   meta.appendChild(el("span", null, "Any version, any loader"));
   body.appendChild(meta);
   card.appendChild(body);
-  card.onclick = () => openInstanceModal(null);
+  clickable(card, () => openInstanceModal(null));
   return card;
 }
 
@@ -1436,7 +1828,7 @@ async function loadRecent() {
   state.recent = data;
   const grid = $("recentGrid");
   if (data.error) {
-    renderEmpty(grid, "Couldn't read your saves folder", data.error);
+    renderEmpty(grid, "Couldn't read your saves folder", friendlyError(data.error));
     grid.prepend(addInstanceTile());
     $("recentNote").textContent = "";
   } else if (!data.recent.length) {
@@ -1511,14 +1903,13 @@ function renderLibraryInstances() {
     tile.appendChild(art);
     const meta = el("div", "lib-meta");
     meta.appendChild(el("div", "lib-name", inst.name));
-    const sub = el("div", "lib-sub");
+    const sub = el("div", "lib-sub sep-list");
     sub.appendChild(el("span", null, `${loaderLabel(inst)} ${inst.mcVersion}`));
-    sub.appendChild(el("span", "dot", "·"));
     sub.appendChild(el("span", null, inst.lastPlayed ? `played ${formatWhen(inst.lastPlayed)}` : "never played"));
     meta.appendChild(sub);
     tile.appendChild(meta);
     if (state.running.has(inst.id)) tile.appendChild(el("span", "tag emerald", "Running"));
-    tile.onclick = () => selectInstance(inst.id, true);
+    clickable(tile, () => selectInstance(inst.id, true));
     grid.appendChild(tile);
   }
   const add = el("div", "card lib-tile add");
@@ -1529,25 +1920,22 @@ function renderLibraryInstances() {
   addMeta.appendChild(el("div", "lib-name", "New instance"));
   addMeta.appendChild(el("div", "lib-sub", "Any version or snapshot · Fabric, Quilt, Forge, NeoForge or vanilla"));
   add.appendChild(addMeta);
-  add.onclick = () => openInstanceModal(null);
+  clickable(add, () => openInstanceModal(null));
   grid.appendChild(add);
 }
 
 /* ================================================================== *
  * what's new                                                          *
  * ================================================================== */
+// A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "Instances: make as many as you like, on any Minecraft version — every release, snapshot, beta and alpha.",
-  "Every major loader: Fabric, Quilt, Forge and NeoForge, with a build picker for each. Modpacks for all of them install in one click.",
-  "RAM is no longer capped: give Minecraft whatever your PC can spare.",
-  "ReminthHUD can be switched on per instance, on any version that has a HUD build.",
-  "Discover: modpacks and servers join mods, packs and shaders, with filters, sorting and one-click installs.",
-  "Servers show live players and your real ping. Play installs whatever the server needs and joins it.",
-  "Update everything in an instance at once: mods, resource packs, shaders and data packs.",
-  "Logs per instance, kept forever, with bans, kicks and errors pulled out in red.",
-  "Streamer mode: hotkey screenshots and a replay buffer that saves the last 30 seconds to 30 minutes.",
-  "Skins: a proper 3D preview, your old skins saved, Minecraft's default skins, and capes.",
-  "The window now opens properly windowed, and a stuck 'already running' message no longer hangs around.",
+  "Before Play, Reminth checks your mods and says which ones won't load — and fixes them in one click.",
+  "\"Which Minecraft version should I use?\" finds the version all your mods have builds for, and copies your instance to it.",
+  "Servers show which versions they take. Play finds, or makes, an instance that fits.",
+  "Safer saves: settings, instances and downloads are written so a crash or power cut can't leave a half-written file.",
+  "The performance pack no longer clashes with mods you added yourself, and can be switched off per instance.",
+  "Any Minecraft version, on Fabric, Quilt, Forge or NeoForge. Modpacks install in one click, and one button updates everything in an instance.",
+  "Logs kept per instance, 3D skins and capes, and streamer mode with clips and screenshots.",
 ];
 
 function renderChangelog() {
@@ -1614,7 +2002,7 @@ async function loadStats() {
   state.stats = stats;
   updateHomeStatRow(stats);
   body.textContent = "";
-  if (stats.error) return renderEmpty(body, "Couldn't read your statistics", stats.error);
+  if (stats.error) return renderEmpty(body, "Couldn't read your statistics", friendlyError(stats.error));
   if (!stats.found) {
     return renderEmpty(
       body,
@@ -1622,33 +2010,41 @@ async function loadStats() {
       state.signedIn ? "Play a world and Minecraft starts recording your stats. They show up here automatically." : "Sign in and play a world — your stats come straight from your own save files."
     );
   }
+  // Any part of the answer may be missing (a save with no stats file yet).
+  const totals = stats.totals || {};
+  const top = stats.top || {};
+  const perWorld = stats.perWorld || [];
   const cards = el("div", "stat-cards");
-  cards.appendChild(bigStat("Time played", formatPlaytime(stats.playTimeTicks), `Across ${stats.worldCount} world${stats.worldCount === 1 ? "" : "s"}`, "var(--amber)"));
+  cards.appendChild(bigStat("Time played", formatPlaytime(stats.playTimeTicks), `Across ${stats.worldCount || 0} world${stats.worldCount === 1 ? "" : "s"}`, "var(--amber)"));
   cards.appendChild(bigStat("Deaths", formatNumber(stats.deaths), stats.deaths ? "Happens to everyone" : "Flawless so far", "var(--rose)"));
   cards.appendChild(bigStat("Mobs killed", formatNumber(stats.mobKills), null, "var(--violet)"));
-  cards.appendChild(bigStat("Blocks mined", formatNumber(stats.totals.mined), null, "var(--cyan)"));
+  cards.appendChild(bigStat("Blocks mined", formatNumber(totals.mined), null, "var(--cyan)"));
   cards.appendChild(bigStat("Jumps", formatNumber(stats.jumps), null, "var(--emerald)"));
-  cards.appendChild(bigStat("Damage dealt", formatNumber(Math.round(stats.damageDealt / 10)), "Damage points", "var(--rose)"));
+  cards.appendChild(bigStat("Damage dealt", formatNumber(Math.round((stats.damageDealt || 0) / 10)), "Damage points", "var(--rose)"));
   body.appendChild(cards);
 
-  const distanceEntries = Object.entries(stats.distances).filter(([, cm]) => cm > 0).sort((a, b) => b[1] - a[1]).map(([id, cm]) => ({ id, count: cm }));
+  // "minecraft:sprint_one_cm" -> "Sprint"
+  const distanceEntries = Object.entries(stats.distances || {})
+    .filter(([, cm]) => cm > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([id, cm]) => ({ id: prettyId(String(id).replace(/_one_cm$/, "")), count: cm }));
   const grid = el("div", "two-col");
   grid.style.marginTop = "14px";
-  if (distanceEntries.length) grid.appendChild(barList("Distance travelled", distanceEntries, formatDistance));
-  if (stats.top.mined.length) grid.appendChild(barList("Most mined", stats.top.mined));
-  if (stats.top.killed.length) grid.appendChild(barList("Most killed", stats.top.killed));
-  if (stats.top.used.length) grid.appendChild(barList("Most used", stats.top.used));
-  if (stats.perWorld.length > 1) {
+  if (distanceEntries.length) grid.appendChild(barList("Distance travelled", distanceEntries, formatDistance, true));
+  if ((top.mined || []).length) grid.appendChild(barList("Most mined", top.mined));
+  if ((top.killed || []).length) grid.appendChild(barList("Most killed", top.killed));
+  if ((top.used || []).length) grid.appendChild(barList("Most used", top.used));
+  if (perWorld.length > 1) {
     grid.appendChild(
       barList(
         "Time by world",
-        stats.perWorld.map((w, _i, all) => ({ id: all.filter((o) => o.name === w.name).length > 1 && w.folder !== w.name ? `${w.name} (${w.folder})` : w.name, count: w.playTimeTicks })),
+        perWorld.map((w, _i, all) => ({ id: all.filter((o) => o.name === w.name).length > 1 && w.folder !== w.name ? `${w.name} (${w.folder})` : w.name, count: w.playTimeTicks })),
         (ticks) => formatPlaytime(ticks),
         true
       )
     );
   }
-  if (stats.top.killedBy.length) grid.appendChild(barList("Killed by", stats.top.killedBy));
+  if ((top.killedBy || []).length) grid.appendChild(barList("Killed by", top.killedBy));
   if (grid.children.length) body.appendChild(grid);
 }
 $("refreshStats").onclick = () => {
@@ -1702,17 +2098,18 @@ $("toggleFullscreen").onclick = async () => {
   }
 };
 
-/* ---- RAM: no plan limit - whatever this PC can spare ---- */
+/* ---- RAM: what this PC can spare, up to Reminth's own ceiling ---- */
 function ramLimits() {
   const plan = (state.info && state.info.plan) || {};
   const totalGb = state.info ? state.info.totalMemoryMb / 1024 : 8;
-  const fallback = Math.max(1, Math.min(16, Math.floor((totalGb - 2) * 2) / 2));
-  const capGb = plan.ramCapMb ? plan.ramCapMb / 1024 : fallback;
-  return { capGb, totalGb };
+  // What the PC could give once Windows has its 2 GB, in half-GB steps.
+  const spareGb = Math.max(1, Math.floor((totalGb - 2) * 2) / 2);
+  const capGb = plan.ramCapMb ? plan.ramCapMb / 1024 : Math.min(16, spareGb);
+  return { capGb, totalGb, spareGb };
 }
 
 function paintRam(gb) {
-  const { capGb, totalGb } = ramLimits();
+  const { capGb, totalGb, spareGb } = ramLimits();
   $("ramVal").textContent = (Number.isInteger(gb) ? gb : gb.toFixed(1)) + " GB";
   let note;
   if (gb <= 1) note = "Very tight — Minecraft may stutter or run out of memory.";
@@ -1722,17 +2119,20 @@ function paintRam(gb) {
   else note = "More than almost any modpack needs — past ~8 GB, garbage-collection pauses get longer, not shorter.";
   const left = totalGb - gb;
   if (left < 3) note += ` Leaves only ${left.toFixed(1)} GB for Windows and everything else you have open.`;
-  else if (gb >= capGb) note += ` That's the most this PC can spare (${Math.round(totalGb)} GB installed).`;
+  // Reminth's ceiling, not the PC, is the limit when the PC could spare more.
+  else if (gb >= capGb) note += capGb < spareGb ? ` That's the most Reminth allows on this PC.` : ` That's the most this PC can spare (${Math.round(totalGb)} GB installed).`;
   $("ramNote").textContent = note;
 }
 
 function paintRamScale() {
   const { capGb } = ramLimits();
-  const max = Math.max(2, capGb);
+  // The slider never offers more than can be saved (a 3 GB PC stops at 1 GB).
+  const max = Math.max(1, capGb);
   $("ramRange").max = String(max);
+  $("ramRange").disabled = max <= 1;
   $("ramMaxMark").textContent = `${max} GB`;
   const mid = Math.round(((1 + max) / 2) * 2) / 2;
-  $("ramMidMark").textContent = `${Number.isInteger(mid) ? mid : mid.toFixed(1)} GB`;
+  $("ramMidMark").textContent = max > 1.5 ? `${Number.isInteger(mid) ? mid : mid.toFixed(1)} GB` : "";
 }
 
 $("ramRange").addEventListener("input", () => paintRam(Number($("ramRange").value)));
@@ -1747,11 +2147,41 @@ function setResolutionEnabled(enabled) {
   $("gameHeight").disabled = !enabled;
 }
 
-function commitResolution() {
-  const width = parseInt($("gameWidth").value, 10);
-  const height = parseInt($("gameHeight").value, 10);
-  const valid = width > 0 && height > 0;
-  saveSetting({ gameWidth: valid ? width : null, gameHeight: valid ? height : null }, valid ? `Minecraft will open at ${width}×${height}.` : "Minecraft will use its own window size.");
+/** Puts the saved size back in the boxes, so they never show something that wasn't saved. */
+function paintResolution() {
+  const cfg = state.settings || {};
+  $("gameWidth").value = cfg.gameWidth || "";
+  $("gameHeight").value = cfg.gameHeight || "";
+}
+
+async function commitResolution() {
+  const note = $("resolutionNote");
+  const say = (text) => {
+    note.textContent = text || "";
+    note.hidden = !text;
+  };
+  // "" with badInput set = something typed that isn't a number at all.
+  const read = (input) => {
+    if (input.validity.badInput) return NaN;
+    if (!input.value.trim()) return null;
+    return Math.round(input.valueAsNumber);
+  };
+  const boxes = [$("gameWidth"), $("gameHeight")];
+  const [w, h] = boxes.map(read);
+  if (Number.isNaN(w) || Number.isNaN(h)) return say("That isn't a number — type a size in pixels, like 1280 × 720.");
+  if (w === null && h === null) {
+    say("");
+    if (!(await saveSetting({ gameWidth: null, gameHeight: null }, "Minecraft will use its own window size."))) paintResolution();
+    return;
+  }
+  // Half filled in: nothing is saved yet, and nothing is said to be.
+  if (w === null || h === null) return say("Fill in both width and height — or leave both blank to use Minecraft's own size.");
+  const clamp = (n, input) => Math.min(Number(input.max), Math.max(Number(input.min), n));
+  const width = clamp(w, boxes[0]);
+  const height = clamp(h, boxes[1]);
+  say(width !== w || height !== h ? `Changed to ${width} × ${height} — sizes go from ${boxes[0].min} × ${boxes[1].min} to ${boxes[0].max} × ${boxes[1].max}.` : "");
+  await saveSetting({ gameWidth: width, gameHeight: height }, `Minecraft will open at ${width}×${height}.`);
+  paintResolution(); // what was saved - or, if the save failed, what still is
 }
 $("gameWidth").addEventListener("change", commitResolution);
 $("gameHeight").addEventListener("change", commitResolution);
@@ -1815,8 +2245,7 @@ async function boot() {
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
     setSwitch("toggleFullscreen", s.fullscreen);
     setResolutionEnabled(!s.fullscreen);
-    if (s.gameWidth) $("gameWidth").value = s.gameWidth;
-    if (s.gameHeight) $("gameHeight").value = s.gameHeight;
+    paintResolution();
     $("extraJvmArgs").value = s.extraJvmArgs || "";
     const defaultGb = (state.info ? state.info.defaultMaxMemoryMb : 2048) / 1024;
     const { capGb } = ramLimits();
@@ -1830,12 +2259,7 @@ async function boot() {
 
   await loadInstances();
   applyAccountUI();
-  try {
-    const p = await window.reminth.debugPaths();
-    void p;
-  } catch {
-    /* non-fatal */
-  }
+  if (state.instancesError) toast("Reminth couldn't read your instances — restart it and try again.");
   loadRecent();
   loadStats();
   if (window.bootFeatures) window.bootFeatures();

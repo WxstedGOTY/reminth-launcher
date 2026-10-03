@@ -11,8 +11,16 @@
  * Everything here is read-only public metadata. Results are cached in memory
  * for 15 minutes so opening the version picker twice doesn't hit four
  * servers twice.
+ *
+ * Launching must not depend on any of it: when a server can't be reached,
+ * the questions the launch path asks ("which build?", "which installer?")
+ * are answered from what an earlier launch already left on disk - see
+ * installedLoaderVersions().
  */
-const { fetchJson } = require("./downloader");
+const fsp = require("fs").promises;
+const path = require("path");
+const paths = require("./paths");
+const { fetchJson, withTimeout } = require("./downloader");
 
 const LOADERS = ["vanilla", "fabric", "quilt", "forge", "neoforge"];
 const LOADER_NAMES = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" };
@@ -29,15 +37,101 @@ const cache = new Map();
 async function cached(key, fn) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
-  const value = await fn();
+  let value;
+  try {
+    value = await fn();
+  } catch (err) {
+    // The server can't be reached right now. A list that's a bit old is far
+    // more use than no list: it still launches the game.
+    if (hit) return hit.value;
+    throw err;
+  }
   cache.set(key, { at: Date.now(), value });
   return value;
 }
 
 async function fetchText(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
-  return res.text();
+  return withTimeout(url, async (signal) => {
+    const res = await fetch(url, { signal });
+    if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
+    return res.text();
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* What earlier launches left on disk (for starting offline)           */
+/* ------------------------------------------------------------------ */
+
+// Where minecraft.js:loadLoaderProfile keeps Fabric/Quilt profiles, as
+// "<loader>-<mc>-<build>.json", and where forge.js:prepare keeps each
+// Forge/NeoForge installer, as "<loader>-<maven version>/installer.jar".
+const LOADER_PROFILE_DIR = path.join(paths.VERSIONS_DIR, "_loader-profiles");
+const INSTALLER_DIR = path.join(paths.ROOT, "cache", "loader-installers");
+const fileSafe = (text) => String(text).replace(/[^\w.+-]/g, "_"); // the same rule both of those use
+
+/** Maven versions ("1.20.1-47.4.0", "21.1.77") of the installers already downloaded for a loader. */
+async function installedInstallers(loader) {
+  let names;
+  try {
+    names = await fsp.readdir(INSTALLER_DIR);
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const name of names) {
+    if (!name.startsWith(`${loader}-`)) continue;
+    try {
+      const stat = await fsp.stat(path.join(INSTALLER_DIR, name, "installer.jar"));
+      if (stat.isFile() && stat.size > 0) out.push({ version: name.slice(loader.length + 1), usedAt: stat.mtimeMs });
+    } catch {
+      // folder without a finished download - not usable
+    }
+  }
+  return out.sort((a, b) => b.usedAt - a.usedAt).map((e) => e.version);
+}
+
+/**
+ * Build ids of `loader` for Minecraft `mc` that are already on this
+ * machine, most recently downloaded first. Only what an earlier launch
+ * fetched: a cached Fabric/Quilt profile, or a Forge/NeoForge installer.
+ */
+async function installedLoaderVersions(loader, mc) {
+  mc = String(mc);
+  if (loader === "fabric" || loader === "quilt") {
+    const prefix = fileSafe(`${loader}-${mc}-`);
+    let names;
+    try {
+      names = await fsp.readdir(LOADER_PROFILE_DIR);
+    } catch {
+      return [];
+    }
+    const found = [];
+    for (const name of names) {
+      if (!name.startsWith(prefix) || !name.endsWith(".json")) continue;
+      const id = name.slice(prefix.length, -".json".length);
+      try {
+        const file = path.join(LOADER_PROFILE_DIR, name);
+        const json = JSON.parse(await fsp.readFile(file, "utf8"));
+        // "fabric-1.21-pre1-0.16.5.json" also starts with "fabric-1.21-";
+        // the profile itself says which Minecraft version it is for.
+        if (json && json.inheritsFrom && String(json.inheritsFrom) !== mc) continue;
+        if (!json || !json.mainClass) continue;
+        found.push({ id, usedAt: (await fsp.stat(file)).mtimeMs });
+      } catch {
+        // unreadable cache file - not usable
+      }
+    }
+    return found.sort((a, b) => b.usedAt - a.usedAt).map((e) => e.id);
+  }
+  if (loader === "forge") {
+    return (await installedInstallers("forge")).filter((v) => forgeMcVersion(v) === mc).map((v) => forgeShortVersion(v, mc));
+  }
+  if (loader === "neoforge") {
+    const all = await installedInstallers("neoforge");
+    if (mc === "1.20.1") return all.filter((v) => v.startsWith("1.20.1-")).map((v) => v.slice("1.20.1-".length));
+    return all.filter((v) => !v.startsWith("1.20.1-") && neoforgeMcVersion(v) === mc);
+  }
+  return [];
 }
 
 /* ------------------------------------------------------------------ */
@@ -160,14 +254,12 @@ function neoforgeVersions() {
 
 /** NeoForge's 1.20.1 builds live under the old net.neoforged:forge coordinates. */
 function neoforgeLegacyVersions() {
+  // The failure is swallowed outside cached(), not inside it: an empty list
+  // from one failed request used to be remembered for 15 minutes.
   return cached("neoforge:legacy", async () => {
-    try {
-      const list = (await fetchJson(`${NEOFORGE_API}/forge`)).versions || [];
-      return list.filter((v) => v.startsWith("1.20.1-"));
-    } catch {
-      return [];
-    }
-  });
+    const list = (await fetchJson(`${NEOFORGE_API}/forge`)).versions || [];
+    return list.filter((v) => v.startsWith("1.20.1-"));
+  }).catch(() => []);
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,18 +346,41 @@ async function loaderVersions(loader, mc) {
   return [];
 }
 
-/** The build to use when the instance doesn't pin one: recommended, else newest. */
+/**
+ * The build to use when the instance doesn't pin one: recommended, else
+ * newest. When the loader's server can't be reached, the build this machine
+ * used last for that Minecraft version - so an instance that has already
+ * been played still starts with no connection.
+ */
 async function defaultLoaderVersion(loader, mc) {
-  const list = await loaderVersions(loader, mc);
+  let list = [];
+  let failure = null;
+  try {
+    list = await loaderVersions(loader, mc);
+  } catch (err) {
+    failure = err;
+  }
   if (!list.length) {
-    throw new Error(`${LOADER_NAMES[loader] || loader} doesn't have a build for Minecraft ${mc}.`);
+    const onDisk = await installedLoaderVersions(loader, mc);
+    if (onDisk.length) return onDisk[0];
+    throw failure || new Error(`${LOADER_NAMES[loader] || loader} doesn't have a build for Minecraft ${mc}.`);
   }
   return (list.find((e) => e.recommended) || list[0]).id;
 }
 
 /** Forge: the full maven version ("1.20.1-47.4.0") for an instance's stored build id. */
 async function resolveForgeMavenVersion(mc, id) {
-  const found = matchForgeMavenVersion(await forgeMavenVersions(), mc, id);
+  let all;
+  try {
+    all = await forgeMavenVersions();
+  } catch (err) {
+    // Forge's maven can't be reached. If this build's installer is already
+    // downloaded, its folder name is the answer.
+    const onDisk = matchForgeMavenVersion(await installedInstallers("forge"), mc, id);
+    if (onDisk) return onDisk;
+    throw err;
+  }
+  const found = matchForgeMavenVersion(all, mc, id);
   if (!found) throw new Error(`Forge ${id} for Minecraft ${mc} doesn't exist on Forge's maven.`);
   return found;
 }
@@ -282,7 +397,10 @@ async function installerFor(loader, mc, id) {
   }
   if (loader === "neoforge") {
     if (mc === "1.20.1") {
-      const all = await neoforgeLegacyVersions();
+      let all = await neoforgeLegacyVersions();
+      // Empty means NeoForge's server couldn't be reached: go by the
+      // installers already downloaded.
+      if (!all.length) all = await installedInstallers("neoforge");
       const v = all.includes(`1.20.1-${id}`) ? `1.20.1-${id}` : all.includes(id) ? id : null;
       if (!v) throw new Error(`NeoForge ${id} for Minecraft 1.20.1 doesn't exist.`);
       return { key: `neoforge-${v}`, version: v, url: `${NEOFORGE_MAVEN}/releases/net/neoforged/forge/${v}/forge-${v}-installer.jar` };
@@ -301,6 +419,7 @@ module.exports = {
   supportedGameVersions,
   loaderVersions,
   defaultLoaderVersion,
+  installedLoaderVersions,
   resolveForgeMavenVersion,
   installerFor,
   // pure, for tests

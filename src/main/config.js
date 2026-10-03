@@ -36,9 +36,13 @@ module.exports = {
   //
   // Per-instance opt-out lives on the instance itself (instance.performanceMods
   // === false); when a player turns it off, minecraft.js:tidyManagedMods
-  // removes these same jars via LEGACY_AUTO_INSTALLED so nobody is left with
-  // mods they didn't choose. Mods the player installs themselves are never
-  // touched - this only ever manages the jars Reminth itself put there.
+  // removes the copies Reminth installed - the files it wrote down in the
+  // instance's .reminth/managed-mods.json, and nothing else - so nobody is
+  // left with mods they didn't choose. Mods the player installs themselves
+  // are never touched, whatever they are called. And Reminth's copies step
+  // aside for the player's own: if the player has their own Sodium (or a
+  // mod that can't run next to one of these), Reminth's copy is left out
+  // and the player's is the one that loads (minecraft.js:planStepAside).
   BUNDLE_PERFORMANCE_MODS: true,
   PERFORMANCE_MODS: [
     { owner: "CaffeineMC", repo: "sodium", label: "Sodium" },

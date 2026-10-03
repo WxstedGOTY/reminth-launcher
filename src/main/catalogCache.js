@@ -59,14 +59,18 @@ function readJson(file, fallback) {
 
 function loadProjects(projectType) {
   if (memCache.has(projectType)) return memCache.get(projectType);
-  const rows = readJson(projectsFile(projectType), []);
+  // The file is only a cache: anything that isn't a list of records (a
+  // hand-edited or damaged file) counts as empty and gets refilled.
+  const parsed = readJson(projectsFile(projectType), []);
+  const rows = Array.isArray(parsed) ? parsed.filter((r) => r && typeof r === "object") : [];
   memCache.set(projectType, rows);
   return rows;
 }
 
 function loadStatus() {
   if (statusCache) return statusCache;
-  statusCache = readJson(statusFile(), {});
+  const parsed = readJson(statusFile(), {});
+  statusCache = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   return statusCache;
 }
 
@@ -168,21 +172,18 @@ let warming = new Set();
 // a long run (10,000 projects/type is 100 requests, ~35s at this pacing).
 const REQUEST_PACING_MS = 350;
 
-/** One page fetch, with a single retry on a 429 rather than letting a
- *  mid-run rate-limit hit kill the whole category. Backs off for whatever
- *  Modrinth's reset header says (modrinth.js already parses it into
- *  rateLimitStatus()), or 5s if that header wasn't present. */
-async function fetchPageWithRetry({ projectType, offset, limit }, attempt = 1) {
-  try {
-    return await modrinth.searchProjects({ projectType, index: "downloads", offset, limit });
-  } catch (err) {
-    if (attempt < 3 && /rate limit/i.test(err.message)) {
-      const waitMs = (modrinth.rateLimitStatus().resetSeconds || 5) * 1000 + 500;
-      await new Promise((resolve) => setTimeout(resolve, waitMs));
-      return fetchPageWithRetry({ projectType, offset, limit }, attempt + 1);
-    }
-    throw err;
-  }
+/** One page fetch. Retrying lives in modrinth.js now (fetchWithRetry: up to
+ *  3 attempts, honouring Retry-After on a 429 and backing off on 5xx and
+ *  network errors, with a timeout per attempt), so a mid-run rate-limit hit
+ *  or blip doesn't kill the whole category - and retrying again here would
+ *  only multiply the attempts. */
+// Warming runs in the background with nobody waiting on it, so unlike a
+// click in the UI (capped at 10s) it can sit out a whole rate-limit window
+// (Modrinth's is a minute) instead of failing the category.
+const WARM_RATE_LIMIT_WAIT_MS = 65000;
+
+async function fetchPageWithRetry({ projectType, offset, limit }) {
+  return modrinth.searchProjects({ projectType, index: "downloads", offset, limit }, { maxWaitMs: WARM_RATE_LIMIT_WAIT_MS });
 }
 
 /**

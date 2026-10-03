@@ -265,10 +265,13 @@ test("versionFromJarName: falls back to 'unknown' for a name that doesn't match"
   assert.equal(versionFromJarName("not-a-reminthhud-jar.jar"), "unknown");
 });
 
-test("computeDefaultMaxMemoryMb: halves total RAM, clamped to [2,6]GB", () => {
+test("computeDefaultMaxMemoryMb: halves total RAM, clamped to [2,6]GB (3GB on a PC with 8GB or less)", () => {
   assert.equal(computeDefaultMaxMemoryMb(4 * 1024 ** 3), 2 * 1024, "2GB machine floors at 2GB, not 1GB");
   assert.equal(computeDefaultMaxMemoryMb(16 * 1024 ** 3), 6 * 1024, "half of 16GB is 8GB, capped at 6GB");
-  assert.equal(computeDefaultMaxMemoryMb(8 * 1024 ** 3), 4 * 1024, "half of 8GB is 4GB, within range");
+  // Was 4GB. On an 8GB PC that plus Windows plus a browser is more than the
+  // PC holds, so the automatic amount there is now 3GB (see test/perf-jvm.test.js).
+  assert.equal(computeDefaultMaxMemoryMb(8 * 1024 ** 3), 3 * 1024, "an 8GB PC gets 3GB");
+  assert.equal(computeDefaultMaxMemoryMb(12 * 1024 ** 3), 6 * 1024, "half of 12GB is 6GB, within range");
 });
 
 test("releaseMatchesVersion: matches on tag_name", () => {
@@ -281,6 +284,23 @@ test("releaseMatchesVersion: matches on name when tag doesn't contain it", () =>
 
 test("releaseMatchesVersion: no match", () => {
   assert.equal(releaseMatchesVersion({ tag_name: "mc26.1.2-0.9.2", name: "" }, "26.2"), false);
+});
+
+test("releaseMatchesVersion: a longer version that merely starts with mcVersion is not a match", () => {
+  // 1.21.1 is a substring of 1.21.10 and 1.21.11; 1.20 of 1.20.4.
+  assert.equal(releaseMatchesVersion({ tag_name: "mc1.21.10-0.6.0", name: "Sodium 0.6.0 for 1.21.11" }, "1.21.1"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "mc1.20.4-0.5.8", name: "" }, "1.20"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "1.21.4", name: "" }, "1.21"), false);
+  // ...and it isn't the tail of a longer one either.
+  assert.equal(releaseMatchesVersion({ tag_name: "v11.21.1", name: "" }, "1.21.1"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "0.1.21.1", name: "" }, "1.21.1"), false);
+});
+
+test("releaseMatchesVersion: the usual tag shapes still match", () => {
+  assert.equal(releaseMatchesVersion({ tag_name: "mc1.21.1-0.6.0", name: "" }, "1.21.1"), true);
+  assert.equal(releaseMatchesVersion({ tag_name: "1.21.1+fabric", name: "" }, "1.21.1"), true);
+  assert.equal(releaseMatchesVersion({ tag_name: "0.6.0+mc1.21", name: "" }, "1.21"), true);
+  assert.equal(releaseMatchesVersion({ tag_name: "0.2.1", name: "0.2.1", body: "ScalableLux 0.2.1 for Minecraft 26.2 is released." }, "26.2"), true);
 });
 
 test("pickJarAsset: picks the plain jar over sources/javadoc jars", () => {
@@ -323,4 +343,56 @@ test("pickJarAsset: no 'fabric'-named jar - falls back to the largest remaining 
     { name: "mymod.jar", size: 500000 },
   ];
   assert.equal(pickJarAsset(assets).name, "mymod.jar");
+});
+
+test("releaseMatchesVersion: the release notes only count when they plainly state the target", () => {
+  const body = (text, v, extra = {}) => releaseMatchesVersion({ tag_name: "0.2.1", name: "0.2.1", body: text, ...extra }, v);
+  assert.equal(body("ScalableLux 0.2.1 for Minecraft 26.2 is released.", "26.2"), true);
+  assert.equal(body("Built against MC 1.21.1", "1.21.1"), true);
+  assert.equal(body("Artifacts: scalablelux-0.2.1+mc1.21.1.jar", "1.21.1"), true);
+  assert.equal(body("The 1.21.1 release of this mod.", "1.21.1"), true);
+  // a number that merely turns up in the changelog is not a statement of the target
+  assert.equal(body("Fixes a crash seen since 26.2 with some shaders.", "26.2"), false);
+  assert.equal(body("Bumped dependency foo to 1.21.1", "1.21.1"), false);
+  assert.equal(body("See issue #1.21.1", "1.21.1"), false);
+  // whole versions only, same as in the tag
+  assert.equal(body("for Minecraft 1.21.10", "1.21.1"), false);
+  assert.equal(body("for Minecraft 1.21.1", "1.21"), false);
+  assert.equal(body("", "1.21.1"), false);
+});
+
+test("releaseMatchesVersion: notes never override a tag or title that names another Minecraft version", () => {
+  const notes = "Also works on Minecraft 1.21.1 if you are lucky.";
+  assert.equal(releaseMatchesVersion({ tag_name: "mc1.21.4-0.6.0", name: "", body: notes }, "1.21.1"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "0.6.0+1.21.4", name: "", body: notes }, "1.21.1"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "v0.6.0", name: "Sodium 0.6.0 for Minecraft 1.21.4", body: notes }, "1.21.1"), false);
+  assert.equal(releaseMatchesVersion({ tag_name: "v0.6.0", name: "Sodium 0.6.0 for 1.21.4", body: notes }, "1.21.1"), false);
+  // a bare mod version in the tag/title says nothing about Minecraft - the notes decide
+  assert.equal(releaseMatchesVersion({ tag_name: "v0.6.0", name: "Sodium 0.6.0", body: notes }, "1.21.1"), true);
+});
+
+test("pickJarAsset: with several fabric jars, the one named for this Minecraft version wins", () => {
+  const assets = [
+    { name: "mod-fabric-0.5.0+mc1.21.10.jar", size: 990000 },
+    { name: "mod-fabric-0.5.0+mc1.21.1.jar", size: 900000 },
+    { name: "mod-fabric-0.5.0+mc1.20.1.jar", size: 950000 },
+    { name: "mod-neoforge-0.5.0+mc1.21.1.jar", size: 999999 },
+  ];
+  assert.equal(pickJarAsset(assets, "1.21.1").name, "mod-fabric-0.5.0+mc1.21.1.jar");
+  assert.equal(pickJarAsset(assets, "1.21.10").name, "mod-fabric-0.5.0+mc1.21.10.jar");
+  // no jar names this version: unchanged behaviour, the largest fabric jar
+  assert.equal(pickJarAsset(assets, "1.19.2").name, "mod-fabric-0.5.0+mc1.21.10.jar");
+  // and the old one-argument call still works
+  assert.equal(pickJarAsset(assets).name, "mod-fabric-0.5.0+mc1.21.10.jar");
+});
+
+test("pickJarAsset: the version only breaks ties between fabric-named jars", () => {
+  // One fabric jar: taken as before, whatever its name says.
+  assert.equal(pickJarAsset([{ name: "mod-fabric-0.5.0.jar", size: 10 }], "1.21.1").name, "mod-fabric-0.5.0.jar");
+  // No fabric-named jar: the -api stub carries the version, the real mod is still the largest.
+  const assets = [
+    { name: "lithium-0.25.3+mc26.2-api.jar", size: 3119 },
+    { name: "lithium-0.25.3.jar", size: 912850 },
+  ];
+  assert.equal(pickJarAsset(assets, "26.2").name, "lithium-0.25.3.jar");
 });

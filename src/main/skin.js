@@ -27,6 +27,30 @@ const SERVICES_PROFILE_URL = "https://api.minecraftservices.com/minecraft/profil
 const MEMORY_TTL_MS = 30 * 60 * 1000;
 const MAX_SKIN_BYTES = 256 * 1024; // a 64x64 skin PNG is ~2-10KB; this is a sanity clamp
 
+const FETCH_TIMEOUT_MS = 15000;
+
+/**
+ * fetch with a time limit. Mojang's skin servers sometimes accept the
+ * connection and then say nothing, which used to leave the skin page
+ * waiting forever.
+ */
+async function timedFetch(url, init = {}) {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  } catch (err) {
+    if (err && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      let host = String(url);
+      try {
+        host = new URL(host).hostname;
+      } catch {
+        // keep the raw text
+      }
+      throw new Error(`Timed out reaching ${host} - check your connection and try again.`);
+    }
+    throw err;
+  }
+}
+
 const memoryCache = new Map(); // uuid -> { at, skin }
 const justChanged = new Set(); // uuids whose skin was changed through Reminth this session
 
@@ -91,7 +115,7 @@ async function getSkin(account) {
 
 /** Public, unauthenticated, cached by Mojang - the cheap path. */
 async function fromSessionServer(uuid) {
-  const res = await fetch(PROFILE_URL + uuid);
+  const res = await timedFetch(PROFILE_URL + uuid);
   if (res.status === 429) return { error: "Mojang is rate-limiting skin lookups - try again shortly." };
   if (!res.ok) return { error: `Mojang returned ${res.status} for your profile.` };
 
@@ -112,7 +136,7 @@ async function fromSessionServer(uuid) {
 /** Authenticated, and the same API sign-in already used, so it's reliable. */
 async function fromServices(account) {
   if (!account || !account.minecraftAccessToken) return null;
-  const res = await fetch(SERVICES_PROFILE_URL, {
+  const res = await timedFetch(SERVICES_PROFILE_URL, {
     headers: { Authorization: `Bearer ${account.minecraftAccessToken}` },
   });
   if (!res.ok) return { error: `Minecraft services returned ${res.status}.` };
@@ -137,7 +161,7 @@ async function downloadSkin(url, model, name, source) {
     return { error: "Skin was hosted somewhere unexpected, so it wasn't downloaded." };
   }
   const secureUrl = url.replace(/^http:\/\//i, "https://");
-  const res = await fetch(secureUrl);
+  const res = await timedFetch(secureUrl);
   if (!res.ok) return { error: `Couldn't download the skin texture (${res.status}).` };
   const buf = Buffer.from(await res.arrayBuffer());
   if (!buf.length || buf.length > MAX_SKIN_BYTES) return { error: "Skin texture looked wrong, so it was skipped." };
@@ -207,7 +231,7 @@ function validateSkinPng(buf) {
 
 async function servicesFetch(account, url, init = {}) {
   if (!account || !account.minecraftAccessToken) throw new Error("Sign in first.");
-  const res = await fetch(url, {
+  const res = await timedFetch(url, {
     ...init,
     headers: { ...(init.headers || {}), Authorization: `Bearer ${account.minecraftAccessToken}` },
   });
@@ -234,7 +258,7 @@ async function getProfile(account) {
     let dataUrl = null;
     if (typeof cape.url === "string" && /^https?:\/\/textures\.minecraft\.net\//i.test(cape.url)) {
       try {
-        const res = await fetch(cape.url.replace(/^http:\/\//i, "https://"));
+        const res = await timedFetch(cape.url.replace(/^http:\/\//i, "https://"));
         if (res.ok) {
           const buf = Buffer.from(await res.arrayBuffer());
           if (buf.length <= MAX_SKIN_BYTES && pngSize(buf)) dataUrl = "data:image/png;base64," + buf.toString("base64");
@@ -295,7 +319,7 @@ function forget(account) {
 async function lookupByUsername(username) {
   const name = String(username || "").trim();
   if (!/^[A-Za-z0-9_]{2,16}$/.test(name)) return { error: "That isn't a valid Minecraft username." };
-  const res = await fetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(name)}`);
+  const res = await timedFetch(`https://api.mojang.com/users/profiles/minecraft/${encodeURIComponent(name)}`);
   if (res.status === 404 || res.status === 204) return { error: `No Minecraft account is called ${name}.` };
   if (!res.ok) return { error: `Mojang returned ${res.status}.` };
   const { id } = await res.json();

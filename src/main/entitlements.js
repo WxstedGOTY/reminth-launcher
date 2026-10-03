@@ -13,11 +13,13 @@ const os = require("os");
 
 // Windows plus the launcher itself need roughly this much to stay usable.
 const RESERVED_FOR_SYSTEM_MB = 2048;
-// Hard ceiling regardless of how much RAM the machine has. Past 8GB a
-// Minecraft heap stops helping and just makes GC pauses longer, and a
-// player on a shared or lower-spec PC shouldn't have the slider (or an
-// admin/default) hand the whole box to one game.
-const MAX_USEFUL_RAM_MB = 8192;
+// Hard ceiling regardless of how much RAM the machine has. It used to be
+// 8 GB, which is plenty for vanilla and light mod lists but not for big
+// modpacks - those ask for 10-12 GB, and the app promises RAM isn't held
+// back beyond what the PC can spare. 16 GB covers them; past that a bigger
+// heap only makes garbage-collection pauses longer. On most PCs the real
+// limit is the line above anyway: total memory minus what Windows needs.
+const MAX_USEFUL_RAM_MB = 16384;
 const MIN_RAM_MB = 1024;
 
 function hasPlus() {

@@ -89,6 +89,7 @@
       this.capeUrl = null;
       this.model = "classic";
       this.frame = null;
+      this.destroyed = false;
 
       container.textContent = "";
       container.classList.add("sv-viewport");
@@ -157,6 +158,9 @@
       } catch {
         return;
       }
+      // The image finished loading after the viewer was thrown away: building
+      // now would start an animation loop nothing ever stops.
+      if (this.destroyed) return;
       this.skinUrl = url;
       this.build();
     }
@@ -220,6 +224,7 @@
     }
 
     build() {
+      if (this.destroyed) return;
       const tex = this.skinUrl;
       const T = [64, 64];
       const aw = this.model === "slim" ? 3 : 4;
@@ -340,6 +345,10 @@
 
     loop() {
       const tick = (now) => {
+        if (this.destroyed) {
+          this.frame = null;
+          return;
+        }
         this.frame = requestAnimationFrame(tick);
         // Nothing to draw while the page it's on is hidden.
         if (document.hidden || !this.container.isConnected || this.container.offsetParent === null) return;
@@ -349,6 +358,7 @@
     }
 
     destroy() {
+      this.destroyed = true;
       if (this.frame) cancelAnimationFrame(this.frame);
       this.frame = null;
       this.container.textContent = "";

@@ -12,6 +12,13 @@ const path = require("path");
 
 const CRC_TABLE = buildCrcTable();
 
+// General purpose bit 11: "names are UTF-8". Without it readers decode
+// names as CP437, so a world or pack with a non-English name comes out as
+// mojibake on the other side.
+const FLAG_UTF8 = 0x0800;
+const MAX_ENTRIES = 0xfffe;
+const MAX_ARCHIVE_BYTES = 0xfffffffe;
+
 function buildCrcTable() {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -64,6 +71,12 @@ async function listFilesRecursive(dir, base) {
  */
 async function buildZip(srcDir, outPath) {
   const entries = await listFilesRecursive(srcDir);
+  // The entry count is a 16-bit field (and 0xffff means "see the zip64
+  // record", which this writer doesn't produce) - past that the count would
+  // silently wrap and readers would see a truncated pack.
+  if (entries.length > MAX_ENTRIES) {
+    throw new Error(`Too many files to pack (${entries.length}) - a pack can hold at most ${MAX_ENTRIES}.`);
+  }
   const parts = [];
   const central = [];
   let offset = 0;
@@ -73,11 +86,16 @@ async function buildZip(srcDir, outPath) {
     const data = await fsp.readFile(full);
     const crc = crc32(data);
     const nameBuf = Buffer.from(rel, "utf8");
+    if (nameBuf.length > 0xffff) throw new Error(`File path is too long to pack: ${rel.slice(0, 80)}...`);
+    // Sizes and offsets are 32-bit fields too (no zip64 here).
+    if (offset + 30 + nameBuf.length + data.length > MAX_ARCHIVE_BYTES) {
+      throw new Error("This pack is too large to export (over 4 GB).");
+    }
 
     const localHeader = Buffer.alloc(30);
     localHeader.writeUInt32LE(0x04034b50, 0);
     localHeader.writeUInt16LE(20, 4); // version needed to extract
-    localHeader.writeUInt16LE(0, 6); // flags
+    localHeader.writeUInt16LE(FLAG_UTF8, 6); // flags
     localHeader.writeUInt16LE(0, 8); // method: 0 = store
     localHeader.writeUInt16LE(time, 10);
     localHeader.writeUInt16LE(date, 12);
@@ -93,7 +111,7 @@ async function buildZip(srcDir, outPath) {
     centralHeader.writeUInt32LE(0x02014b50, 0);
     centralHeader.writeUInt16LE(20, 4); // version made by
     centralHeader.writeUInt16LE(20, 6); // version needed
-    centralHeader.writeUInt16LE(0, 8); // flags
+    centralHeader.writeUInt16LE(FLAG_UTF8, 8); // flags
     centralHeader.writeUInt16LE(0, 10); // method
     centralHeader.writeUInt16LE(time, 12);
     centralHeader.writeUInt16LE(date, 14);
@@ -115,6 +133,7 @@ async function buildZip(srcDir, outPath) {
 
   const centralBuf = Buffer.concat(central);
   const centralStart = offset;
+  if (centralStart + centralBuf.length > MAX_ARCHIVE_BYTES) throw new Error("This pack is too large to export (over 4 GB).");
 
   const eocd = Buffer.alloc(22);
   eocd.writeUInt32LE(0x06054b50, 0);
@@ -157,4 +176,4 @@ async function readZipEntries(zipPath) {
   return entries;
 }
 
-module.exports = { buildZip, readZipEntries, crc32 };
+module.exports = { buildZip, readZipEntries, crc32, MAX_ENTRIES };

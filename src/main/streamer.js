@@ -162,9 +162,44 @@ function gameStopped() {
   pushStatus();
 }
 
+/**
+ * Pure: is this window title the game itself? The game calls its window
+ * "Minecraft 1.21.4", "Minecraft* 1.21.4" when modded, "Minecraft Forge*
+ * 1.20.1" / "Minecraft NeoForge* 1.21.1" on those loaders, spells out
+ * "1.21 Pre-Release 1", "1.21.5 Release Candidate 1" and "26.1 Snapshot 1",
+ * and adds " - Singleplayer" / " - Multiplayer (3rd-party Server)" while in
+ * a world. Very old versions are titled just "Minecraft".
+ * "Starts with Minecraft" alone also matched a browser tab on the wiki or
+ * an Explorer window of a folder called Minecraft - and recorded that - so
+ * anything after the name has to start with a version number, and a title
+ * that ends in another program's name is never the game.
+ */
+const GAME_TITLE = /^Minecraft(?: (?:Forge|NeoForge))?\*?(?: \d.*)?$/;
+const NOT_THE_GAME = /launcher|[-–—|] (?:Google Chrome|Chromium|Mozilla Firefox|Firefox|Microsoft\S? Edge|Opera(?: GX)?|Brave|Vivaldi|Safari|File Explorer|Notepad|YouTube)$/i;
+function isGameWindowTitle(name) {
+  const title = String(name || "").trim();
+  return GAME_TITLE.test(title) && !NOT_THE_GAME.test(title);
+}
+
+/** Pure: does the title say which version it is ("Minecraft 1.21.4 …")? */
+function titleHasVersion(name) {
+  return /^Minecraft(?: (?:Forge|NeoForge))?\*? \d/.test(String(name || "").trim());
+}
+
+/**
+ * Pure: the game's window out of everything on screen. A title with a
+ * version in it is certainly the game; a bare "Minecraft" is only taken
+ * when there's no such window (it is what very old versions call
+ * themselves, but also what other things can be called).
+ */
+function pickGameSource(sources) {
+  const games = (sources || []).filter((s) => s && isGameWindowTitle(s.name));
+  return games.find((s) => titleHasVersion(s.name)) || games[0] || null;
+}
+
 async function findGameSource() {
   const sources = await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 0, height: 0 } });
-  return sources.find((s) => /^Minecraft/i.test(s.name) && !/launcher/i.test(s.name)) || null;
+  return pickGameSource(sources);
 }
 
 async function startRecorder() {
@@ -261,7 +296,7 @@ function toast(title, body) {
 
 async function takeScreenshot() {
   const sources = await desktopCapturer.getSources({ types: ["window"], thumbnailSize: { width: 3840, height: 2160 } });
-  const game = sources.find((s) => /^Minecraft/i.test(s.name) && !/launcher/i.test(s.name));
+  const game = pickGameSource(sources);
   if (!game || game.thumbnail.isEmpty()) {
     toast("No screenshot taken", "Minecraft isn't running (or its window is minimized).");
     return { error: "Minecraft isn't running." };
@@ -377,6 +412,8 @@ module.exports = {
   openCapture,
   deleteCapture,
   assertCapturePath,
+  isGameWindowTitle,
+  pickGameSource,
   shutdown,
   CLIP_SECONDS: [30, 60, 120, 300, 600, 900, 1800],
 };
