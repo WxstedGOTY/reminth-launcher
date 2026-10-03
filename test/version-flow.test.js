@@ -284,3 +284,52 @@ test("pickerView: the current version already fits -> 'nothing to change', other
   // no mods checked at all: nothing claimed
   assert.equal(pure.pickerView([{ version: "26.2", total: 0, supported: 0, missing: [], current: true }]).currentFits, false);
 });
+
+test("previewSwitch: the confirm step's 'will be turned off' list is exactly what the switch turns off - a jar whose own file refuses the version included", async () => {
+  const compat = require("../src/main/compat");
+  const modsSync = require("../src/main/modsSync");
+  const zip = require("../src/main/zip");
+  // Client Side Crystals: Modrinth lists this very file for 1.21.10, but its own
+  // fabric.mod.json says >=1.21.11 - so no other build can fix it there.
+  const gameDir = await folder({ mods: [] });
+  const src = path.join(HOME, "csc-src");
+  await fsp.mkdir(src, { recursive: true });
+  await fsp.writeFile(path.join(src, "fabric.mod.json"), JSON.stringify({ schemaVersion: 1, id: "clientsidecrystals", name: "Client Side Crystals", version: "1.0", depends: { minecraft: ">=1.21.11" } }));
+  await zip.buildZip(src, path.join(gameDir, "mods", "csc-1.0.jar"));
+  await fsp.writeFile(path.join(gameDir, "mods", "jei.jar"), "not really a jar");
+  const listed = { id: "csc1", project_id: "PCSC", version_number: "1.0", version_type: "release", game_versions: ["1.21.10", "1.21.11"], loaders: ["fabric"], date_published: "2026-09-01", files: [{ primary: true, url: "https://cdn.modrinth.com/x/csc-1.0.jar", filename: "csc-1.0.jar", size: 1, hashes: { sha1: "c".repeat(40) } }] };
+  const checkDeps = {
+    hasOverrideFile: async () => false,
+    managedNames: async () => new Set(),
+    hashOf: async (item) => "h-" + item.file,
+    readLaunchReport: async () => null,
+    readCrashFinding: async () => null,
+    modrinth: { getVersionsFromHashes: async () => ({ "h-csc-1.0.jar": listed }), checkForUpdates: async () => ({}), getProjects: async () => [], getProjectVersions: async () => [listed] },
+  };
+  const syncDeps = { check: (inst) => compat.checkInstance(inst, { force: true, deps: checkDeps }), loadersFor: () => ["fabric"], api: { getProjectVersions: async () => [listed] } };
+  // the advisor: Modrinth HAS a build of CSC for 1.21.10; JEI has none
+  const advise = async () => ({
+    mods: [{ title: "Client Side Crystals" }, { title: "Just Enough Items" }],
+    target: { version: "1.21.10", missing: [{ projectId: "PJEI", title: "Just Enough Items", files: ["jei.jar"] }], failed: [], unknown: [] },
+  });
+  const base = fakeDeps(gameDir, { inst: { mcVersion: "26.2", loader: "fabric" } });
+  const deps = { ...base.deps, advise, planSync: (inst) => modsSync.planSync(inst, syncDeps), applySync: (inst) => modsSync.applySync(inst, null, { ...syncDeps, applyUpdates: async () => ({ applied: [], failed: [] }), invalidate: () => {} }) };
+
+  const preview = await versionSwitch.previewSwitch("i1", "1.21.10", deps);
+  assert.deepEqual(preview.turnedOff.map((t) => [t.title, t.why]), [
+    ["Just Enough Items", "no version made for 1.21.10"],
+    ["Client Side Crystals", "its own file says it can't run on 1.21.10"],
+  ]);
+  const groups = pure.previewGroups(preview, "1.21.10");
+  const off = groups.find((g) => g.key === "nobuild");
+  assert.equal(off.title, "Will be turned off (2)");
+  assert.deepEqual(off.names, ["Just Enough Items - no version made for 1.21.10", "Client Side Crystals - its own file says it can't run on 1.21.10"]);
+  // nothing changed by the preview
+  assert.deepEqual(base.calls.update, []);
+  assert.deepEqual(await filesIn(gameDir), ["csc-1.0.jar", "jei.jar"]);
+
+  // the switch itself: the same two, the same reasons
+  const done = await versionSwitch.switchVersion("i1", "1.21.10", deps);
+  assert.deepEqual(done.turnedOff.map((t) => [t.title, t.why]), preview.turnedOff.map((t) => [t.title, t.why]));
+  assert.deepEqual(await filesIn(gameDir), ["csc-1.0.jar.disabled", "jei.jar.disabled"]);
+});

@@ -300,6 +300,31 @@
     return out;
   }
 
+  /**
+   * The confirm step's groups for "Switch this instance", from the exact
+   * preview main.js works out (versionSwitch.previewSwitch - the same rules as
+   * the switch itself), so the count and names here are what the result
+   * screen will show. Same shape as modGroups.
+   */
+  function previewGroups(preview, version) {
+    const p = preview || {};
+    const works = [...(p.updated || []), ...(p.kept || [])];
+    const off = Array.isArray(p.turnedOff) ? p.turnedOff : [];
+    const unknown = Array.isArray(p.unknown) ? p.unknown : [];
+    const out = [];
+    if (works.length) out.push({ key: "works", title: `Will work (${works.length})`, names: works, sentence: `Updated to their ${version} version where needed.` });
+    if (off.length) {
+      out.push({
+        key: "nobuild",
+        title: `Will be turned off (${off.length})`,
+        names: off.map((m) => `${m.title} - ${m.why}`),
+        sentence: `They can't work with the rest on ${version}, so they will be turned off (you can turn them on again).`,
+      });
+    }
+    if (unknown.length) out.push({ key: "unknown", title: `Not checked (${unknown.length})`, names: unknown, sentence: "Not from Modrinth (or Modrinth didn't answer) - they will be kept as they are." });
+    return out;
+  }
+
   /* ---------------- the Play warning ---------------- */
 
   /**
@@ -424,7 +449,7 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, pickerView, bestLine, modGroups, previewGroups, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

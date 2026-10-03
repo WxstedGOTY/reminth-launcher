@@ -838,6 +838,13 @@ ipcMain.handle("compat:switchVersion", async (_e, id, request) => {
   }
 });
 
+// The confirm step's exact preview of a switch (nothing is changed).
+ipcMain.handle("compat:previewSwitch", async (_e, id, request) => {
+  const r = request && typeof request === "object" ? request : {};
+  if (!instances.isValidVersionId(r.mcVersion)) throw new Error("Pick a Minecraft version first.");
+  return versionSwitch.previewSwitch(id, r.mcVersion);
+});
+
 ipcMain.handle("modpack:install", async (_e, request) => {
   const inst = await mrpack.installModpack(request || {}, (p) => send("modpack:progress", p));
   // The pack's own files own its settings: no starting options.txt from a

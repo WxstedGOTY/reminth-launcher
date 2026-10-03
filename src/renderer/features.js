@@ -4603,6 +4603,7 @@ function openVersionAdvisor(instanceId, options = {}) {
       primary.disabled = !chosen;
     } else if (step === "confirm" || step === "running") {
       setLabel(secondary, "Back");
+      if (step === "confirm" && !switchReady()) primary.disabled = true;
       const label = action === "switch" ? `Switch ${shortName} to ${chosen.version}` : "Make the new instance";
       setLabel(primary, step === "running" ? (action === "switch" ? "Switching…" : "Making the new instance…") : label);
     } else {
@@ -4633,9 +4634,9 @@ function openVersionAdvisor(instanceId, options = {}) {
     window.ReminthPure.versionChoices({ from: inst.mcVersion, to: c.version, worlds: worlds === null ? 1 : worlds, modpack: Boolean(inst.modpack), running: state.running.has(inst.id) });
 
   /** The four plain groups (Will work / No build / Not from Modrinth / Not checked) as collapsible lists. */
-  function groupsView(c, action) {
+  function groupsView(c, action, groups) {
     const box = el("div", "adv-group-list");
-    for (const g of window.ReminthPure.modGroups(advice, c, action)) {
+    for (const g of groups || window.ReminthPure.modGroups(advice, c, action)) {
       const d = el("details", "adv-group " + g.key);
       // Up to 6 names are shown straight away; longer lists open on a click.
       d.open = g.names.length <= 6 && g.key !== "works";
@@ -4874,7 +4875,26 @@ function openVersionAdvisor(instanceId, options = {}) {
     }
 
     stepView.appendChild(el("h4", "adv-what", `What happens to your mods on ${v}:`));
-    stepView.appendChild(groupsView(chosen, action));
+    if (action === "switch") {
+      // The exact list, worked out the way the switch itself will do it (each
+      // mod's own file included) - so this promise and the result always match.
+      const slot = el("div");
+      stepView.appendChild(slot);
+      const p = previews.get(v);
+      if (p && p.result) slot.appendChild(groupsView(chosen, action, window.ReminthPure.previewGroups(p.result, v)));
+      else if (p && p.error) {
+        slot.appendChild(el("p", "set-note warn-note", `Couldn't work out exactly what happens: ${p.error}`));
+        const retry = button("btn outline sm", "Try again", "#i-refresh");
+        retry.onclick = () => {
+          previews.delete(v);
+          showConfirm();
+        };
+        slot.appendChild(retry);
+      } else {
+        slot.appendChild(el("p", "vpick-empty", "Checking each mod's own file for Minecraft " + v + "…"));
+        loadPreview(v);
+      }
+    } else stepView.appendChild(groupsView(chosen, action));
     if (chosen.server === false) stepView.appendChild(el("p", "set-note warn-note", "The server you checked does not take this version."));
     stepView.appendChild(el("p", "set-note", action === "switch" ? "It can take a minute or two. This window stays open until it's done." : "It can take a few minutes. This window stays open until it's done."));
     stepNote.textContent = error || "";
@@ -4882,6 +4902,25 @@ function openVersionAdvisor(instanceId, options = {}) {
     stepView.appendChild(stepNote);
     paintButtonsSoon();
   }
+
+  // The switch's exact preview per version: { result } or { error }, kept while the dialog is open.
+  const previews = new Map();
+  const previewing = new Set();
+  async function loadPreview(v) {
+    if (previewing.has(v)) return;
+    previewing.add(v);
+    try {
+      previews.set(v, { result: await window.reminth.previewInstanceSwitch(instanceId, { mcVersion: v }) });
+    } catch (err) {
+      previews.set(v, { error: friendlyError(err.message) });
+    } finally {
+      previewing.delete(v);
+    }
+    // Still looking at this version's confirm step: show it.
+    if (!handle.closed && step === "confirm" && chosen && chosen.version === v) showConfirm();
+  }
+  /** Switching waits for the exact list (the promise has to be complete before it's kept). */
+  const switchReady = () => action !== "switch" || Boolean(chosen && previews.get(chosen.version) && previews.get(chosen.version).result);
 
   /* step 3: doing it, with its progress */
   const prog = el("div", "progress modal-progress");
@@ -4907,7 +4946,7 @@ function openVersionAdvisor(instanceId, options = {}) {
   compatProgressListeners.add(onProgress);
 
   async function run() {
-    if (copying || !chosen) return false;
+    if (copying || !chosen || !switchReady()) return false;
     // Fixed at the click: the version, the choice, the name.
     const target = chosen;
     const doing = action;

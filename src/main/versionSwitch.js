@@ -64,6 +64,60 @@ async function countWorlds(gameDir) {
   return n;
 }
 
+/**
+ * Pure: which files the switch turns off, and why - the SAME list for the
+ * confirm step (previewSwitch) and the switch itself, so what is promised and
+ * what happens can't differ:
+ *  - every mod with no stable build for the version (the dialog's "No build");
+ *  - every mod the "Update mods to fit" swap can't fix there: its own file says
+ *    it can't run on that version and there is no other stable build (or it
+ *    isn't from Modrinth).
+ * (A jar the swap can update isn't in either list: it had a build.)
+ * Returns [[file, { title, why }]] in that order.
+ */
+function turnOffPlan(target, noBuild, mcVersion) {
+  const off = new Map(); // file -> { title, why }
+  for (const m of (target && target.missing) || []) {
+    for (const file of m.files || []) off.set(file, { title: m.title, why: `no version made for ${mcVersion}` });
+  }
+  for (const nb of noBuild || []) {
+    if (off.has(nb.file)) continue;
+    const why = /^No stable build/.test(nb.why || "") ? `no finished (stable) version made for ${mcVersion} yet` : `its own file says it can't run on ${mcVersion}`;
+    off.set(nb.file, { title: nb.title, why });
+  }
+  return [...off.entries()];
+}
+
+/**
+ * The confirm step's preview: exactly what switchVersion would do for this
+ * version, worked out the same way (the same advisor answer, the same
+ * compatibility check and swap plan against the new version) without
+ * changing anything. Returns { updated: [titles], turnedOff: [{ file, title,
+ * why }], unknown: [titles], kept: [titles] }.
+ */
+async function previewSwitch(id, mcVersion, deps = {}) {
+  const d = { ...realDeps(), ...deps };
+  if (!d.instances.isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
+  const before = await d.instances.require(id);
+  const advice = await d.advise(before, mcVersion);
+  const target = (advice && advice.target) || { missing: [], failed: [], unknown: [] };
+  // The instance as it would be after the switch - under its own id, so the
+  // compatibility check's answer for the real instance isn't touched.
+  const previewId = `${before.id}~preview`;
+  let plan;
+  try {
+    plan = await d.planSync({ ...before, id: previewId, mcVersion });
+  } finally {
+    d.invalidate(previewId);
+  }
+  const turnedOff = turnOffPlan(target, plan.noBuild, mcVersion).map(([file, x]) => ({ file, title: x.title, why: x.why }));
+  const updated = (plan.updates || []).map((u) => u.title);
+  const unknown = [...(target.unknown || []).map((u) => u.title), ...(target.failed || []).map((m) => m.title), ...(plan.unchecked || []).map((u) => u.title)];
+  const changed = new Set([...updated, ...turnedOff.map((t) => t.title), ...unknown]);
+  const kept = ((advice && advice.mods) || []).map((m) => m.title).filter((t) => !changed.has(t));
+  return { updated, turnedOff, unknown, kept };
+}
+
 function realDeps() {
   const atomic = require("./atomic");
   const content = require("./content");
@@ -71,6 +125,7 @@ function realDeps() {
     instances: require("./instances"),
     advise: (inst, target) => require("./compat").adviseVersions(inst, { target }),
     applySync: (inst, onProgress) => require("./modsSync").applySync(inst, onProgress),
+    planSync: (inst) => require("./modsSync").planSync(inst),
     setEnabled: (gameDir, ref, on) => content.setEnabled(gameDir, ref, on),
     setOffReason: (gameDir, ref, reason) => content.setOffReason(gameDir, ref, reason),
     invalidate: (id) => require("./compat").invalidate(id),
@@ -136,20 +191,7 @@ async function switchVersion(id, mcVersion, deps = {}) {
     const failedFiles = new Set((sync.failed || []).map((f) => f.file).filter(Boolean));
 
     // --- 6. switch off what has no build for this version (never deleted)
-    const off = new Map(); // file -> { title, why }
-    for (const m of target.missing) {
-      for (const file of m.files || []) off.set(file, { title: m.title, why: `no version made for ${mcVersion}` });
-    }
-    for (const nb of sync.noBuild || []) {
-      if (off.has(nb.file)) continue;
-      const why = /^No stable build/.test(nb.why || "")
-        ? `no finished (stable) version made for ${mcVersion} yet`
-        : `its own file says it can't run on ${mcVersion}`;
-      off.set(nb.file, { title: nb.title, why });
-    }
-    // (A jar that was just swapped isn't in either list: it had a build. One whose
-    // update failed is left on, as it was - its error is reported instead.)
-    const list = [...off.entries()].filter(([file]) => !failedFiles.has(file));
+    const list = turnOffPlan(target, sync.noBuild, mcVersion).filter(([file]) => !failedFiles.has(file));
     let n = 0;
     for (const [file, { title, why }] of list) {
       progress(`Turning off ${title}`, ++n, list.length);
@@ -178,4 +220,4 @@ async function switchVersion(id, mcVersion, deps = {}) {
   return out;
 }
 
-module.exports = { switchVersion, countWorlds, compareMc, NOTE_FILE };
+module.exports = { switchVersion, previewSwitch, turnOffPlan, countWorlds, compareMc, NOTE_FILE };

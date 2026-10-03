@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld("reminth", {
   compatServerVersions: (address) => ipcRenderer.invoke("compat:serverVersions", address),
   copyInstanceToVersion: (instanceId, request) => ipcRenderer.invoke("compat:copyToVersion", instanceId, request),
   switchInstanceVersion: (instanceId, request) => ipcRenderer.invoke("compat:switchVersion", instanceId, request),
+  previewInstanceSwitch: (instanceId, request) => ipcRenderer.invoke("compat:previewSwitch", instanceId, request),
   onCompatProgress: on("compat:progress"),
   onCompatChanged: on("compat:changed"),
 
