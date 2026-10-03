@@ -4,10 +4,10 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 8** (Home stat cards). Prompt 7
-  (update wording) is also done. The desktop window set the version to **1.4.0** (`0e5d688`).
-- **`main` is at:** `HEAD` of the commit that adds this file (prompt 8's CSS commit is just before it).
-  **`npm test`: 519 pass** on Linux (no test covers CSS).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 9** ("may not work" mods that crash
+  the game: jobs A, B, C). Prompts 7 and 8 are done too. The desktop window set the version to **1.4.0**.
+- **`main` is at:** `fcaa5a9` (plus this file's commit). **`npm test`: 536 pass** on Linux (519 before
+  prompt 9).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +18,32 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 9 ("may not work" mods crash the game - AppleSkin for 26.3 on 26.2)
+
+**Why the panel said "may not work" but nothing acted on it:** compat's `judgeMod` only warned "listed for
+Minecraft X, not Y" when the jar's own `fabric.mod.json` didn't settle it. A build whose own range lets 26.2
+load it but that Modrinth lists ONLY for newer versions (26.3) was let through - that is exactly the
+AppleSkin crash (code compiled against 26.3 asks 26.2 for a field it doesn't have, on the first HUD draw).
+Such a build is now a "may not work" warning too. The old rule stays for builds listed only for OLDER
+versions with a range that reaches forward (the existing test is unchanged).
+
+| Job | What it does now | Files |
+|---|---|---|
+| A - fit button | Every "listed for another Minecraft version" warning is marked (`listedElsewhere`) and counts for **"Update mods to fit 26.2 (N)"**, the edit notice and the one-click swap: same stable-only `planSync` path, same `.reminth/replaced-mods` copy, same "No 26.2 build yet" list (switch off / advisor / leave) when there is no stable build of exactly this version + loader - never deleted. The panel's "Fix all" already applied these mods' own (stable-filtered) "Switch to" fixes. Reminth's own jars still never reported or touched. `planSync`/`applySync`/`mods:sync` take an optional file list. | `compat.js` (`judgeMod`, `builtForNewerOnly`, `modSetOf`), `modsSync.js` (`syncCandidates`, `files` option), `main.js`, `preload.js`, `features.js` (`syncCount`, notice text) |
+| B - Play warning | When there are no blocked mods but "may not work (built for another version)" ones, Play from **every** entry (instance page, Home hero, Home cards - all go through `compatBeforePlay`) shows **"These mods may crash the game"**: "N mods are built for another Minecraft version and may crash the game: <names>", the rows, a **"Don't ask again for this instance"** tick box, and Cancel / Play anyway / Fix and play. Play anyway remembers nothing. The tick (with Play anyway) stores the fingerprint of the switched-on mods (`skipModWarning`, instance registry, atomic write); `compat:check` drops it as soon as the mods differ. Fix and play = the fit swap for just those files; mods without a stable build are named and the dialog stays open (Play anyway / Cancel). Blocked mods keep "Minecraft won't start like this" and win when both kinds exist. | `pure.js` (`modWarning`, `riskyText`), `features.js` (`riskyBeforePlay`), `instances.js` (`skipModWarning`), `main.js` (`compat:skipModWarning`, clearing in `compat:check`), `preload.js`, `styles.css` (`.gate-skip`) |
+| C - after a crash | On every game exit main.js reads the **newest crash report written since that launch**, only from `<instance>/crash-reports`, never through a link, first 512 KB, nothing in it used as a path. `crashReport.js` parses Description, the error line and the first stack frames (until "A detailed walkthrough") and names a mod only when exactly one matches: a frame in a package that mod's own code uses (content.js now reads `packages` from `fabric.mod.json` entrypoints + mixin configs' `package`), a Forge/NeoForge frame `TRANSFORMER/<modid>@…/`, a Mixin handler `handler$…$<modid>$…`, or a Mixin error "from mod <id>". Two mods tied, Fabric API / loader / one of Reminth's own jars on top, or no match → nothing is said. The finding goes to `.reminth/crash-finding.json` (atomic; ignored once that jar changes; a report already told isn't told again; a clean exit (code 0, no new report) forgets it). The panel shows the mod as **"Crashed the game"** with its fix; the window gets a toast and a dismissible notice on the instance page: "The game crashed in AppleSkin (appleskin-fabric-mc26.3-3.0.10.jar). It is built for Minecraft 26.3 and this instance is on 26.2." with **Fix it** (the stable swap for that one mod, when the check has a stable build) or **Switch it off**. | `crashReport.js` (new), `content.js` (`modPackages`, `packageOfClass`), `compat.js` (crash finding → issue, `managedNames` exported), `main.js` (`noteCrashReport` from the exit handler), `preload.js` (`onCrashCulprit`), `features.js` (`compatTag`, crash notice), `index.html` (`#instCrashNotice`) |
+
+Tests: `test/may-not-work.test.js` (new, 15): AppleSkin-shaped real jar (outer jar listed for 26.3, range
+`>=1.21.9` that 26.2 satisfies) through `checkInstance`, the fit plan (stable swap, beta-only → "no build",
+only-some-files), the Play rule and sentence, the registry field, the parser on the real report + a Mixin
+error + no mod frames + a cut-off file, ties / Fabric API / Reminth's jars / Forge frames, the report finder
+(older, too big, a link), the "Crashed the game" issue. `test/perf-profiles.test.js` (+2, real main.js on a
+fake Electron): the "don't ask again" IPC and its clearing; a crash report after a game exit → finding written
+and `play:crashCulprit` sent, a clean exit forgets it. All existing tests unchanged.
+Clicked through in headless Chromium with a fake main process: button count includes the "may not work" mods,
+the Play dialog (text, tick, buttons, "don't ask again" honoured for the same mods and asked again when they
+change), the crash toast + notice + "Crashed the game" tag, Fix it calls the one-file swap.
 
 ### Prompt 8 (Home stat cards)
 
@@ -90,6 +116,19 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P9-1. **A build listed only for NEWER Minecraft versions is now "may not work" even when its own file says it
+   fits** (this is what makes AppleSkin show up and get swapped). It can also flag a mod that really works
+   (a loose range that happens to be right). It is only a warning plus a stable swap - never blocked, never
+   removed. **Recommend: keep** - the crash showed the jar's own range can't be trusted in that direction.
+P9-2. **"Don't ask again" is stored only when ticked AND Play anyway is pressed** (Cancel or Fix and play
+   with the tick ignore it - after a fix the mods are different anyway). **Recommend: keep.**
+P9-3. **The quick check can't see these warnings.** When the full check hasn't answered within 2.5 s at
+   Play (a big instance's first check), the jar-only quick check decides, and it doesn't know what Modrinth
+   lists - so the "may crash" question is skipped that one time. Blocked mods are still caught. **Recommend:
+   keep** (Play is never held up longer); the panel and button show them as soon as the full check ends.
+P9-4. **Privacy text: no new sentence needed.** Crash reports and mod files are read on the PC only;
+   nothing new is sent anywhere (the Modrinth lookups are the ones already listed).
+
 0. **New: with "launch minimized" on, Reminth now comes back on screen when the game ends** (prompt 5
    asked for this: "restore it to what it was when the game ends"). Before, it stayed minimized in the
    taskbar. **Recommend: keep** - it's what the prompt asked; if the owner dislikes the window popping up
@@ -115,6 +154,17 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 ---
 
 ## 3. Known weak spots (say them, don't hide them)
+
+- **Prompt 9 never met a real crash or real Modrinth.** The crash parser was tested on the report text from
+  the prompt (head only) and made-up Mixin / Forge shapes; real reports from other mods may name nobody
+  (by design: no match → nothing said). Mods whose code isn't in an entrypoint or mixin package (pure
+  libraries, Kotlin objects, some Forge mods - Forge jars aren't read for packages, only Forge frames that
+  name their mod) can't be named.
+- AppleSkin's real `fabric.mod.json` range wasn't checked (no network here). If it declares a range that
+  EXCLUDES 26.2 it was already "won't load" (blocked) and the old button handled it; the prompt says the panel
+  showed "may not work", which this covers either way.
+- A game that crashes and is restarted within 2 s of the report could see the same report twice - handled by
+  remembering the report name in the finding.
 
 - **The window repair (prompt 6) has never run on Windows.** It follows the measured state exactly and the
   repair the desktop window did by hand (unmaximize + maximize), but if Windows reports the small window's
@@ -147,11 +197,43 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **517 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **536 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
-### Prompt 5 - the two bugs (test these first)
+### Prompt 9 - "may not work" mods (test these first; a COPY of the "Reminth" instance, never the real one)
+M1. Copy the owner's "Reminth" instance (Fabric 26.2 + AppleSkin `appleskin-fabric-mc26.3-3.0.10.jar` and the
+    other 26.3 mods) to a throwaway instance. Its Mods tab: AppleSkin shows **May not work** ("listed for
+    Minecraft 26.3, not 26.2…"). The button reads **"Update mods to fit 26.2 (N)"** and N includes AppleSkin
+    (and the other "may not work" ones that are listed for another version) - note N before/after vs. the
+    old 18.
+M2. Press the button → AppleSkin is now the **26.2 build** (file name `…mc26.2…`), the old jar is in
+    `.reminth/replaced-mods/<time>/`; anything with no stable 26.2 build is in the "No 26.2 build yet" window,
+    nothing deleted. Panel no longer lists AppleSkin.
+M3. **Play + join the same server as before** (Home "Jump back in" server card) → in-game, HUD draws, **no
+    crash** for 2-3 minutes. (This is the main PASS/FAIL of prompt 9.)
+M4. Put the 26.3 AppleSkin jar back (from replaced-mods) in a second copy. Press Play from the **instance
+    page**, then from the **Home hero**, then from a **Home card**: each shows **"These mods may crash the
+    game"** with "N mods are built for another Minecraft version and may crash the game: AppleSkin…",
+    Cancel / Play anyway / Fix and play. Cancel → nothing starts.
+M5. Play anyway (no tick) → game starts; quit; Play again → the question comes back.
+M6. Tick "Don't ask again for this instance" + Play anyway → game starts; quit; Play → **no** question.
+    Switch any mod off or on → Play → the question is back. (`instances.json` has `skipModWarning` while it
+    holds.)
+M7. Fix and play → AppleSkin swapped to 26.2, game starts.
+M8. With one blocked mod (a jar that needs 26.3 in its own range) AND AppleSkin 26.3: Play shows the old
+    **"Minecraft won't start like this"** question, not the new one.
+M9. **After a crash**: in a throwaway instance keep AppleSkin 26.3, tick "Don't ask again", Play anyway, join
+    a server → the game crashes like on 3 Oct. Back in Reminth: a toast and a notice on the instance page
+    "The game crashed in AppleSkin (appleskin-fabric-mc26.3-3.0.10.jar). It is built for Minecraft 26.3 and
+    this instance is on 26.2." with **Fix it**; the Mods panel shows AppleSkin as **"Crashed the game"**.
+    `<instance>\.reminth\crash-finding.json` exists. Fix it → swapped to the 26.2 build, notice gone.
+M10. A crash with no mod to blame (e.g. start a world, then end `javaw.exe` from Task Manager → no report;
+    or any crash report whose stack shows only Minecraft/Fabric frames) → **no** notice, no toast naming a mod.
+M11. Close the game normally after M9's fix → `crash-finding.json` is deleted.
+M12. Forge/NeoForge instance: a normal Play and quit → no notice, nothing in `main-errors.log`.
+
+### Prompt 5 - the two bugs
 P1. Home shows instance A as hero. Start instance **B** from its page → as soon as the game window appears
     (and certainly within 2 s), Home's hero shows **B** (name, Last played). No manual refresh.
 P2. Same with "launch minimized" ON: Reminth minimizes; open it from the taskbar during the game → hero is B.
@@ -262,7 +344,7 @@ U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for 
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
-45. PASS/FAIL per step (P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
