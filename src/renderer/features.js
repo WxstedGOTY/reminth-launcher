@@ -2428,7 +2428,10 @@ function paintPing(node, r) {
   if (r.online) {
     badge.className = "ping-badge " + pingClass(r.latencyMs);
     badge.textContent = `${r.latencyMs} ms`;
-    badge.title = "Your ping to this server, measured from this PC";
+    badge.title =
+      r.latencyKind === "status"
+        ? "Your ping to this server, measured from this PC (this server doesn't answer ping packets, so it's its slower status answer)"
+        : "Your connection's round trip to the server, measured the way Minecraft's own server list does";
     if (players && r.playersOnline !== null) players.textContent = formatNumber(r.playersOnline);
     dot.classList.remove("off");
   } else {

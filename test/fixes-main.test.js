@@ -320,7 +320,7 @@ test("serverPing: a bad address resolves offline instead of rejecting", async ()
 
 test("serverPing: status JSON exposes the server's version name and protocol", () => {
   const s = serverPing.statusFromJson({ version: { name: "Paper 1.21.4", protocol: 769 }, players: { online: 3, max: 20 } }, 12);
-  assert.deepEqual(s, { online: true, latencyMs: 12, playersOnline: 3, playersMax: 20, version: "Paper 1.21.4", versionName: "Paper 1.21.4", protocol: 769 });
+  assert.deepEqual(s, { online: true, latencyMs: 12, latencyKind: "ping", playersOnline: 3, playersMax: 20, version: "Paper 1.21.4", versionName: "Paper 1.21.4", protocol: 769 });
   const bare = serverPing.statusFromJson({}, 5);
   assert.equal(bare.versionName, null);
   assert.equal(bare.protocol, null);
