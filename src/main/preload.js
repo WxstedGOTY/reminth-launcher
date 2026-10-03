@@ -128,6 +128,7 @@ contextBridge.exposeInMainWorld("reminth", {
   onInstallProgress: on("install:progress"),
   onInstallDone: on("install:done"),
   onPlayCrashed: on("play:crashed"),
+  onCrashCulprit: on("play:crashCulprit"),
   onPlayStarted: on("play:started"),
   onPlayExited: on("play:exited"),
   onSafeMode: on("play:safeMode"),

@@ -4041,6 +4041,12 @@ function compatIcon(issue) {
   return img;
 }
 
+/** "Crashed the game" / "Won't load" / "May not work". */
+function compatTag(issue) {
+  if (issue.crashed) return el("span", "tag rose", "Crashed the game");
+  return el("span", "tag " + (issue.severity === "blocked" ? "rose" : "amber"), issue.severity === "blocked" ? "Won't load" : "May not work");
+}
+
 /** One issue: icon, name, the sentence about it, and (optionally) its fix button. */
 function compatIssueRow(issue, { onFix, showFixText } = {}) {
   const row = el("div", "cp-row");
@@ -4048,7 +4054,7 @@ function compatIssueRow(issue, { onFix, showFixText } = {}) {
   const main = el("div", "cp-main");
   const top = el("div", "cp-top");
   top.appendChild(el("span", "cp-name", issue.title));
-  top.appendChild(el("span", "tag " + (issue.severity === "blocked" ? "rose" : "amber"), issue.severity === "blocked" ? "Won't load" : "May not work"));
+  top.appendChild(compatTag(issue));
   main.appendChild(top);
   main.appendChild(el("div", "cp-detail", issue.detail));
   if (showFixText && issue.fix) main.appendChild(el("div", "cp-does", `Fix: ${issue.fix.label}`));
@@ -4138,7 +4144,8 @@ function paintCompatTags() {
     const top = row.querySelector(".c-top");
     if (!issues || !top) return;
     const blocked = issues.some((i) => i.severity === "blocked");
-    const tag = el("span", "tag c-compat " + (blocked ? "rose" : "amber"), blocked ? "Won't load" : "May not work");
+    const crashed = issues.some((i) => i.crashed);
+    const tag = el("span", "tag c-compat " + (blocked || crashed ? "rose" : "amber"), crashed ? "Crashed the game" : blocked ? "Won't load" : "May not work");
     tag.title = issues.map((i) => i.detail).join("\n");
     top.appendChild(tag);
   });
@@ -4271,7 +4278,8 @@ function riskyBeforePlay(inst, result, risky) {
     const body = el("div");
     body.appendChild(el("p", null, window.ReminthPure.riskyText(risky)));
     const list = el("div", "cp-list");
-    risky.forEach((issue) => list.appendChild(compatIssueRow(issue, { showFixText: true })));
+    // No "Fix: …" line here: "Fix and play" only ever swaps to a stable build, it never switches one off.
+    risky.forEach((issue) => list.appendChild(compatIssueRow(issue)));
     body.appendChild(list);
     const tick = el("button", "pick-item extra-item gate-skip");
     tick.type = "button";
@@ -5293,6 +5301,8 @@ const syncUi = {
   busy: null, // instance id being updated
   notice: null, // { id, mcVersion } - the one-time notice after an edit
 };
+// After a crash: the mod it was in (main.js noteCrashReport). notice: { id, file, name }
+const crashUi = { notice: null, busy: false };
 
 /** How many mods the button is about, from a compat answer. Mirrors modsSync.syncCandidates. */
 function syncCount(result) {
@@ -5311,6 +5321,7 @@ function syncBlocked(id) {
 }
 
 function paintSyncButtons() {
+  paintCrashNotice();
   const inst = activeInstance();
   const id = inst && inst.id;
   const modded = Boolean(inst && inst.loader !== "vanilla");
@@ -5463,6 +5474,99 @@ function askAboutNoBuild(id, mcVersion, noBuild, appliedCount) {
       },
     ],
   });
+}
+
+/* ---- after a crash: which mod did it (main.js noteCrashReport) ---- */
+
+window.reminth.onCrashCulprit(({ instanceId, file, name }) => {
+  const inst = instanceById(instanceId);
+  if (!inst || !file) return;
+  crashUi.notice = { id: instanceId, file, name: name || file };
+  // The panel and the notice need the check that knows about the crash.
+  runCompatCheck(instanceId, true).then(() => {
+    toast(crashSentence(inst, crashUi.notice && crashUi.notice.id === instanceId ? crashUi.notice : { file, name }));
+    paintCrashNotice();
+  });
+});
+
+/** The compat issue about the crashed file, if the check knows one. */
+function crashIssue(id, file) {
+  const result = compatUi.results.get(id);
+  return result && Array.isArray(result.issues) ? result.issues.find((i) => i.file === file) || null : null;
+}
+
+/** "The game crashed in AppleSkin (appleskin-….jar). It is built for Minecraft 26.3 and this instance is on 26.2." */
+function crashSentence(inst, n) {
+  const issue = crashIssue(inst.id, n.file);
+  const made = issue && issue.reason === "wrong-mc" && issue.madeFor ? issue.madeFor : null;
+  return `The game crashed in ${n.name} (${n.file}).${made ? ` It is built for Minecraft ${made} and this instance is on ${inst.mcVersion}.` : ""}`;
+}
+
+function paintCrashNotice() {
+  const box = $("instCrashNotice");
+  if (!box) return;
+  const n = crashUi.notice;
+  const inst = n ? instanceById(n.id) : null;
+  const show = Boolean(n && inst && state.activeId === n.id && !state.running.has(n.id));
+  box.hidden = !show;
+  box.textContent = "";
+  if (!show) return;
+  const issue = crashIssue(n.id, n.file);
+  const text = el("div", "sn-text");
+  text.appendChild(el("b", null, crashSentence(inst, n)));
+  // "Fix it": the Update-mods-to-fit swap for this one mod when a stable
+  // build of this version exists; otherwise switching it off.
+  const swap = Boolean(issue && issue.fix && issue.fix.type === "update" && issue.reason === "wrong-mc");
+  text.appendChild(
+    el("span", null, swap ? `Reminth can switch it to its stable ${inst.mcVersion} build (the old file is kept in .reminth/replaced-mods).` : "Switching it off stops it from loading; switch it back on in the Mods tab any time.")
+  );
+  box.appendChild(text);
+  const go = button("btn sync-btn sm", swap ? "Fix it" : "Switch it off", swap ? "#i-refresh" : null);
+  go.disabled = crashUi.busy || Boolean(syncBlocked(n.id));
+  go.onclick = () => fixCrashedMod(n, swap);
+  box.appendChild(go);
+  const x = el("button", "icon-btn");
+  x.type = "button";
+  x.title = "Dismiss";
+  x.setAttribute("aria-label", "Dismiss");
+  x.appendChild(icon("#i-x"));
+  x.onclick = () => {
+    crashUi.notice = null;
+    paintCrashNotice();
+  };
+  box.appendChild(x);
+}
+
+async function fixCrashedMod(n, swap) {
+  const why = syncBlocked(n.id);
+  if (why) return toast(why);
+  const inst = instanceById(n.id);
+  if (!inst) return;
+  crashUi.busy = true;
+  paintCrashNotice();
+  try {
+    if (swap) {
+      const r = await window.reminth.syncMods(n.id, { files: [n.file] });
+      const applied = (r && r.applied) || [];
+      const failed = (r && r.failed) || [];
+      if (applied.length) {
+        toast(`${n.name} switched to its ${inst.mcVersion} build${addedNote(r.added)}.${warningNote(r.warnings)}`);
+        crashUi.notice = null;
+      } else if (failed.length) toast(`Couldn't update ${n.name}: ${friendlyError(failed[0].error)}`);
+      else toast(`No stable ${inst.mcVersion} build of ${n.name} yet — you can switch it off instead.`);
+    } else {
+      await window.reminth.setContentEnabled(n.id, { kind: "mod", world: null, file: n.file }, false);
+      toast(`${n.name} switched off. Switch it back on in the Mods tab whenever you like.`);
+      crashUi.notice = null;
+    }
+  } catch (err) {
+    toast(friendlyError(err.message));
+  } finally {
+    crashUi.busy = false;
+    if (content.instanceId === n.id) await loadContent(n.id);
+    await runCompatCheck(n.id, true);
+    paintCrashNotice();
+  }
 }
 
 $("instSyncBtn").onclick = () => runModsSync(state.activeId);

@@ -224,3 +224,179 @@ test("instances: the 'don't ask again' fingerprint is kept only when it is one",
   assert.equal(inst.skipModWarning, undefined, "null forgets it");
   assert.equal((await instances.get(made.id)).skipModWarning, undefined);
 });
+
+/* ---------------- job C: which mod crashed the game ---------------- */
+
+const crashReport = require("../src/main/crashReport");
+const content = require("../src/main/content");
+
+// The owner's real report (3 Oct 2026), shortened to its head: AppleSkin built
+// for 26.3, on 26.2, connected to a Paper (Velocity) server, first HUD draw.
+const APPLESKIN_REPORT = [
+  "---- Minecraft Crash Report ----",
+  "// Who set us up the TNT?",
+  "",
+  "Time: 2026-10-03 14:22:10",
+  "Description: Rendering overlay",
+  "",
+  "java.lang.NoSuchFieldError: Class net.minecraft.client.renderer.RenderPipelines does not have member field 'com.mojang.blaze3d.pipeline.RenderPipeline GUI_TEXTURED'",
+  "\tat knot//squeek.appleskin.client.HUDOverlayHandler.drawExhaustionOverlay(HUDOverlayHandler.java:96)",
+  "\tat knot//squeek.appleskin.client.HUDOverlayHandler.onPreRender(HUDOverlayHandler.java:61)",
+  "\tat knot//net.fabricmc.fabric.impl.client.rendering.hud.HudElementRegistryImpl.render(HudElementRegistryImpl.java:88)",
+  "\tat knot//net.minecraft.client.gui.Gui.handler$zbm000$appleskin$onRenderHud(Gui.java:1203)",
+  "\tat knot//net.minecraft.client.gui.Gui.render(Gui.java:172)",
+  "\tat knot//net.minecraft.client.renderer.GameRenderer.render(GameRenderer.java:942)",
+  "\tat java.base/java.lang.Thread.run(Thread.java:1583)",
+  "",
+  "",
+  "A detailed walkthrough of the error, its code path and all known details is as follows:",
+  "---------------------------------------------------------------------------------------",
+  "",
+  "-- Head --",
+  "\tat knot//some.other.mod.Thing.run(Thing.java:1)",
+  "-- System Details --",
+  "\tServer brand: Paper (Velocity)",
+  "\tType: Non-integrated multiplayer server",
+  "\tFabric Mods: ",
+  "\t\tappleskin: AppleSkin 3.0.10+mc26.3",
+].join("\n");
+
+const jarItem = (file, extra) => ({ kind: "mod", file, valid: true, folder: false, enabled: true, size: 10, modifiedAt: 1, ...extra });
+
+test("parseCrashReport: the real AppleSkin crash - description, error, frames", () => {
+  const r = crashReport.parseCrashReport(APPLESKIN_REPORT);
+  assert.equal(r.description, "Rendering overlay");
+  assert.match(r.error, /^java\.lang\.NoSuchFieldError: Class net\.minecraft\.client\.renderer\.RenderPipelines does not have member field/);
+  assert.deepEqual(r.frames[0], { cls: "squeek.appleskin.client.HUDOverlayHandler", method: "drawExhaustionOverlay", modHint: null, mixinMod: null });
+  assert.equal(r.frames[3].mixinMod, "appleskin");
+  assert.equal(r.frames[6].cls, "java.lang.Thread");
+  assert.equal(r.frames.length, 7, "nothing below the detailed walkthrough is read");
+  assert.equal(crashReport.parseCrashReport("just a log file"), null);
+});
+
+test("findCulprit: AppleSkin, from its jar's own packages (read from a real jar by content.listAll)", async () => {
+  const inst = await instanceWith("crash-appleskin", "26.2", {
+    "appleskin-fabric-mc26.3-3.0.10.jar": (out) => makeJar(out, APPLESKIN_JSON, { "appleskin.mixins.json": APPLESKIN_MIXINS }),
+    "fabric-api-0.120.jar": (out) => makeJar(out, { id: "fabric-api", name: "Fabric API", version: "0.120", entrypoints: { client: ["net.fabricmc.fabric.impl.client.FabricClient"] } }),
+    "sodium.jar": (out) => makeJar(out, { id: "sodium", name: "Sodium", version: "0.7", entrypoints: { client: ["net.caffeinemc.mods.sodium.client.SodiumClientMod"] } }),
+  });
+  const items = (await content.listAll(inst.gameDir)).mod;
+  const apple = items.find((i) => i.modId === "appleskin");
+  assert.deepEqual(apple.packages.sort(), ["squeek.appleskin", "squeek.appleskin.client", "squeek.appleskin.mixin"]);
+  const hit = crashReport.findCulprit(crashReport.parseCrashReport(APPLESKIN_REPORT), items);
+  assert.equal(hit.item.file, "appleskin-fabric-mc26.3-3.0.10.jar");
+  assert.equal(hit.how, "frame");
+});
+
+test("findCulprit: a Mixin error naming a mod", () => {
+  const report = [
+    "---- Minecraft Crash Report ----",
+    "Description: Initializing game",
+    "",
+    "org.spongepowered.asm.mixin.injection.throwables.InjectionError: Critical injection failure: Callback method onRender in appleskin.mixins.json:HungerHudMixin from mod appleskin failed injection check, (0/1) succeeded. Scanned 0 target(s).",
+    "\tat org.spongepowered.asm.mixin.injection.struct.InjectionInfo.postInject(InjectionInfo.java:468)",
+    "\tat org.spongepowered.asm.mixin.transformer.MixinTargetContext.applyInjections(MixinTargetContext.java:1384)",
+  ].join("\n");
+  const parsed = crashReport.parseCrashReport(report);
+  assert.deepEqual(parsed.mixinMods, ["appleskin"]);
+  const items = [jarItem("appleskin.jar", { modId: "appleskin" }), jarItem("jei.jar", { modId: "jei", packages: ["mezz.jei"] })];
+  const hit = crashReport.findCulprit(parsed, items);
+  assert.deepEqual([hit.item.file, hit.how], ["appleskin.jar", "mixin"]);
+});
+
+test("findCulprit: a crash with no mod frames names nobody", () => {
+  const report = [
+    "---- Minecraft Crash Report ----",
+    "Description: Unexpected error",
+    "",
+    "java.lang.OutOfMemoryError: Java heap space",
+    "\tat java.base/java.util.Arrays.copyOf(Arrays.java:3537)",
+    "\tat knot//net.minecraft.client.renderer.chunk.SectionRenderDispatcher.rebuild(SectionRenderDispatcher.java:220)",
+    "\tat knot//net.fabricmc.fabric.impl.event.lifecycle.ClientTickEvents.tick(ClientTickEvents.java:30)",
+  ].join("\n");
+  const items = [jarItem("appleskin.jar", { modId: "appleskin", packages: ["squeek.appleskin"] }), jarItem("fabric-api.jar", { modId: "fabric-api", packages: ["net.fabricmc.fabric"] })];
+  assert.equal(crashReport.findCulprit(crashReport.parseCrashReport(report), items), null, "Fabric API's frame is never blamed");
+});
+
+test("parseCrashReport: a cut-off file gives what is there, and names nobody without frames", () => {
+  const cut = "---- Minecraft Crash Report ----\nDescription: Rendering overlay\n\njava.lang.NoSuchFieldEr";
+  const r = crashReport.parseCrashReport(cut);
+  assert.equal(r.description, "Rendering overlay");
+  assert.equal(r.error, "java.lang.NoSuchFieldEr");
+  assert.deepEqual(r.frames, []);
+  assert.equal(crashReport.findCulprit(r, [jarItem("appleskin.jar", { modId: "appleskin", packages: ["squeek.appleskin"] })]), null);
+  // cut in the middle of the frames: the frames that are there still count
+  const half = APPLESKIN_REPORT.slice(0, APPLESKIN_REPORT.indexOf("onPreRender"));
+  const hit = crashReport.findCulprit(crashReport.parseCrashReport(half), [jarItem("appleskin.jar", { modId: "appleskin", packages: ["squeek.appleskin"] })]);
+  assert.equal(hit.item.file, "appleskin.jar");
+});
+
+test("findCulprit: never a guess - two mods in one package, Reminth's own jar, a switched-off copy", () => {
+  const parsed = crashReport.parseCrashReport(APPLESKIN_REPORT);
+  const two = [jarItem("a.jar", { modId: "a", packages: ["squeek.appleskin"] }), jarItem("b.jar", { modId: "b", packages: ["squeek.appleskin"] })];
+  assert.equal(crashReport.findCulprit(parsed, two), null);
+  // the longer package wins over a shorter shared one
+  const nested = [jarItem("a.jar", { modId: "a", packages: ["squeek"] }), jarItem("b.jar", { modId: "b", packages: ["squeek.appleskin.client"] })];
+  assert.equal(crashReport.findCulprit(parsed, nested).item.file, "b.jar");
+  const mine = [jarItem("appleskin.jar", { modId: "appleskin", packages: ["squeek.appleskin"] })];
+  assert.equal(crashReport.findCulprit(parsed, mine, { skipFiles: new Set(["appleskin.jar"]) }), null);
+  assert.equal(crashReport.findCulprit(parsed, [jarItem("appleskin.jar", { modId: "appleskin", packages: ["squeek.appleskin"], enabled: false })]), null);
+  // Forge / NeoForge frames name their mod
+  const forge = "---- Minecraft Crash Report ----\nDescription: x\n\njava.lang.NullPointerException\n\tat TRANSFORMER/minecraft@1.20.1/net.minecraft.client.Minecraft.tick(Minecraft.java:1)\n\tat TRANSFORMER/jei@15.2/mezz.jei.Thing.go(Thing.java:2)\n";
+  assert.equal(crashReport.findCulprit(crashReport.parseCrashReport(forge), [jarItem("jei.jar", { modId: "jei" })]).how, "forge");
+});
+
+test("latestReport: only the newest report written since the launch, in the instance's own folder, never a link, capped", async () => {
+  const gameDir = path.join(HOME, "inst", "reports");
+  const dir = path.join(gameDir, "crash-reports");
+  await fsp.mkdir(dir, { recursive: true });
+  const started = Date.now();
+  const old = path.join(dir, "crash-2026-10-01_10.00.00-client.txt");
+  await fsp.writeFile(old, "old");
+  await fsp.utimes(old, new Date(started - 60000), new Date(started - 60000));
+  assert.equal(await crashReport.latestReport(gameDir, started), null, "older than the launch");
+  await fsp.writeFile(path.join(dir, "crash-2026-10-03_14.22.10-client.txt"), "x".repeat(crashReport.MAX_REPORT_BYTES + 100));
+  await fsp.writeFile(path.join(dir, "notes.txt"), "not a report");
+  const r = await crashReport.latestReport(gameDir, started);
+  assert.equal(r.name, "crash-2026-10-03_14.22.10-client.txt");
+  assert.equal(r.text.length, crashReport.MAX_REPORT_BYTES);
+  // a link that is newer is skipped
+  const outside = path.join(HOME, "outside.txt");
+  await fsp.writeFile(outside, "secret");
+  try {
+    await fsp.symlink(outside, path.join(dir, "crash-2099-01-01_00.00.00-client.txt"));
+    assert.equal((await crashReport.latestReport(gameDir, started)).name, "crash-2026-10-03_14.22.10-client.txt");
+  } catch (err) {
+    if (err.code !== "EPERM") throw err; // Windows without the right to make links
+  }
+  assert.equal(await crashReport.latestReport(path.join(HOME, "nope"), started), null);
+});
+
+test("checkInstance: the crashed mod is 'Crashed the game' while that exact file is there, with its fix", async () => {
+  const inst = await instanceWith("crash-check", "26.2", {
+    "appleskin-fabric-mc26.3-3.0.10.jar": (out) => makeJar(out, APPLESKIN_JSON, { "appleskin.mixins.json": APPLESKIN_MIXINS }),
+    "other.jar": (out) => makeJar(out, { id: "other", name: "Other", version: "1", depends: { minecraft: ">=1.21" } }),
+  });
+  const items = (await content.listAll(inst.gameDir)).mod;
+  const it = (f) => items.find((i) => i.file === f);
+  const finding = (file, over = {}) => ({ mcVersion: "26.2", loader: "fabric", error: "java.lang.NoSuchFieldError: Class x", mod: { file, size: it(file).size, mtimeMs: it(file).modifiedAt, modId: "x", name: "x" }, ...over });
+  const api = fakeModrinth({
+    found: { "h-appleskin-fabric-mc26.3-3.0.10.jar": { id: "as263", project_id: "EsAfCjCV", game_versions: ["26.3"], loaders: ["fabric"] } },
+    updates: { "h-appleskin-fabric-mc26.3-3.0.10.jar": { id: "as262", project_id: "EsAfCjCV", version_number: "3.0.10+mc26.2", version_type: "release", files: relFile("appleskin-fabric-mc26.2-3.0.10.jar", "2") } },
+  });
+  // AppleSkin: already "may not work" -> now also "crashed", same fix
+  let r = await compat.checkInstance(inst, { force: true, deps: { ...checkDeps(api), readCrashFinding: async () => finding("appleskin-fabric-mc26.3-3.0.10.jar") } });
+  let i = r.issues.find((x) => x.file === "appleskin-fabric-mc26.3-3.0.10.jar");
+  assert.equal(i.crashed, true);
+  assert.match(i.detail, /^AppleSkin crashed the game last time \(NoSuchFieldError\)\. This build is listed for Minecraft 26\.3/);
+  assert.equal(i.fix.label, "Switch to 3.0.10+mc26.2");
+  // a mod with nothing else wrong: its own row, switch-off fix
+  r = await compat.checkInstance(inst, { force: true, deps: { ...checkDeps(api), readCrashFinding: async () => finding("other.jar") } });
+  i = r.issues.find((x) => x.file === "other.jar");
+  assert.deepEqual([i.reason, i.severity, i.crashed, i.fix.type], ["crashed", "warn", true, "disable"]);
+  // the file changed (size differs), or another version / loader: forgotten
+  for (const f of [finding("other.jar", { mod: { file: "other.jar", size: 1, mtimeMs: 1 } }), finding("other.jar", { mcVersion: "26.3" })]) {
+    r = await compat.checkInstance(inst, { force: true, deps: { ...checkDeps(api), readCrashFinding: async () => f } });
+    assert.equal(r.issues.some((x) => x.crashed), false);
+  }
+});

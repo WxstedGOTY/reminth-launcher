@@ -910,10 +910,14 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
   // only for the version and loader it was about.
   const rawReport = deps.readLaunchReport ? await deps.readLaunchReport(gameDir) : await readLaunchReport(gameDir);
   const launchReport = rawReport && rawReport.mcVersion === instance.mcVersion && rawReport.loader === loader ? rawReport.mods : [];
+  // The mod the game last crashed in (main.js noteCrashReport) - for this
+  // version and loader only, like the launch report.
+  const rawCrash = deps.readCrashFinding ? await deps.readCrashFinding(gameDir) : await require("./crashReport").readFinding(gameDir);
+  const crashFinding = rawCrash && rawCrash.mcVersion === instance.mcVersion && rawCrash.loader === loader ? rawCrash : null;
   // Which jars are Reminth's is part of the question: the same files with a
   // different managed list (after a launch tidied or disowned one) is a
   // different answer.
-  const key = JSON.stringify([instance.mcVersion, loader, instance.hud === true, perfPackOn, overridden, loaded.map((i) => [i.file, i.size, i.modifiedAt]), [...managed].sort(), launchReport]);
+  const key = JSON.stringify([instance.mcVersion, loader, instance.hud === true, perfPackOn, overridden, loaded.map((i) => [i.file, i.size, i.modifiedAt]), [...managed].sort(), launchReport, crashFinding && crashFinding.mod]);
   const cached = checkCache.get(instance.id);
   if (!force && cached && cached.key === key && Date.now() - cached.at < CHECK_TTL_MS && cached.result.online) return cached.result;
 
@@ -1081,6 +1085,34 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
       ...(verdict.fromGame ? { fromGame: true } : {}),
       ...(verdict.listedElsewhere ? { listedElsewhere: true } : {}),
     });
+  }
+
+  // --- the mod the game last crashed in, as long as that exact file (same
+  // size and time) is still there: "Crashed the game", with its fix.
+  const crashed = crashFinding && crashFinding.mod;
+  const crashItem = crashed ? mods.find((i) => i.file === crashed.file && i.size === crashed.size && i.modifiedAt === crashed.mtimeMs) : null;
+  if (crashItem) {
+    const kind = /^(?:[\w$]+\.)*([\w$]+?(?:Error|Exception))\b/.exec(String(crashFinding.error || ""));
+    const said = `${displayName(crashItem)} crashed the game last time${kind ? ` (${kind[1]})` : ""}.`;
+    const issue = result.issues.find((x) => x.file === crashItem.file);
+    if (issue) {
+      issue.crashed = true;
+      issue.detail = `${said} ${issue.detail}`;
+    } else {
+      result.issues.push({
+        file: crashItem.file,
+        title: displayName(crashItem),
+        iconUrl: crashItem.iconUrl || null,
+        projectId: crashItem.projectId || null,
+        severity: "warn",
+        reason: "crashed",
+        madeFor: null,
+        detail: said,
+        neededBy: null,
+        fix: { type: "disable", label: "Switch off" },
+        crashed: true,
+      });
+    }
   }
 
   // Every mod id the game will have: the loaded jars, what they "provide",
@@ -1512,6 +1544,7 @@ module.exports = {
   mapReportToFiles,
   readLaunchReport,
   LAUNCH_REPORT_FILE,
+  managedNames,
   unreadMayProvide,
   fabricRulesApply,
   describePredicate,

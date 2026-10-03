@@ -975,3 +975,41 @@ test("main: Play's 'don't ask again' is stored per instance, checked, and droppe
     INSTANCE = saved;
   }
 });
+
+test("main: after a crash in play, the mod named by the crash report is remembered and the window told; a clean exit forgets it", async () => {
+  const zipMod = require("../src/main/zip");
+  const gameDir = path.join(HOME, "crash-inst");
+  const src = path.join(HOME, "crash-src");
+  await fsp.mkdir(src, { recursive: true });
+  await fsp.writeFile(path.join(src, "fabric.mod.json"), JSON.stringify({ schemaVersion: 1, id: "appleskin", name: "AppleSkin", version: "3.0.10+mc26.3", entrypoints: { client: ["squeek.appleskin.client.AppleSkinClient"] } }));
+  await fsp.mkdir(path.join(gameDir, "mods"), { recursive: true });
+  await zipMod.buildZip(src, path.join(gameDir, "mods", "appleskin-fabric-mc26.3-3.0.10.jar"));
+  const findingFile = path.join(gameDir, ".reminth", "crash-finding.json");
+  const saved = INSTANCE;
+  try {
+    INSTANCE = { ...saved, gameDir, loader: "fabric", mcVersion: "26.2" };
+    install = { promise: Promise.resolve({ removedMods: [] }) };
+    await call("play:run", { instanceId: "i1" });
+    await fsp.mkdir(path.join(gameDir, "crash-reports"), { recursive: true });
+    await fsp.writeFile(
+      path.join(gameDir, "crash-reports", "crash-2026-10-03_14.22.10-client.txt"),
+      "---- Minecraft Crash Report ----\nDescription: Rendering overlay\n\njava.lang.NoSuchFieldError: Class x does not have member field 'GUI_TEXTURED'\n\tat knot//squeek.appleskin.client.HUDOverlayHandler.drawExhaustionOverlay(HUDOverlayHandler.java:96)\n"
+    );
+    const from = toRenderer.length;
+    lastChild.emit("exit", 255, null);
+    for (let i = 0; i < 200 && !fs.existsSync(findingFile); i++) await tick(10);
+    const finding = JSON.parse(await fsp.readFile(findingFile, "utf8"));
+    assert.deepEqual([finding.mod.file, finding.mod.name, finding.mcVersion, finding.loader, finding.how], ["appleskin-fabric-mc26.3-3.0.10.jar", "AppleSkin", "26.2", "fabric", "frame"]);
+    assert.equal(finding.report, "crash-2026-10-03_14.22.10-client.txt");
+    for (let i = 0; i < 100 && !toRenderer.slice(from).some(([c]) => c === "play:crashCulprit"); i++) await tick(10);
+    assert.deepEqual(toRenderer.slice(from).find(([c]) => c === "play:crashCulprit")[1], { instanceId: "i1", file: "appleskin-fabric-mc26.3-3.0.10.jar", name: "AppleSkin" });
+    // next session ends cleanly with no new report: forgotten
+    await call("play:run", { instanceId: "i1" });
+    await tick(5);
+    lastChild.emit("exit", 0, null);
+    for (let i = 0; i < 200 && fs.existsSync(findingFile); i++) await tick(10);
+    assert.equal(fs.existsSync(findingFile), false);
+  } finally {
+    INSTANCE = saved;
+  }
+});

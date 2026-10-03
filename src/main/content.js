@@ -396,6 +396,53 @@ async function readNestedMods(zip, nested) {
 }
 
 /** Name/version/icon out of a Fabric, Quilt, Forge or NeoForge mod jar. Never throws. */
+const PACKAGE_NAME = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/; // at least two parts: "squeek.appleskin"
+const MAX_PACKAGES = 16;
+const MAX_MIXIN_CONFIGS = 8;
+const MAX_MIXIN_CONFIG_BYTES = 64 * 1024;
+
+/** Pure: the package a class lives in - "squeek.appleskin.client.AppleSkinClient" -> "squeek.appleskin.client" (null for one with no package). */
+function packageOfClass(name) {
+  const cls = String(name || "").split("::")[0].trim();
+  const at = cls.lastIndexOf(".");
+  const pkg = at > 0 ? cls.slice(0, at) : "";
+  return PACKAGE_NAME.test(pkg) && pkg.length <= 200 ? pkg : null;
+}
+
+/**
+ * The Java packages a Fabric mod's own code is in, from fabric.mod.json:
+ * its entrypoint classes, and the "package" of each mixin config it names
+ * (small JSON files in the same jar; a few at most). Cheap, and only used
+ * to tell which mod a crash report's stack frames belong to. Never throws.
+ */
+async function modPackages(zip, json) {
+  const out = new Set();
+  const add = (pkg) => {
+    if (pkg && out.size < MAX_PACKAGES) out.add(pkg);
+  };
+  try {
+    const eps = json && json.entrypoints && typeof json.entrypoints === "object" ? json.entrypoints : {};
+    for (const list of Object.values(eps).slice(0, 16)) {
+      for (const e of (Array.isArray(list) ? list : [list]).slice(0, 16)) {
+        add(packageOfClass(typeof e === "string" ? e : e && typeof e.value === "string" ? e.value : null));
+      }
+    }
+    const mixins = Array.isArray(json && json.mixins) ? json.mixins : [];
+    for (const m of mixins.slice(0, MAX_MIXIN_CONFIGS)) {
+      const name = typeof m === "string" ? m : m && typeof m.config === "string" ? m.config : null;
+      if (!name || name.includes("..") || !zip.has(name)) continue;
+      const raw = await zip.read(name);
+      if (!raw || raw.length > MAX_MIXIN_CONFIG_BYTES) continue;
+      const cfg = parseLooseJson(raw.toString("utf8"));
+      const pkg = cfg && typeof cfg.package === "string" ? cfg.package.trim() : "";
+      if (PACKAGE_NAME.test(pkg) && pkg.length <= 200) add(pkg);
+    }
+  } catch {
+    // a mixin config that can't be read: the packages found so far are enough
+  }
+  return [...out];
+}
+
 async function readJarMeta(full, stat) {
   const cached = jarMetaCache.get(full);
   if (cached && cached.size === stat.size && cached.mtimeMs === stat.mtimeMs) return cached.meta;
@@ -428,6 +475,7 @@ async function readJarMeta(full, stat) {
       let nestedMods = [];
       let nestedUnread = false;
       let nestedUnreadNames = []; // file names of the nested jars behind nestedUnread ("*": some that aren't even named here)
+      let packages = []; // the Java packages its code lives in (entrypoints, mixins) - to tell which mod a crash came from
       // Only well-formed predicates are kept: { "sodium": ">=0.6.0" } or an
       // array of such strings. Anything else is dropped rather than guessed.
       const predicates = (obj) => {
@@ -451,6 +499,7 @@ async function readJarMeta(full, stat) {
           nested = listed.slice(0, 200);
         }
         if (["client", "server", "*"].includes(json.environment)) environment = json.environment;
+        packages = await modPackages(zip, json);
         if (nested.length) {
           const inside = await readNestedMods(zip, nested);
           nestedMods = inside.mods;
@@ -515,9 +564,10 @@ async function readJarMeta(full, stat) {
           nestedMods,
           nestedUnread,
           nestedUnreadNames,
+          packages,
         };
       } else if (descriptors.fabric || descriptors.quilt || descriptors.forge || descriptors.neoforge) {
-        meta = { modId: null, name: null, version: null, description: null, author: null, icon: null, descriptors, mcDep, requires, depends, breaks, provides, nested, environment, nestedMods, nestedUnread, nestedUnreadNames };
+        meta = { modId: null, name: null, version: null, description: null, author: null, icon: null, descriptors, mcDep, requires, depends, breaks, provides, nested, environment, nestedMods, nestedUnread, nestedUnreadNames, packages };
       }
     } finally {
       await zip.close();
@@ -607,6 +657,7 @@ async function listFolder(gameDir, kind, world, manifest) {
         item.nestedMods = meta.nestedMods || [];
         item.nestedUnread = meta.nestedUnread === true;
         item.nestedUnreadNames = Array.isArray(meta.nestedUnreadNames) ? meta.nestedUnreadNames : [];
+        item.packages = Array.isArray(meta.packages) ? meta.packages : [];
       }
     }
     out.push(item);

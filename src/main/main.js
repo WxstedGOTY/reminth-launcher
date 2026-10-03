@@ -33,6 +33,7 @@ const modsSync = require("./modsSync");
 const atomic = require("./atomic");
 const projectPage = require("./projectPage");
 const windowRestore = require("./windowRestore");
+const crashReport = require("./crashReport");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -1121,12 +1122,14 @@ async function startGame(inst, join, claim, worldRequest) {
     claim.child = child;
     // Only the process the session is on ends it: the refused first try
     // also "exits", a moment after its replacement has been started.
-    child.once("exit", () => {
+    child.once("exit", (code) => {
       if (claim.child !== child) return;
       finishSession(inst, true, claim);
       // Fabric's "incompatible mods" window keeps the game open until it is
       // closed, so the refusal can end up here rather than in onCrash.
       noteLaunchReport(inst, claim.startedAt);
+      // A crash in play (after the start-up window onCrash watches) too.
+      noteCrashReport(inst, claim.startedAt, code);
     });
     child.once("error", () => claim.child === child && finishSession(inst, false, claim));
     return child;
@@ -1210,6 +1213,56 @@ async function noteLaunchReport(inst, startedAt) {
     send("compat:changed", { instanceId: inst.id, refused: mods.length });
   } catch {
     // no log, a locked file - the next look just doesn't know more
+  }
+}
+
+/**
+ * After a game ended: if it left a crash report and that report points at
+ * exactly one of the instance's own mods (crashReport.findCulprit - never a
+ * guess), remember it in <instance>/.reminth/crash-finding.json, so the
+ * compatibility panel shows that mod as "Crashed the game" (until the file
+ * changes), and tell the window, which says which mod it was and offers the
+ * fix. A clean exit (code 0, no new report) forgets the last finding.
+ */
+async function noteCrashReport(inst, startedAt, exitCode) {
+  try {
+    if (!inst || !inst.gameDir || inst.loader === "vanilla") return;
+    const gameDir = await fs.promises.realpath(inst.gameDir);
+    const findingFile = path.join(gameDir, crashReport.FINDING_FILE);
+    const before = await crashReport.readFinding(gameDir);
+    let report = await crashReport.latestReport(gameDir, startedAt);
+    if (report && before && before.report === report.name) report = null; // that one was already told
+    if (!report) {
+      if (exitCode === 0 && before) {
+        await fs.promises.rm(findingFile, { force: true });
+        compat.invalidate(inst.id);
+      }
+      return;
+    }
+    const parsed = crashReport.parseCrashReport(report.text);
+    const items = (await content.listAll(gameDir)).mod || [];
+    const culprit = crashReport.findCulprit(parsed, items, { skipFiles: await compat.managedNames(gameDir) });
+    if (!culprit) return;
+    const it = culprit.item;
+    const name = it.title || it.name || it.file;
+    await atomic.writeJsonAtomic(
+      findingFile,
+      {
+        at: new Date().toISOString(),
+        report: report.name,
+        mcVersion: inst.mcVersion,
+        loader: inst.loader,
+        how: culprit.how,
+        description: parsed.description,
+        error: parsed.error,
+        mod: { file: it.file, size: it.size, mtimeMs: it.modifiedAt, modId: it.modId || null, name },
+      },
+      { space: 2 }
+    );
+    compat.invalidate(inst.id);
+    send("play:crashCulprit", { instanceId: inst.id, file: it.file, name });
+  } catch {
+    // no report, a locked file - nothing is said then
   }
 }
 
