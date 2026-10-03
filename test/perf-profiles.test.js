@@ -1,0 +1,602 @@
+"use strict";
+/**
+ * Tests for performance profiles (perfProfiles.js), the starting options.txt
+ * a brand-new instance may get (gameOptions.js), the `perfProfile` field on
+ * instances, and the main-process IPC that serves them - main.js loaded
+ * against a fake Electron.
+ *
+ * No network, no Electron, no Minecraft: client jars are zips built here and
+ * Modrinth is a fake object. Everything on disk happens under a throwaway
+ * HOME. Whether the game itself keeps the written values is NOT tested here
+ * (that needs the real game, per version family).
+ * Run with: node --test test/perf-profiles.test.js
+ */
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("fs");
+const fsp = fs.promises;
+const os = require("os");
+const path = require("path");
+const { EventEmitter } = require("events");
+
+const HOME = fs.mkdtempSync(path.join(os.tmpdir(), "reminth-perfprofiles-"));
+process.env.HOME = HOME;
+process.env.USERPROFILE = HOME;
+test.after(() => fs.rmSync(HOME, { recursive: true, force: true }));
+
+/* ---------------- a fake Electron, enough for main.js to load ---------------- */
+
+const ipc = new Map();
+let appReady;
+const whenReady = new Promise((resolve) => (appReady = resolve));
+class FakeWebContents extends EventEmitter {
+  send() {}
+  setWindowOpenHandler() {}
+  getURL() {
+    return "";
+  }
+}
+class FakeWindow extends EventEmitter {
+  constructor() {
+    super();
+    this.webContents = new FakeWebContents();
+  }
+  loadFile() {
+    setImmediate(() => this.webContents.emit("did-finish-load"));
+    return Promise.resolve();
+  }
+  isDestroyed() {
+    return false;
+  }
+  isMinimized() {
+    return false;
+  }
+  isMaximized() {
+    return false;
+  }
+  maximize() {}
+  unmaximize() {}
+  minimize() {}
+  restore() {}
+  show() {}
+  focus() {}
+  close() {}
+}
+const noop = () => {};
+const fakeElectron = {
+  app: { requestSingleInstanceLock: () => true, on: noop, quit: noop, whenReady: () => whenReady, getVersion: () => "0.0.0-test", disableHardwareAcceleration: noop },
+  BrowserWindow: FakeWindow,
+  ipcMain: { handle: (channel, fn) => ipc.set(channel, fn), on: noop },
+  shell: { openExternal: noop, openPath: async () => "", trashItem: async () => {} },
+  screen: { getPrimaryDisplay: () => ({ workAreaSize: { width: 1920, height: 1080 } }) },
+  safeStorage: { isEncryptionAvailable: () => false },
+  desktopCapturer: { getSources: async () => [] },
+  globalShortcut: { register: () => true, unregisterAll: noop, unregister: noop },
+  Notification: class {
+    static isSupported() {
+      return false;
+    }
+    show() {}
+  },
+};
+const Module = require("module");
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function (request, ...rest) {
+  if (request === "electron") return "STUB_ELECTRON_PERFPROFILES";
+  return originalResolve.call(this, request, ...rest);
+};
+Module._cache.STUB_ELECTRON_PERFPROFILES = { id: "STUB_ELECTRON_PERFPROFILES", filename: "STUB_ELECTRON_PERFPROFILES", loaded: true, exports: fakeElectron };
+
+const gameOptions = require("../src/main/gameOptions");
+const perfProfiles = require("../src/main/perfProfiles");
+const instances = require("../src/main/instances");
+const zip = require("../src/main/zip");
+
+// The main.js part below swaps these for fakes when this file loads (before
+// any test runs), so the instance tests keep the real ones here.
+const realInstances = { create: instances.create, update: instances.update };
+
+let seq = 0;
+/** A fresh, empty instance folder. */
+async function freshDir() {
+  const dir = path.join(HOME, "inst", `g${++seq}`);
+  await fsp.mkdir(dir, { recursive: true });
+  return dir;
+}
+/** A "client jar" whose version.json says `versionJson` (or none at all when null). */
+async function clientJar(versionJson) {
+  const src = path.join(HOME, "jarsrc", `j${++seq}`);
+  await fsp.mkdir(path.join(src, "net"), { recursive: true });
+  await fsp.writeFile(path.join(src, "net", "Main.class"), "x");
+  if (versionJson !== null) await fsp.writeFile(path.join(src, "version.json"), typeof versionJson === "string" ? versionJson : JSON.stringify(versionJson));
+  const out = path.join(HOME, "jars", `client${seq}.jar`);
+  await fsp.mkdir(path.dirname(out), { recursive: true });
+  await zip.buildZip(src, out);
+  return out;
+}
+const read = (file) => fsp.readFile(file, "utf8");
+const exists = (file) =>
+  fsp.access(file).then(
+    () => true,
+    () => false
+  );
+
+/* ---------------- gameOptions: what gets written ---------------- */
+
+const DATA_26 = 4700; // any 26.x-sized data version
+const DATA_1_16_5 = 2586;
+const DATA_1_18_1 = 2865;
+const DATA_1_18_2 = 2975;
+const DATA_1_15_2 = 2230;
+
+test("buildOptions: balanced (or anything unknown) writes nothing", () => {
+  for (const p of ["balanced", undefined, null, "", "MAX-FPS", "ultra"]) {
+    assert.equal(gameOptions.buildOptions(p, { worldVersion: DATA_26 }), null, String(p));
+  }
+});
+
+test("buildOptions: max-fps on a current version - exactly the agreed keys, version first", () => {
+  assert.deepEqual(gameOptions.buildOptions("max-fps", { worldVersion: DATA_26 }), [
+    ["version", String(DATA_26)],
+    ["renderDistance", "10"],
+    ["simulationDistance", "8"],
+    ["particles", "1"],
+    ["entityShadows", "false"],
+    ["biomeBlendRadius", "1"],
+    ["entityDistanceScaling", "0.75"],
+    ["enableVsync", "false"],
+    ["maxFps", "260"],
+  ]);
+});
+
+test("buildOptions: far-view on a current version", () => {
+  assert.deepEqual(gameOptions.buildOptions("far-view", { worldVersion: DATA_26, totalMemMb: 8192, cpuCount: 4 }), [
+    ["version", String(DATA_26)],
+    ["renderDistance", "16"],
+    ["simulationDistance", "8"],
+    ["biomeBlendRadius", "2"],
+    ["entityDistanceScaling", "1.0"],
+    ["prioritizeChunkUpdates", "0"],
+  ]);
+});
+
+test("buildOptions: keys a version doesn't have are left out; older than 1.16 gets nothing", () => {
+  const keys = (p, v) => (gameOptions.buildOptions(p, { worldVersion: v }) || []).map(([k]) => k);
+  // 1.16/1.17: no simulation distance yet, no chunk-builder option
+  assert.equal(keys("max-fps", DATA_1_16_5).includes("simulationDistance"), false);
+  assert.equal(keys("far-view", DATA_1_16_5).includes("simulationDistance"), false);
+  assert.equal(keys("far-view", DATA_1_16_5).includes("prioritizeChunkUpdates"), false);
+  // 1.18.1: simulation distance yes, chunk builder not yet
+  assert.equal(keys("far-view", DATA_1_18_1).includes("simulationDistance"), true);
+  assert.equal(keys("far-view", DATA_1_18_1).includes("prioritizeChunkUpdates"), false);
+  assert.equal(keys("far-view", DATA_1_18_2).includes("prioritizeChunkUpdates"), true);
+  // too old, or no usable data version at all
+  for (const v of [DATA_1_15_2, 0, -1, 2566.5, "4700", null, undefined, NaN]) {
+    assert.equal(gameOptions.buildOptions("max-fps", { worldVersion: v }), null, String(v));
+  }
+});
+
+test("farViewDistance: 16 by default, 20 and 24 only on bigger PCs (16 GB PCs report a bit less)", () => {
+  assert.equal(gameOptions.farViewDistance(8192, 4), 16);
+  assert.equal(gameOptions.farViewDistance(32768, 6), 16, "RAM alone isn't enough");
+  assert.equal(gameOptions.farViewDistance(8192, 16), 16, "threads alone aren't enough");
+  assert.equal(gameOptions.farViewDistance(16303, 8), 20, "a 16 GB PC as Windows reports it");
+  assert.equal(gameOptions.farViewDistance(32000, 11), 20);
+  assert.equal(gameOptions.farViewDistance(32542, 12), 24, "a 32 GB PC as Windows reports it");
+  assert.equal(gameOptions.farViewDistance(undefined, undefined), 16);
+});
+
+/* ---------------- gameOptions.seedIfAbsent: when it may write ---------------- */
+
+test("seedIfAbsent: a brand-new max-fps instance gets the file, and a note that it did", async () => {
+  const gameDir = await freshDir();
+  const jar = await clientJar({ id: "26.3", world_version: DATA_26 });
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile: "max-fps", clientJar: jar, totalMemMb: 16000, cpuCount: 8 }), { written: true, reason: "written" });
+  const text = await read(path.join(gameDir, "options.txt"));
+  assert.equal(text, gameOptions.buildOptions("max-fps", { worldVersion: DATA_26 }).map(([k, v]) => `${k}:${v}`).join("\n") + "\n");
+  assert.ok(text.startsWith(`version:${DATA_26}\n`));
+  const note = JSON.parse(await read(path.join(gameDir, gameOptions.SEEDED_FILE)));
+  assert.equal(note.written, true);
+  assert.equal(note.profile, "max-fps");
+  assert.equal(note.worldVersion, DATA_26);
+  assert.ok(note.keys.includes("maxFps") && !note.keys.includes("version"));
+  // never twice
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile: "max-fps", clientJar: jar }), { written: false, reason: "options-exist" });
+  // no temp files left behind
+  assert.deepEqual((await fsp.readdir(gameDir)).sort(), [".reminth", "options.txt"]);
+});
+
+test("seedIfAbsent: far-view render distance follows the PC", async () => {
+  const jar = await clientJar({ world_version: DATA_26 });
+  const big = await freshDir();
+  await gameOptions.seedIfAbsent({ gameDir: big, perfProfile: "far-view", clientJar: jar, totalMemMb: 32542, cpuCount: 16 });
+  assert.match(await read(path.join(big, "options.txt")), /^renderDistance:24$/m);
+  const small = await freshDir();
+  await gameOptions.seedIfAbsent({ gameDir: small, perfProfile: "far-view", clientJar: jar, totalMemMb: 8000, cpuCount: 4 });
+  assert.match(await read(path.join(small, "options.txt")), /^renderDistance:16$/m);
+});
+
+test("seedIfAbsent: the player's own options.txt is never touched", async () => {
+  const gameDir = await freshDir();
+  const jar = await clientJar({ world_version: DATA_26 });
+  const mine = "version:4700\nrenderDistance:32\nfov:0.5\n";
+  await fsp.writeFile(path.join(gameDir, "options.txt"), mine);
+  for (const perfProfile of ["max-fps", "far-view"]) {
+    assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile, clientJar: jar }), { written: false, reason: "options-exist" });
+  }
+  assert.equal(await read(path.join(gameDir, "options.txt")), mine);
+  assert.equal(await exists(path.join(gameDir, gameOptions.SEEDED_FILE)), false);
+});
+
+test("seedIfAbsent: balanced and unknown profiles write nothing", async () => {
+  const jar = await clientJar({ world_version: DATA_26 });
+  for (const perfProfile of ["balanced", undefined, "turbo"]) {
+    const gameDir = await freshDir();
+    assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile, clientJar: jar }), { written: false, reason: "profile" });
+    assert.deepEqual(await fsp.readdir(gameDir), []);
+  }
+});
+
+test("seedIfAbsent: an instance that has been played (worlds or a log) is left alone", async () => {
+  const jar = await clientJar({ world_version: DATA_26 });
+  const withWorld = await freshDir();
+  await fsp.mkdir(path.join(withWorld, "saves", "New World"), { recursive: true });
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir: withWorld, perfProfile: "max-fps", clientJar: jar }), { written: false, reason: "has-worlds" });
+  const withLog = await freshDir();
+  await fsp.mkdir(path.join(withLog, "logs"), { recursive: true });
+  await fsp.writeFile(path.join(withLog, "logs", "latest.log"), "[main/INFO]: Setting user: Steve\n");
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir: withLog, perfProfile: "max-fps", clientJar: jar }), { written: false, reason: "played" });
+  // an empty saves folder isn't a world
+  const emptySaves = await freshDir();
+  await fsp.mkdir(path.join(emptySaves, "saves"), { recursive: true });
+  assert.equal((await gameOptions.seedIfAbsent({ gameDir: emptySaves, perfProfile: "max-fps", clientJar: jar })).written, true);
+  for (const dir of [withWorld, withLog]) assert.equal(await exists(path.join(dir, "options.txt")), false);
+});
+
+test("seedIfAbsent: seeded once means never again, even if the player deletes options.txt", async () => {
+  const gameDir = await freshDir();
+  const jar = await clientJar({ world_version: DATA_26 });
+  assert.equal((await gameOptions.seedIfAbsent({ gameDir, perfProfile: "far-view", clientJar: jar })).written, true);
+  await fsp.rm(path.join(gameDir, "options.txt"));
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile: "far-view", clientJar: jar }), { written: false, reason: "already-seeded" });
+  assert.equal(await exists(path.join(gameDir, "options.txt")), false);
+});
+
+test("seedIfAbsent: no readable data version in the client jar - nothing written", async () => {
+  const cases = [
+    [await clientJar(null), "no version.json"],
+    [await clientJar({ id: "1.21.4" }), "no world_version"],
+    [await clientJar({ world_version: "4189" }), "world_version as text"],
+    [await clientJar("{not json"), "broken json"],
+    [path.join(HOME, "missing.jar"), "no jar"],
+    [null, "no jar given"],
+  ];
+  for (const [jar, why] of cases) {
+    const gameDir = await freshDir();
+    assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile: "max-fps", clientJar: jar }), { written: false, reason: "no-data-version" }, why);
+    assert.deepEqual(await fsp.readdir(gameDir), [], why);
+  }
+  const old = await freshDir();
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir: old, perfProfile: "max-fps", clientJar: await clientJar({ world_version: DATA_1_15_2 }) }), { written: false, reason: "version-too-old" });
+});
+
+test("seedIfAbsent / readWorldVersion never throw", async () => {
+  for (const args of [undefined, null, {}, { gameDir: 5, perfProfile: "max-fps" }, { gameDir: "", perfProfile: "far-view" }]) {
+    const out = await gameOptions.seedIfAbsent(args || undefined);
+    assert.equal(out.written, false);
+  }
+  assert.equal(await gameOptions.readWorldVersion(path.join(HOME, "nope.jar")), null);
+  assert.equal(await gameOptions.readWorldVersion(await clientJar({ world_version: 4189 })), 4189);
+});
+
+test("markNoSeed: modpack and copied instances never get a starting options.txt", async () => {
+  const gameDir = await freshDir();
+  const jar = await clientJar({ world_version: DATA_26 });
+  assert.equal(await gameOptions.markNoSeed(gameDir, "modpack"), true);
+  const note = JSON.parse(await read(path.join(gameDir, gameOptions.SEEDED_FILE)));
+  assert.equal(note.written, false);
+  assert.equal(note.reason, "modpack");
+  assert.deepEqual(await gameOptions.seedIfAbsent({ gameDir, perfProfile: "max-fps", clientJar: jar }), { written: false, reason: "already-seeded" });
+  assert.equal(await exists(path.join(gameDir, "options.txt")), false);
+  // never throws, and a bad folder is just "no"
+  assert.equal(await gameOptions.markNoSeed(undefined, "x"), false);
+});
+
+/* ---------------- perfProfiles ---------------- */
+
+test("perfProfiles.list: three profiles, each with a title and two lines", () => {
+  const list = perfProfiles.list();
+  assert.deepEqual(
+    list.map((p) => p.id),
+    ["balanced", "max-fps", "far-view"]
+  );
+  for (const p of list) {
+    assert.ok(p.title);
+    assert.equal(p.description.length, 2);
+  }
+  // the honest sentences the UI relies on
+  const far = list.find((p) => p.id === "far-view").description.join(" ");
+  assert.match(far, /more than 8 chunks away stop growing and moving in singleplayer/);
+  assert.match(far, /new instances only; your existing settings are never changed/);
+  assert.match(list.find((p) => p.id === "max-fps").description.join(" "), /new instances only; your existing settings are never changed/);
+});
+
+test("perfProfiles.normaliseProfile: anything unknown is balanced", () => {
+  assert.equal(perfProfiles.normaliseProfile("far-view"), "far-view");
+  assert.equal(perfProfiles.normaliseProfile("max-fps"), "max-fps");
+  for (const v of [undefined, null, "", "Max FPS", 3, {}]) assert.equal(perfProfiles.normaliseProfile(v), "balanced");
+});
+
+test("perfProfiles.extrasFor: by profile and loader; C2ME is experimental with the exact warning", () => {
+  const slugs = (inst) => perfProfiles.extrasFor(inst).map((e) => e.slug);
+  assert.deepEqual(slugs({ loader: "fabric" }), [], "balanced suggests nothing");
+  assert.deepEqual(slugs({ loader: "vanilla", perfProfile: "max-fps" }), [], "vanilla can't load mods");
+  assert.deepEqual(slugs({ loader: "fabric", perfProfile: "max-fps" }), ["dynamic-fps", "badoptimizations", "moreculling"]);
+  assert.deepEqual(slugs({ loader: "quilt", perfProfile: "far-view" }), ["distanthorizons", "bobby", "c2me-fabric"]);
+  assert.deepEqual(slugs({ loader: "neoforge", perfProfile: "far-view" }), ["distanthorizons"], "Bobby and C2ME are Fabric-only");
+  assert.deepEqual(slugs({ loader: "forge", perfProfile: "far-view" }), ["distanthorizons"]);
+  const all = perfProfiles.extrasFor({ loader: "fabric", perfProfile: "far-view" });
+  const c2me = all.find((e) => e.slug === "c2me-fabric");
+  assert.equal(c2me.experimental, true);
+  assert.equal(c2me.warning, "Experimental (alpha). It can freeze world creation or damage a world. Back up your worlds first.");
+  assert.match(all.find((e) => e.slug === "distanthorizons").warning, /servers don't allow/);
+  // only C2ME is experimental
+  for (const p of Object.values(perfProfiles.PROFILES)) for (const e of p.extras) assert.equal(e.experimental === true, e.slug === "c2me-fabric", e.slug);
+});
+
+test("perfProfiles.listExtras: availability, channel and 'installed' from Modrinth + the content list", async () => {
+  const asked = [];
+  const fakeModrinth = {
+    async getProjectVersions(slug, opts) {
+      asked.push([slug, opts]);
+      if (slug === "dynamic-fps") return [{ project_id: "DFPS", version_type: "beta" }, { project_id: "DFPS", version_type: "release" }];
+      if (slug === "badoptimizations") return [{ project_id: "BADO", version_type: "beta" }];
+      if (slug === "moreculling") return [];
+      throw new Error("unexpected");
+    },
+  };
+  const fakeContent = {
+    loadersFor: () => ["quilt", "fabric"],
+    readManifest: async () => ({ files: { "mods/dynamic-fps.jar": { projectId: "DFPS" }, "mods/other.jar": { projectId: "ZZZ" } } }),
+  };
+  const inst = { id: "x", loader: "quilt", mcVersion: "1.21.4", perfProfile: "max-fps", gameDir: "/nowhere" };
+  const rows = await perfProfiles.listExtras(inst, { modrinth: fakeModrinth, content: fakeContent });
+  assert.deepEqual(
+    rows.map((r) => [r.slug, r.available, r.channel, r.installed]),
+    [
+      ["dynamic-fps", true, "release", true],
+      ["badoptimizations", true, "beta", false],
+      ["moreculling", false, null, false],
+    ]
+  );
+  for (const [, opts] of asked) assert.deepEqual(opts, { loaders: ["quilt", "fabric"], gameVersions: ["1.21.4"] });
+  for (const r of rows) assert.ok(r.title && r.why && "warning" in r && r.experimental === false);
+});
+
+test("perfProfiles.listExtras: a missing project is 'not available', Modrinth down is 'don't know'", async () => {
+  const fakeContent = { loadersFor: () => ["fabric"], readManifest: async () => ({ files: {} }) };
+  const inst = { loader: "fabric", mcVersion: "26.3", perfProfile: "far-view", gameDir: "/nowhere" };
+  const rows = await perfProfiles.listExtras(inst, {
+    content: fakeContent,
+    modrinth: {
+      async getProjectVersions(slug) {
+        if (slug === "bobby") throw new Error("Modrinth API GET /project/bobby/version failed: 404 Not Found");
+        throw new Error("Modrinth couldn't be reached");
+      },
+    },
+  });
+  const by = Object.fromEntries(rows.map((r) => [r.slug, r]));
+  assert.equal(by.bobby.available, false);
+  assert.equal(by.distanthorizons.available, null);
+  assert.equal(by.distanthorizons.installed, null);
+  assert.equal(by["c2me-fabric"].experimental, true);
+  // nothing to ask for balanced or vanilla
+  assert.deepEqual(await perfProfiles.listExtras({ loader: "fabric" }, { content: fakeContent, modrinth: {} }), []);
+});
+
+/* ---------------- instances: the perfProfile field ---------------- */
+
+test("instances.sanitizeInstance: perfProfile kept only when it's a known, non-default profile", () => {
+  const base = { id: "a-1234", mcVersion: "1.21.4", loader: "fabric" };
+  assert.equal("perfProfile" in instances.sanitizeInstance(base), false);
+  assert.equal(instances.sanitizeInstance({ ...base, perfProfile: "max-fps" }).perfProfile, "max-fps");
+  assert.equal(instances.sanitizeInstance({ ...base, perfProfile: "far-view" }).perfProfile, "far-view");
+  for (const junk of ["balanced", "turbo", 1, null, { x: 1 }]) assert.equal("perfProfile" in instances.sanitizeInstance({ ...base, perfProfile: junk }), false, String(junk));
+});
+
+test("instances: create and update store the profile, in the registry and the folder's own copy", async () => {
+  const made = await realInstances.create({ name: "Far", mcVersion: "1.21.4", loader: "vanilla", perfProfile: "far-view" });
+  assert.equal(made.perfProfile, "far-view");
+  const meta = () => JSON.parse(fs.readFileSync(path.join(made.gameDir, ".reminth", "instance.json"), "utf8"));
+  assert.equal(meta().perfProfile, "far-view");
+  assert.equal((await realInstances.update(made.id, { perfProfile: "max-fps" })).perfProfile, "max-fps");
+  assert.equal(meta().perfProfile, "max-fps");
+  const back = await realInstances.update(made.id, { perfProfile: "balanced" });
+  assert.equal("perfProfile" in back, false);
+  assert.equal("perfProfile" in meta(), false);
+  const plain = await realInstances.create({ name: "Plain", mcVersion: "1.21.4", loader: "vanilla" });
+  assert.equal("perfProfile" in plain, false);
+  await instances.remove(made.id);
+  await instances.remove(plain.id);
+});
+
+/* ---------------- main.js IPC, against the fake Electron ---------------- */
+
+const store = require("../src/main/store");
+const streamer = require("../src/main/streamer");
+const updater = require("../src/main/updater");
+const content = require("../src/main/content");
+const logs = require("../src/main/logs");
+const catalogCache = require("../src/main/catalogCache");
+const minecraft = require("../src/main/minecraft");
+const compat = require("../src/main/compat");
+const migrate = require("../src/main/migrate");
+const mrpack = require("../src/main/mrpack");
+
+// Signed in (Play refuses otherwise), with a token far from expiry so
+// nothing tries to refresh it.
+store.loadAccount = async () => ({
+  minecraftAccessToken: "mc-token",
+  minecraftAccessTokenExpiresAt: Date.now() + 12 * 60 * 60 * 1000,
+  msRefreshToken: "refresh-1",
+  uuid: "u1",
+  username: "Steve",
+});
+streamer.init = noop;
+streamer.configure = () => ({ hotkeyProblems: [] });
+streamer.gameStarted = noop;
+streamer.gameStopped = noop;
+streamer.shutdown = noop;
+updater.init = noop;
+content.watchInstance = async () => {};
+logs.importInstanceLogs = async () => {};
+catalogCache.getWarmStatus = () => ({ state: "done", updated_at: Date.now() });
+
+let INSTANCE = { id: "i1", name: "Test", gameDir: path.join(HOME, "main-i1"), mcVersion: "1.21.4", loader: "vanilla", loaderVersion: null };
+let updates = [];
+let creates = [];
+instances.list = async () => [INSTANCE];
+instances.get = async () => INSTANCE;
+instances.require = async () => INSTANCE;
+instances.recordSession = async () => {};
+instances.update = async (id, patch) => {
+  updates.push(patch);
+  return { ...INSTANCE, ...patch };
+};
+instances.create = async (fields) => {
+  creates.push(fields);
+  return { id: "made" + creates.length, ...fields, gameDir: path.join(HOME, "made", String(creates.length)) };
+};
+let install = null;
+minecraft.ensureInstalled = () => install.promise;
+minecraft.launch = () => {
+  const child = new EventEmitter();
+  child.pid = 4242;
+  child.kill = noop;
+  return child;
+};
+
+require("../src/main/main");
+const call = (channel, ...args) => ipc.get(channel)({}, ...args);
+
+test("main: perf:profiles, and create/update only pass known profiles", async () => {
+  appReady();
+  for (let i = 0; i < 400 && !(await call("auth:current")); i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.deepEqual(await call("auth:current"), { username: "Steve" });
+  assert.deepEqual(await call("perf:profiles"), perfProfiles.list());
+  creates = [];
+  await call("instances:create", { name: "A", mcVersion: "1.21.4", loader: "vanilla", perfProfile: "far-view" });
+  await call("instances:create", { name: "B", mcVersion: "1.21.4", loader: "vanilla", perfProfile: "nonsense" });
+  await call("instances:create", { name: "C", mcVersion: "1.21.4", loader: "vanilla" });
+  assert.deepEqual(
+    creates.map((c) => c.perfProfile),
+    ["far-view", "balanced", "balanced"]
+  );
+  updates = [];
+  await call("instances:update", "i1", { perfProfile: "max-fps" });
+  await call("instances:update", "i1", { perfProfile: "nope", name: "Kept" });
+  assert.deepEqual(updates, [{ perfProfile: "max-fps" }, { name: "Kept" }]);
+});
+
+test("main: far-view instances get the modpack memory default", async () => {
+  const total = os.totalmem();
+  const entitlements = require("../src/main/entitlements");
+  const want = (modpack) => minecraft.computeDefaultMaxMemoryMb(total, { modpack, modCount: 0, capMb: entitlements.ramCapMb() });
+  const saved = INSTANCE;
+  try {
+    INSTANCE = { ...saved, perfProfile: "far-view" };
+    assert.equal((await call("perf:info", "i1")).defaultMemoryMb, want(true));
+    INSTANCE = { ...saved, perfProfile: "max-fps" };
+    assert.equal((await call("perf:info", "i1")).defaultMemoryMb, want(false));
+  } finally {
+    INSTANCE = saved;
+  }
+});
+
+test("main: perf:packStatus and perf:restorePack (refused while the game runs)", async () => {
+  const seen = { status: [], reset: [], invalidated: [] };
+  const real = { status: minecraft.performancePackStatus, reset: minecraft.resetPerformancePack, invalidate: compat.invalidate };
+  minecraft.performancePackStatus = async (inst) => {
+    seen.status.push(inst.id);
+    return { enabled: true, loader: inst.loader, mods: [] };
+  };
+  minecraft.resetPerformancePack = async (inst) => {
+    seen.reset.push(inst.id);
+    return true;
+  };
+  compat.invalidate = (id) => seen.invalidated.push(id);
+  try {
+    assert.deepEqual(await call("perf:packStatus", "i1"), { enabled: true, loader: "vanilla", mods: [] });
+    assert.deepEqual(await call("perf:restorePack", "i1"), { reset: true, status: { enabled: true, loader: "vanilla", mods: [] } });
+    assert.deepEqual(seen.reset, ["i1"]);
+    assert.deepEqual(seen.invalidated, ["i1"]);
+
+    // While the game is starting/running: refused, nothing reset.
+    install = { promise: new Promise(() => {}) }; // an install that never finishes = "running"
+    call("play:run", { instanceId: "i1" }).catch(() => {});
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal((await call("instances:list"))[0].running, true);
+    await assert.rejects(call("perf:restorePack", "i1"), /Close the game first/);
+    assert.deepEqual(seen.reset, ["i1"], "not reset again");
+    await call("play:stop", { instanceId: "i1" });
+    assert.equal((await call("instances:list"))[0].running, false);
+  } finally {
+    minecraft.performancePackStatus = real.status;
+    minecraft.resetPerformancePack = real.reset;
+    compat.invalidate = real.invalidate;
+  }
+});
+
+test("main: copy-to-version keeps the profile and a switched-on pack, and never seeds the copy", async () => {
+  const realCopy = migrate.copyToVersion;
+  migrate.copyToVersion = async (source, request, tools) => ({
+    instance: await tools.createInstance({ name: "Copy", mcVersion: request.mcVersion, loader: source.loader, hud: false }),
+    installed: [],
+    skipped: [],
+    unknown: [],
+  });
+  const saved = INSTANCE;
+  try {
+    INSTANCE = { ...saved, perfProfile: "max-fps", performanceMods: true };
+    creates = [];
+    const result = await call("compat:copyToVersion", "i1", { mcVersion: "1.21.1" });
+    assert.equal(creates[0].perfProfile, "max-fps");
+    assert.equal(creates[0].performanceMods, true);
+    const note = JSON.parse(await read(path.join(result.instance.gameDir, gameOptions.SEEDED_FILE)));
+    assert.deepEqual([note.written, note.reason], [false, "copied"]);
+    // the source with no profile and the default pack: nothing extra passed
+    INSTANCE = saved;
+    creates = [];
+    await call("compat:copyToVersion", "i1", { mcVersion: "1.21.1" });
+    assert.equal(creates[0].perfProfile, undefined);
+    assert.equal("performanceMods" in creates[0], false);
+  } finally {
+    migrate.copyToVersion = realCopy;
+    INSTANCE = saved;
+  }
+});
+
+test("main: an installed modpack is marked so a profile never writes its options.txt", async () => {
+  const realInstall = mrpack.installModpack;
+  const gameDir = path.join(HOME, "pack-1");
+  mrpack.installModpack = async () => ({ id: "pack-1", name: "Pack", gameDir, mcVersion: "1.21.1", loader: "fabric" });
+  try {
+    const inst = await call("modpack:install", { projectId: "abc" });
+    assert.equal(inst.id, "pack-1");
+    assert.equal(inst.running, false);
+    const note = JSON.parse(await read(path.join(gameDir, gameOptions.SEEDED_FILE)));
+    assert.equal(note.reason, "modpack");
+  } finally {
+    mrpack.installModpack = realInstall;
+  }
+});
+
+test("main: perf:profileExtras serves the instance's suggestions", async () => {
+  const saved = INSTANCE;
+  INSTANCE = { ...saved, loader: "vanilla", perfProfile: "max-fps" };
+  try {
+    assert.deepEqual(await call("perf:profileExtras", "i1"), [], "vanilla: nothing to suggest, and Modrinth isn't asked");
+  } finally {
+    INSTANCE = saved;
+  }
+});

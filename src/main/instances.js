@@ -26,6 +26,7 @@ const crypto = require("crypto");
 const paths = require("./paths");
 const config = require("./config");
 const atomic = require("./atomic");
+const perfProfiles = require("./perfProfiles");
 
 const DEFAULT_ID = "reminth";
 const LOADERS = ["vanilla", "fabric", "quilt", "forge", "neoforge"];
@@ -100,6 +101,11 @@ function sanitizeInstance(raw) {
   // before the switch existed) or true means on, so the key is only kept
   // when it was actually set.
   if (typeof raw.performanceMods === "boolean") out.performanceMods = raw.performanceMods;
+  // Performance profile (see perfProfiles.js). "balanced" is the default,
+  // so like performanceMods the key is only kept when it says something
+  // else; an unknown value falls back to the default.
+  const perfProfile = perfProfiles.normaliseProfile(raw.perfProfile);
+  if (perfProfile !== perfProfiles.DEFAULT_PROFILE) out.perfProfile = perfProfile;
   return out;
 }
 
@@ -412,7 +418,7 @@ function slugify(name) {
   return base || "instance";
 }
 
-async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, performanceMods }) {
+async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, performanceMods, perfProfile }) {
   if (!isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
   return mutate(async () => {
     const all = await readAll();
@@ -431,6 +437,7 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
       // Fabric/Quilt: on unless switched off (nothing stored). Forge/NeoForge:
       // off unless switched on - see config.perfPackEnabled.
       performanceMods: performanceMods === false ? false : performanceMods === true && (loader === "forge" || loader === "neoforge") ? true : undefined,
+      perfProfile,
       createdAt: Date.now(),
       modpack,
     });
@@ -453,7 +460,7 @@ async function updateLocked(id, patch) {
   if (idx < 0) throw new Error("That instance doesn't exist any more.");
   const current = all[idx];
   const allowed = {};
-  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods"]) {
+  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile"]) {
     if (key in (patch || {})) allowed[key] = patch[key];
   }
   // Changing version or loader invalidates a pinned loader version.

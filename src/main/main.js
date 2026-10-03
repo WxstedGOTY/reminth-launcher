@@ -27,6 +27,8 @@ const loaders = require("./loaders");
 const updater = require("./updater");
 const compat = require("./compat");
 const migrate = require("./migrate");
+const perfProfiles = require("./perfProfiles");
+const gameOptions = require("./gameOptions");
 const { fetchJson } = require("./downloader");
 
 let win;
@@ -384,7 +386,9 @@ async function countModJars(inst) {
 /** The automatic memory for one instance (used when the player hasn't set the RAM slider). */
 async function defaultMemoryFor(inst) {
   return minecraft.computeDefaultMaxMemoryMb(os.totalmem(), {
-    modpack: Boolean(inst && inst.modpack),
+    // "Far view" holds many more chunks in memory, so it gets what a
+    // modpack gets (still capped at 8 GB and 60 % of the PC).
+    modpack: Boolean(inst && (inst.modpack || inst.perfProfile === "far-view")),
     modCount: inst ? await countModJars(inst) : 0,
     capMb: entitlements.ramCapMb(),
   });
@@ -417,6 +421,26 @@ ipcMain.handle("perf:gpuHelp", async () => {
     opened = false; // not Windows 10/11 - the paths are still worth showing
   }
   return { javaPaths: await java.installedJavawPaths(), opened };
+});
+
+// ---- performance profiles and the performance pack (instance page) ----
+ipcMain.handle("perf:profiles", () => perfProfiles.list());
+
+// The extra mods a profile suggests, checked against Modrinth for this
+// instance. Only a list - installing one is the ordinary content install.
+ipcMain.handle("perf:profileExtras", async (_e, id) => perfProfiles.listExtras(await instances.require(id)));
+
+ipcMain.handle("perf:packStatus", async (_e, id) => minecraft.performancePackStatus(await instances.require(id)));
+
+// Restore: forget which pack mods the player switched off or removed, so the
+// next Play installs the whole pack again. Only bookkeeping changes, but not
+// while the game runs - that launch already decided what's in mods/.
+ipcMain.handle("perf:restorePack", async (_e, id) => {
+  if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  const inst = await instances.require(id);
+  const reset = await minecraft.resetPerformancePack(inst);
+  compat.invalidate(id);
+  return { reset, status: await minecraft.performancePackStatus(inst) };
 });
 
 ipcMain.handle("settings:get", async () => {
@@ -458,7 +482,7 @@ async function resolveLoaderVersion(loader, mc, wanted) {
   return (list.find((e) => e.recommended) || list[0]).id;
 }
 
-ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, performanceMods }) => {
+ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, performanceMods, perfProfile }) => {
   // Checked before it's used to ask the loader's servers anything -
   // instances.create validates it too, but only after that lookup.
   if (!instances.isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
@@ -466,7 +490,7 @@ ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderV
   const lv = await resolveLoaderVersion(l, mcVersion, loaderVersion);
   // The performance-pack switch from the create dialog, if it sent one
   // (instances.create applies config.perfPackEnabled's per-loader default).
-  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined });
+  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined, perfProfile: perfProfiles.normaliseProfile(perfProfile) });
   return withRunning(inst);
 });
 
@@ -477,6 +501,9 @@ ipcMain.handle("instances:update", async (_e, id, patch) => {
   if ("mcVersion" in clean && !instances.isValidVersionId(clean.mcVersion)) throw new Error("That change isn't valid.");
   // The performance-pack switch: a real true/false or nothing at all.
   if ("performanceMods" in clean && typeof clean.performanceMods !== "boolean") delete clean.performanceMods;
+  // The performance profile: one of the known ids, anything else is ignored
+  // rather than quietly turned into "balanced".
+  if ("perfProfile" in clean && !perfProfiles.PROFILE_IDS.includes(clean.perfProfile)) delete clean.perfProfile;
   const current = await instances.require(id);
   const loader = clean.loader || current.loader;
   const mc = clean.mcVersion || current.mcVersion;
@@ -658,7 +685,18 @@ ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
       {
         createInstance: async (fields) => {
           const lv = await resolveLoaderVersion(fields.loader, fields.mcVersion, null);
-          return instances.create({ ...fields, loaderVersion: lv });
+          // The copy keeps the source's profile, and a Forge/NeoForge pack
+          // switched on stays on (migrate only passes "off").
+          const created = await instances.create({
+            ...fields,
+            loaderVersion: lv,
+            perfProfile: source.perfProfile,
+            ...(source.performanceMods === true ? { performanceMods: true } : {}),
+          });
+          // Its settings came over from the original (or deliberately
+          // didn't): never write a starting options.txt into a copy.
+          await gameOptions.markNoSeed(created.gameDir, "copied");
+          return created;
         },
       },
       (p) => send("compat:progress", { instanceId: id, ...p })
@@ -669,9 +707,13 @@ ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
   }
 });
 
-ipcMain.handle("modpack:install", async (_e, request) =>
-  withRunning(await mrpack.installModpack(request || {}, (p) => send("modpack:progress", p)))
-);
+ipcMain.handle("modpack:install", async (_e, request) => {
+  const inst = await mrpack.installModpack(request || {}, (p) => send("modpack:progress", p));
+  // The pack's own files own its settings: no starting options.txt from a
+  // profile picked later, ever.
+  await gameOptions.markNoSeed(inst && inst.gameDir, "modpack");
+  return withRunning(inst);
+});
 
 // ---- what the player has actually played (read-only, see gameData.js) ----
 const accountUuid = () => {

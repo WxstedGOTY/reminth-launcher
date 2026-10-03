@@ -84,6 +84,10 @@ contextBridge.exposeInMainWorld("reminth", {
   // performance help (main.js "perf:*")
   perfInfo: (instanceId) => ipcRenderer.invoke("perf:info", instanceId),
   perfGpuHelp: () => ipcRenderer.invoke("perf:gpuHelp"),
+  perfProfiles: () => ipcRenderer.invoke("perf:profiles"),
+  perfProfileExtras: (id) => ipcRenderer.invoke("perf:profileExtras", id),
+  perfPackStatus: (id) => ipcRenderer.invoke("perf:packStatus", id),
+  perfRestorePack: (id) => ipcRenderer.invoke("perf:restorePack", id),
 
   // settings
   getSettings: () => ipcRenderer.invoke("settings:get"),
