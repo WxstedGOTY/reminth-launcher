@@ -4,10 +4,11 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 9** ("may not work" mods that crash
-  the game: jobs A, B, C). Prompts 7 and 8 are done too. The desktop window set the version to **1.4.0**.
-- **`main` is at:** `fcaa5a9` (plus this file's commit). **`npm test`: 536 pass** on Linux (519 before
-  prompt 9).
+- **Last updated:** 3 Oct 2026, by the cloud session, after **prompt 11** ("Pick a Minecraft version for my
+  mods": jobs 1-4). **Prompt 10 (instance right-click menu, reorder, Undo) has NOT been done** - the owner
+  sent 11 first; 11 was built to stand alone (see decision P11-5). Prompt 9 is done too.
+- **`main` is at:** `8c258f3` (plus this file's commit). **`npm test`: 545 pass** on Linux (536 before
+  prompt 11).
 - **Never run** in real Electron, against live Modrinth, or with Minecraft. The new page was clicked
   through in headless Chromium (1100 and 1400 px) with a fake main process whose answers were built by
   the REAL `projectPage.js` + `markdown.js` from fake Modrinth data. That proves the page code and the
@@ -18,6 +19,23 @@ section 4 in order and report PASS/FAIL per step.
 ---
 
 ## 1. What changed
+
+### Prompt 11 ("I pick a version and some mods still don't fit… stop creating me a million instances")
+
+| Job | What it does now | Files |
+|---|---|---|
+| 1 - say what happens first | The version list is ranked by the fewest mods without a build, then the newest (versions a checked server takes first). **Best 5** shown, "Show more versions" for the rest. A green line on top: "Best match: 1.21.1 — all 29 mods fit" or "Fits most: 1.21.4 — 3 mods have to be turned off". For the version picked (and again on the confirm step) every mod sits in one plain group: **Will work (N)**, **No build for <v> (N)** "They can't work with the rest on <v>, so they will be turned off (you can turn them on again)" / "…left out of the copy", **Not from Modrinth, Reminth can't check these (N)** "kept as they are, unless the file itself says it can't run on <v> — then it is turned off" / "left out of the copy", **Couldn't be checked just now (N)**. Lists of more than 6 names are collapsed. A one-line help text says what a "build" is. The advisor now counts **stable** versions only (a beta-only mod is "No build", because the switch never installs a beta). | `pure.js` (`rankVersionRows`, `bestLine`, `modGroups`, `compareMc`), `features.js` (`openVersionAdvisor`), `compat.js` (`supportedReleases` stableOnly for the advisor), `styles.css` |
+| 2 - two clear choices | The confirm step has two radio cards: **"Switch this instance to <v>"** ("Your mods are updated to fit. Mods with no build for <v> are turned off (you can turn them on again). Your worlds stay. A backup of every replaced mod is kept.") and **"Keep this one as it is and make a new instance on <v>"** ("Nothing here changes. It uses more disk space; worlds are not copied."). Recommended: switch for the same or a newer version; a new instance is the only choice (with one plain sentence why) for an **older version while the instance has worlds**, a **modpack** instance, or a **running** game. The new-instance card says "Reminth will make a new instance: <name> — Minecraft <v> <loader>. Your other instances are not changed.", never repeats an existing name (" (2)"), and offers **"Use <instance>"** when one is already on that version and loader. A server that started the flow still joins afterwards in both cases. **Switch** runs in the main process (`compat:switchVersion` → `versionSwitch.js`): checks (running, modpack, vanilla, same version, older-over-worlds), which mods have no stable build there + the loader version (any failure: nothing changed), `.reminth/version-change.json` (atomic), the instance update (registry queue), the stable-only swap (modsSync, replaced-mods backup), every mod still without a build **renamed to .disabled** (never deleted) with its reason; a failure after the update comes back as "…is now on Minecraft <v>, but updating its mods stopped: … Press 'Update mods to fit <v>' to finish." with the note kept. | `versionSwitch.js` (new), `main.js`, `preload.js`, `compat.js` (`adviseVersions` `target`: files of the mods without a build), `content.js` (`setOffReason`), `pure.js` (`versionChoices`), `features.js` |
+| 3 - result screen | Same window: "Done — <instance> is on Minecraft <v>." with **Updated (N)**, **Already fitting (N)**, **Turned off (N)** (each: name, the reason in plain words — "no version made for 26.3" / "no finished (stable) version made for 26.3 yet" / "its own file says it can't run on 26.3" — and **Find a replacement** (Discover's mod search with that name, this instance selected) + **Turn on anyway** (the game may not start)), **Not checked (N)**. One big **Play** (or "Play <server>"), a small Close. The Mods tab's Off group shows "Turned off by Reminth: <reason>" under those mods; the reason is kept in `.reminth/content.json` (`turnedOff`, atomic, locked) and dropped when the player turns the mod on or removes it. | `features.js`, `content.js` (`setEnabled`/`remove` clear it, `listAll` gives `offReason`), `styles.css` |
+| 4 - plain words | Dialog: **"Pick a Minecraft version for my mods"**, with an intro line ("See what happens to each of your mods on another Minecraft version. Nothing changes until you confirm."). Buttons: **"Pick a version that fits my mods"** (Mods panel, the "no build" window, the "No build yet" window) and the Mods toolbar's **"Pick a version"** (was "Version check"). The "no build" window and the What's new line rewritten; "Reminth-managed" badge → "Added by Reminth". The Play question ("Minecraft won't start like this") adds one line naming mods with no version for this Minecraft **or anything newer**: "picking another version won't help them — they have to be turned off to play (Fix and play does that)". | `features.js`, `renderer.js` (What's new), `index.html`, `styles.css` |
+
+Tests: `test/version-flow.test.js` (new, 9): ranking/best line (perfect, partial, none, server), the groups per
+action, the choices (newer/older/same × worlds × modpack × running), `switchVersion` with stubs for each failure
+point (no loader build, update fails, swap stops half way) checking that every file is still there, and the
+turned-off reasons (set, cleared on enable/remove, on disk). Clicked through in headless Chromium with a fake main
+process: list + best line + groups + "Show more", both choice cards for a newer and an older-with-worlds version,
+the switch call, the result screen, "Turn on anyway", "Find a replacement" landing on Discover with the name, the
+Off-group reason, the Play-gate line, the renamed buttons.
 
 ### Prompt 9 ("may not work" mods crash the game - AppleSkin for 26.3 on 26.2)
 
@@ -116,6 +134,25 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P11-1. **Switching turns off EVERY mod the dialog listed under "No build for <v>"** - also one whose own file
+   claims it would still load (the dialog promised it, and those are the ones that crash later). **Recommend:
+   keep**; "Turn on anyway" is one click per mod on the result screen and in the Mods tab.
+P11-2. **The advisor now counts stable versions only.** A mod with only a beta for <v> is "No build for <v>" and
+   gets turned off by a switch (it was "fits" before, then left out by the copy anyway). **Recommend: keep** -
+   matches the "never a beta without asking" rule.
+P11-3. **Switching to an OLDER version is allowed when the instance has no worlds** (the prompt only forbade it
+   with worlds); the main process counts `saves/*/level.dat` again before changing anything. **Recommend: keep.**
+P11-4. **The Mods toolbar keeps a "Pick a version" button** (renamed from "Version check") next to the panel's
+   button: it's the only way in when the panel isn't showing (no problems). **Recommend: keep.**
+P11-5. **Prompt 10 was not done first.** Prompt 11's own pieces were built here: the new-instance confirmation
+   sentence, "Use <existing instance>", no duplicate names. Not done (they're prompt 10's): `madeFor`, the Undo
+   toast, the shared confirmation helper, the right-click menu. **Recommend: send prompt 10 next**; it should
+   reuse/merge with the confirmation and "Use existing" code in `openVersionAdvisor` instead of adding a
+   second one.
+P11-6. **A switch that stopped half way is finished with "Update mods to fit"**, not undone automatically.
+   `.reminth/version-change.json` keeps the old version and loader version for a manual undo; there is no
+   "Undo switch" button. **Recommend: keep for now**; add one later if testers hit it.
+
 P9-1. **A build listed only for NEWER Minecraft versions is now "may not work" even when its own file says it
    fits** (this is what makes AppleSkin show up and get swapped). It can also flag a mod that really works
    (a loose range that happens to be right). It is only a warning plus a stable swap - never blocked, never
@@ -154,6 +191,14 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 ---
 
 ## 3. Known weak spots (say them, don't hide them)
+
+- **Prompt 11 never ran in Electron or against real Modrinth.** `switchVersion` was tested with stubs for
+  Modrinth, the loader lookup and the registry, on real files; the dialog with a fake main process.
+- The switch asks Modrinth twice (the advisor lookup for the target, then the swap's own check). Both are cached
+  for minutes, but on a slow connection a 29-mod switch can take a while - not timed.
+- "Turn on anyway" on the result screen assumes the file is `<name>.disabled` (what the switch just made); if
+  the player renamed it meanwhile it says the file isn't there.
+- The prompt-10 parts the prompt mentions (`madeFor`, Undo toast) are missing - see P11-5.
 
 - **Prompt 9 never met a real crash or real Modrinth.** The crash parser was tested on the report text from
   the prompt (head only) and made-up Mixin / Forge shapes; real reports from other mods may name nobody
@@ -197,11 +242,44 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **536 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **545 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
-### Prompt 9 - "may not work" mods (test these first; a COPY of the "Reminth" instance, never the real one)
+### Prompt 11 - "Pick a Minecraft version for my mods" (test these first; a throwaway COPY of "Reminth", Fabric 26.2, 29 mods)
+V1. Mods tab → **"Pick a version that fits my mods"** (panel) or **"Pick a version"** (toolbar) → the dialog is
+    titled "Pick a Minecraft version for my mods", with the intro line and the one-line "build" help. Within a few
+    seconds: a green "Best match…" or "Fits most…" line, at most 5 versions, "Show more versions" if there are more.
+V2. Pick versions one by one: under the list the groups change (Will work / No build for <v> / Not from Modrinth /
+    Couldn't be checked) with names; long lists are collapsed. Write down which mods are listed under "No build".
+V3. Pick a **newer** version (e.g. 26.3) → Next → two cards; **"Switch this instance to 26.3"** is selected and
+    marked Recommended; the groups are shown again with "will be turned off".
+V4. Switch → progress → result screen "Done — <copy> is on Minecraft 26.3." Updated / Already fitting / Turned
+    off (each with its reason and two buttons) / Not checked. The Turned-off list = the V2 "No build" list.
+    `<instance>\.reminth\replaced-mods\<time>\` holds the replaced jars; nothing missing from `mods\` (turned-off
+    ones end in `.disabled`); no `.reminth\version-change.json` left.
+V5. Big **Play** → the game starts on 26.3 and reaches the title screen.
+V6. Back on the Mods tab: the turned-off mods are in the **Off** group with "Turned off by Reminth: no version made
+    for 26.3". Turn one on → the line disappears; turn it off by hand → no line.
+V7. On the result screen (do V4 again on another copy): **Find a replacement** → Discover, Mods tab, the mod's name
+    in the search box, "Showing what fits" = this instance. **Turn on anyway** → the file loses `.disabled`.
+V8. In a copy that has worlds, pick an **older** version (e.g. 1.21.4) → Next → the switch card is greyed out with
+    "Your worlds were saved in Minecraft 26.2. Opening them in the older 1.21.4 can damage them…"; only the
+    new-instance card can be picked (Recommended).
+V9. Make a new instance → the card says "Reminth will make a new instance: <name> — Minecraft <v> Fabric. Your
+    other instances are not changed." → it is made, worlds are not copied, its name doesn't repeat an existing
+    one. Open the dialog again on the original, same version → the new-instance card now offers **"Use <that
+    instance>"**, and using it makes no new instance. (`madeFor` isn't there yet - prompt 10.)
+V10. While the instance's game is running: the switch card is greyed out with "Close the game first…".
+V11. A modpack instance: the switch card is greyed out ("Its mods belong to the modpack…").
+V12. Play with a mod that has no version for 26.2 or anything newer (an old 1.20.1-only jar): "Minecraft won't
+    start like this" shows the extra line "<mod> has no version for Minecraft 26.2 or anything newer, so picking
+    another version won't help it — it has to be turned off to play".
+V13. Pull the network cable on the Switch click (or while it runs): either "Nothing was changed: …" (before the
+    instance moved) or the result screen's "…is now on Minecraft <v>, but updating its mods stopped…" with
+    `version-change.json` present; "Update mods to fit <v>" then finishes it. No file deleted in either case.
+
+### Prompt 9 - "may not work" mods (a COPY of the "Reminth" instance, never the real one)
 M1. Copy the owner's "Reminth" instance (Fabric 26.2 + AppleSkin `appleskin-fabric-mc26.3-3.0.10.jar` and the
     other 26.3 mods) to a throwaway instance. Its Mods tab: AppleSkin shows **May not work** ("listed for
     Minecraft 26.3, not 26.2…"). The button reads **"Update mods to fit 26.2 (N)"** and N includes AppleSkin
@@ -344,7 +422,7 @@ U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for 
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
-45. PASS/FAIL per step (M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
+45. PASS/FAIL per step (V1-V13, M1-M12 and P1-P8 too), the Skins numbers, the owner's answers to section 2, then **update this file**.
 
 ---
 
