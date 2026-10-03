@@ -1091,6 +1091,8 @@ function paintPlayButtons() {
   }
   // "Update mods to fit…" hides while the game runs or installs (features.js).
   if (typeof paintSyncButtons === "function") paintSyncButtons();
+  // A running game's mods are locked on screen; this unlocks them on exit.
+  if (typeof paintModLock === "function") paintModLock();
   // "Restart and update" waits for the game to close.
   paintUpdate();
 }

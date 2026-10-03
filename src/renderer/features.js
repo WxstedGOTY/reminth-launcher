@@ -92,6 +92,7 @@ $("contentRefresh").onclick = () => loadContent(content.instanceId || state.acti
 $("openContentFolder").onclick = () => openFolder(CONTENT_TABS[content.tab] ? CONTENT_TABS[content.tab].folder : "game", content.instanceId);
 $("addContentBtn").onclick = () => {
   const t = CONTENT_TABS[content.tab];
+  if (t && t.kind === "mod" && modsLocked(content.instanceId)) return toast(MODS_LOCKED_LINE);
   switchPage("discover");
   setDiscoverType(t ? t.discover : "mod");
 };
@@ -356,6 +357,10 @@ function contentRow(item, ctx) {
       ub.appendChild(channel);
       ub.title = `Update just this one — it's a ${up.next.channel} build, not a stable release`;
     }
+    if (ctx.locked) {
+      ub.disabled = true;
+      ub.title = MODS_LOCKED_LINE;
+    }
     ub.onclick = async () => {
       const id = content.instanceId;
       if (content.updatesFor !== id) return; // not this instance's update
@@ -383,6 +388,10 @@ function contentRow(item, ctx) {
   }
   if (item.valid) {
     const sw = el("button", "switch" + (item.enabled ? " on" : ""));
+    if (ctx.locked) {
+      sw.disabled = true;
+      sw.title = MODS_LOCKED_LINE;
+    }
     sw.type = "button";
     sw.title = item.enabled ? "Turn off" : "Turn on";
     sw.setAttribute("role", "switch");
@@ -392,6 +401,7 @@ function contentRow(item, ctx) {
       // One call at a time: a second click used to rename a file that the
       // first had already renamed, and show the raw error.
       if (sw.disabled) return;
+      if (item.kind === "mod" && modsLocked(content.instanceId)) return toast(MODS_LOCKED_LINE);
       sw.disabled = true;
       const id = content.instanceId; // fixed now - the instance on screen can change while this runs
       try {
@@ -408,10 +418,12 @@ function contentRow(item, ctx) {
   }
   const del = el("button", "icon-btn danger");
   del.type = "button";
-  del.title = "Move to Recycle Bin";
+  del.title = ctx.locked ? MODS_LOCKED_LINE : "Move to Recycle Bin";
+  del.disabled = Boolean(ctx.locked);
   del.appendChild(icon("#i-trash"));
   del.onclick = async () => {
     const id = content.instanceId; // the instance this row belongs to, whatever is on screen after the question
+    if (item.kind === "mod" && modsLocked(id)) return toast(MODS_LOCKED_LINE);
     const ok = await confirmModal(`Remove ${itemName(item)}?`, "It goes to the Recycle Bin, so you can get it back if you change your mind.", "Remove", true);
     if (!ok) return;
     del.disabled = true; // until the list is redrawn without this row
@@ -470,6 +482,8 @@ function paintSelection() {
 
 async function bulkApply(op) {
   const id = content.instanceId;
+  const t = CONTENT_TABS[content.tab];
+  if (t && t.kind === "mod" && modsLocked(id)) return toast(MODS_LOCKED_LINE);
   const picked = visibleItems().filter((i) => content.selected.has(itemKey(i)));
   if (!picked.length) return;
   if (op === "remove") {
@@ -635,9 +649,36 @@ function managedModCard(mod) {
   return card;
 }
 
+/** "Browse content" and the Open folder hint follow the lock (mods tab only). */
+function paintModsLockToolbar() {
+  const t = CONTENT_TABS[content.tab];
+  const locked = Boolean(t && t.kind === "mod" && modsLocked(content.instanceId));
+  $("addContentBtn").disabled = locked;
+  $("addContentBtn").title = locked ? MODS_LOCKED_LINE : "";
+  // Explorer can't be stopped from changing files, so this is only a hint.
+  $("openContentFolder").title = locked ? `${MODS_LOCKED_LINE} (Changes made here while it runs only half apply.)` : "";
+  $("openContentFolder").classList.toggle("hint-locked", locked);
+}
+
+// Repaints when an instance starts or stops running (renderer.js
+// paintPlayButtons calls this) - so everything comes back by itself.
+const lockPainted = new Map(); // instance id -> locked as last painted
+function paintModLock() {
+  const id = content.instanceId;
+  if (!id) return;
+  const now = modsLocked(id);
+  paintModsLockToolbar();
+  if (lockPainted.get(id) === now) return;
+  lockPainted.set(id, now);
+  if (currentPage === "instance") renderContentTab();
+  if (cardMenu) renderCardMenu();
+}
+
 function renderContentTab() {
   const t = CONTENT_TABS[content.tab];
   if (!t || !content.data) return;
+  lockPainted.set(content.instanceId, modsLocked(content.instanceId));
+  paintModsLockToolbar();
   const list = $(t.list);
   const inst = instanceById(content.instanceId);
   if (t.kind === "mod") {
@@ -668,7 +709,10 @@ function renderContentTab() {
     updatesByFile: new Map((content.updates || []).map((u) => [u.world + "/" + u.file, u])),
     neededBy: neededByMap(content.data[t.kind] || []),
     managed: Boolean(inst && inst.loader !== "vanilla"),
+    // A running game's mods can't change: their controls are off until it closes.
+    locked: t.kind === "mod" && modsLocked(content.instanceId),
   };
+  if (ctx.locked) list.appendChild(el("p", "mods-locked-note", MODS_LOCKED_LINE));
   const sections = [];
   if (t.kind === "datapack") {
     // Data packs belong to a world - one section per world.
@@ -705,6 +749,10 @@ function renderContentTab() {
   for (const [label, op, cls] of [["Turn on", "on", "outline"], ["Turn off", "off", "outline"], ["Remove", "remove", "danger"]]) {
     const b = el("button", "btn sm " + cls, label);
     b.type = "button";
+    if (ctx.locked) {
+      b.disabled = true;
+      b.title = MODS_LOCKED_LINE;
+    }
     b.onclick = () => bulkApply(op);
     bulk.appendChild(b);
   }
@@ -979,6 +1027,11 @@ async function installProject({ projectId, projectType, title, versionId, instan
     // since that class isn't set until the first install finishes. Refuse
     // the duplicate instead of sending it to the instance twice.
     toast(`${title || "That"} is already being added to ${inst.name}…`);
+    return false;
+  }
+  // The main process refuses too; this is the plain answer before anything starts.
+  if (kind === "mod" && modsLocked(inst.id)) {
+    toast(`${inst.name} is running. ${MODS_LOCKED_LINE}`);
     return false;
   }
   if ((kind === "mod" || kind === "shader") && inst.loader === "vanilla") {
@@ -1443,6 +1496,7 @@ function paintHomeCards() {
 }
 
 async function removeFromInstance(mod, inst) {
+  if ((mod.type || "mod") === "mod" && modsLocked(inst.id)) return toast(`${inst.name} is running. ${MODS_LOCKED_LINE}`);
   if (!inst) return;
   closeCardMenu(); // the question that follows must not sit under the panel
   const item = itemFor(inst.id, mod.id);
@@ -1522,7 +1576,14 @@ function renderCardMenu() {
     name.appendChild(sub);
     row.appendChild(name);
     const item = itemFor(inst.id, mod.id);
-    if (item) {
+    const locked = type === "mod" && modsLocked(inst.id);
+    if (locked) {
+      // Its game is running: mods can't be added or removed until it closes.
+      row.classList.add("locked");
+      const na = el("span", "dcp-na", item ? "Installed · game running" : "Game running");
+      na.title = MODS_LOCKED_LINE;
+      row.appendChild(na);
+    } else if (item) {
       const have = el("span", "dcp-have" + (freshAdds.has(`${inst.id}:${mod.id}`) ? " fresh" : ""));
       have.appendChild(icon("#i-check"));
       have.appendChild(document.createTextNode("Installed"));

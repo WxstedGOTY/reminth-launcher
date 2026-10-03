@@ -676,3 +676,47 @@ test("main: a start Fabric refused for the Minecraft version is remembered in .r
     INSTANCE = saved;
   }
 });
+
+test("main: while an instance runs, MOD changes are refused; packs, shaders and data packs are not", async () => {
+  const real = { setEnabled: content.setEnabled, remove: content.remove, install: content.install, removeInvalid: content.removeInvalid };
+  const did = [];
+  content.setEnabled = async (_dir, item) => did.push(["setEnabled", item.kind]);
+  content.remove = async (_dir, item) => did.push(["remove", item.kind]);
+  content.install = async (_inst, req, _p, opts) => did.push(["install", req.kind, opts.noModChanges]);
+  content.removeInvalid = async (_dir, kind) => did.push(["removeInvalid", kind]);
+  let release;
+  try {
+    // not running: everything goes through
+    await call("content:setEnabled", "i1", { kind: "mod", file: "a.jar" }, false);
+    await call("content:install", "i1", { kind: "mod", projectId: "x" });
+    // running (an install in flight counts)
+    install = { promise: new Promise((resolve) => (release = resolve)) };
+    call("play:run", { instanceId: "i1" }).catch(() => {});
+    await new Promise((resolve) => setImmediate(resolve));
+    for (const [channel, args] of [
+      ["content:setEnabled", [{ kind: "mod", file: "a.jar" }, true]],
+      ["content:remove", [{ kind: "mod", file: "a.jar" }]],
+      ["content:install", [{ kind: "mod", projectId: "x" }]],
+      ["content:removeInvalid", ["mod"]],
+    ]) {
+      await assert.rejects(call(channel, "i1", ...args), /Close the game first - that instance is running\./, channel);
+    }
+    await call("content:setEnabled", "i1", { kind: "resourcepack", file: "p.zip" }, false);
+    await call("content:remove", "i1", { kind: "shader", file: "s.zip" });
+    await call("content:removeInvalid", "i1", "datapack");
+    await call("content:install", "i1", { kind: "shader", projectId: "y" });
+    assert.deepEqual(did, [
+      ["setEnabled", "mod"],
+      ["install", "mod", false],
+      ["setEnabled", "resourcepack"],
+      ["remove", "shader"],
+      ["removeInvalid", "datapack"],
+      ["install", "shader", true], // a shader pack may go in, but not the Iris it might need
+    ]);
+  } finally {
+    await call("play:stop", { instanceId: "i1" });
+    if (release) release({ removedMods: [] });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    Object.assign(content, real);
+  }
+});

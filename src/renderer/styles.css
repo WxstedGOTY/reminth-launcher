@@ -2172,6 +2172,13 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .up-channel { flex-shrink: 0; padding: 2px 8px; }
 .c-update .up-channel { margin-left: 6px; }
 
+/* A running instance: its mods can't change until the game closes */
+.mods-locked-note { margin: 0 0 -6px; padding: 9px 13px; border-radius: 11px; font-size: 12.5px; font-weight: 650; color: var(--amber); background: color-mix(in srgb, var(--amber) 8%, transparent); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent); }
+.dcp-row.locked .dcp-name { opacity: .6; }
+.icon-btn:disabled { opacity: .4; cursor: default; }
+.icon-btn:disabled:hover { color: var(--text-3); background: transparent; }
+#openContentFolder.hint-locked { border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+
 /* A gradient on a box with a see-through border used to wrap around under
    that border, drawing a thin line of the gradient's other end along the
    bottom and right edge (most visible on the highlighted sidebar button).
