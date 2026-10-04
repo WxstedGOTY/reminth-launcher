@@ -1533,7 +1533,24 @@ async function installBundledJar(source, dest) {
  * channel Fabric loader itself comes from. Fabric API version strings
  * look like "<api-version>+<mc-version>" (e.g. "0.160.0+26.2").
  */
-async function downloadFabricApi(modsDir, mcVersion = config.MINECRAFT_VERSION) {
+/**
+ * Fabric's own Maven only has a usable Fabric API for Minecraft 1.19.2 and newer. For 1.14 to 1.19.1 it has
+ * either no build at all or a 5 KB empty shell (no code in it), which made every mod that needs Fabric API
+ * crash at start on those versions. Modrinth has the real jar for all of them, so it is the fallback - and
+ * a Maven file that is that small is treated as no file.
+ */
+const MIN_FABRIC_API_BYTES = 100 * 1024;
+
+/** Pure: the newest Modrinth release of Fabric API for this Minecraft version (a packReleaseFrom record), or null. */
+function pickFabricApiRelease(versions, mcVersion) {
+  const list = (Array.isArray(versions) ? versions : [])
+    .map((v) => packReleaseFrom(v, mcVersion, ["fabric"]))
+    .filter(Boolean)
+    .sort((a, b) => b.publishedAt - a.publishedAt);
+  return list.length ? list[0] : null;
+}
+
+async function downloadFabricApiFromMaven(modsDir, mcVersion) {
   const metadataUrl = `${config.FABRIC_MAVEN_URL}/net/fabricmc/fabric-api/fabric-api/maven-metadata.xml`;
   const xml = await withTimeout(metadataUrl, async (signal) => {
     const res = await fetch(metadataUrl, { signal });
@@ -1548,7 +1565,61 @@ async function downloadFabricApi(modsDir, mcVersion = config.MINECRAFT_VERSION) 
   const jarUrl = `${config.FABRIC_MAVEN_URL}/net/fabricmc/fabric-api/fabric-api/${version}/fabric-api-${version}.jar`;
   const sha1 = await fetchMavenSha1(jarUrl);
   const filename = `fabric-api-${version}.jar`;
-  await downloadFile(jarUrl, path.join(modsDir, filename), sha1);
+  const file = path.join(modsDir, filename);
+  await downloadFile(jarUrl, file, sha1);
+  const size = (await fsp.stat(file)).size;
+  if (size < MIN_FABRIC_API_BYTES) {
+    await fsp.rm(file, { force: true });
+    throw new Error(`Fabric's Maven has only an empty shell of Fabric API for Minecraft ${mcVersion}.`);
+  }
+  return filename;
+}
+
+async function downloadFabricApiFromModrinth(modsDir, mcVersion) {
+  const versions = await require("./modrinth").getProjectVersions(FABRIC_API_PROJECT_ID, { loaders: ["fabric"], gameVersions: [mcVersion] });
+  const release = pickFabricApiRelease(versions, mcVersion);
+  if (!release) throw new Error(`No Fabric API release for Minecraft ${mcVersion} on Modrinth.`);
+  // Modrinth writes some file names with a literal "%2B" for the "+": use the plain name when that is still a safe one.
+  let name = release.file.filename;
+  try {
+    const plain = decodeURIComponent(name);
+    if (safeJarName(plain)) name = plain;
+  } catch {
+    // keep the name as it is
+  }
+  const file = path.join(modsDir, name);
+  await downloadFile(release.file.url, file, release.file.sha1); // already checked: https, cdn.modrinth.com, safe name, sha1
+  const size = (await fsp.stat(file)).size;
+  if (size < MIN_FABRIC_API_BYTES) {
+    await fsp.rm(file, { force: true });
+    throw new Error(`The Fabric API file for Minecraft ${mcVersion} is too small to be real.`);
+  }
+  return name;
+}
+
+/** Fabric API for this Minecraft version, from Fabric's Maven when that has a real file, else from Modrinth. */
+async function downloadFabricApi(modsDir, mcVersion = config.MINECRAFT_VERSION) {
+  let filename;
+  try {
+    filename = await downloadFabricApiFromMaven(modsDir, mcVersion);
+  } catch (mavenErr) {
+    try {
+      filename = await downloadFabricApiFromModrinth(modsDir, mcVersion);
+    } catch {
+      throw mavenErr; // neither had it: say what the first source said
+    }
+  }
+  // An empty shell left by an older Reminth (named differently from the real file) would load as a second,
+  // useless "fabric-api" and stop the game - remove those.
+  try {
+    for (const f of await fsp.readdir(modsDir)) {
+      if (f !== filename && /^fabric-api-\d.*\.jar$/i.test(f) && (await fsp.stat(path.join(modsDir, f))).size < MIN_FABRIC_API_BYTES) {
+        await fsp.rm(path.join(modsDir, f), { force: true });
+      }
+    }
+  } catch {
+    // best effort
+  }
   return filename;
 }
 
@@ -3155,6 +3226,7 @@ module.exports = {
   launch,
   latestFabricLoader,
   downloadFabricApi,
+  pickFabricApiRelease,
   vanillaProfile,
   hasFeature,
   supportsWorldJoin,
