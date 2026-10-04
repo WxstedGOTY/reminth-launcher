@@ -257,6 +257,9 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 **HUD 1.2.2 (4 Oct, owner feedback on 1.2.1): NO coordinates/facing at all (a player may need to hide them; the `coords` option is gone), greys instead of white (labels A8A8A8, values E4E4E4), and NO drop shadow (the shadow at 0.75 scale made letters look black-and-white). The NVIDIA/other overlay is not ours and cannot be hidden by Reminth - the owner turns it off in the NVIDIA app. Earlier look (1.2.1, reference picture):** plain text, NO background, 75 % size (pose scale), light-grey labels, bold white values, thin `|` separators, coordinates + facing as a second line in the same style, all top-right. Seen in the real game (26.2).
 
+
+**Games that outlive Reminth (owner bug, 4 Oct; fixed in 1.4.6).** The game is launched detached and keeps running when Reminth closes/restarts/updates, but `running` in main.js is memory only: a fresh Reminth said 'not running' and Play started a SECOND copy on the same worlds. `src/main/runningGames.js` lists Java processes (PowerShell Get-CimInstance, ~1 s), reads only `--gameDir` from the command line (it holds the access token: never logged/stored/returned), matches instances by folder, and `adoptProcess` (main.js) puts the game back in `running` (Stop, the mods lock and play time work; time counts from the process's own start when it ends). Done once at start-up (`adoptRunningGames`, after the page loaded); a Play pressed in the first second waits for it (`adoptionDone`) and a game found replaces a Play that is only just starting. Verified: 591 tests incl. a real javaw found by folder; isolated Electron started AFTER a stand-in game -> instance shows running within 6 s, back to not running when the process ends. NOT covered: a game started outside Reminth by hand with the same folder is adopted too (intended).
+
 **Unreleased (committed, not in 1.4.3):** ReminthHUD is switched on once for every Fabric/Quilt instance (`src/main/hudDefault.js`, marker `hud-on-by-default.json` in %APPDATA%\Reminth). Needs a release (1.4.4, built, together with HUD 1.2.0 and the JEI early start).
 
 ## 2. Decisions the owner must make (recommendation first)
@@ -437,6 +440,7 @@ B3. Right-click an instance → **Boost FPS…** → the list of from → to; Ca
 B4. While a game runs, the launcher's looping animations (Plus page, progress shimmer) stand still; they move
     again after the game closes.
 
+B6. **Start a game from Reminth, close Reminth (or let it update), open Reminth again while the game still runs**: the instance shows Running within a few seconds, Play is off / says it's already running, Stop works, and playing time is added once when the game closes. Pressing Play right after opening Reminth never starts a second copy.
 B5. **JEI (switched ON) on DonutSMP (or another server): join, then open the inventory for the first time** - no freeze. `logs/latest.log` has "ReminthHUD: started JEI early" about 1.5 s after joining, and "Starting JEI took" appears BEFORE the first E. In singleplayer JEI starts by itself and the helper line is absent.
 
 ### Release 1.4.2
