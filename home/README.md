@@ -23,7 +23,7 @@ launcher answers by showing its Skins page (a skin can only be changed from the 
 
 ## Building (Windows, Java 25)
 
-One source, three version families (the few calls that differ live in `compat/<family>/`):
+One source, three version families for 26.x (1.20.1 and 1.21.x are in `../home-1.21`, same code) (the few calls that differ live in `compat/<family>/`):
 
 ```
 cd home
