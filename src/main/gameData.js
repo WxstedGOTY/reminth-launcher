@@ -25,6 +25,7 @@ const MAX_DECOMPRESSED_LOG_BYTES = 64 * 1024 * 1024;
 const paths = require("./paths");
 const nbt = require("./nbt");
 const { renameWithRetry } = require("./downloader");
+const atomic = require("./atomic");
 
 const TICKS_PER_SECOND = 20;
 const MAX_WORLD_ICON_BYTES = 512 * 1024; // world icons are ~8KB; this is purely a sanity clamp
@@ -420,6 +421,12 @@ async function addServer(gameDir, { name, address }) {
   const addr = String(address || "").trim();
   if (!/^[A-Za-z0-9.\-_:[\]]{1,255}$/.test(addr)) throw new Error("That server address doesn't look right.");
   const file = serversFile(gameDir);
+  // One add at a time per list: two at once each read the old list, and the
+  // second write dropped the server the first one had just added.
+  return atomic.withLock(`servers:${path.resolve(file)}`, () => addServerLocked(file, gameDir, name, addr));
+}
+
+async function addServerLocked(file, gameDir, name, addr) {
   let existing = [];
   let hadFile = true;
   let raw = null;

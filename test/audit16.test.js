@@ -89,3 +89,17 @@ test("Audit 16: two screenshots in the same second are both kept (the second one
     Date.now = realNow;
   }
 });
+
+test("Audit 16: two servers added at once both end up in servers.dat", async () => {
+  const gameData = require("../src/main/gameData");
+  const nbt = require("../src/main/nbt");
+  const gameDir = await gameFolder({});
+  await fsp.writeFile(path.join(gameDir, "servers.dat"), nbt.writeServersDat([{ name: "Mine", ip: "mine.example.net" }]));
+  const results = await Promise.all([
+    gameData.addServer(gameDir, { name: "A", address: "a.example.net" }),
+    gameData.addServer(gameDir, { name: "B", address: "b.example.net" }),
+  ]);
+  assert.deepEqual(results, [{ added: true }, { added: true }]);
+  const ips = nbt.parse(await fsp.readFile(path.join(gameDir, "servers.dat"))).servers.map((s) => s.ip).sort();
+  assert.deepEqual(ips, ["a.example.net", "b.example.net", "mine.example.net"]);
+});
