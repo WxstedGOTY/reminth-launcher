@@ -56,4 +56,26 @@ function afterGame(before, now) {
   return "none";
 }
 
-module.exports = { afterGame, fillsWorkArea };
+/**
+ * The window's first size and its smallest size for a work area ({ width,
+ * height } in screen pixels as Electron gives them, i.e. after Windows'
+ * display scaling). Normally 1000x660 at the least; on a screen smaller than
+ * that (1920x1080 at 175 %, 1366x768 at 125 %) the work area itself, so the
+ * window - and its bottom row of buttons - never hangs off the screen.
+ */
+function windowSizes(workArea) {
+  const w = Number(workArea && workArea.width);
+  const h = Number(workArea && workArea.height);
+  const waWidth = Number.isFinite(w) && w > 0 ? w : 1000;
+  const waHeight = Number.isFinite(h) && h > 0 ? h : 660;
+  const minWidth = Math.min(1000, waWidth);
+  const minHeight = Math.min(660, waHeight);
+  return {
+    width: Math.max(minWidth, Math.min(1320, Math.round(waWidth * 0.85))),
+    height: Math.max(minHeight, Math.min(840, Math.round(waHeight * 0.85))),
+    minWidth,
+    minHeight,
+  };
+}
+
+module.exports = { afterGame, fillsWorkArea, windowSizes };

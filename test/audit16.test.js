@@ -145,3 +145,14 @@ test("Audit 16: with the PC clock behind, a damaged file that was just set aside
   assert.equal(await fsp.readFile(moved, "utf8"), "{ damaged");
   assert.equal((await fsp.readdir(dir)).filter((n) => n.includes(".corrupt-")).length, 2);
 });
+
+test("Audit 16: on a screen smaller than 1000x660 (1080p at 175 % scaling) the window fits on it", () => {
+  const { windowSizes } = require("../src/main/windowRestore");
+  // 1920x1080 at 175 %: 1097 x 590 usable
+  const small = windowSizes({ width: 1097, height: 590 });
+  assert.ok(small.minWidth <= 1097 && small.minHeight <= 590, JSON.stringify(small));
+  assert.ok(small.width <= 1097 && small.height <= 590, JSON.stringify(small));
+  // a normal 1080p screen at 100 %: as before
+  assert.deepEqual(windowSizes({ width: 1920, height: 1032 }), { width: 1320, height: 840, minWidth: 1000, minHeight: 660 });
+  assert.deepEqual(windowSizes({ width: 1280, height: 680 }), { width: 1088, height: 660, minWidth: 1000, minHeight: 660 });
+});

@@ -114,15 +114,14 @@ function createWindow() {
   // "opens fullscreen by default". Sizing off the actual work area, capped
   // well under 100% of it, gives a real windowed size to restore down to -
   // the launcher itself opens maximized (see ready-to-show below).
-  const { width: waWidth, height: waHeight } = screen.getPrimaryDisplay().workAreaSize;
-  const winWidth = Math.max(1000, Math.min(1320, Math.round(waWidth * 0.85)));
-  const winHeight = Math.max(660, Math.min(840, Math.round(waHeight * 0.85)));
+  // On a screen smaller than 1000x660 after scaling, never bigger than it.
+  const size = windowRestore.windowSizes(screen.getPrimaryDisplay().workAreaSize);
 
   win = new BrowserWindow({
-    width: winWidth,
-    height: winHeight,
-    minWidth: 1000,
-    minHeight: 660,
+    width: size.width,
+    height: size.height,
+    minWidth: size.minWidth,
+    minHeight: size.minHeight,
     center: true,
     show: false, // shown maximized on ready-to-show, so it never flashes windowed first
     backgroundColor: "#07090f",
