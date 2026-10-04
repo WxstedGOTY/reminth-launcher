@@ -28,8 +28,10 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   signed-out Reminth deliberately stays on Home): `reminth://skins` while running -> Skins PASS; `home` -> Home PASS;
   `instance/reminth` -> instance page PASS; `play/zz`, `../../x`, `skins?x=1`, `REMINTH://home`, unknown
   instance, `delete/reminth` -> ignored PASS. The packaged app writes the scheme under HKCU (no admin) PASS (I
-  removed my test key each time). NOT tested: the NSIS installer writing it; a link when Reminth is fully closed
-  (code read: boot waits for the sign-in state); a link while a game runs; the Skins icon in the game.
+  removed my test key each time). The Skins icon in the game was tested up to Windows: with a temporary harmless
+  handler registered (removed again) a real click on it delivered `reminth://skins/` (Windows adds the slash; the
+  parser accepts one trailing slash). NOT tested: the NSIS installer writing the scheme; a link when Reminth is fully
+  closed (code read: boot waits for the sign-in state); a link while a game runs.
 - **Home screen mod = `home/` (26.1, 26.2, 26.3) + `home-1.21/` (1.20.1, 1.21-1.21.1, 1.21.4, 1.21.5,
   1.21.6-1.21.8, 1.21.9-1.21.10, 1.21.11); ten jars in `assets/mods` (`reminthhome-1.0.0+...`).** Pictures were
   made on this PC (Minecraft 26.2 + Iris 1.11.4 + Sodium + Complementary Reimagined; 12 seeds x up to 10
