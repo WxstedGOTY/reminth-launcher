@@ -5,7 +5,7 @@ Client-side only, CC0.
 
 ## What it shows
 
-- **Top-right bar** (plain text, no background, 75 % size, light labels, bold white values): `FPS 240 | GPU 16% | CPU 53% | LAT 0 ms`
+- **Top-right bar** (plain text, no background and no shadow, 75 % size, grey labels, bold light-grey values): `FPS 240 | GPU 16% | CPU 53% | LAT 0 ms`
   - **FPS**: the game's own frame counter.
   - **GPU**: the whole PC's GPU load, the same number as Task Manager (Windows'
     `\GPU Engine(*)\Utilization Percentage` counters, busiest engine). Read on a
@@ -18,16 +18,15 @@ Client-side only, CC0.
   - **LAT**: your latency to the server as the game knows it (the player list's
     number). 0 in singleplayer.
   - The bar moves down under the potion-effect icons when there are some.
-- **Under the bar:** coordinates and the direction you're facing. Everything stays in the
-  top-right corner because minimap mods (Xaero's, JourneyMap) use the top-left.
-- **H** shows/hides everything (rebindable in Controls).
+- Coordinates are NOT shown (a player may need to hide them).
+- **H** shows/hides the bar (rebindable in Controls).
 
 ## Config
 
 `config/reminthhud.json` in the instance, written with everything on the first time:
 
 ```json
-{ "fps": true, "gpu": true, "cpu": true, "lat": true, "coords": true, "jeiEarlyStart": true }
+{ "fps": true, "gpu": true, "cpu": true, "lat": true, "jeiEarlyStart": true }
 ```
 
 Set an item to `false` to hide it. Read once when the game starts.

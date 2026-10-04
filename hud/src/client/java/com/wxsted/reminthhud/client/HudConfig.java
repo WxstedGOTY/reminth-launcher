@@ -13,7 +13,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Which parts of the HUD are shown: config/reminthhud.json in the instance,
- * {"fps":true,"gpu":true,"cpu":true,"lat":true,"coords":true,"jeiEarlyStart":true}. Read once at
+ * {"fps":true,"gpu":true,"cpu":true,"lat":true,"jeiEarlyStart":true}. Read once at
  * start-up. A missing file is written with everything on; a file that can't
  * be read is left alone (it's the player's) and everything is shown.
  */
@@ -22,7 +22,6 @@ final class HudConfig {
 	boolean gpu = true;
 	boolean cpu = true;
 	boolean lat = true;
-	boolean coords = true;
 	// Start JEI (if installed) right after joining instead of at the first inventory open.
 	boolean jeiEarlyStart = true;
 
@@ -32,7 +31,15 @@ final class HudConfig {
 		try {
 			if (!Files.exists(file)) {
 				Files.createDirectories(file.getParent());
-				Files.writeString(file, "{\n  \"fps\": true,\n  \"gpu\": true,\n  \"cpu\": true,\n  \"lat\": true,\n  \"coords\": true\n}\n", StandardCharsets.UTF_8);
+				String defaults = String.join(System.lineSeparator(),
+						"{",
+						"  \"fps\": true,",
+						"  \"gpu\": true,",
+						"  \"cpu\": true,",
+						"  \"lat\": true,",
+						"  \"jeiEarlyStart\": true",
+						"}") + System.lineSeparator();
+				Files.writeString(file, defaults, StandardCharsets.UTF_8);
 				return c;
 			}
 			JsonElement root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
@@ -42,7 +49,6 @@ final class HudConfig {
 			c.gpu = flag(o, "gpu");
 			c.cpu = flag(o, "cpu");
 			c.lat = flag(o, "lat");
-			c.coords = flag(o, "coords");
 			c.jeiEarlyStart = flag(o, "jeiEarlyStart");
 		} catch (Exception e) {
 			ReminthHud.LOGGER.info("ReminthHUD: couldn't read {} ({}), showing everything", file, e.toString());

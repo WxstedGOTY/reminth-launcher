@@ -44,12 +44,13 @@ public class ReminthHudClient implements ClientModInitializer {
 			)
 	);
 
-	// Plain text, no background, smaller than the game's own text (a light label,
-	// a bold white value, thin "|" between items) - like the usual FPS overlays.
+	// Plain text, no background, no drop shadow (at this size the shadow turned the
+	// letters black-and-white), smaller than the game's own text: a grey label, a
+	// bold light-grey value, thin "|" between items.
 	private static final float SCALE = 0.75f;
-	private static final int LABEL_COLOR = 0xFFC8C8C8;
-	private static final int VALUE_COLOR = 0xFFFFFFFF;
-	private static final int SEPARATOR_COLOR = 0xFF8A8A8A;
+	private static final int LABEL_COLOR = 0xFFA8A8A8;
+	private static final int VALUE_COLOR = 0xFFE4E4E4;
+	private static final int SEPARATOR_COLOR = 0xFF7C7C7C;
 	private static final int GAP = 4; // text units on each side of a "|"
 	private static final int MARGIN = 4; // screen pixels from the corner
 
@@ -89,9 +90,7 @@ public class ReminthHudClient implements ClientModInitializer {
 	}
 
 	private static final Line bar = new Line();
-	private static final Line where = new Line();
 	private static long nextRebuild = 0;
-	private static long nextCoords = 0;
 
 	/**
 	 * 26.3 merged the old KEYSYM/SCANCODE input types into KEYBOARD. Minecraft
@@ -154,25 +153,10 @@ public class ReminthHudClient implements ClientModInitializer {
 			rebuildBar(client, player);
 			nextRebuild = now + 1_000_000_000L;
 		}
-		// Ten times a second is plenty for coordinates, and keeps the
-		// String.format garbage off most frames.
-		boolean showWhere = config.coords && !player.isReducedDebugInfo();
-		if (showWhere && now >= nextCoords) {
-			where.clear();
-			where.add(font, "XYZ", String.format("%.1f / %.1f / %.1f", player.getX(), player.getY(), player.getZ()));
-			where.add(font, "Facing", facing(player.getYRot()));
-			where.measure(font);
-			nextCoords = now + 100_000_000L;
-		}
-
-		// Everything sits in the top-right corner: the top-left is where
-		// minimap mods (Xaero's, JourneyMap) draw.
-		int y = barTop(player);
+		// Top-right corner: the top-left is where minimap mods (Xaero's,
+		// JourneyMap) draw.
 		if (bar.items > 0) {
-			y = drawLine(graphics, font, bar, y);
-		}
-		if (showWhere && where.items > 0) {
-			drawLine(graphics, font, where, y);
+			drawLine(graphics, font, bar, barTop(player));
 		}
 	}
 
@@ -184,13 +168,13 @@ public class ReminthHudClient implements ClientModInitializer {
 		graphics.pose().scale(SCALE, SCALE);
 		int cx = 0;
 		for (int i = 0; i < line.items; i++) {
-			graphics.text(font, line.labels[i], cx, 0, LABEL_COLOR, true);
+			graphics.text(font, line.labels[i], cx, 0, LABEL_COLOR, false);
 			cx += line.labelWidths[i] + 3;
-			graphics.text(font, line.values[i], cx, 0, VALUE_COLOR, true);
+			graphics.text(font, line.values[i], cx, 0, VALUE_COLOR, false);
 			cx += line.valueWidths[i];
 			if (i < line.items - 1) {
 				cx += GAP;
-				graphics.text(font, "|", cx, 0, SEPARATOR_COLOR, true);
+				graphics.text(font, "|", cx, 0, SEPARATOR_COLOR, false);
 				cx += font.width("|") + GAP;
 			}
 		}
@@ -246,16 +230,5 @@ public class ReminthHudClient implements ClientModInitializer {
 		if (connection == null) return -1;
 		PlayerInfo info = connection.getPlayerInfo(player.getUUID());
 		return info == null ? -1 : Math.max(0, info.getLatency());
-	}
-
-	// Minecraft yaw: 0 = south, increases clockwise (90 = west, 180 = north, 270 = east).
-	private static String facing(float yaw) {
-		String[] directions = {"S", "SW", "W", "NW", "N", "NE", "E", "SE"};
-		float normalized = yaw % 360f;
-		if (normalized < 0) {
-			normalized += 360f;
-		}
-		int index = Math.round(normalized / 45f) & 7;
-		return directions[index];
 	}
 }
