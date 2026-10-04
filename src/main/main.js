@@ -27,6 +27,7 @@ const loaders = require("./loaders");
 const updater = require("./updater");
 const compat = require("./compat");
 const migrate = require("./migrate");
+const runningGames = require("./runningGames");
 const perfProfiles = require("./perfProfiles");
 const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
@@ -207,6 +208,8 @@ app.whenReady().then(async () => {
   pageLoaded.then(async () => {
     if (restored) send("auth:restored", { username: restored.username });
     streamer.configure(cachedSettings);
+    // A game started before Reminth was closed, restarted or updated is still running.
+    adoptRunningGames().catch(() => {});
     await watchActiveInstance();
     // Pull any new logs into the permanent archive for every instance.
     for (const inst of await instances.list()) logs.importInstanceLogs(inst).catch(() => {});
@@ -1056,6 +1059,15 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
   const claim = { child: null, startedAt: Date.now() };
   running.set(inst.id, claim);
   try {
+    // Reminth may have been restarted since it started this game (the game
+    // keeps running without it): look before starting a second copy on the
+    // same worlds, and pick the running one up again if it is there.
+    const already = (await runningGames.listGameProcesses().then((p) => runningGames.matchInstances(p, [inst]))).get(inst.id);
+    if (already) {
+      if (running.get(inst.id) === claim) running.delete(inst.id);
+      adoptProcess(inst, already);
+      throw new Error("Minecraft is already running for this instance - Reminth found it and is keeping track of it again.");
+    }
     return await startGame(inst, options.join, claim, options.world);
   } catch (err) {
     // Never leave Play wedged behind a failed launch - but only this
@@ -1381,6 +1393,47 @@ async function sumOfInstancePlayTime() {
 }
 
 /**
+ * A game this Reminth did not start itself - started by an earlier run of
+ * Reminth that has since been closed, restarted or updated - is still
+ * running. Puts it back in `running` (so Play, Stop, the lock on mods and
+ * the play time all work for it) and watches for it to end.
+ */
+function adoptProcess(inst, proc) {
+  const pid = proc.pid;
+  const claim = {
+    child: {
+      pid,
+      kill: () => {
+        try {
+          process.kill(pid);
+        } catch {
+          // already gone
+        }
+      },
+    },
+    // When the process started: all the time it ran counts once, when it ends.
+    startedAt: proc.startedAt || Date.now(),
+    adopted: true,
+    stopWatching: null,
+  };
+  running.set(inst.id, claim);
+  streamer.gameStarted();
+  claim.stopWatching = runningGames.watchUntilGone(pid, () => finishSession(inst, true, claim));
+  send("play:started", { instanceId: inst.id, startedAt: claim.startedAt });
+  return claim;
+}
+
+/** Looks for games already running for any instance and adopts them. */
+async function adoptRunningGames() {
+  const list = await instances.list();
+  const found = runningGames.matchInstances(await runningGames.listGameProcesses(), list);
+  for (const inst of list) {
+    const proc = found.get(inst.id);
+    if (proc && !running.has(inst.id)) adoptProcess(inst, proc);
+  }
+}
+
+/**
  * Ends `session` - and only that one. The old game's "exit" can arrive
  * after Stop and a quick new Play; without the check it deleted the NEW
  * session, leaving a running game the launcher thought was closed.
@@ -1388,6 +1441,7 @@ async function sumOfInstancePlayTime() {
 function finishSession(inst, played, session) {
   if (!session || running.get(inst.id) !== session) return;
   running.delete(inst.id);
+  if (session.stopWatching) session.stopWatching();
   if (session.child) streamer.gameStopped();
   if (played) {
     const endedAt = Date.now();
