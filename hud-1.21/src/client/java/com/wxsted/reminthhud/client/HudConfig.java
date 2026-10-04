@@ -24,6 +24,8 @@ final class HudConfig {
 	boolean lat = true;
 	// Start JEI (if installed) right after joining instead of at the first inventory open.
 	boolean jeiEarlyStart = true;
+	// Ask the server for your own statistics while you play on it (saved on this PC only).
+	boolean serverStats = true;
 
 	static HudConfig load() {
 		HudConfig c = new HudConfig();
@@ -37,7 +39,8 @@ final class HudConfig {
 						"  \"gpu\": true,",
 						"  \"cpu\": true,",
 						"  \"lat\": true,",
-						"  \"jeiEarlyStart\": true",
+						"  \"jeiEarlyStart\": true,",
+						"  \"serverStats\": true",
 						"}") + System.lineSeparator();
 				Files.writeString(file, defaults, StandardCharsets.UTF_8);
 				return c;
@@ -50,6 +53,7 @@ final class HudConfig {
 			c.cpu = flag(o, "cpu");
 			c.lat = flag(o, "lat");
 			c.jeiEarlyStart = flag(o, "jeiEarlyStart");
+			c.serverStats = flag(o, "serverStats");
 		} catch (Exception e) {
 			ReminthHud.LOGGER.info("ReminthHUD: couldn't read {} ({}), showing everything", file, e.toString());
 		}

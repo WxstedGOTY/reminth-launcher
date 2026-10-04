@@ -2838,7 +2838,7 @@ async function loadStats() {
   const top = stats.top || {};
   const perWorld = stats.perWorld || [];
   const cards = el("div", "stat-cards");
-  cards.appendChild(bigStat("Time played", formatPlaytime(stats.playTimeTicks), `Across ${stats.worldCount || 0} world${stats.worldCount === 1 ? "" : "s"}`, "var(--amber)"));
+  cards.appendChild(bigStat("Time played", formatPlaytime(stats.playTimeTicks), `Across ${stats.worldCount || 0} world${stats.worldCount === 1 ? "" : "s"}${stats.serverCount ? ` and ${stats.serverCount} server${stats.serverCount === 1 ? "" : "s"}` : ""}`, "var(--amber)"));
   cards.appendChild(bigStat("Deaths", formatNumber(stats.deaths), stats.deaths ? "Happens to everyone" : "Flawless so far", "var(--rose)"));
   cards.appendChild(bigStat("Mobs killed", formatNumber(stats.mobKills), null, "var(--violet)"));
   cards.appendChild(bigStat("Blocks mined", formatNumber(totals.mined), null, "var(--cyan)"));
@@ -2869,6 +2869,15 @@ async function loadStats() {
   }
   if ((top.killedBy || []).length) grid.appendChild(barList("Killed by", top.killedBy));
   if (grid.children.length) body.appendChild(grid);
+  body.appendChild(
+    el(
+      "p",
+      "set-note",
+      stats.serverCount
+        ? "Server numbers are what each server reports for you, saved by the Reminth HUD while you play on it (updated about every 90 seconds)."
+        : "These numbers come from your own worlds. Servers keep your stats themselves: with the Reminth HUD on, Reminth asks the server for yours while you play and adds them here. Servers that don't keep normal Minecraft statistics can't be counted."
+    )
+  );
 }
 $("refreshStats").onclick = () => {
   loadStats();

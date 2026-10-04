@@ -247,6 +247,49 @@ async function readWorldStats(worldDir, accountUuid) {
   return null;
 }
 
+/**
+ * Statistics ReminthHUD saved while the player was on a server (the server keeps the real
+ * numbers; the HUD asks it for them): <gameDir>/.reminth/server-stats/<server>.json, written in
+ * the same layout as a world's stats file plus {server, uuid, savedAt}. A file for another
+ * account is skipped. Returns [{ server, savedAt, stats }].
+ */
+async function readServerStats(gameDir, accountUuid) {
+  const dir = path.join(gameDir, ".reminth", "server-stats");
+  let files;
+  try {
+    files = (await fsp.readdir(dir)).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const wanted = normalizeUuid(accountUuid);
+  const out = [];
+  for (const f of files) {
+    try {
+      const json = JSON.parse(await fsp.readFile(path.join(dir, f), "utf8"));
+      if (wanted && json.uuid && normalizeUuid(json.uuid) !== wanted) continue;
+      const s = json.stats || {};
+      const custom = s["minecraft:custom"] || {};
+      out.push({
+        server: String(json.server || path.basename(f, ".json")),
+        savedAt: Number(json.savedAt) || 0,
+        stats: {
+          playTimeTicks: custom["minecraft:play_time"] || custom["minecraft:play_one_minute"] || 0,
+          custom,
+          mined: s["minecraft:mined"] || {},
+          killed: s["minecraft:killed"] || {},
+          used: s["minecraft:used"] || {},
+          crafted: s["minecraft:crafted"] || {},
+          pickedUp: s["minecraft:picked_up"] || {},
+          killedBy: s["minecraft:killed_by"] || {},
+        },
+      });
+    } catch {
+      // a half-written or foreign file: ignore it
+    }
+  }
+  return out;
+}
+
 function addInto(target, source) {
   for (const [k, v] of Object.entries(source || {})) {
     if (typeof v === "number") target[k] = (target[k] || 0) + v;
@@ -308,10 +351,34 @@ async function playerStats(accountUuid, instances) {
     });
   }
 
+  // Servers the HUD asked for statistics: one snapshot per server (the newest one if two instances
+  // joined the same server - the server's numbers are for the whole account, not per instance).
+  const latestByServer = new Map();
+  for (const inst of sources) {
+    if (!inst.gameDir) continue;
+    for (const snap of await readServerStats(inst.gameDir, accountUuid)) {
+      const old = latestByServer.get(snap.server);
+      if (!old || snap.savedAt > old.savedAt) latestByServer.set(snap.server, snap);
+    }
+  }
+  for (const snap of latestByServer.values()) {
+    const stats = snap.stats;
+    found = true;
+    addInto(custom, stats.custom);
+    addInto(mined, stats.mined);
+    addInto(killed, stats.killed);
+    addInto(used, stats.used);
+    addInto(crafted, stats.crafted);
+    addInto(pickedUp, stats.pickedUp);
+    addInto(killedBy, stats.killedBy);
+    perWorld.push({ name: snap.server, folder: "Server", playTimeTicks: stats.playTimeTicks, server: true });
+  }
+
   const cm = (key) => custom["minecraft:" + key] || 0;
   return {
     found,
     worldCount: worlds.length,
+    serverCount: latestByServer.size,
     playTimeTicks: cm("play_time") || cm("play_one_minute"),
     deaths: cm("deaths"),
     mobKills: cm("mob_kills"),
@@ -530,4 +597,4 @@ async function worldFolderToOpen(gameDir, name) {
   }
 }
 
-module.exports = { listWorlds, listServers, playerStats, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };
+module.exports = { listWorlds, listServers, playerStats, readServerStats, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };

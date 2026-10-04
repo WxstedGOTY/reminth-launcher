@@ -111,6 +111,9 @@ public class ReminthHudClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		config = HudConfig.load();
+		if (config.serverStats) {
+			ServerStats.init();
+		}
 		if (config.jeiEarlyStart) {
 			JeiEarlyStart.init();
 		}

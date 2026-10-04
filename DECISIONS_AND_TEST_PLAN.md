@@ -14,6 +14,24 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 0000. Server statistics (5 Oct 2026, desktop window) - the owner's "my stats never go up on servers" bug
+
+Cause: the Statistics page only read stat files inside local WORLDS (`saves/*/players/stats`). A server keeps your stats on the server, so crystal/sword
+PvP never counted. All files on the owner's PC are singleplayer worlds, newest 26 Sep. Not a regression.
+Fix: **ReminthHUD 1.3.0** (`ServerStats.java`, same file in `hud/` and `hud-1.21/`) asks the server for the player's own statistics (the packet the
+Statistics screen sends, `REQUEST_STATS`) about 10 s after joining and every 90 s, and saves the answer to `<instance>/.reminth/server-stats/<server>.json`
+(world-stats layout + server, uuid, savedAt). Launcher: `gameData.readServerStats` + `playerStats` add these to the totals (the same server in two instances
+counts once, newest snapshot; another account's file is skipped); Stats page says "Across N worlds and M servers" and has a footnote.
+Off switch: `"serverStats": false` in `config/reminthhud.json`. Singleplayer/LAN are skipped (the world file already counts). Local file only, nothing is sent.
+**Seen working in the real game on all ten HUD versions** (1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1.2, 26.2, 26.3): a test switch makes the HUD
+ask the built-in server too, and a file with the server's numbers appeared every time (26.2 with the owner's real world: blocks mined etc.). 3 new tests (624 pass).
+**NOT tested:** a real remote server (no server was joined). Servers that keep no normal Minecraft stats (some minigame networks, custom worlds) will
+answer with nothing or zeros - then no file is written. Needs the HUD to be on for the instance (it is on by default for Fabric/Quilt; Forge has no HUD, so no server stats there).
+The 1.4.8 installer was rebuilt with all this (release-1.4.8 updated). Stat cards no longer have the coloured glow.
+**Owner test:** play 5+ minutes on a crystal PvP server, break some blocks, wait ~2 minutes, open Player Statistics -> Refresh: "Across ... and 1 server" and blocks mined has gone up.
+
+---
+
 ## 000. UI batch, 5 Oct 2026 (desktop window): Library = clips and screenshots, streamer-mode line, hardware-acceleration warning
 
 Not in any built installer yet (release-1.4.8 was built before it). `npm test`: 621 pass. Checked in the real app (isolated profile):
