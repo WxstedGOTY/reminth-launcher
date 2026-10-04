@@ -23,7 +23,7 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 4 October 2026 · Version 7</p>
+    <p class="updated">Last updated: 5 October 2026 · Version 8</p>
 
     <div class="summary">
       <b>The short version.</b> Reminth has no servers, no accounts of its own, no analytics, no crash
@@ -145,9 +145,17 @@
         Reminth does not read, keep or log it. The result stays in memory and is gone when Reminth closes.</li>
       <li><b>ReminthHUD</b> (the bar in the game with FPS, GPU, CPU and latency): it runs inside the game and
         reads your PC's CPU and graphics load from Windows' own performance counters, and the latency the game
-        already knows. Nothing is stored or sent. Which items it shows is kept in <code>config\reminthhud.json</code>
+        already knows. Nothing is sent to us. While you are on a multiplayer server it also asks <em>that server</em>
+        for your own statistics (blocks mined, kills, deaths, time played - the same request the game's Statistics
+        screen makes, so the server sees nothing new) and saves the answer on your PC, in
+        <code>.reminth\server-stats</code> inside the instance, so that Player Statistics can show your numbers from
+        servers; <code>"serverStats": false</code> in the settings file turns this off. Which items it shows is kept in <code>config\reminthhud.json</code>
         inside the instance; <code>hud-on-by-default.json</code> in <code>%APPDATA%\Reminth</code> records that
         Reminth switched the bar on once for your existing Fabric and Quilt instances.</li>
+      <li><b>Reminth home screen</b> (the game's title screen, installed like the bar): it runs inside the game,
+        reads the server list of that instance to offer two quick-join buttons, and its Skins button asks Windows to
+        open Reminth through the link <code>reminth://skins</code>. Nothing is stored or sent. <code>config\reminthhome.json</code>
+        in the instance can switch it off.</li>
       <li><b>The game itself</b>: Minecraft, mod loaders, Java, your mods, packs and your worlds.</li>
       <li><b>Streamer mode</b> (only if you turn it on): while it is on and the game is running, Reminth
         records the picture of the Minecraft window, not the rest of your screen. If “Record sound” is on
@@ -311,6 +319,8 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 8, 5 October 2026</b>: described that ReminthHUD asks the server you play on for your own
+        statistics and saves them on your PC (Player Statistics), and the Reminth home screen.</li>
       <li><b>Version 7, 4 October 2026</b>: described how Reminth finds games it started earlier (the list of
         running Java programs, never the sign-in token in their start command), ReminthHUD and its settings
         file, &ldquo;Boost FPS&hellip;&rdquo; and the copy of your old video settings, the early start of JEI,
