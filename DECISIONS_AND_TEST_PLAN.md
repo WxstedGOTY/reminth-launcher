@@ -14,6 +14,20 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 000. UI batch, 5 Oct 2026 (desktop window): Library = clips and screenshots, streamer-mode line, hardware-acceleration warning
+
+Not in any built installer yet (release-1.4.8 was built before it). `npm test`: 621 pass. Checked in the real app (isolated profile):
+- **Library** is now the clips and screenshots page (it was the captures page, which only existed with streamer mode on). The old
+  Instances/Worlds/Servers tabs are gone from it (instances are on the left rail). Without streamer mode it lists in-game F2 screenshots
+  and old captures; the Screenshot/Save clip buttons and the recording bar only show with streamer mode on.
+- Top of Library: "Are you a content creator? Check out **streamer mode** on the launcher!" (blue link) -> opens the Streamer settings
+  panel, which now has a "Streamer mode" on/off switch at the top (before, the panel was unreachable with the mode off).
+- Settings -> Hardware acceleration: the text says to keep it on; turning it OFF asks first ("will feel slow and laggy"); a red
+  note shows while it is off. Cause of the owner's lag on 4 Oct: this setting was off.
+- Not tested: clicking through with real clips; the rail with streamer mode on (Captures button removed, Streamer settings stays).
+
+---
+
 ## 00. Desktop window, 4 Oct 2026 evening: 1.4.7 and 1.4.8 built, links tested, home-screen mod on ten versions
 
 **Two installers are ready, in different folders (git-ignored, on the owner's PC):**

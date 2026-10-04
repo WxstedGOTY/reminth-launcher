@@ -3453,7 +3453,10 @@ function applyStreamerUi(settings, problems) {
     veilLogs();
     refreshSkin();
   }
-  if (!on && (currentPage === "captures" || currentPage === "streamer")) switchPage("home");
+  setSwitch("toggleStreamerMode", on);
+  // Without streamer mode the Library only lists screenshots taken in game (F2) and old captures.
+  for (const id of ["capShotBtn", "capClipBtn", "bufferStatus"]) $(id).hidden = !on;
+  if (currentPage === "library") renderCaptures();
   // settings page controls
   $("keyClip").textContent = cfg.clipKey || "Not set";
   $("keyShot").textContent = cfg.screenshotKey || "Not set";
@@ -3515,7 +3518,7 @@ $("streamerToggle").onclick = async () => {
   const ok = await saveSetting({ streamerMode: on });
   if (ok) {
     toast(on ? `Streamer mode on. ${state.settings.streamer.clipKey || "Your clip key"} saves the last ${CLIP_LENGTHS.find((c) => c[0] === state.settings.streamer.clipSeconds)?.[1] || "minute"}.` : "Streamer mode off.");
-    if (on) switchPage("captures");
+    if (on) switchPage("library");
   }
 };
 
@@ -3651,7 +3654,7 @@ setInterval(async () => {
 }, 2000);
 window.reminth.onStreamerSaved(({ title, body }) => {
   toast(`${title} — ${body}`);
-  if (currentPage === "captures") loadCaptures();
+  if (currentPage === "library") loadCaptures();
 });
 
 $("capShotBtn").onclick = async () => {
@@ -3700,7 +3703,8 @@ function renderCaptures() {
   grid.textContent = "";
   if (!items.length) {
     const cfg = (state.settings && state.settings.streamer) || {};
-    return renderEmpty(grid, "Nothing here yet", f === "game" ? "Screenshots you take in game with F2 show up here too." : `Start Minecraft, then press ${cfg.clipKey || "your clip key"} to save a clip or ${cfg.screenshotKey || "your screenshot key"} for a screenshot.`);
+    const streaming = Boolean(state.settings && state.settings.streamerMode);
+    return renderEmpty(grid, "Nothing here yet", f === "game" || !streaming ? "Screenshots you take in game with F2 show up here." : `Start Minecraft, then press ${cfg.clipKey || "your clip key"} to save a clip or ${cfg.screenshotKey || "your screenshot key"} for a screenshot.`);
   }
   for (const c of items.slice(0, 300)) {
     const card = el("div", "card capture");
@@ -3752,10 +3756,12 @@ function renderCaptures() {
   }
 }
 
-pageHooks.captures = () => {
+pageHooks.library = () => {
   loadCaptures();
   paintLivePill();
 };
+$("creatorTipLink").onclick = () => switchPage("streamer");
+$("toggleStreamerMode").onclick = () => $("streamerToggle").onclick();
 pageHooks.streamer = () => {
   if (state.info) $("capturesPath").textContent = state.info.capturesDir;
 };

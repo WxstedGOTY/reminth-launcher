@@ -2430,3 +2430,11 @@ body.game-running *, body.game-running *::before, body.game-running *::after { a
 /* !important because every "background:" shorthand elsewhere silently resets
    this back to the padding edge. */
 *, *::before, *::after { background-origin: border-box !important; }
+
+/* Library: the line that points people at streamer mode */
+.creator-tip { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(255, 255, 255, .03); color: var(--text-2); font-size: 13px; }
+.creator-tip .i { width: 16px; height: 16px; flex: none; }
+.link-blue { background: none; border: 0; padding: 0; font: inherit; font-weight: 650; color: #4da3ff; cursor: pointer; }
+.link-blue:hover, .link-blue:focus-visible { text-decoration: underline; }
+.hw-warn { font-weight: 700; }
+.hw-off-note { display: block; margin-top: 6px; color: #fb923c; }

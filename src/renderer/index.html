@@ -110,7 +110,6 @@
       <!-- Streamer mode tabs - only exist while streamer mode is on -->
       <div class="rail-streamer" id="railStreamer" hidden>
         <div class="rail-divider"></div>
-        <button class="rail-btn" data-page="captures" data-tip="Captures"><svg><use href="#i-film"/></svg></button>
         <button class="rail-btn" data-page="streamer" data-tip="Streamer settings"><svg><use href="#i-sliders"/></svg></button>
       </div>
 
@@ -131,7 +130,7 @@
         </div>
 
         <div class="topbar-actions">
-          <button class="live-pill" id="livePill" data-page="captures" hidden>
+          <button class="live-pill" id="livePill" data-page="library" hidden>
             <span class="live-dot"></span><span id="livePillText">Streamer mode</span>
           </button>
           <button class="top-action" data-page="stats" id="statsBtn">
@@ -370,34 +369,33 @@
           </div>
         </div>
 
-        <!-- ══ LIBRARY ══ -->
+        <!-- ══ LIBRARY: clips and screenshots ══ -->
         <div id="library" class="page">
           <div class="page-head">
             <div>
               <div class="eyebrow">Library</div>
               <h1 class="display">Library</h1>
-              <p class="lede">Every instance, world and server Reminth knows about, in one place.</p>
+              <p class="lede" id="capturesLede">Your clips and screenshots.</p>
+            </div>
+            <div class="row-actions">
+              <button class="btn outline" id="capShotBtn"><svg class="i"><use href="#i-camera"/></svg>Screenshot</button>
+              <button class="btn primary" id="capClipBtn"><svg class="i"><use href="#i-film"/></svg>Save clip</button>
+              <button class="btn outline icon-only" id="capFolderBtn" title="Open captures folder"><svg class="i"><use href="#i-folder"/></svg></button>
             </div>
           </div>
-
-          <nav class="tabs" id="libraryTabs">
-            <button class="tab active" data-tab="libInstances"><svg><use href="#i-cube"/></svg>Instances</button>
-            <button class="tab" data-tab="libWorlds"><svg><use href="#i-world"/></svg>Worlds</button>
-            <button class="tab" data-tab="libServers"><svg><use href="#i-server"/></svg>Servers</button>
+          <!-- Most people have never heard of streamer mode: a line that opens its panel. -->
+          <div class="creator-tip" id="creatorTip">
+            <svg class="i"><use href="#i-broadcast"/></svg>
+            <span>Are you a content creator? Check out <button type="button" class="link-blue" id="creatorTipLink">streamer mode</button> on the launcher!</span>
+          </div>
+          <div class="card buffer-status" id="bufferStatus"></div>
+          <nav class="tabs" id="captureTabs">
+            <button class="tab active" data-filter="all">Everything</button>
+            <button class="tab" data-filter="clip"><svg><use href="#i-film"/></svg>Clips</button>
+            <button class="tab" data-filter="screenshot"><svg><use href="#i-camera"/></svg>Screenshots</button>
+            <button class="tab" data-filter="game"><svg><use href="#i-cube"/></svg>In-game (F2)</button>
           </nav>
-
-          <div class="tab-pane active" id="libInstances">
-            <div class="block-head"><h2>Instances</h2><div class="sort-dd" id="libSort"></div></div>
-            <div class="lib-grid" id="libInstanceGrid"></div>
-          </div>
-          <div class="tab-pane" id="libWorlds">
-            <div class="block-head"><h2>Worlds</h2><span class="block-note" id="libWorldsNote"></span></div>
-            <div class="recent-grid" id="libWorldGrid"></div>
-          </div>
-          <div class="tab-pane" id="libServers">
-            <div class="block-head"><h2>Servers</h2><span class="block-note" id="libServersNote"></span></div>
-            <div class="recent-grid" id="libServerGrid"></div>
-          </div>
+          <div class="capture-grid" id="captureGrid"></div>
         </div>
 
         <!-- ══ DISCOVER ══ -->
@@ -601,30 +599,6 @@
           </div>
         </div>
 
-        <!-- ══ CAPTURES (streamer mode) ══ -->
-        <div id="captures" class="page">
-          <div class="page-head">
-            <div>
-              <div class="eyebrow">Streamer mode</div>
-              <h1 class="display">Captures</h1>
-              <p class="lede" id="capturesLede">Clips and screenshots from your sessions.</p>
-            </div>
-            <div class="row-actions">
-              <button class="btn outline" id="capShotBtn"><svg class="i"><use href="#i-camera"/></svg>Screenshot</button>
-              <button class="btn primary" id="capClipBtn"><svg class="i"><use href="#i-film"/></svg>Save clip</button>
-              <button class="btn outline icon-only" id="capFolderBtn" title="Open captures folder"><svg class="i"><use href="#i-folder"/></svg></button>
-            </div>
-          </div>
-          <div class="card buffer-status" id="bufferStatus"></div>
-          <nav class="tabs" id="captureTabs">
-            <button class="tab active" data-filter="all">Everything</button>
-            <button class="tab" data-filter="clip"><svg><use href="#i-film"/></svg>Clips</button>
-            <button class="tab" data-filter="screenshot"><svg><use href="#i-camera"/></svg>Screenshots</button>
-            <button class="tab" data-filter="game"><svg><use href="#i-cube"/></svg>In-game (F2)</button>
-          </nav>
-          <div class="capture-grid" id="captureGrid"></div>
-        </div>
-
         <!-- ══ STREAMER SETTINGS ══ -->
         <div id="streamer" class="page">
           <div class="page-head">
@@ -635,6 +609,9 @@
             </div>
           </div>
           <div class="settings-stack">
+            <div class="card set">
+              <div class="toggle-row"><div><b>Streamer mode</b><span>Turns on the replay buffer and the clip and screenshot keys while Minecraft runs, and can hide personal info on stream. Clips and screenshots are saved in the Library.</span></div><button class="switch" id="toggleStreamerMode" role="switch" aria-checked="false"></button></div>
+            </div>
             <div class="card set">
               <div class="set-head"><h2>Hotkeys</h2><p>Work while you're in game. Click one, then press the key you want.</p></div>
               <div class="toggle-row"><div><b>Save a clip</b><span>Saves the replay buffer below.</span></div><button class="key-btn" id="keyClip" data-key="clipKey">F9</button></div>
@@ -759,7 +736,7 @@
                 <button class="switch" id="toggleLaunchMinimized" role="switch" aria-checked="false"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Hardware acceleration</b><span>Uses your GPU to draw the launcher. Restart Reminth to apply.</span></div>
+                <div><b>Hardware acceleration</b><span>Uses your GPU to draw the launcher. <b class="hw-warn">Keep this on.</b> Only turn it off if the Reminth window shows up black or flickering - otherwise the launcher gets very slow and laggy. Restart Reminth to apply.</span><span class="hw-off-note" id="hwOffNote" hidden>It is off right now, so Reminth is drawn by your processor and will feel laggy. Turn it on and restart Reminth.</span></div>
                 <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
               </div>
               <div class="toggle-row">

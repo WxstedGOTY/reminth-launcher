@@ -707,12 +707,11 @@ window.reminth.isMaximized().then(paintMaxButton).catch(() => {});
 const PAGE_META = {
   home: ["Reminth Launcher", "Your Minecraft, your way."],
   instance: ["Instance", "Its version, its mods, its worlds."],
-  library: ["Library", "Instances, worlds and servers."],
+  library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
   hosting: ["Servers", "Play together without the setup."],
   plus: ["Reminth+", "Your own server, minus the landlord."],
-  captures: ["Streamer mode", "Your clips and screenshots."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
   settings: ["Configuration", "Make Reminth work the way you want."],
@@ -751,8 +750,7 @@ function switchPage(page) {
   $("pages").scrollTop = 0;
   if (page === "stats") loadStats();
   if (page === "instance") renderInstancePage();
-  if (page === "home" || page === "library") loadRecent();
-  if (page === "library") renderLibraryInstances();
+  if (page === "home") loadRecent();
   // Announced before the page's own hook runs, so a hook that fails can't swallow it.
   document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
   if (pageHooks[page]) pageHooks[page]();
@@ -773,7 +771,6 @@ function wireTabs(navId, onChange) {
     };
   });
 }
-wireTabs("libraryTabs");
 
 document.addEventListener("click", (e) => {
   const target = e.target.closest("[data-page]");
@@ -1066,7 +1063,6 @@ async function loadInstances() {
   paintActiveProgress();
   $("sideInstances").textContent = String(state.instances.length || 1);
   if (currentPage === "instance") renderInstancePage();
-  if (currentPage === "library") renderLibraryInstances();
   if (window.onInstancesChanged) window.onInstancesChanged();
 }
 
@@ -2085,7 +2081,7 @@ function deleteInstanceFlow(id) {
               if (next) await selectInstance(next.id, false);
               if (currentPage === "instance") switchPage("home");
             }
-            if (currentPage === "home" || currentPage === "library") loadRecent();
+            if (currentPage === "home") loadRecent();
             toast(`${inst.name} deleted.`);
             return true;
           } catch (err) {
@@ -2115,13 +2111,11 @@ async function saveInstanceOrder(ids) {
   const before = state.instances;
   state.instances = ids.map((x) => byId.get(x)).filter(Boolean);
   renderRail();
-  if (currentPage === "library") renderLibraryInstances();
   try {
     await window.reminth.reorderInstances(ids);
   } catch (err) {
     state.instances = before;
     renderRail();
-    if (currentPage === "library") renderLibraryInstances();
     toast(friendlyError(err.message));
   }
 }
@@ -2735,16 +2729,6 @@ async function loadRecent() {
 
   paintHeroStats();
 
-  fillGrid("libWorldGrid", data.worlds || [], "libWorldsNote", {
-    emptyTitle: "No worlds yet",
-    emptyNote: "Create one in game and it'll show up here.",
-    showInstance: true,
-  });
-  fillGrid("libServerGrid", data.servers || [], "libServersNote", {
-    emptyTitle: "No servers saved yet",
-    emptyNote: "Add one in game, or from Discover → Servers.",
-    showInstance: true,
-  });
   $("sideWorlds").textContent = String(data.worldCount || 0);
   $("sideServers").textContent = String(data.serverCount || 0);
 }
@@ -2761,97 +2745,6 @@ function fillGrid(gridId, entries, noteId, copy) {
   grid.textContent = "";
   disambiguate(entries).forEach((entry) => grid.appendChild(recentCard(entry, copy)));
   if (note) note.textContent = `${entries.length} total · newest first`;
-}
-
-/* ---- Library → Instances, with a sort ---- */
-let libSort = localGet("sort.library", "order");
-// "My order" is the rail's order (drag it there, or Move up/down in an instance's menu).
-const libSortDd = makeDropdown($("libSort"), {
-  options: [{ value: "order", label: "My order" }, ...SORT_OPTIONS],
-  value: libSort,
-  align: "right",
-  onChange: (v) => {
-    libSort = v;
-    localSet("sort.library", v);
-    renderLibraryInstances();
-  },
-});
-void libSortDd;
-
-const libSizes = new Map(); // instance id -> "1.4 GB" (this session)
-let libSizing = false;
-/** One instance at a time, only while Library is open; each answer is kept for the session. */
-async function loadLibrarySizes() {
-  if (libSizing) return;
-  libSizing = true;
-  try {
-    for (const inst of [...state.instances]) {
-      if (currentPage !== "library") break;
-      if (libSizes.has(inst.id)) continue;
-      try {
-        const sum = await window.reminth.instanceSummary(inst.id);
-        libSizes.set(inst.id, window.ReminthPure.summaryText(sum).replace(/^[^,]*, /, ""));
-      } catch {
-        libSizes.set(inst.id, "");
-      }
-      const tileSub = [...document.querySelectorAll("#libInstanceGrid .lib-tile")].find((t) => t.dataset.instance === inst.id);
-      if (tileSub && libSizes.get(inst.id)) {
-        const sub = tileSub.querySelector(".lib-sub");
-        if (sub && !sub.querySelector(".lib-size")) sub.appendChild(el("span", "lib-size", libSizes.get(inst.id)));
-      }
-    }
-  } finally {
-    libSizing = false;
-  }
-}
-
-function renderLibraryInstances() {
-  const grid = $("libInstanceGrid");
-  if (!grid) return;
-  grid.textContent = "";
-  const sorted = libSort === "order" ? [...state.instances] : sortItems(state.instances, libSort, (i) => i.name, (i) => i.lastPlayed || i.createdAt || 0);
-  for (const inst of sorted) {
-    const tile = el("div", "card lib-tile");
-    tile.dataset.instance = inst.id;
-    const art = el("div", "lib-art");
-    art.appendChild(instanceChip(inst));
-    tile.appendChild(art);
-    const meta = el("div", "lib-meta");
-    meta.appendChild(el("div", "lib-name", inst.name));
-    const sub = el("div", "lib-sub sep-list");
-    sub.appendChild(el("span", null, `${loaderLabel(inst)} ${inst.mcVersion}`));
-    sub.appendChild(el("span", null, inst.lastPlayed ? `played ${formatWhen(inst.lastPlayed)}` : "never played"));
-    // Size on disk: worked out once per session, only while this page is open.
-    const size = el("span", "lib-size", libSizes.has(inst.id) ? libSizes.get(inst.id) : "");
-    size.dataset.instance = inst.id;
-    if (libSizes.has(inst.id)) sub.appendChild(size);
-    meta.appendChild(sub);
-    tile.appendChild(meta);
-    if (state.running.has(inst.id)) tile.appendChild(el("span", "tag emerald", "Running"));
-    clickable(tile, () => selectInstance(inst.id, true));
-    tile.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      openInstanceMenu(inst.id, { x: e.clientX, y: e.clientY, opener: tile });
-    });
-    tile.addEventListener("keydown", (e) => {
-      if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
-        e.preventDefault();
-        openInstanceMenu(inst.id, { anchor: tile, opener: tile });
-      }
-    });
-    grid.appendChild(tile);
-  }
-  loadLibrarySizes();
-  const add = el("div", "card lib-tile add");
-  const addArt = el("div", "lib-art");
-  addArt.appendChild(icon("#i-plus", "add-mark"));
-  add.appendChild(addArt);
-  const addMeta = el("div", "lib-meta");
-  addMeta.appendChild(el("div", "lib-name", "New instance"));
-  addMeta.appendChild(el("div", "lib-sub", "Any version or snapshot · Fabric, Quilt, Forge, NeoForge or vanilla"));
-  add.appendChild(addMeta);
-  clickable(add, () => openInstanceModal(null));
-  grid.appendChild(add);
 }
 
 /* ================================================================== *
@@ -3015,7 +2908,29 @@ function wireSwitch(id, key, note) {
   };
 }
 wireSwitch("toggleLaunchMinimized", "launchMinimized", (on) => (on ? "Reminth will minimize when the game starts." : "Reminth will stay open when the game starts."));
-wireSwitch("toggleHardwareAccel", "hardwareAcceleration", "Restart Reminth for that to take effect.");
+$("toggleHardwareAccel").onclick = async () => {
+  const on = !$("toggleHardwareAccel").classList.contains("on");
+  if (!on) {
+    const ok = await confirmModal(
+      "Turn off hardware acceleration?",
+      ["Reminth will be drawn by your processor instead of your graphics card, and it will feel slow and laggy when you scroll or change tabs.", "Only do this if the Reminth window is black or flickering. You can turn it back on here at any time."],
+      "Turn it off",
+      true
+    );
+    if (!ok) return;
+  }
+  setSwitch("toggleHardwareAccel", on);
+  paintHwNote();
+  const saved = await saveSetting({ hardwareAcceleration: on }, "Restart Reminth for that to take effect.");
+  if (!saved) {
+    setSwitch("toggleHardwareAccel", !on);
+    paintHwNote();
+  }
+};
+function paintHwNote() {
+  const note = $("hwOffNote");
+  if (note) note.hidden = $("toggleHardwareAccel").classList.contains("on");
+}
 
 $("toggleFullscreen").onclick = async () => {
   const on = !$("toggleFullscreen").classList.contains("on");
@@ -3172,6 +3087,7 @@ async function boot() {
     applyAccent(s.accent || "cyan");
     setSwitch("toggleLaunchMinimized", s.launchMinimized);
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
+    paintHwNote();
     setSwitch("toggleFullscreen", s.fullscreen);
     setResolutionEnabled(!s.fullscreen);
     paintResolution();
