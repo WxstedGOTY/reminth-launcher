@@ -776,6 +776,11 @@ async function setEnabled(gameDir, { kind, world, file }, enabled) {
   const isDisabled = /\.disabled$/i.test(current);
   if (enabled === !isDisabled) return { file };
   const target = enabled ? current.replace(/\.disabled$/i, "") : current + ".disabled";
+  // A rename replaces a file already called that (sodium.jar turned off, then
+  // a newer sodium.jar dropped in): the player's other copy would be lost.
+  if (await fsp.lstat(target).then(() => true, () => false)) {
+    throw new Error(`There is already a file called ${path.basename(target)} in that folder - remove or rename one of the two first.`);
+  }
   await fsp.rename(current, target);
   // Turned on again by the player: "turned off by Reminth because…" no longer applies.
   if (enabled) await clearOffReason(gameDir, current);
