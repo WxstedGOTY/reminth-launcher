@@ -13,7 +13,7 @@ import net.fabricmc.loader.api.FabricLoader;
 
 /**
  * Which parts of the HUD are shown: config/reminthhud.json in the instance,
- * {"fps":true,"gpu":true,"cpu":true,"lat":true,"coords":true}. Read once at
+ * {"fps":true,"gpu":true,"cpu":true,"lat":true,"coords":true,"jeiEarlyStart":true}. Read once at
  * start-up. A missing file is written with everything on; a file that can't
  * be read is left alone (it's the player's) and everything is shown.
  */
@@ -23,6 +23,8 @@ final class HudConfig {
 	boolean cpu = true;
 	boolean lat = true;
 	boolean coords = true;
+	// Start JEI (if installed) right after joining instead of at the first inventory open.
+	boolean jeiEarlyStart = true;
 
 	static HudConfig load() {
 		HudConfig c = new HudConfig();
@@ -41,6 +43,7 @@ final class HudConfig {
 			c.cpu = flag(o, "cpu");
 			c.lat = flag(o, "lat");
 			c.coords = flag(o, "coords");
+			c.jeiEarlyStart = flag(o, "jeiEarlyStart");
 		} catch (Exception e) {
 			ReminthHud.LOGGER.info("ReminthHUD: couldn't read {} ({}), showing everything", file, e.toString());
 		}

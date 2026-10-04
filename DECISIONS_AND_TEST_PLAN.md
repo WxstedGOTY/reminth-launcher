@@ -252,7 +252,10 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 **JEI first-inventory-open stutter (owner report, 4 Oct; fixed for him by switching JEI off).** Measured with the test mod opening the inventory by itself 3/8/15/25 s after joining, JEI 30.39 on vs off, owner's 32 mods, singleplayer: worst frame in the 4 s after opening = 52-59 ms with JEI, 35-50 ms without. So JEI costs about ONE extra 40-60 ms frame here, not the ~1 s the owner feels; the one-second hitch was NOT reproduced (the test has no server, no full real inventory). Nothing to fix from Reminth's side found. Next step if it matters: ask the owner whether the hitch also happens 30 s after joining (then it's not start-up work).
 
-**Unreleased (committed, not in 1.4.3):** ReminthHUD is switched on once for every Fabric/Quilt instance (`src/main/hudDefault.js`, marker `hud-on-by-default.json` in %APPDATA%\Reminth). Needs a release (1.4.4).
+
+**JEI freeze - found and fixed in ReminthHUD 1.2.0 (4 Oct).** JEI loads all recipes on the RENDER thread ("Starting JEI took 1.2-1.6 s" in latest.log) and starts when the server's recipe-update packet arrives (JeiLifecycleEvents.AFTER_RECIPES_UPDATED, fired by JEI's own mixin). Servers that don't send it (probably DonutSMP) leave JEI waiting for the first AbstractContainerScreen (ClientLifecycleHandler's ScreenEvents.AfterInit fallback) = the first inventory open. `JeiEarlyStart.java` fires that same event 30 ticks after joining if no recipe update came (JEI reached by reflection, no dependency; `jeiEarlyStart:false` in config/reminthhud.json turns it off). Verified: singleplayer = JEI starts once by itself, the helper stays out; forced test run = helper fires, JEI starts ("started JEI early"). NOT verified on a real server: owner's first-inventory-open on DonutSMP is the test (step B5). JEI's "Show Tag Recipes" setting does NOT shorten the start-up (1.46-1.57 s off vs 1.54-1.60 s on).
+
+**Unreleased (committed, not in 1.4.3):** ReminthHUD is switched on once for every Fabric/Quilt instance (`src/main/hudDefault.js`, marker `hud-on-by-default.json` in %APPDATA%\Reminth). Needs a release (1.4.4, built, together with HUD 1.2.0 and the JEI early start).
 
 ## 2. Decisions the owner must make (recommendation first)
 
@@ -431,6 +434,8 @@ B3. Right-click an instance → **Boost FPS…** → the list of from → to; Ca
     With the game running: the entry is greyed out with "Close the game first."
 B4. While a game runs, the launcher's looping animations (Plus page, progress shimmer) stand still; they move
     again after the game closes.
+
+B5. **JEI (switched ON) on DonutSMP (or another server): join, then open the inventory for the first time** - no freeze. `logs/latest.log` has "ReminthHUD: started JEI early" about 1.5 s after joining, and "Starting JEI took" appears BEFORE the first E. In singleplayer JEI starts by itself and the helper line is absent.
 
 ### Release 1.4.2
 R1. **Done by the desktop window:** `npm test` (582), bump to 1.4.2, `npm run dist`, check `dist/latest.yml` has no `isAdminRightsRequired`.

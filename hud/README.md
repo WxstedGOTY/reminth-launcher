@@ -27,10 +27,18 @@ Client-side only, CC0.
 `config/reminthhud.json` in the instance, written with everything on the first time:
 
 ```json
-{ "fps": true, "gpu": true, "cpu": true, "lat": true, "coords": true }
+{ "fps": true, "gpu": true, "cpu": true, "lat": true, "coords": true, "jeiEarlyStart": true }
 ```
 
 Set an item to `false` to hide it. Read once when the game starts.
+
+## JEI early start
+
+Just Enough Items (JEI) loads every recipe on the render thread - about 1.5 seconds with many mods - and
+starts when the server's "recipes updated" packet arrives. On servers that never send it, JEI waits for the
+first inventory screen, so the freeze lands when the player first presses E. If JEI is installed and hasn't
+started 1.5 s after joining, ReminthHUD runs JEI's own `AFTER_RECIPES_UPDATED` event (found by name, no JEI
+dependency) so the freeze happens while the world loads. `"jeiEarlyStart": false` turns it off.
 
 ## Building (on Windows, Java 25)
 

@@ -83,6 +83,9 @@ public class ReminthHudClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		config = HudConfig.load();
+		if (config.jeiEarlyStart) {
+			JeiEarlyStart.init();
+		}
 		SystemLoad.start(config.cpu, config.gpu);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> SystemLoad.stop());
 
