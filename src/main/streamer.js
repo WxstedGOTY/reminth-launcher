@@ -303,8 +303,20 @@ async function takeScreenshot() {
   }
   const dir = captureDirs().screenshots;
   await fsp.mkdir(dir, { recursive: true });
-  const file = path.join(dir, `Reminth-${stamp()}.png`);
-  await fsp.writeFile(file, game.thumbnail.toPNG());
+  // The name is to the second: a second shot in the same second gets "-2"
+  // instead of replacing the first ("wx" refuses a name that's taken).
+  const base = `Reminth-${stamp()}`;
+  const png = game.thumbnail.toPNG();
+  let file;
+  for (let n = 1; ; n++) {
+    file = path.join(dir, `${base}${n > 1 ? `-${n}` : ""}.png`);
+    try {
+      await fsp.writeFile(file, png, { flag: "wx" });
+      break;
+    } catch (err) {
+      if (!(err && err.code === "EEXIST") || n >= 99) throw err;
+    }
+  }
   toast("Screenshot saved", path.basename(file));
   return { file };
 }
