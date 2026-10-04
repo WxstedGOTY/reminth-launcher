@@ -2,21 +2,143 @@
 
 **This is the one living hand-off file between the windows.** Every Claude Code session that finishes
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
-section 0 (c) and section 4 in order and report PASS/FAIL per step.
+section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **Last updated:** 4 Oct 2026, by the **cloud window**: **Audit 16** (prompt 16, a bug and glitch audit, fixes
-  only). See section 0. Before that: the desktop window's 4 Oct batch (running-game scan, ReminthHUD for 1.21.1,
-  1.4.6).
-- **`main` is at:** this file's commit; the last code commit is `737d028`. **`npm test`: 602 pass** (Linux,
-  cloud). The last Windows count was 582 (desktop, before 1.4.6 and Audit 16).
-- **Version:** `package.json` says **1.4.6** (not bumped by Audit 16; nothing built). The Audit 16 fixes need a
-  release.
+- **Last updated:** 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+  screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
+- **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
+- **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
+  release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 
 ---
 
-## 0. Audit 16 (cloud window, 4 Oct 2026): bug and glitch audit, no features, no version bump, no build
+## 0. Prompt 17 (cloud window, 4 Oct 2026): the launcher side of the Reminth home screen
+
+This is `HOME_SCREEN_PLAN.md` section 6. Nothing here builds the game mod: that is `home/`, the desktop window's
+job. No version bump, no build. I did not touch `hud/`, `hud-1.21/`, `assets/mods/*.jar` or the privacy/terms text.
+**`npm test`: 621 pass** (Linux): 603 before, plus 10 in `test/bundled-mods.test.js`, 7 in
+`test/deep-link.test.js` and 1 in `test/perf-profiles.test.js`.
+
+**Not tested for real (no Electron, Windows or Minecraft here):**
+- the installer writing the scheme to the registry;
+- Windows starting Reminth from `reminth://…`, and the real `second-instance` argv;
+- `flashFrame` and focus rules in a real window;
+- a real game loading a `reminthhome` jar (none exists yet);
+- the dialog in real Electron.
+
+What I did test: the node tests below, plus headless Chromium driving the real renderer with a fake preload. That
+covered the home switch, the save payload, and a link arriving before startup finished (it lands on Skins after
+boot). It also covered instance and bad links: bad links do nothing.
+
+### Job 1: bundled mods are one mechanism (ReminthHUD + `reminthhome`)
+- **`src/main/config.js`**: `BUNDLED_MODS` lists both mods:
+  - `{ mod: "reminthhud", filePrefix: "reminthhud-", flag: "hud", label: "ReminthHUD", defaultOn: false }`;
+  - `{ mod: "reminthhome", filePrefix: "reminthhome-", flag: "homeScreen", label: "Reminth home screen", defaultOn: true }`.
+
+  Two helpers go with it: `bundledMod(key)` and `bundledModWanted(entry, instance)`, which is Fabric/Quilt only.
+  For the HUD the switch must be `hud === true`; the home screen is on unless `homeScreen === false`.
+- **`src/main/minecraft.js`**:
+  - `bundledModBuilds(mod)` and `findBundledModFor(mod, mc)` replace the HUD-only scan. A build is picked by its
+    `fabric.mod.json` `depends.minecraft`, and the newest one that fits wins.
+  - `findReminthHudFor` and `bundledReminthHudBuilds` still exist and give the same answers.
+  - `ensureInstalled` runs the steps in order:
+    1. `bundledModsFor`: what's wanted and fits;
+    2. `installBundledMods`: the same `installBundledJar` copy as before, noted as Reminth's own;
+    3. `tidyManagedMods(… dropBundled: bundledModsToDrop(instance))`: removes the home screen when it's switched
+       off, or on a Forge, NeoForge or vanilla instance.
+  - Wanted but no build for this version: the copy that's there stays and nothing is said, which is the HUD's rule.
+  - The HUD keeps its exact old conditions, including Fabric API whenever the HUD is on. The home screen brings
+    Fabric API only if its jar's `depends` names `fabric-api`/`fabric`.
+  - `isPerformanceMod`, `planStepAside`, `managedModFromName`, `managedModLabel` and the legacy adoption now treat
+    every bundled mod as "Reminth's own, not the pack". So the home screen never steps aside for a player's jar with
+    the same id (as the HUD), and switching the pack off never removes it.
+  - With **no `reminthhome-*.jar` in `assets/mods` (today), all of this is a quiet no-op.**
+- **`src/main/content.js`**: the "performance pack jars" list leaves out every bundled mod.
+- **`src/main/instances.js`**: a new `homeScreen` field, sanitized like `performanceMods`: only a real `true`/`false`
+  is stored, and a missing value means on. It's in `create()` and in the `update()` whitelist. No migration.
+- **`src/main/main.js`**:
+  - `instances:create` and `instances:update` accept `homeScreen` (anything that isn't a boolean is dropped);
+  - new IPC `bundled:supports(mod, mc)` (`hud:supports` is unchanged);
+  - "Reminth home screen" is added to `app:info.managedMods`.
+- **`src/main/preload.js`**: `bundledSupports(mod, mc)`.
+- **`src/renderer/renderer.js`**: the instance dialog has a **"Reminth home screen"** switch next to ReminthHUD.
+  - With no build it says "No Reminth home screen build for <version> yet — it's built per version." and is
+    disabled.
+  - It sends `homeScreen` **only when the player used the switch while a build exists**. Unlike the HUD switch, a
+    save never writes `false` just because there's no build yet. Otherwise every instance saved today would lose the
+    home screen for good.
+- **`src/renderer/features.js`**: the Mods tab's "Added by Reminth" badge and the "your own mods" count know
+  `reminthhome-*.jar`.
+- Tests are in **`test/bundled-mods.test.js`** (10), with fake jars in a temp assets folder:
+  - the build is picked by its range, for both mods;
+  - it's installed when on, removed when off, and left alone when no build fits;
+  - no jar at all means nothing happens;
+  - the HUD and the home screen switch independently;
+  - the home screen is never a pack mod and never steps aside;
+  - the explicit `false` is kept through create, update and rename;
+  - a missing value counts as on.
+
+  All the existing HUD tests pass unchanged.
+
+### Job 2: `reminth://` links
+- **`package.json`**: `build.protocols: [{ name: "Reminth", schemes: ["reminth"] }]`. The NSIS install is per-user
+  (`perMachine: false`), so the scheme goes under HKCU with no admin prompt.
+- **`src/main/deepLink.js`** (new, pure):
+  - `parseDeepLink(argvOrString, { knownIds })` returns `{ page: "skins" }`, `{ page: "home" }`,
+    `{ page: "instance", id }` or `null`.
+  - It is a strict allow-list:
+    - the scheme must be exactly `reminth://`, lower case;
+    - the host must be `skins`, `home` or `instance/<id>`, where the id is `[a-z0-9-]{1,40}` and **exists**;
+    - one trailing `/` is allowed;
+    - the only characters allowed are `a-z0-9/-`, so no query, fragment, `%`, `.`, `..`, `\`, `@`, `:`, spaces or
+      control characters get through;
+    - at most 120 characters, and exactly one `reminth:` argument in argv.
+  - `createDeepLinkHandler({ listIds, bringForward, showPage })` is the only thing a link can reach.
+- **`src/main/main.js`**:
+  - **First start:** `process.argv` is parsed. The window opens by itself, and the page is switched once it has
+    loaded.
+  - **Already running:** a `reminth:` argument in the `second-instance` argv goes to the handler. A good link brings
+    the window forward. **While a game runs (or is starting) it never takes the screen: only the taskbar button
+    flashes** (`flashFrame`), and the page still switches. See decision P17-1. A bad link does nothing at all, not
+    even showing the window.
+  - A plain second start (the shortcut) still restores and focuses, as before.
+  - `app.setAsDefaultProtocolClient("reminth")` runs for the packaged app only.
+- **`src/main/preload.js`**: `onDeepLink`.
+- **`src/renderer/pure.js`**: `deepLinkTarget(link, ids)` checks the link again and returns only a page switch.
+- **`src/renderer/renderer.js`**: `boot()` now settles a `booted` promise. A link waits for it, then goes through
+  `switchPage`, or `selectInstance(id, true)` for an instance link. Signed out, `switchPage` keeps Home, as for every
+  other route.
+- Tests are in **`test/deep-link.test.js`** (7) and **`test/perf-profiles.test.js`** (1):
+  - the good links;
+  - about 50 bad links: other schemes, case tricks, `play`/`install`/`delete`, extra path, query, `..`, `%`,
+    controls, 100,000 characters;
+  - argv noise: the exe path with Greek letters, `--some-flag`, `--user-data-dir=`, `.`, `--inspect`;
+  - two links, or a bad one next to a good one, mean nothing;
+  - the handler calls only `bringForward`/`showPage`, and nothing at all for a bad link;
+  - main.js's real `second-instance` wiring: bad link → no window calls and nothing sent; good link → show/focus
+    plus `deeplink:open`; during a game → only `flashFrame`;
+  - the installer config.
+
+**Privacy text: sentences for the desktop window to add** (I didn't edit it; the owner's name stays as it is):
+1. "Reminth registers the `reminth://` link type on your PC, so the game's title screen can open Reminth's Skins page.
+   A `reminth://` link can only choose which page Reminth shows. It can't start a game, install, delete, download,
+   sign you out or send anything."
+2. "Reminth home screen: a mod made by Reminth that Reminth copies into your Fabric and Quilt instances (you can
+   switch it off per instance in Edit). Like ReminthHUD, it comes inside the Reminth app; nothing is downloaded for
+   it." The mod itself (desktop window) may need more sentences: for example, it reads the instance's own
+   `servers.dat` for the quick-join shortcuts.
+
+### Other commits on `main` since Audit 16 (desktop window, described in their own commit messages)
+- `c582945`: the update lock is now set before the first await, and the mod toggle rename is retried (Audit 16
+  suspect (b) 5, now fixed).
+- `a2c6c2a`: ReminthHUD for 1.20.1 and 1.21.x from one source.
+- `867e159`: `HOME_SCREEN_PLAN.md` and this prompt.
+
+---
+
+## 0b. Audit 16 (cloud window, 4 Oct 2026): bug and glitch audit, no features, no version bump, no build
 
 I read all of `src/main/*.js` and `src/renderer/*` looking for what a player on a normal Windows PC would hit. I also
 checked the UI in headless Chromium at 1000x660 (the smallest window size), 1100x700 and 1097x577 (1080p at 175 %).
@@ -97,7 +219,7 @@ Microsoft token refresh. The checks in (c) below cover these.
    while one is running gets the first one's answer, which may have read the instance before the install
    finished. It corrects itself on the next Discover visit. Not fixed: the renderer has no node test harness, and
    the rule is a test for every fix.
-5. **Turning a mod on or off when antivirus is scanning the jar**: `content.setEnabled` uses a plain rename, with
+5. **(Fixed by the desktop window in `c582945`.)** **Turning a mod on or off when antivirus is scanning the jar**: `content.setEnabled` uses a plain rename, with
    no EBUSY/EPERM retry like the downloads have. The player gets "That file is in use — close Minecraft and try
    again." and a second click works. One-line fix (`atomic.renameWithRetry`) if check A16-6 shows it.
 6. **Very long Java command line**: the classpath is passed on the command line with no `@argfile`. Windows'
@@ -422,6 +544,24 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+P17-1. **A `reminth://skins` link that comes while a game runs only flashes Reminth's taskbar button.** The prompt said
+   never to take focus from a running game, so that's what it does. But the Skins button is pressed *in the game*,
+   on its title screen, so a game is always running then. As built, the player sees the taskbar flash and has to
+   Alt-Tab. **Recommend: for a link, bring Reminth to the front even while a game runs** (the player just asked for
+   it, and the game is on its title screen, not in a world). It's a one-line change in `main.js`
+   `bringForward`. Decide after P17-3 below.
+P17-2. **The home screen is ON by default for modpack instances too** (plan section 8.1 says every Fabric/Quilt
+   instance). A modpack may bring its own title-screen mod (FancyMenu and the like), and two title screens can clash.
+   **Recommend: default OFF for instances made from a modpack** (a missing value = off when `instance.modpack` is set).
+   It's one line in `config.bundledModWanted`, plus a test.
+P17-3. **The ReminthHUD switch still writes `hud: false` when the dialog is saved on a version with no HUD build**
+   (old behaviour, kept exactly as the prompt asked). Example: edit a 1.20.1 instance that had the HUD on and save →
+   the HUD is off for good, even after a build for it ships. The home switch doesn't do this. **Recommend: make the
+   HUD behave like the home switch** (send `hud` only when the switch could be used). It's small; it's a separate
+   change.
+P17-4. **Privacy text:** the two sentences in section 0 (Prompt 17). **Recommend: add them before the first release
+   that registers `reminth://`** (the next one, since the scheme is in `package.json` now).
+
 A16-D1. **Captures folder on OneDrive PCs.** Reminth saves clips and screenshots in `%USERPROFILE%\Videos\Reminth`,
    even when Windows' Videos folder is really `OneDrive\Videos`. **Recommend: leave it for now.** If players ask
    "where are my clips", change it then, and keep listing the old folder too so no capture disappears from the
@@ -514,7 +654,22 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 3. Known weak spots (say them, don't hide them)
 
-- **Audit 16:** the suspected but unfixed problems are in section 0 (b), most likely first. The new screen-size rule
+- **Prompt 17:**
+  - Nothing of it ran in real Electron or on Windows.
+  - The real `second-instance` argv on Windows is assumed to contain the link as its own argument (Electron's
+    documented behaviour). Chromium adds its own switches, and the parser ignores those.
+  - If another program claimed `reminth://` (a dev build, or an old install in Program Files), Windows may start
+    that one instead.
+  - The compatibility check doesn't know the home screen can bring Fabric API (only the HUD and the pack count). If
+    the home jar needs Fabric API on an instance with the HUD and the pack off, the check may still say a player's
+    mod is "missing Fabric API". The next Play installs it anyway.
+  - A bundled jar is recognised by its file prefix and its `fabric.mod.json` range only. Its mod id isn't checked.
+  - The home switch sits in the left half of its own row in the dialog (the grid is two columns). Fine in Chromium
+    at 1100 px; not seen in Electron.
+  - A link while signed out just shows Home (the sign-in card). That's intended: a link never gets round the
+    sign-in.
+
+- **Audit 16:** the suspected but unfixed problems are in section 0b (b), most likely first. The new screen-size rule
   (fix 11) is untested on a real scaled screen; a frameless window as big as the whole work area may open looking
   maximized (that's what the old 85 % rule avoided). It opens maximized anyway, so it should look the same.
 - **Desktop batch (3 Oct evening):** the migration away from `C:\Program Files\Reminth` has not run for real
@@ -584,14 +739,49 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 4. Test plan for the desktop window (in order)
 
-**Audit 16 first:** do section 0 (c), A16-1 to A16-13, after Basics below. A16-5, A16-8 and A16-13 protect
+### Prompt 17 first (do these before the Audit 16 list below)
+P17-1. **HUD unchanged:** on the installed 1.4.x, on an instance with the HUD on, press Play. `mods/` gets the same
+       `reminthhud-*.jar` as before, and `reminth-performance-mods.log` and the Mods tab look as before. Switch the
+       HUD off and press Play: the jar is gone. Switch it on again: back. A Fabric instance with the HUD off and the
+       pack off still gets no Fabric API.
+P17-2. **No home jar = no change:** with today's `assets/mods` (no `reminthhome-*`), Play a Fabric 26.2 instance.
+       Nothing new is in `mods/`, there are no new log lines and no errors. The instance dialog shows "Reminth home
+       screen", disabled, with "No Reminth home screen build for 26.2 yet".
+P17-3. **Fake home jar:** make a copy of any small Fabric jar for 26.2 whose `fabric.mod.json` says
+       `"depends": { "minecraft": "~26.2" }`, and name it `assets/mods/reminthhome-0.0.1+26.2.jar`. Run `npm start`.
+       1. The dialog's switch for a 26.2 instance is enabled and ON.
+       2. Play: `mods/reminthhome-0.0.1+26.2.jar` is there, `.reminth/managed-mods.json` lists it as
+          `{ "mod": "reminthhome" }`, and the Mods tab shows it with "Added by Reminth".
+       3. Switch it off, save, and press Play: the jar is gone from `mods/`, and the HUD and the pack are untouched.
+       4. Switch it on: it's back.
+       5. A 1.21.1 instance: the switch is disabled ("No … build for 1.21.1 yet"), and Play adds nothing.
+
+       Remove the fake jar afterwards.
+P17-4. **Links, packaged app** (built and installed per-user):
+       1. With Reminth closed, run `start reminth://skins` in cmd. Reminth opens on Skins.
+       2. With it already running on Home, run the same command. It comes to the front on Skins.
+       3. `start reminth://instance/<an instance id>` opens that instance's page. You can read the id from its
+          folder name under `%APPDATA%\Reminth\instances`.
+       4. `start reminth://home` opens Home.
+       5. `start reminth://../../x`, `start reminth://play/anything`, `start "" "reminth://skins?x=1"` and
+          `start REMINTH://skins` do **nothing**: no window comes up, no page changes, no game starts.
+P17-5. **Link during a game:** start a game, go to its title screen, and run `start reminth://skins` from cmd. Report
+       what you see: by design, only the taskbar button flashes. Then Alt-Tab: Reminth is on Skins. This settles
+       decision P17-1.
+P17-6. **Registry, no admin:** after the per-user install, `reg query HKCU\Software\Classes\reminth` shows
+       `URL Protocol` and a `shell\open\command` pointing at the installed `Reminth.exe` with `"%1"`. No admin
+       prompt came up during the install. `HKLM\Software\Classes\reminth` doesn't exist.
+P17-7. **Dev run doesn't claim the scheme:** `npm start`, then check that the HKCU `reminth` key still points at the
+       installed exe, not at electron.exe.
+
+**Then Audit 16:** do section 0b (c), A16-1 to A16-13, after Basics below. A16-5, A16-8 and A16-13 protect
 player files, so they matter most.
 
 Don't touch the screen while the owner plays. Use throwaway instances. Report PASS/FAIL per step with what
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **602 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **621 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
