@@ -50,7 +50,12 @@ function matchInstances(processes, instances) {
   return out;
 }
 
+// Windows PowerShell writes its output in the console's old code page, and
+// Node reads it as UTF-8: a game folder under C:\Users\Γιώργος (or José,
+// Zoë…) came back garbled, never matched, and the running game wasn't found.
+// UTF-8 output first, so every user name comes through as it is.
 const SCRIPT =
+  "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; " +
   "Get-CimInstance Win32_Process -Filter \"Name='javaw.exe' or Name='java.exe'\" | " +
   "Select-Object ProcessId, CommandLine, @{n='Started';e={([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()}} | " +
   "ConvertTo-Json -Compress";
@@ -120,4 +125,4 @@ function watchUntilGone(pid, onGone, { alive = isAlive, intervalMs = 2000, timer
   };
 }
 
-module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone };
+module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone, SCRIPT };

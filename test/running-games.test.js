@@ -100,3 +100,22 @@ test("a real Java process with --gameDir is found by its folder, and its token i
   }
   assert.equal(rg.isAlive(child.pid), false);
 });
+
+test("Audit 16: PowerShell is told to answer in UTF-8, so Greek and accented user names still match", async () => {
+  // Without this, Windows PowerShell answers in the old console code page and
+  // "C:\Users\Γιώργος\..." arrives garbled - the running game is never found.
+  const rg = require("../src/main/runningGames");
+  assert.match(rg.SCRIPT, /^\[Console\]::OutputEncoding = \[System\.Text\.Encoding\]::UTF8; Get-CimInstance/);
+  // what PowerShell then sends, as Node reads it (UTF-8)
+  const answer = JSON.stringify([{ ProcessId: 4242, CommandLine: 'javaw.exe -cp x net.minecraft.client.main.Main --gameDir "C:\\Users\\Γιώργος Ζωή\\AppData\\Roaming\\Reminth\\instances\\survival-ab12" --accessToken SECRET', Started: 1700000000000 }]);
+  const run = (_cmd, _args, _opts, cb) => cb(null, answer);
+  const realPlatform = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", { value: "win32" });
+  try {
+    const procs = await rg.listGameProcesses({ run });
+    const found = rg.matchInstances(procs, [{ id: "survival-ab12", gameDir: "C:\\Users\\Γιώργος Ζωή\\AppData\\Roaming\\Reminth\\instances\\survival-ab12" }]);
+    assert.equal(found.get("survival-ab12").pid, 4242);
+  } finally {
+    Object.defineProperty(process, "platform", realPlatform);
+  }
+});
