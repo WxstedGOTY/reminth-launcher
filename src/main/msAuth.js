@@ -54,6 +54,9 @@ const REQUEST_TIMEOUT_MS = 15000;
 // Refresh this long before the Minecraft token really runs out, so a token
 // can't expire between the check and the game using it.
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+// Minecraft tokens last 24 hours. An expiry further away than this was
+// worked out by a clock that was wrong (ahead) at the time, so it's not believed.
+const MAX_TOKEN_LIFETIME_MS = 25 * 60 * 60 * 1000;
 
 const EXPIRED_MESSAGE = "Your Microsoft sign-in has expired — sign in again.";
 
@@ -359,6 +362,7 @@ function needsRefresh(account, now) {
   if (!account || !account.minecraftAccessToken) return true;
   const expiresAt = Number(account.minecraftAccessTokenExpiresAt);
   if (!Number.isFinite(expiresAt) || expiresAt <= 0) return true;
+  if (expiresAt - now > MAX_TOKEN_LIFETIME_MS) return true;
   return expiresAt - now < REFRESH_MARGIN_MS;
 }
 

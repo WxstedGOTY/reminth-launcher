@@ -103,3 +103,14 @@ test("Audit 16: two servers added at once both end up in servers.dat", async () 
   const ips = nbt.parse(await fsp.readFile(path.join(gameDir, "servers.dat"))).servers.map((s) => s.ip).sort();
   assert.deepEqual(ips, ["a.example.net", "b.example.net", "mine.example.net"]);
 });
+
+test("Audit 16: a token saved while the PC clock ran ahead is renewed once the clock is right again", () => {
+  const msAuth = require("../src/main/msAuth");
+  const NOW = Date.UTC(2026, 9, 4, 12);
+  const HOUR = 60 * 60 * 1000;
+  const acc = (expiresAt) => ({ minecraftAccessToken: "t", minecraftAccessTokenExpiresAt: expiresAt, msRefreshToken: "r" });
+  // Saved when the clock said three days later: Minecraft tokens last 24 hours, so this one is long dead.
+  assert.equal(msAuth.needsRefresh(acc(NOW + 3 * 24 * HOUR), NOW), true);
+  // A normal token with most of its day left is still used as it is.
+  assert.equal(msAuth.needsRefresh(acc(NOW + 23 * HOUR), NOW), false);
+});
