@@ -19,6 +19,17 @@ loom {
 	}
 }
 
+// The few version-specific calls live in compat/<family>/ (A, B, C, D...); -Pcompat=B picks one.
+def compatFamily = project.findProperty("compat") ?: "A"
+sourceSets {
+	client {
+		java.srcDir "compat/${compatFamily}/client/java"
+	}
+	main {
+		java.srcDir "compat/${compatFamily}/main/java"
+	}
+}
+
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings loom.officialMojangMappings()
@@ -29,22 +40,28 @@ dependencies {
 processResources {
 	def version = project.version
 	def minecraftVersion = project.minecraft_version
+	// The Minecraft versions the jar accepts: exactly the one it was built for unless
+	// -Pmc_range=... says otherwise (for example -Pmc_range=">=1.21 <=1.21.1").
+	def minecraftRange = project.findProperty("mc_range") ?: project.minecraft_version.toString()
 	inputs.property "version", version
 	inputs.property "minecraftVersion", minecraftVersion
+	inputs.property "minecraftRange", minecraftRange
+	def javaRelease = project.findProperty("java_release") ?: "21"
+	inputs.property "javaRelease", javaRelease
 
 	filesMatching("fabric.mod.json") {
-		expand "version": version, "minecraft_version": minecraftVersion
+		expand "version": version, "minecraft_version": minecraftVersion, "minecraft_range": minecraftRange, "java_release": javaRelease
 	}
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 21
+	it.options.release = (project.findProperty('java_release') ?: '21').toInteger()
 }
 
 java {
 	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
+	sourceCompatibility = JavaVersion.toVersion(project.findProperty('java_release') ?: '21')
+	targetCompatibility = JavaVersion.toVersion(project.findProperty('java_release') ?: '21')
 }
 
 jar {

@@ -34,14 +34,18 @@ dependencies {
 processResources {
 	def version = project.version
 	def minecraftVersion = project.minecraft_version
+	// Which Minecraft versions the jar accepts: "~26.2" (26.2.x) unless -Pmc_range=... says otherwise,
+	// e.g. -Pmc_range=~26.1 for one jar that covers 26.1, 26.1.1 and 26.1.2.
+	def minecraftRange = project.findProperty("mc_range") ?: "~${project.minecraft_version}".toString()
 	inputs.property "version", version
 	inputs.property "minecraftVersion", minecraftVersion
+	inputs.property "minecraftRange", minecraftRange
 
 	// One source builds both jars (26.2 and 26.3): the version and the
 	// Minecraft line it is for come from gradle.properties, or from -P on the
 	// command line for the 26.2 build (see README.md).
 	filesMatching("fabric.mod.json") {
-		expand "version": version, "minecraft_version": minecraftVersion
+		expand "version": version, "minecraft_version": minecraftVersion, "minecraft_range": minecraftRange
 	}
 }
 

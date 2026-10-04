@@ -1,18 +1,13 @@
 package com.wxsted.reminthhud.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.wxsted.reminthhud.ReminthHud;
-
-import org.lwjgl.glfw.GLFW;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -35,14 +30,7 @@ public class ReminthHudClient implements ClientModInitializer {
 	private static HudConfig config = new HudConfig();
 
 	// Default key: H. Players can rebind this in the controls menu regardless.
-	private static final KeyMapping TOGGLE_KEY = KeyBindingHelper.registerKeyBinding(
-			new KeyMapping(
-					"key.reminthhud.toggle",
-					InputConstants.Type.KEYSYM,
-					GLFW.GLFW_KEY_H,
-					"key.categories.reminthhud"
-			)
-	);
+	private static final KeyMapping TOGGLE_KEY = Compat.registerToggleKey();
 
 	// Plain text, no background, no drop shadow, smaller than the game's own
 	// text: a grey label, a bold light-grey value, thin "|" between items.
@@ -107,10 +95,11 @@ public class ReminthHudClient implements ClientModInitializer {
 			}
 		});
 
-		HudRenderCallback.EVENT.register(ReminthHudClient::render);
+		// (older versions pass a float here, newer ones a DeltaTracker: unused either way)
+		HudRenderCallback.EVENT.register((graphics, ignored) -> render(graphics));
 	}
 
-	private static void render(GuiGraphics graphics, DeltaTracker tickCounter) {
+	private static void render(GuiGraphics graphics) {
 		if (!hudVisible) {
 			return;
 		}
@@ -121,7 +110,7 @@ public class ReminthHudClient implements ClientModInitializer {
 			return;
 		}
 		// F3's own screen shows all of this, in the same corner.
-		if (client.getDebugOverlay().showDebugScreen()) {
+		if (Compat.debugScreenShown(client)) {
 			return;
 		}
 
@@ -138,9 +127,7 @@ public class ReminthHudClient implements ClientModInitializer {
 	/** Draws one line right-aligned at screen row `y`. */
 	private static void drawLine(GuiGraphics graphics, Font font, Line line, int y) {
 		float x = graphics.guiWidth() - line.width * SCALE - MARGIN;
-		graphics.pose().pushPose();
-		graphics.pose().translate(x, (float) y, 0f);
-		graphics.pose().scale(SCALE, SCALE, 1f);
+		Compat.pushScaled(graphics, x, (float) y, SCALE);
 		int cx = 0;
 		for (int i = 0; i < line.items; i++) {
 			graphics.drawString(font, line.labels[i], cx, 0, LABEL_COLOR, false);
@@ -153,7 +140,7 @@ public class ReminthHudClient implements ClientModInitializer {
 				cx += font.width("|") + GAP;
 			}
 		}
-		graphics.pose().popPose();
+		Compat.pop(graphics);
 	}
 
 	/**
@@ -166,7 +153,7 @@ public class ReminthHudClient implements ClientModInitializer {
 		boolean bad = false;
 		for (MobEffectInstance effect : player.getActiveEffects()) {
 			if (!effect.showIcon()) continue;
-			if (effect.getEffect().value().isBeneficial()) good = true;
+			if (Compat.isBeneficial(effect)) good = true;
 			else bad = true;
 		}
 		if (bad) return 53;
