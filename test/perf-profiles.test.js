@@ -1078,6 +1078,28 @@ test("Audit 16: Play and 'Update mods to fit' wait for a running mod update (con
   }
 });
 
+test("Audit 16: two mod updates started at the very same moment: the second is refused (no gap before the lock)", async () => {
+  const real = content.applyUpdates;
+  let finish;
+  let started = 0;
+  content.applyUpdates = () => {
+    started++;
+    return new Promise((resolve) => (finish = () => resolve({ applied: [], failed: [] })));
+  };
+  try {
+    // no tick in between: both clicks arrive while the instance is still being read
+    const first = call("content:applyUpdates", "i1", []);
+    const second = call("content:applyUpdates", "i1", []);
+    await assert.rejects(second, /already being updated/);
+    await tick(5);
+    assert.equal(started, 1, "only one update ran");
+    finish();
+    await first;
+  } finally {
+    content.applyUpdates = real;
+  }
+});
+
 test("Audit 16: an instance can't be deleted while it is being updated or installed", async () => {
   const realApply = content.applyUpdates;
   const realRemove = instances.remove;

@@ -747,9 +747,11 @@ ipcMain.handle("content:applyUpdates", async (_e, id, updates) => {
   // The same guard as "Update mods to fit": Play (which writes Reminth's own
   // jars into mods/) and a second update can't start while jars are swapped.
   if (syncing.has(id)) throw new Error("That instance's mods are already being updated.");
-  const inst = await instances.require(id);
+  // Marked busy BEFORE the first await: a second click that arrives while the
+  // instance is still being read must not slip past the check above.
   syncing.add(id);
   try {
+    const inst = await instances.require(id);
     return await content.applyUpdates(inst, Array.isArray(updates) ? updates.slice(0, 500) : [], (p) =>
       send("content:progress", { instanceId: id, op: "update", ...p })
     );

@@ -781,7 +781,8 @@ async function setEnabled(gameDir, { kind, world, file }, enabled) {
   if (await fsp.lstat(target).then(() => true, () => false)) {
     throw new Error(`There is already a file called ${path.basename(target)} in that folder - remove or rename one of the two first.`);
   }
-  await fsp.rename(current, target);
+  // Retried a few times while antivirus holds the jar (EBUSY/EPERM), like the downloads are.
+  await atomic.renameWithRetry(current, target);
   // Turned on again by the player: "turned off by Reminth because…" no longer applies.
   if (enabled) await clearOffReason(gameDir, current);
   return { file: path.basename(target) };
