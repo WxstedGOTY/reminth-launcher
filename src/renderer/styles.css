@@ -2423,6 +2423,9 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
    reload) the content stayed invisible or dim for as long as the game ran.
    With no animation an element simply shows its normal, finished look. */
 body.game-running *, body.game-running *::before, body.game-running *::after { animation: none !important; }
+/* The same while Reminth is not the window in front (renderer.js): a launcher left open behind other
+   windows should cost nothing, not 7-10% of a CPU core for animations nobody can see. */
+body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation: none !important; }
 
 /* !important because every "background:" shorthand elsewhere silently resets
    this back to the padding edge. */

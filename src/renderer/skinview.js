@@ -375,7 +375,7 @@
         // Nothing to draw while the page it's on is hidden - or while a game
         // runs (body.game-running, renderer.js): the launcher must not take
         // frames from it.
-        if (document.hidden || document.body.classList.contains("game-running") || !this.container.isConnected || this.container.offsetParent === null) return;
+        if (document.hidden || document.body.classList.contains("game-running") || document.body.classList.contains("unfocused") || !this.container.isConnected || this.container.offsetParent === null) return;
         this.render(now);
       };
       this.frame = requestAnimationFrame(tick);

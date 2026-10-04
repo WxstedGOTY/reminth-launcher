@@ -2747,6 +2747,15 @@ function fillGrid(gridId, entries, noteId, copy) {
   if (note) note.textContent = `${entries.length} total · newest first`;
 }
 
+/* Not the window in front: no decorative animation (styles.css body.unfocused), no skin-viewer frames. */
+function paintFocus() {
+  document.body.classList.toggle("unfocused", !document.hasFocus());
+}
+window.addEventListener("focus", paintFocus);
+window.addEventListener("blur", paintFocus);
+document.addEventListener("visibilitychange", paintFocus);
+paintFocus();
+
 /* ================================================================== *
  * what's new                                                          *
  * ================================================================== */
