@@ -1,0 +1,97 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"reminthhome" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+// The few version-specific calls live in compat/<family>/ (A = 26.2, B = 26.3, C = 26.1); -Pcompat=B picks one.
+def compatFamily = project.findProperty("compat") ?: "A"
+sourceSets {
+	client {
+		java.srcDir "compat/${compatFamily}/client/java"
+	}
+}
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API is only a runtime dependency (it loads this mod's textures); nothing here compiles against it.
+}
+
+processResources {
+	def version = project.version
+	def minecraftVersion = project.minecraft_version
+	// Which Minecraft versions the jar accepts: "~26.2" (26.2.x) unless -Pmc_range=... says otherwise,
+	// e.g. -Pmc_range=~26.1 for one jar that covers 26.1, 26.1.1 and 26.1.2.
+	def minecraftRange = project.findProperty("mc_range") ?: "~${project.minecraft_version}".toString()
+	inputs.property "version", version
+	inputs.property "minecraftVersion", minecraftVersion
+	inputs.property "minecraftRange", minecraftRange
+
+	// One source builds every jar: the version and the
+	// Minecraft line it is for come from gradle.properties, or from -P on the
+	// command line for the 26.2 build (see README.md).
+	filesMatching("fabric.mod.json") {
+		expand "version": version, "minecraft_version": minecraftVersion, "minecraft_range": minecraftRange
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_25
+	targetCompatibility = JavaVersion.VERSION_25
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}
+
+// configure the maven publication
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+
+	// See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+	repositories {
+		// Add repositories to publish to here.
+		// Notice: This block does NOT have the same function as the block in the top level.
+		// The repositories here will be used for publishing your artifact, not for
+		// retrieving dependencies.
+	}
+}
