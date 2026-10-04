@@ -812,7 +812,7 @@
               <details class="legal">
                 <summary>Privacy Policy</summary>
                 <div class="legal-body">
-                  <p><b>Last updated: 3 October 2026 · Version 6.</b> This is a summary. The full policy is at
+                  <p><b>Last updated: 4 October 2026 · Version 7.</b> This is a summary. The full policy is at
                     <a href="https://reminth.pages.dev/privacy.html" target="_blank">reminth.pages.dev/privacy.html</a>
                     and is what applies.</p>
 
@@ -828,7 +828,11 @@
                     log and the archive of your older game logs). Streamer mode's recording captures the Minecraft
                     window's picture and, when sound is on, everything the PC plays; it keeps a short rolling
                     recording there and saves clips and screenshots to <span class="mono">Videos\Reminth</span>.
-                    None of this is ever sent to us.</p>
+                    None of this is ever sent to us. When it starts, Reminth also looks at the list of running Java
+                    programs on your PC (only their process number, start time and game folder, never the sign-in
+                    token in their start command) so it can recognise a game it started earlier; that stays in memory.
+                    The in-game bar (ReminthHUD) reads your CPU and graphics load from Windows' own counters and
+                    sends nothing.</p>
 
                   <p><b>What Reminth sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
                     tracking. The launcher talks directly to: Microsoft and Xbox Live (sign-in); Mojang and Minecraft

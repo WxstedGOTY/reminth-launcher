@@ -23,7 +23,7 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 3 October 2026 · Version 6</p>
+    <p class="updated">Last updated: 4 October 2026 · Version 7</p>
 
     <div class="summary">
       <b>The short version.</b> Reminth has no servers, no accounts of its own, no analytics, no crash
@@ -121,7 +121,9 @@
         the old file (in <code>.reminth\replaced-mods</code>, the newest five batches are kept) so you can put
         it back; and, after a game that stops soon after it starts, the names of the mods Minecraft itself
         reported as not fitting (<code>.reminth\launch-report.json</code>, read from that instance's own game
-        log, deleted again after a start that gets past loading mods). None of this leaves your computer.</li>
+        log, deleted again after a start that gets past loading mods); and, if you use &ldquo;Boost FPS&hellip;&rdquo;,
+        your video settings from before it changed them (<code>.reminth\options-before-boost.json</code>) so
+        &ldquo;Put my old settings back&rdquo; can restore them. None of this leaves your computer.</li>
       <li><b>Skins</b>: a cached copy of your current skin and any skins you save to your library.</li>
       <li><b>Caches of public information</b>: a catalogue of public Modrinth listings, and which Modrinth
         project each of your installed files is and who made it (creator name, profile picture address, icon);
@@ -135,6 +137,17 @@
         <code>logs</code> folder, and an archive of those (<code>log-archive</code>) so older sessions stay
         viewable in the Logs tab. Game logs can contain your username, chat and the addresses of servers you
         joined. Reminth does not delete the archive on its own, and no log is ever uploaded.</li>
+      <li><b>Which games are running</b> (nothing is saved): when Reminth starts, it asks Windows for the list
+        of running Java programs (<code>java.exe</code> and <code>javaw.exe</code>) and reads only each one's
+        process number, when it started, and the game folder in its start command. That lets Reminth show a game
+        it started earlier, before Reminth was closed, restarted or updated, as running, and not start a second
+        copy on the same worlds. The start command of a game also contains your Minecraft sign-in token;
+        Reminth does not read, keep or log it. The result stays in memory and is gone when Reminth closes.</li>
+      <li><b>ReminthHUD</b> (the bar in the game with FPS, GPU, CPU and latency): it runs inside the game and
+        reads your PC's CPU and graphics load from Windows' own performance counters, and the latency the game
+        already knows. Nothing is stored or sent. Which items it shows is kept in <code>config\reminthhud.json</code>
+        inside the instance; <code>hud-on-by-default.json</code> in <code>%APPDATA%\Reminth</code> records that
+        Reminth switched the bar on once for your existing Fabric and Quilt instances.</li>
       <li><b>The game itself</b>: Minecraft, mod loaders, Java, your mods, packs and your worlds.</li>
       <li><b>Streamer mode</b> (only if you turn it on): while it is on and the game is running, Reminth
         records the picture of the Minecraft window, not the rest of your screen. If “Record sound” is on
@@ -277,7 +290,17 @@
       <code>options.txt</code> into that new instance only if no <code>options.txt</code>, world or game log
       exists there, and never changes one that exists; (d) &ldquo;Choose graphics card&hellip;&rdquo; only opens
       Windows' own graphics settings page and shows you the path to copy; Reminth does not change that setting
-      or write to the Windows registry.
+      or write to the Windows registry; (e) &ldquo;Boost FPS&hellip;&rdquo; in an instance's menu shows the video
+      settings it would change, changes them in that instance's <code>options.txt</code> only after you press
+      &ldquo;Change them&rdquo; and never while the game runs, and keeps your old values so you can put them back;
+      (f) with ReminthHUD in an instance, it starts Just Enough Items (JEI), if you have it, about a second and a
+      half after you join a world or server if JEI has not started by then, using JEI's own start-up action, so
+      JEI's loading does not freeze the game later; this can be switched off with
+      <code>&quot;jeiEarlyStart&quot;: false</code> in <code>config\reminthhud.json</code>; (g) since Reminth 1.4.2 the
+      installer puts Reminth in your own user folder (<code>%LOCALAPPDATA%\Programs\reminth-launcher</code>)
+      instead of <code>C:\Program Files</code>, so installing and updating no longer need administrator rights. If an
+      older all-users copy is found, Windows asks once and the installer removes that old copy; your instances,
+      worlds and settings in <code>%APPDATA%\Reminth</code> are kept.
     </p>
 
     <h2>11. Changes to this policy</h2>
@@ -288,6 +311,10 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 7, 4 October 2026</b>: described how Reminth finds games it started earlier (the list of
+        running Java programs, never the sign-in token in their start command), ReminthHUD and its settings
+        file, &ldquo;Boost FPS&hellip;&rdquo; and the copy of your old video settings, the early start of JEI,
+        and the move of the installer to your user folder.</li>
       <li><b>Version 6, 3 October 2026</b>: the performance pack now comes from Modrinth (stable builds only,
         checksum-checked) with GitHub only as a fallback, and has more mods and Forge/NeoForge support; added
         process priority, starting <code>options.txt</code> files for performance profiles, the graphics-card
