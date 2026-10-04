@@ -44,6 +44,8 @@ let cachedSettings = store.DEFAULT_SETTINGS;
 // instanceId -> { child, startedAt }. One game per instance at a time: two
 // copies of the same instance would write the same worlds at once.
 const running = new Map();
+// Resolves once the games an earlier Reminth started have been found again.
+let adoptionDone = Promise.resolve();
 // The window as it was when the first of the running games was launched
 // ({ wasMaximized, minimizedByUs }), until it has been put back after them.
 let windowBeforeGame = null;
@@ -209,7 +211,7 @@ app.whenReady().then(async () => {
     if (restored) send("auth:restored", { username: restored.username });
     streamer.configure(cachedSettings);
     // A game started before Reminth was closed, restarted or updated is still running.
-    adoptRunningGames().catch(() => {});
+    adoptionDone = adoptRunningGames().catch(() => {});
     await watchActiveInstance();
     // Pull any new logs into the permanent archive for every instance.
     for (const inst of await instances.list()) logs.importInstanceLogs(inst).catch(() => {});
@@ -1059,13 +1061,12 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
   const claim = { child: null, startedAt: Date.now() };
   running.set(inst.id, claim);
   try {
-    // Reminth may have been restarted since it started this game (the game
-    // keeps running without it): look before starting a second copy on the
-    // same worlds, and pick the running one up again if it is there.
-    const already = (await runningGames.listGameProcesses().then((p) => runningGames.matchInstances(p, [inst]))).get(inst.id);
-    if (already) {
-      if (running.get(inst.id) === claim) running.delete(inst.id);
-      adoptProcess(inst, already);
+    // A game that outlived an earlier Reminth is picked up at start-up
+    // (adoptRunningGames, which then replaces this claim); a Play pressed in
+    // the first second waits for that scan instead of starting a second copy.
+    await adoptionDone;
+    const current = running.get(inst.id);
+    if (current && current !== claim && current.adopted) {
       throw new Error("Minecraft is already running for this instance - Reminth found it and is keeping track of it again.");
     }
     return await startGame(inst, options.join, claim, options.world);
@@ -1429,7 +1430,10 @@ async function adoptRunningGames() {
   const found = runningGames.matchInstances(await runningGames.listGameProcesses(), list);
   for (const inst of list) {
     const proc = found.get(inst.id);
-    if (proc && !running.has(inst.id)) adoptProcess(inst, proc);
+    if (!proc) continue;
+    // A Play that is only just starting (a claim with no process yet) gives way to the real game.
+    const existing = running.get(inst.id);
+    if (!existing || (existing.child === null && !existing.adopted)) adoptProcess(inst, proc);
   }
 }
 
