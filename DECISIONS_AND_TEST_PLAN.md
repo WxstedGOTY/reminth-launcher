@@ -14,60 +14,71 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
-## 00. Desktop window, 4 Oct 2026 evening: 1.4.7 built, `reminth://` tested, home-screen mod built and tested
+## 00. Desktop window, 4 Oct 2026 evening: 1.4.7 and 1.4.8 built, links tested, home-screen mod on ten versions
 
-- **1.4.7 is built** (`dist/Reminth-Setup.exe`, `latest.yml`, `.blockmap`). It has the FPS bar for 1.20.1,
-  1.21-1.21.11, 26.1, 26.2, 26.3, the JEI fix, and the prompt-17 code (bundled-mod mechanism + `reminth://`
-  links). **That installer does NOT contain the home screen** (built before the jars existed) - on purpose, see
-  decision H3. `npm test`: **621 pass** on Windows.
+**Two installers are ready, in different folders (git-ignored, on the owner's PC):**
+- `release-1.4.7\` = the FPS bar on every version + JEI fix + prompt-17 code. **No home screen** in it.
+- `release-1.4.8\` (also in `dist\`) = 1.4.7 **plus the home screen**. Each folder has `Reminth-Setup.exe`,
+  `Reminth-Setup.exe.blockmap`, `latest.yml` - upload all three of ONE folder to the GitHub release.
+  Recommended: skip 1.4.7 and publish 1.4.8 (players on 1.4.6 update straight to it) after looking at
+  `home/previews/title-1280x720.jpg` (decision H3). `npm test`: **621 pass** (Windows). Installer is 155 MB (113 MB before; the
+  ten home jars carry the pictures, 4 MB each).
+
 - **`reminth://` links, tested on the packaged app** (`win-unpacked`, own profile; signed-in state forced because a
   signed-out Reminth deliberately stays on Home): `reminth://skins` while running -> Skins PASS; `home` -> Home PASS;
   `instance/reminth` -> instance page PASS; `play/zz`, `../../x`, `skins?x=1`, `REMINTH://home`, unknown
   instance, `delete/reminth` -> ignored PASS. The packaged app writes the scheme under HKCU (no admin) PASS (I
-  removed my test key again). NOT tested: the NSIS installer writing it; a link when Reminth is fully closed (code
-  read: boot waits for the sign-in state); a link while a game runs.
-- **`home/` = the Reminth home screen mod (`reminthhome`), source in the repo, jars in `assets/mods`**
-  (`reminthhome-1.0.0+26.1.jar` for 26.1/26.1.1/26.1.2, `+26.2`, `+26.3`; 7 MB each because the six night pictures
-  are inside). Pictures were made on this PC (Minecraft 26.2 + Iris 1.11.4 + Sodium + Complementary Reimagined,
-  12 seeds x up to 10 viewpoints, I looked at the results myself). Chosen: **seed 2024, viewpoint 8** (aurora over a
-  snowy taiga). Looked at and kept as alternatives: seed 424242 vp 1 (aurora over snow peaks), seed 271828 vp 4
-  (aurora + campfire). `home/previews/*.jpg` are real in-game screenshots.
-  What it does: vanilla `TitleScreen` subclass (so logo, splash, version and Mojang's copyright line stay), dark
-  rounded Singleplayer/Multiplayer buttons, up to 2 saved-server shortcuts under them, bottom-middle icon row
-  (Skins -> `reminth://skins`, Mods only if Mod Menu is installed, Options, Language, Quit), the panorama looks
-  slightly UP instead of vanilla's 10 degrees down so the aurora fits. Any exception -> vanilla title screen.
-  `config/reminthhome.json {"enabled":false}` -> vanilla buttons. Needs Fabric API (declared; Reminth already
-  installs it for bundled mods that declare it - tested with Reminth's own installer path: right jar per version,
-  Fabric API added, nothing when the switch is off).
-- **Tested in the REAL game** (test mod harness, window-only captures): 26.2 clean: GUI scale 1, 4, auto at 1280x720,
-  854x480 (scale 3 and auto), 1920x1080; 26.2 with the owner's 118 mods (Mod Menu cube icon appears, no crash);
-  config off -> vanilla buttons; corrupt `servers.dat` -> no shortcuts, no crash; clicks: Options, Language, Mods
-  (Mod Menu), Multiplayer list, Singleplayer (opens Create World, as vanilla does with no worlds), quick-join
-  (reaches "Unknown host" for a fake server) all work on 26.2. 26.3 and 26.1.2: screen, icons, picture, copyright
-  line OK; Options (26.1.2) and Language (26.3) clicks OK. **Not fully verified:** on 26.3 two of my scripted
-  clicks landed on Singleplayer instead (the game window opened with the real mouse hovering there; looks like my
-  PostMessage clicks, not the mod) - the owner should click through once for real.
-  **NOT tested at all:** the Skins icon (it would open the installed Reminth; test with the real installed app),
-  controller/narrator, resource packs that replace the panorama, Quick Play launch, fullscreen toggle.
-- **Not done yet:** 1.21.x and 1.20.1 versions (need compat families like the HUD's; started below if time allows),
-  Forge/NeoForge (not planned).
+  removed my test key each time). NOT tested: the NSIS installer writing it; a link when Reminth is fully closed
+  (code read: boot waits for the sign-in state); a link while a game runs; the Skins icon in the game.
+- **Home screen mod = `home/` (26.1, 26.2, 26.3) + `home-1.21/` (1.20.1, 1.21-1.21.1, 1.21.4, 1.21.5,
+  1.21.6-1.21.8, 1.21.9-1.21.10, 1.21.11); ten jars in `assets/mods` (`reminthhome-1.0.0+...`).** Pictures were
+  made on this PC (Minecraft 26.2 + Iris 1.11.4 + Sodium + Complementary Reimagined; 12 seeds x up to 10
+  viewpoints, I looked at the results myself). Chosen: **seed 2024, viewpoint 8** (aurora over a snowy taiga),
+  blurred lightly, brightened, 6-bit dithered to keep the jars small. Kept as alternatives: seed 424242 vp 1
+  (aurora over snow peaks), seed 271828 vp 4 (aurora + campfire). `home/previews/*.jpg` are real in-game shots.
+  What it does: a subclass of the vanilla `TitleScreen` (logo, splash, version and Mojang's copyright line stay),
+  dark rounded Singleplayer/Multiplayer buttons, up to 2 saved-server shortcuts, bottom-middle icons (Skins ->
+  `reminth://skins`, Mods only if Mod Menu is installed, Options, Language, Quit), the panorama camera looks
+  slightly UP (vanilla looks down and cuts the sky). Any exception -> vanilla title screen from then on.
+  `config/reminthhome.json {"enabled":false}` -> vanilla buttons. Needs Fabric API (declared; Reminth installs it).
+- **Tested in the REAL game** (harness: Reminth's own `launch()`, window-only captures):
+  - 26.2 clean at GUI scale 1, 4 and auto; windows 854x480, 1280x720, 1920x1080; with the owner's 118 mods (the
+    Mod Menu cube icon appears, no crash); config off -> vanilla buttons; corrupt `servers.dat` -> no shortcuts, no
+    crash; clicks that worked: Options, Language, Mods (Mod Menu), Multiplayer list, Singleplayer (opens Create
+    World, as vanilla does with no worlds), quick-join (reaches "Unknown host" for a fake server).
+  - Leaving a world returns to OUR title screen (26.2 with Iris + Sodium installed).
+  - Every other version: 26.1.2, 26.3, 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11 each started to the
+    title screen with ours showing (buttons, icons, picture, copyright line, sky visible) and one icon click
+    (Options or Language) opened the right screen.
+  - Reminth's own install path (`ensureInstalled`) puts the right jar + Fabric API into a 26.2 / 26.3 / 26.1.2
+    instance and nothing when the switch is off; the packaged app answers "build available" for exactly the
+    versions of the HUD and "no" for 1.21.2, 1.21.3, 1.19.4, 1.8.9.
+  - **Not fully verified:** on 26.3 two scripted clicks landed on Singleplayer instead of the button aimed at (the
+    game window opened with the real mouse hovering there; looks like my PostMessage clicks, not the mod). Click
+    through once for real on 26.3.
+  - **NOT tested at all:** the Skins icon (opens the installed Reminth); controller/narrator; resource packs
+    that replace the panorama; Quick Play launch; fullscreen toggle; Forge/NeoForge/Quilt (not built); 1.21.9
+    / 1.21.6 / 1.21.7 (covered by the 1.21.8 / 1.21.10 jars' ranges but not started).
+- One thing I noticed: the owner's mod set shows a small extra avatar-like icon above the icon row - another mod
+  (not ours) adds it to the title screen.
 
 ### Decisions for the owner (recommendation first)
-- **H3 (new): ship the home screen in 1.4.8, after you looked at `home/previews/title-1280x720.jpg`.** Recommended:
-  yes, default ON (the switch stays). If you dislike it: say what (picture, buttons, layout) - each is one file.
-  The already-built 1.4.7 installer is safe to upload as it is.
-- **H4 (new): the picture.** Recommended: the aurora one (seed 2024). Other candidates in
+- **H3: publish 1.4.8 (with the home screen)** after looking at `home/previews/title-1280x720.jpg`. Recommended:
+  yes, default ON (the switch stays). If you dislike something (picture, buttons, layout), it is one file each;
+  1.4.7 stays available as the version without it.
+- **H4: the picture.** Recommended: the aurora one (seed 2024). Other candidates in
   `home/previews/other-pictures-considered.jpg` (top = seed 424242, middle = seed 271828, bottom = chosen).
 - Quick-join shows the FIRST two servers of the game's list, not "last played" (the game stores no play time).
 
 ### PASS/FAIL for the owner (5 minutes)
-1. Install 1.4.8 (when built), start Reminth, Play the Reminth instance (26.2): the title screen is the aurora one
-   with dark rounded buttons, icons at the bottom. PASS/FAIL.
+1. Install 1.4.8, start Reminth, Play the Reminth instance (26.2): the title screen is the aurora one with dark
+   rounded buttons and icons at the bottom. PASS/FAIL.
 2. Click Singleplayer, Multiplayer, Options (gear), Language (globe): each opens the right screen and Esc/Back
    returns to OUR title screen. PASS/FAIL.
 3. Click the person icon (Skins): Reminth comes to the front on its Skins page. PASS/FAIL.
-4. Instance settings -> turn "Reminth home screen" off, Play: the normal Minecraft title screen (pictures stay).
+4. Instance settings -> turn "Reminth home screen" off, Play: the normal Minecraft title screen. PASS/FAIL.
 5. With Mod Menu installed: the cube icon opens the mod list; without it, no cube. PASS/FAIL.
+6. Open a world and leave it ("Save and Quit to Title"): our title screen again. PASS/FAIL.
 
 ---
 
