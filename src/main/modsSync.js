@@ -209,8 +209,10 @@ async function backupJars(gameDir, files, now = new Date(), { onError } = {}) {
   }
   if (!copied) return null;
   try {
-    const old = (await fsp.readdir(root)).sort();
-    for (const name of old.slice(0, Math.max(0, old.length - BACKUPS_KEPT))) {
+    // The copy just made always stays: with the PC clock behind, its name
+    // sorts as the oldest and it used to be the one pruned.
+    const old = (await fsp.readdir(root)).filter((name) => name !== path.basename(dir)).sort();
+    for (const name of old.slice(0, Math.max(0, old.length - (BACKUPS_KEPT - 1)))) {
       await fsp.rm(path.join(root, name), { recursive: true, force: true });
     }
   } catch {

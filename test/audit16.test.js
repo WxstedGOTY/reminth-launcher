@@ -114,3 +114,14 @@ test("Audit 16: a token saved while the PC clock ran ahead is renewed once the c
   // A normal token with most of its day left is still used as it is.
   assert.equal(msAuth.needsRefresh(acc(NOW + 23 * HOUR), NOW), false);
 });
+
+test("Audit 16: with the PC clock behind, the copy of the jars an update just replaced isn't pruned straight away", async () => {
+  const modsSync = require("../src/main/modsSync");
+  const gameDir = await gameFolder({ "x.jar": "old build" });
+  for (let i = 0; i < 6; i++) await modsSync.backupJars(gameDir, ["x.jar"], new Date(Date.UTC(2026, 9, 3, 10, i)));
+  // The clock now says 2015 (a flat CMOS battery): this copy's name sorts first.
+  const dir = await modsSync.backupJars(gameDir, ["x.jar"], new Date(Date.UTC(2015, 0, 1)));
+  assert.equal(await fsp.readFile(path.join(dir, "x.jar"), "utf8"), "old build");
+  // still five kept in all
+  assert.equal((await fsp.readdir(path.dirname(dir))).length, 5);
+});
