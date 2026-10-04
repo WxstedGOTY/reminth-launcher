@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld("reminth", {
   maximizeToggle: () => ipcRenderer.send("window:maximizeToggle"),
   close: () => ipcRenderer.send("window:close"),
   onMaximized: on("window:maximized"),
+  // A reminth:// link: which page to show (main.js only sends allow-listed pages).
+  onDeepLink: on("deeplink:open"),
   isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
 
   // auto-update (updater.js)

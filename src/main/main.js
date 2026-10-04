@@ -36,6 +36,7 @@ const projectPage = require("./projectPage");
 const windowRestore = require("./windowRestore");
 const crashReport = require("./crashReport");
 const versionSwitch = require("./versionSwitch");
+const deepLink = require("./deepLink");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -49,6 +50,31 @@ let adoptionDone = Promise.resolve();
 // The window as it was when the first of the running games was launched
 // ({ wasMaximized, minimizedByUs }), until it has been put back after them.
 let windowBeforeGame = null;
+
+// ---- reminth:// links (deepLink.js): they only ever switch the page ----
+let pageReady = false;
+let pendingLink = null; // a link that came before the page could listen
+const linkIds = async () => (await instances.list()).map((i) => i.id);
+const showLinkPage = (link) => {
+  if (pageReady) send("deeplink:open", link);
+  else pendingLink = link;
+};
+const handleDeepLink = deepLink.createDeepLinkHandler({
+  listIds: linkIds,
+  // To the front - but never over a running game (the same rule as the
+  // window after a game): then the taskbar button only flashes.
+  bringForward: () => {
+    if (!win || win.isDestroyed()) return;
+    if (running.size > 0) {
+      win.flashFrame(true);
+      return;
+    }
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+  },
+  showPage: showLinkPage,
+});
 
 // Must run before app.whenReady() - Electron ignores this call once the GPU
 // process has started. Read synchronously on purpose: an async read can
@@ -69,8 +95,14 @@ const gotInstanceLock = app.requestSingleInstanceLock();
 if (!gotInstanceLock) {
   app.quit();
 } else {
-  app.on("second-instance", () => {
+  app.on("second-instance", (_event, argv) => {
     if (!win || win.isDestroyed()) return;
+    // Started again by a reminth:// link (the game's Skins button, a web
+    // page): handled on its own - it never takes the screen from a game.
+    if (Array.isArray(argv) && argv.some((a) => typeof a === "string" && /^reminth:/i.test(a))) {
+      handleDeepLink(argv);
+      return;
+    }
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
@@ -195,7 +227,19 @@ app.whenReady().then(async () => {
   await require("./hudDefault").turnOnOnce({ dir: paths.ROOT, list: instances.list, update: instances.update }).catch(() => 0);
   cachedSettings = await store.loadSettings();
   streamer.init({ notify: send });
+  // reminth:// opens Reminth. The installer registers it too (package.json
+  // build.protocols); a dev run never claims it.
+  if (app.isPackaged) {
+    try {
+      app.setAsDefaultProtocolClient("reminth");
+    } catch {
+      // the installer's registration still works
+    }
+  }
   createWindow();
+  // Started by a reminth:// link: the page is switched once it has loaded
+  // (the window is about to open by itself, so nothing is brought forward).
+  deepLink.createDeepLinkHandler({ listIds: linkIds, bringForward: () => {}, showPage: showLinkPage })(process.argv);
   // Listened for BEFORE anything is awaited: the page is already loading,
   // and if it finished while the account was still being read, a handler
   // added afterwards never ran - no hotkeys, no content watcher, no updater.
@@ -207,6 +251,9 @@ app.whenReady().then(async () => {
     logCrash("loadAccount", err); // start signed out rather than not start
   }
   pageLoaded.then(async () => {
+    pageReady = true;
+    if (pendingLink) send("deeplink:open", pendingLink);
+    pendingLink = null;
     if (restored) send("auth:restored", { username: restored.username });
     streamer.configure(cachedSettings);
     // A game started before Reminth was closed, restarted or updated is still running.

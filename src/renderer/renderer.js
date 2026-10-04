@@ -3195,4 +3195,17 @@ async function boot() {
 }
 
 // features.js loads after this file; boot once everything is defined.
-document.addEventListener("DOMContentLoaded", boot);
+let bootDone;
+const booted = new Promise((resolve) => (bootDone = resolve));
+document.addEventListener("DOMContentLoaded", () => boot().finally(bootDone));
+
+// A reminth:// link (the game's Skins button): only ever a page switch,
+// after startup has read the instances (a link can be what started Reminth).
+// Signed out, switchPage keeps Home, as for every other route.
+window.reminth.onDeepLink(async (link) => {
+  await booted;
+  const target = window.ReminthPure.deepLinkTarget(link, state.instances.map((i) => i.id));
+  if (!target) return;
+  if (target.instance) selectInstance(target.instance, true);
+  else switchPage(target.page);
+});

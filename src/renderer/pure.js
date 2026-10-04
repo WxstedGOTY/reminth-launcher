@@ -494,7 +494,20 @@
     return `${build.number || build.name || "This version"} is ${what} build - the author says it isn't finished and may have bugs${build.type === "alpha" ? " or break worlds" : ""}. Install it anyway?`;
   }
 
-  const api = { instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, filesSummary, pickerView, bestLine, modGroups, previewGroups, syncButtonCount, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
+  /**
+   * A reminth:// link the main process sent (main/deepLink.js): what the page
+   * does with it, checked again here. Only ever a page switch:
+   * { page: "skins" | "home" } or { instance: id } for an instance in the
+   * list; anything else null. Never a Play, install or anything that acts.
+   */
+  function deepLinkTarget(link, instanceIds) {
+    if (!link || typeof link !== "object") return null;
+    if (link.page === "skins" || link.page === "home") return { page: link.page };
+    if (link.page === "instance" && typeof link.id === "string" && /^[a-z0-9-]{1,40}$/.test(link.id) && (instanceIds || []).includes(link.id)) return { instance: link.id };
+    return null;
+  }
+
+  const api = { deepLinkTarget, instanceMenuItems, moveIndex, moveItem, dropGapToIndex, summaryText, createSentence, reusableInstance, uniqueInstanceName, heroInstance, homePlayTime, markPlayed, modWarning, riskyText, compareMc, versionChoices, rankVersionRows, filesSummary, pickerView, bestLine, modGroups, previewGroups, syncButtonCount, parseServerAddress, wantedLoaders, fitsInstance, collapseVersions, buildConfirmText };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ReminthPure = api;
 })(typeof window !== "undefined" ? window : globalThis);

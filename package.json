@@ -35,6 +35,14 @@
       "icon": "assets/icon.ico"
     },
     "artifactName": "Reminth-Setup.exe",
+    "protocols": [
+      {
+        "name": "Reminth",
+        "schemes": [
+          "reminth"
+        ]
+      }
+    ],
     "publish": [
       {
         "provider": "github",

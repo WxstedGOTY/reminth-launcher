@@ -30,6 +30,8 @@ const ipc = new Map();
 let appReady;
 const whenReady = new Promise((resolve) => (appReady = resolve));
 const toRenderer = []; // [channel, payload] main.js sent
+const appEvents = new Map(); // app.on(event, fn) main.js registered
+const winCalls = []; // show / focus / restore / flashFrame on main.js's window
 class FakeWebContents extends EventEmitter {
   send(channel, payload) {
     toRenderer.push([channel, payload]);
@@ -65,13 +67,20 @@ class FakeWindow extends EventEmitter {
   unmaximize() {}
   minimize() {}
   restore() {}
-  show() {}
-  focus() {}
+  show() {
+    winCalls.push("show");
+  }
+  focus() {
+    winCalls.push("focus");
+  }
+  flashFrame(on) {
+    winCalls.push(["flashFrame", on]);
+  }
   close() {}
 }
 const noop = () => {};
 const fakeElectron = {
-  app: { requestSingleInstanceLock: () => true, on: noop, quit: noop, whenReady: () => whenReady, getVersion: () => "0.0.0-test", disableHardwareAcceleration: noop },
+  app: { requestSingleInstanceLock: () => true, on: (event, fn) => appEvents.set(event, fn), isPackaged: false, setAsDefaultProtocolClient: noop, quit: noop, whenReady: () => whenReady, getVersion: () => "0.0.0-test", disableHardwareAcceleration: noop },
   BrowserWindow: FakeWindow,
   ipcMain: { handle: (channel, fn) => ipc.set(channel, fn), on: noop },
   shell: { openExternal: noop, openPath: async () => "", trashItem: async () => {} },
@@ -1146,5 +1155,49 @@ test("Audit 16: an instance's version can't be changed while its mods are being 
     await updating;
   } finally {
     content.applyUpdates = real;
+  }
+});
+
+test("Prompt 17: a reminth:// link from a second start only brings Reminth forward and switches the page", async () => {
+  const second = appEvents.get("second-instance");
+  assert.equal(typeof second, "function");
+  const links = (from) => toRenderer.slice(from).filter(([c]) => c === "deeplink:open").map(([, p]) => p);
+  const exe = "C:\\Program Files\\Reminth\\Reminth.exe";
+
+  // bad links: nothing at all - no window, nothing sent
+  let from = toRenderer.length;
+  winCalls.length = 0;
+  for (const bad of ["reminth://play/anything", "reminth://../../x", "reminth://instance/nope-0000", "REMINTH://skins"]) second({}, [exe, "--some-flag", bad]);
+  await tick(20);
+  assert.deepEqual(winCalls, []);
+  assert.deepEqual(links(from), []);
+
+  // a good one: to the front, then the page
+  second({}, [exe, "reminth://instance/i1"]);
+  await tick(20);
+  assert.deepEqual(winCalls, ["show", "focus"]);
+  assert.deepEqual(links(from), [{ page: "instance", id: "i1" }]);
+
+  // a plain second start (the shortcut) still just brings the window up
+  winCalls.length = 0;
+  second({}, [exe]);
+  assert.deepEqual(winCalls, ["show", "focus"]);
+
+  // while a game runs (or is starting): never over it - the taskbar button flashes, the page still switches
+  let release;
+  install = { promise: new Promise((resolve) => (release = resolve)) };
+  call("play:run", { instanceId: "i1" }).catch(() => {});
+  try {
+    await tick(5);
+    winCalls.length = 0;
+    from = toRenderer.length;
+    second({}, [exe, "reminth://skins/"]);
+    await tick(20);
+    assert.deepEqual(winCalls, [["flashFrame", true]]);
+    assert.deepEqual(links(from), [{ page: "skins" }]);
+  } finally {
+    await call("play:stop", { instanceId: "i1" });
+    release({ removedMods: [] });
+    await tick(20);
   }
 });
