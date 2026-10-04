@@ -1291,6 +1291,9 @@ function openInstanceModal(existing) {
     version: existing ? existing.mcVersion : null,
     build: existing ? existing.loaderVersion : null,
     hud: existing ? Boolean(existing.hud) : true,
+    // The Reminth home screen: on unless switched off (a missing value is on).
+    home: existing ? existing.homeScreen !== false : true,
+    homeTouched: false,
     // The performance pack switch: null until the player touches it, so the
     // per-loader default (packOnByDefault) follows the loader they pick.
     perf: null,
@@ -1335,6 +1338,7 @@ function openInstanceModal(existing) {
       paintList();
       paintBuilds();
       paintHud();
+      paintHome();
       paintPerf();
     };
     loaderBtns[l.key] = b;
@@ -1401,6 +1405,23 @@ function openInstanceModal(existing) {
   hudRow.appendChild(hudSwitch);
   hudField.appendChild(hudRow);
   extras.appendChild(hudField);
+  // The Reminth home screen (the game's own title screen), next to the HUD.
+  const homeField = el("div", "field hud-field home-field");
+  homeField.appendChild(el("label", null, "Reminth home screen"));
+  const homeRow = el("div", "toggle-row compact");
+  const homeText = el("div");
+  const homeTitle = el("b", null, "Reminth's title screen in game");
+  const homeSub = el("span", null, "");
+  homeText.appendChild(homeTitle);
+  homeText.appendChild(homeSub);
+  const homeSwitch = el("button", "switch");
+  homeSwitch.type = "button";
+  homeSwitch.setAttribute("role", "switch");
+  homeSwitch.setAttribute("aria-label", "Reminth home screen");
+  homeRow.appendChild(homeText);
+  homeRow.appendChild(homeSwitch);
+  homeField.appendChild(homeRow);
+  extras.appendChild(homeField);
   // The performance pack: per loader, with the mods it has (state.info).
   const perfField = el("div", "field hud-field perf-field");
   perfField.appendChild(el("label", null, "Performance pack"));
@@ -1534,6 +1555,7 @@ function openInstanceModal(existing) {
         }
         paintBuilds();
         paintHud();
+        paintHome();
       };
       list.appendChild(item);
     }
@@ -1600,6 +1622,39 @@ function openInstanceModal(existing) {
     paintHud();
   };
 
+  let homeToken = 0;
+  async function paintHome() {
+    const token = ++homeToken;
+    const eligible = pick.loader === "fabric" || pick.loader === "quilt";
+    homeField.hidden = !eligible;
+    if (!eligible) return;
+    let available = false;
+    if (pick.version) {
+      try {
+        available = await window.reminth.bundledSupports("reminthhome", pick.version);
+      } catch {
+        available = false;
+      }
+    }
+    if (token !== homeToken) return;
+    homeSwitch.disabled = !available;
+    homeRow.classList.toggle("disabled", !available);
+    const on = available && pick.home;
+    homeSwitch.classList.toggle("on", on);
+    homeSwitch.setAttribute("aria-checked", on ? "true" : "false");
+    homeSub.textContent = !pick.version
+      ? "Pick a version to see if there's a home screen build for it."
+      : available
+      ? "Reminth installs it and keeps it updated."
+      : `No Reminth home screen build for ${pick.version} yet — it's built per version.`;
+  }
+  homeSwitch.onclick = () => {
+    if (homeSwitch.disabled) return;
+    pick.home = !pick.home;
+    pick.homeTouched = true;
+    paintHome();
+  };
+
   nameInput.addEventListener("input", () => (nameInput.dataset.auto = "0"));
   searchInput.addEventListener("input", () => {
     pick.query = searchInput.value;
@@ -1608,6 +1663,7 @@ function openInstanceModal(existing) {
   paintLoader();
   paintBuilds();
   paintHud();
+  paintHome();
   paintPerf();
   if (pick.version) versionLabel.textContent = `Minecraft version — ${pick.version}`;
 
@@ -1654,11 +1710,15 @@ function openInstanceModal(existing) {
           const loaderChanged = !editing || pick.loader !== existing.loader;
           const perf = perfEligible() && (pick.perf !== null || loaderChanged) ? { performanceMods: perfShown() } : {};
           const profile = { perfProfile: pick.profile };
+          // The home screen: only what the player set with the switch. With no
+          // build for this version the switch can't be used, and the stored
+          // choice (a missing value = on) is left as it is.
+          const home = (pick.loader === "fabric" || pick.loader === "quilt") && pick.homeTouched && !homeSwitch.disabled ? { homeScreen: pick.home } : {};
           saving = true;
           handle.buttons[0].disabled = true;
           try {
             if (editing) {
-              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf, ...profile });
+              await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...home, ...perf, ...profile });
               const perfOff = perfEligible() && !perfShown() && packOnByDefault(existing.loader, existing);
               toast(perfOff ? "Performance pack off — Reminth removes its copies the next time you press Play." : `${name} saved. Anything new downloads next time you press Play.`);
               await loadInstances();
@@ -1672,7 +1732,7 @@ function openInstanceModal(existing) {
                 offerProfileExtras(existing.id, pick.profile, pick.loader);
               }
             } else {
-              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...perf, ...profile });
+              const inst = await window.reminth.createInstance({ name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...home, ...perf, ...profile });
               await loadInstances();
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);

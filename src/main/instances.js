@@ -101,6 +101,10 @@ function sanitizeInstance(raw) {
   // before the switch existed) or true means on, so the key is only kept
   // when it was actually set.
   if (typeof raw.performanceMods === "boolean") out.performanceMods = raw.performanceMods;
+  // The Reminth home screen (the game's title screen, a bundled mod): on for
+  // Fabric/Quilt unless the player switched it off, so only a real true/false
+  // is kept and a missing value means on (config.bundledModWanted).
+  if (typeof raw.homeScreen === "boolean") out.homeScreen = raw.homeScreen;
   // Performance profile (see perfProfiles.js). "balanced" is the default,
   // so like performanceMods the key is only kept when it says something
   // else; an unknown value falls back to the default.
@@ -441,7 +445,7 @@ function slugify(name) {
   return base || "instance";
 }
 
-async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, performanceMods, perfProfile, madeFor }) {
+async function create({ name, mcVersion, loader, loaderVersion, color, modpack, hud, homeScreen, performanceMods, perfProfile, madeFor }) {
   if (!isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
   return mutate(async () => {
     const all = await readAll();
@@ -458,6 +462,8 @@ async function create({ name, mcVersion, loader, loaderVersion, color, modpack, 
       loaderVersion,
       color: color || COLOURS[all.length % COLOURS.length],
       hud: hud === true,
+      // Only a "no" is stored: absent means on.
+      homeScreen: homeScreen === false ? false : undefined,
       // Fabric/Quilt: on unless switched off (nothing stored). Forge/NeoForge:
       // off unless switched on - see config.perfPackEnabled.
       performanceMods: performanceMods === false ? false : performanceMods === true && (loader === "forge" || loader === "neoforge") ? true : undefined,
@@ -580,7 +586,7 @@ async function updateLocked(id, patch) {
   if (idx < 0) throw new Error("That instance doesn't exist any more.");
   const current = all[idx];
   const allowed = {};
-  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "performanceMods", "perfProfile", "skipModWarning", "madeFor"]) {
+  for (const key of ["name", "mcVersion", "loader", "loaderVersion", "color", "lastPlayed", "playTimeMs", "modpack", "hud", "homeScreen", "performanceMods", "perfProfile", "skipModWarning", "madeFor"]) {
     if (key in (patch || {})) allowed[key] = patch[key];
   }
   // Changing version or loader invalidates a pinned loader version.

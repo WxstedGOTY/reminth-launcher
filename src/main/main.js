@@ -404,6 +404,7 @@ ipcMain.handle("app:info", () => ({
   ),
   managedMods: [
     { name: "ReminthHUD", tag: "HUD", note: "Reminth's own in-game HUD: FPS, coordinates and facing. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
+    { name: "Reminth home screen", tag: "Home", note: "Reminth's own title screen for the game. Switch it on or off per instance in Edit.", required: false },
     { name: "Fabric API", tag: "Library", note: "ReminthHUD can't load without it, so Reminth installs it alongside.", required: true },
   ],
 }));
@@ -538,7 +539,7 @@ async function resolveLoaderVersion(loader, mc, wanted) {
   return (list.find((e) => e.recommended) || list[0]).id;
 }
 
-ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, performanceMods, perfProfile, madeFor }) => {
+ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderVersion, hud, homeScreen, performanceMods, perfProfile, madeFor }) => {
   // Checked before it's used to ask the loader's servers anything -
   // instances.create validates it too, but only after that lookup.
   if (!instances.isValidVersionId(mcVersion)) throw new Error("Pick a Minecraft version first.");
@@ -546,7 +547,7 @@ ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderV
   const lv = await resolveLoaderVersion(l, mcVersion, loaderVersion);
   // The performance-pack switch from the create dialog, if it sent one
   // (instances.create applies config.perfPackEnabled's per-loader default).
-  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined, perfProfile: perfProfiles.normaliseProfile(perfProfile), madeFor: instances.cleanMadeFor(madeFor) });
+  const inst = await instances.create({ name, mcVersion, loader: l, loaderVersion: lv, hud: hud === true, homeScreen: homeScreen === false ? false : undefined, performanceMods: typeof performanceMods === "boolean" ? performanceMods : undefined, perfProfile: perfProfiles.normaliseProfile(perfProfile), madeFor: instances.cleanMadeFor(madeFor) });
   return withRunning(inst);
 });
 
@@ -562,6 +563,7 @@ ipcMain.handle("instances:update", async (_e, id, patch) => {
   if ("mcVersion" in clean && !instances.isValidVersionId(clean.mcVersion)) throw new Error("That change isn't valid.");
   // The performance-pack switch: a real true/false or nothing at all.
   if ("performanceMods" in clean && typeof clean.performanceMods !== "boolean") delete clean.performanceMods;
+  if ("homeScreen" in clean && typeof clean.homeScreen !== "boolean") delete clean.homeScreen;
   // The performance profile: one of the known ids, anything else is ignored
   // rather than quietly turned into "balanced".
   if ("perfProfile" in clean && !perfProfiles.PROFILE_IDS.includes(clean.perfProfile)) delete clean.perfProfile;
@@ -681,6 +683,11 @@ ipcMain.handle("loaders:versions", async (_e, loader, mc) => {
 });
 
 ipcMain.handle("hud:supports", async (_e, mc) => Boolean(await minecraft.findReminthHudFor(String(mc))));
+// The same question for any of Reminth's bundled mods (config.BUNDLED_MODS), by its key.
+ipcMain.handle("bundled:supports", async (_e, mod, mc) => {
+  if (typeof mod !== "string" || !config.bundledMod(mod) || !instances.isValidVersionId(mc)) return false;
+  return Boolean(await minecraft.findBundledModFor(mod, mc));
+});
 
 // ---- content (mods, packs, shaders, data packs) ----
 async function watchActiveInstance() {

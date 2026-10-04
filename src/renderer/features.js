@@ -772,8 +772,8 @@ function renderContentTab() {
   if (t.kind === "mod") paintCompatTags();
 }
 
-// Jars Reminth puts in and keeps up to date itself.
-const MANAGED_JAR = /^(fabric-api|reminthhud)-/i;
+// Jars Reminth puts in and keeps up to date itself (Fabric API and its own bundled mods).
+const MANAGED_JAR = /^(fabric-api|reminthhud|reminthhome)-/i;
 
 // Live: the main process watches the active instance's folders.
 // One event arrives per file, so installing a pack's jars fires dozens in a

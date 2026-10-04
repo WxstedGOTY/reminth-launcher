@@ -161,7 +161,14 @@ async function ensureInstalled(instance, onProgress) {
   // switched on - the original Reminth instance by default - and only when
   // a HUD build for this exact Minecraft version is bundled. Putting a HUD
   // built for another version in would stop the game from starting.
-  const wantsHud = instance.hud === true && (loader === "fabric" || loader === "quilt");
+  const wantsHud = config.bundledModWanted(config.bundledMod("reminthhud"), instance);
+  // Every bundled mod (config.BUNDLED_MODS: ReminthHUD, the Reminth home
+  // screen) this instance wants AND has a build for. None fitting is not an
+  // error: nothing is installed, nothing is said.
+  const bundled = await bundledModsFor(instance, mcVersion);
+  // Fabric API comes with the HUD (as it always has) and the performance
+  // pack; another bundled mod brings it only when its jar says it needs it.
+  const bundledNeedsApi = bundled.some((b) => b.entry.mod !== "reminthhud" && b.build.needsFabricApi);
   // The performance pack: one rule for the whole app (config.perfPackEnabled) -
   // on by default for Fabric/Quilt, only when switched on for Forge/NeoForge.
   const wantsPerfMods = config.perfPackEnabled(instance);
@@ -185,7 +192,7 @@ async function ensureInstalled(instance, onProgress) {
     const adopted = await adoptLegacyManagedMods(gameDir, { perf: wantsPerfMods, usedBefore: Boolean(instance.lastPlayed) }).catch(() => []);
     if (adopted.length) modLog.push(`Took over ${adopted.length} mod file(s) an older Reminth installed: ${adopted.join(", ")}`);
   }
-  if (wantsHud || wantsPerfMods) {
+  if (wantsHud || wantsPerfMods || bundled.length) {
     await fsp.mkdir(modsDir, { recursive: true });
     const managed = await readManagedMods(gameDir);
     const before = new Set((await fsp.readdir(modsDir).catch(() => [])).map((f) => f.toLowerCase()));
@@ -206,8 +213,8 @@ async function ensureInstalled(instance, onProgress) {
     // used to only be fetched inside the wantsHud branch, which silently
     // broke every perf mod on an instance with the HUD off. Fetch/keep it
     // whenever either wants it installed.
-    if (!fabricLike) {
-      // Fabric API is for Fabric/Quilt only.
+    if (!fabricLike || !(wantsHud || wantsPerfMods || bundledNeedsApi)) {
+      // Fabric API is for Fabric/Quilt only, and only when something here needs it.
     } else if (ownCopies.has("fabric-api")) {
       modLog.push(stepAsideLine("fabric-api", "own", ownCopies.get("fabric-api").file));
     } else {
@@ -228,16 +235,7 @@ async function ensureInstalled(instance, onProgress) {
         // carry on without it
       }
     }
-    if (wantsHud) {
-      const hudBuild = await findReminthHudFor(mcVersion);
-      if (hudBuild) {
-        report("Installing ReminthHUD", 0, 1);
-        const hudJar = path.basename(hudBuild.file);
-        const state = await installBundledJar(hudBuild.file, path.join(modsDir, hudJar));
-        if (state === "locked") report("ReminthHUD is in use by a running game - keeping the copy that's there", 0, 1);
-        note(hudJar, "reminthhud", true); // the HUD is Reminth's own, whoever copied it in
-      }
-    }
+    for (const e of await installBundledMods(bundled, modsDir, report)) note(e.file, e.mod, true); // Reminth's own, whoever copied it in
     if (wantsPerfMods) {
       report("Installing performance mods", 0, 1);
       const detail = [];
@@ -302,6 +300,9 @@ async function ensureInstalled(instance, onProgress) {
       // Drop the ReminthHUD jar whenever the player doesn't currently want
       // it - not just when they want it but the build lookup failed.
       dropHud: !wantsHud,
+      // The other bundled mods the player switched off (or that this loader
+      // can't have). Wanted but no build for this version: the copy stays.
+      dropBundled: bundledModsToDrop(instance),
       // Same for the performance pack - but only the copies Reminth is known
       // to have installed (see tidyManagedMods).
       dropPerf: !wantsPerfMods,
@@ -388,21 +389,33 @@ function reminthHudSupports(mcVersion, builds = [{ minecraft: "~26.2" }]) {
  * is compiled against one version's code, so each port is its own build.
  */
 async function bundledReminthHudBuilds() {
+  return bundledModBuilds("reminthhud");
+}
+
+/**
+ * Every bundled build of one of Reminth's own mods (config.BUNDLED_MODS),
+ * found by its file prefix in assets/mods, with the Minecraft range its
+ * fabric.mod.json declares and whether it needs Fabric API.
+ */
+async function bundledModBuilds(mod) {
+  const entry = config.bundledMod(mod);
+  if (!entry) return [];
   let files;
   try {
     files = await fsp.readdir(paths.REMINTHHUD_ASSET_DIR);
   } catch {
     return [];
   }
+  const prefix = entry.filePrefix.toLowerCase();
   const builds = [];
-  for (const f of files.filter((x) => /^reminthhud-.+\.jar$/i.test(x))) {
+  for (const f of files.filter((x) => x.toLowerCase().startsWith(prefix) && x.length > prefix.length + 4 && /\.jar$/i.test(x))) {
     const file = path.join(paths.REMINTHHUD_ASSET_DIR, f);
     try {
       // The bundled jars live inside app.asar once packaged. Electron's asar
       // layer supports readFile everywhere but not every fd-based API, so
       // the jar is read whole and opened from a plain copy on disk.
       const buf = await fsp.readFile(file);
-      const copy = path.join(paths.ROOT, "cache", "hud", f);
+      const copy = path.join(paths.ROOT, "cache", mod === "reminthhud" ? "hud" : mod, f);
       if (!(await sameSize(file, copy))) {
         await fsp.mkdir(path.dirname(copy), { recursive: true });
         await fsp.writeFile(copy, buf);
@@ -410,7 +423,13 @@ async function bundledReminthHudBuilds() {
       const zip = await openZip(copy);
       try {
         const meta = JSON.parse(String(await zip.read("fabric.mod.json")));
-        builds.push({ file, version: meta.version || versionFromJarName(f), minecraft: (meta.depends || {}).minecraft ?? "*" });
+        const depends = meta.depends || {};
+        builds.push({
+          file,
+          version: meta.version || versionFromJarName(f, entry.filePrefix),
+          minecraft: depends.minecraft ?? "*",
+          needsFabricApi: Object.keys(depends).some((id) => id === "fabric-api" || id === "fabric"),
+        });
       } finally {
         await zip.close();
       }
@@ -421,9 +440,52 @@ async function bundledReminthHudBuilds() {
   return builds;
 }
 
+/**
+ * The bundled mods (config.BUNDLED_MODS) this instance wants AND has a build
+ * for: [{ entry, build }]. None fitting is not an error: nothing is
+ * installed, nothing is said.
+ */
+async function bundledModsFor(instance, mcVersion) {
+  const out = [];
+  for (const entry of config.BUNDLED_MODS) {
+    if (!config.bundledModWanted(entry, instance)) continue;
+    const build = await findBundledModFor(entry.mod, mcVersion).catch(() => null);
+    if (build) out.push({ entry, build });
+  }
+  return out;
+}
+
+/** Copies each bundled build into mods/ (installBundledJar). Returns [{ file, mod }]. */
+async function installBundledMods(bundled, modsDir, report = () => {}) {
+  const out = [];
+  for (const { entry, build } of bundled || []) {
+    report(`Installing ${entry.label}`, 0, 1);
+    const jar = path.basename(build.file);
+    const state = await installBundledJar(build.file, path.join(modsDir, jar));
+    if (state === "locked") report(`${entry.label} is in use by a running game - keeping the copy that's there`, 0, 1);
+    out.push({ file: jar, mod: entry.mod });
+  }
+  return out;
+}
+
+/**
+ * Pure: the bundled mods other than ReminthHUD (which has dropHud) that
+ * tidyManagedMods takes out of this instance: switched off, or a loader that
+ * can't have them. One that is wanted but has no build for this version is
+ * NOT in it - the copy that's there stays.
+ */
+function bundledModsToDrop(instance) {
+  return config.BUNDLED_MODS.filter((e) => e.mod !== "reminthhud" && !config.bundledModWanted(e, instance)).map((e) => e.mod);
+}
+
 /** The bundled HUD build for this Minecraft version, or null. Newest build wins. */
 async function findReminthHudFor(mcVersion) {
-  const matches = (await bundledReminthHudBuilds()).filter((b) => mcRangeAccepts(b.minecraft, mcVersion));
+  return findBundledModFor("reminthhud", mcVersion);
+}
+
+/** The bundled build of one of Reminth's own mods for this Minecraft version, or null. Newest build wins. */
+async function findBundledModFor(mod, mcVersion) {
+  const matches = (await bundledModBuilds(mod)).filter((b) => mcRangeAccepts(b.minecraft, mcVersion));
   matches.sort((a, b) => loaders.compareVersions(b.version, a.version));
   return matches[0] || null;
 }
@@ -1581,7 +1643,7 @@ async function adoptLegacyManagedMods(gameDir, { perf = true, usedBefore = false
   const optedOut = {};
   const known = usedBefore || (await fileExists(path.join(gameDir, "reminth-performance-mods.log")));
   if (known) {
-    const current = new Set(["fabric-api", "reminthhud", ...(perf ? [...(config.PERFORMANCE_MODS || []).map(performanceModKey), ...LEGACY_PERFORMANCE_NAMES] : [])]);
+    const current = new Set(["fabric-api", ...config.BUNDLED_MODS.map((e) => e.mod), ...(perf ? [...(config.PERFORMANCE_MODS || []).map(performanceModKey), ...LEGACY_PERFORMANCE_NAMES] : [])]);
     const entries = await fsp.readdir(path.join(gameDir, "mods"), { withFileTypes: true }).catch(() => []);
     const names = new Set(entries.map((e) => e.name.toLowerCase()));
     for (const entry of entries) {
@@ -1645,7 +1707,8 @@ async function readUserModNames(gameDir) {
 function managedModFromName(file) {
   const lower = String(file).toLowerCase();
   if (/^fabric-api-\d/.test(lower)) return "fabric-api";
-  if (/^reminthhud-/.test(lower) || /^wxhud[-_.]/.test(lower)) return "reminthhud"; // wxhud: the pre-rename jar
+  if (/^wxhud[-_.]/.test(lower)) return "reminthhud"; // the pre-rename jar
+  for (const entry of config.BUNDLED_MODS) if (lower.startsWith(entry.filePrefix)) return entry.mod;
   for (const name of LEGACY_PERFORMANCE_NAMES) {
     if (new RegExp(`^${name}[-_.](fabric|quilt|mc|v?\\d)`).test(lower)) return name;
   }
@@ -1655,7 +1718,8 @@ function managedModFromName(file) {
 /** The name a player knows a Reminth-installed mod by ("sodium" -> "Sodium"). */
 function managedModLabel(mod) {
   if (mod === "fabric-api") return "Fabric API";
-  if (mod === "reminthhud") return "ReminthHUD";
+  const own = config.bundledMod(mod);
+  if (own) return own.label;
   const entry = packEntry(mod) || (config.PERFORMANCE_MODS || []).find((m) => performanceModKey(m) === mod);
   return entry ? entry.label : String(mod);
 }
@@ -1700,7 +1764,7 @@ function stepAsideLine(mod, reason, because, problem = null) {
   return `Left ${label} out`;
 }
 
-const isPerformanceMod = (mod) => Boolean(mod) && mod !== "fabric-api" && mod !== "reminthhud";
+const isPerformanceMod = (mod) => Boolean(mod) && mod !== "fabric-api" && !config.bundledMod(mod);
 
 /**
  * Pure: splits the mods the game will load into Reminth's and the player's.
@@ -1827,7 +1891,7 @@ function planStepAside({ mods, managed, tracked, mcVersion = null }) {
   // a. the player's own copy wins
   for (const item of reminth) {
     const mod = ours.get(String(item.file).toLowerCase()).mod;
-    if (mod === "reminthhud") continue;
+    if (config.bundledMod(mod)) continue; // Reminth's own mods (HUD, home screen) never step aside
     const entry = packEntry(mod);
     const copy = playerCopyOf([item.modId, mod, ...((entry && entry.ids) || [])], playerUsable);
     if (copy) drop(item, "own", copy.file);
@@ -2115,7 +2179,7 @@ async function writePerformanceLog(gameDir, lines, { append = true, mcVersion = 
  * in the keep list: the player's own mods, and Reminth's own copy whenever a
  * download had failed.
  */
-async function tidyManagedMods(modsDir, installed, { dropHud = false, dropPerf = false } = {}) {
+async function tidyManagedMods(modsDir, installed, { dropHud = false, dropPerf = false, dropBundled = [] } = {}) {
   const gameDir = path.dirname(modsDir);
   let files;
   try {
@@ -2130,7 +2194,7 @@ async function tidyManagedMods(modsDir, installed, { dropHud = false, dropPerf =
   const wanted = new Set(current.map((e) => e.file.toLowerCase()));
   const freshMods = new Set(current.map((e) => e.mod));
   const onDisk = new Set(files.map((f) => f.toLowerCase()));
-  const switchedOff = (mod) => (mod === "reminthhud" ? dropHud : mod === "fabric-api" ? false : dropPerf);
+  const switchedOff = (mod) => (mod === "reminthhud" ? dropHud : config.bundledMod(mod) ? dropBundled.includes(mod) : mod === "fabric-api" ? false : dropPerf);
   // A mod an older Reminth installed and this one doesn't any more.
   const packNow = packKeysNow();
   const retired = (mod) => LEGACY_PERFORMANCE_NAMES.includes(mod) && !packNow.has(mod);
@@ -3080,9 +3144,10 @@ function pickJarAsset(assets, mcVersion = null) {
   return pool.reduce((biggest, a) => (a.size > biggest.size ? a : biggest), pool[0]);
 }
 
-function versionFromJarName(filename) {
-  const match = filename.match(/^reminthhud-(.+)\.jar$/);
-  return match ? match[1] : "unknown";
+function versionFromJarName(filename, prefix = "reminthhud-") {
+  const lower = String(filename).toLowerCase();
+  if (!lower.startsWith(prefix) || !lower.endsWith(".jar") || lower.length <= prefix.length + 4) return "unknown";
+  return filename.slice(prefix.length, -4);
 }
 
 module.exports = {
@@ -3097,6 +3162,11 @@ module.exports = {
   mcRangeAccepts,
   bundledReminthHudBuilds,
   findReminthHudFor,
+  bundledModBuilds,
+  findBundledModFor,
+  bundledModsFor,
+  installBundledMods,
+  bundledModsToDrop,
   mergeLoaderProfile,
   osMatchesThisMachine,
   // exported for unit testing (see test/minecraft.test.js) - pure, no I/O
@@ -3148,6 +3218,7 @@ module.exports = {
   PACK_SOAK_MS,
   tidyManagedMods,
   managedModFromName,
+  managedModLabel,
   adoptLegacyManagedMods,
   fetchLatestGithubAssetForVersion,
   extractNatives,

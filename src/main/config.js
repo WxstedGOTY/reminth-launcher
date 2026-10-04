@@ -106,6 +106,33 @@ module.exports = {
     return false;
   },
 
+  // Reminth's own mods, shipped inside the app as assets/mods/<filePrefix><version>.jar
+  // (one jar per Minecraft version line; the one whose fabric.mod.json
+  // "depends.minecraft" fits the instance is copied in at Play - see
+  // minecraft.js installBundledMods). Fabric/Quilt only. Never part of the
+  // performance pack, never "the player's".
+  //   mod        the key in managed-mods.json
+  //   flag       the instance field that switches it
+  //   defaultOn  what an instance without that field gets: ReminthHUD is
+  //              opt-in (hud === true); the home screen is on unless the
+  //              player switched it off (homeScreen === false)
+  BUNDLED_MODS: [
+    { mod: "reminthhud", filePrefix: "reminthhud-", flag: "hud", label: "ReminthHUD", defaultOn: false },
+    { mod: "reminthhome", filePrefix: "reminthhome-", flag: "homeScreen", label: "Reminth home screen", defaultOn: true },
+  ],
+
+  /** The BUNDLED_MODS entry for a managed-mods key, or null. */
+  bundledMod(mod) {
+    return module.exports.BUNDLED_MODS.find((e) => e.mod === mod) || null;
+  },
+
+  /** Does this instance want this bundled mod (before asking whether a build fits)? */
+  bundledModWanted(entry, instance) {
+    if (!entry || !instance || (instance.loader !== "fabric" && instance.loader !== "quilt")) return false;
+    const value = instance[entry.flag];
+    return entry.defaultOn ? value !== false : value === true;
+  },
+
   // JVM heap ceiling. Overridable per machine; default is picked at runtime
   // from the player's actual RAM (see minecraft.js:computeDefaultMaxMemoryMb)
   // rather than a single hardcoded value that's wrong for half of players.

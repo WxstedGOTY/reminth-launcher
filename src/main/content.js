@@ -20,6 +20,7 @@ const modrinth = require("./modrinth");
 const zipread = require("./zipread");
 const paths = require("./paths");
 const atomic = require("./atomic");
+const config = require("./config");
 
 const KINDS = {
   mod: { folder: "mods", label: "Mods" },
@@ -1030,7 +1031,7 @@ async function managedPerformanceJars(gameDir) {
     const parsed = JSON.parse(await fsp.readFile(path.join(gameDir, ".reminth", "managed-mods.json"), "utf8"));
     for (const [name, info] of Object.entries((parsed && parsed.files) || {})) {
       const mod = info && typeof info.mod === "string" ? info.mod : "";
-      if (mod && mod !== "fabric-api" && mod !== "reminthhud") out.add(name.toLowerCase());
+      if (mod && mod !== "fabric-api" && !config.bundledMod(mod)) out.add(name.toLowerCase());
     }
   } catch {
     // no list yet
