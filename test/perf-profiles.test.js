@@ -1077,3 +1077,33 @@ test("Audit 16: Play and 'Update mods to fit' wait for a running mod update (con
     content.applyUpdates = real;
   }
 });
+
+test("Audit 16: an instance can't be deleted while it is being updated or installed", async () => {
+  const realApply = content.applyUpdates;
+  const realRemove = instances.remove;
+  const removed = [];
+  instances.remove = async (id) => removed.push(id);
+  let finish;
+  content.applyUpdates = () => new Promise((resolve) => (finish = () => resolve({ applied: [], failed: [] })));
+  try {
+    const updating = call("content:applyUpdates", "i1", []);
+    await tick(5);
+    await assert.rejects(call("instances:delete", "i1"), /busy \(installing or updating\)/);
+    finish();
+    await updating;
+    // its game files being installed
+    let release;
+    install = { promise: new Promise((resolve) => (release = resolve)) };
+    const installing = call("install:run", "i1");
+    await tick(5);
+    await assert.rejects(call("instances:delete", "i1"), /busy/);
+    release({ removedMods: [] });
+    await installing;
+    assert.deepEqual(removed, [], "nothing deleted while busy");
+    assert.deepEqual(await call("instances:delete", "i1"), { ok: true });
+    assert.deepEqual(removed, ["i1"]);
+  } finally {
+    content.applyUpdates = realApply;
+    instances.remove = realRemove;
+  }
+});

@@ -585,6 +585,11 @@ ipcMain.handle("instances:delete", async (_e, id) => deleteInstanceNow(id));
 /** Deletes an instance's folder and entry (the running guard and the content watcher handled). */
 async function deleteInstanceNow(id) {
   if (running.has(id)) throw new Error("Close the game first - that instance is running.");
+  // Not while something is still writing into its folder: an update, a
+  // version switch, its game files being installed, or a copy made from it.
+  if (syncing.has(id) || installsInFlight.has(id) || copySourceId === id) {
+    throw new Error("That instance is busy (installing or updating) - wait for it to finish, then delete it.");
+  }
   // The content watcher holds handles inside the active instance's folder;
   // on Windows the folder can't be removed while they're open.
   const wasActive = cachedSettings.activeInstance === id;
@@ -817,12 +822,14 @@ ipcMain.handle("compat:support", async (_e, id, projectId) => {
 
 // A copy of an instance on another Minecraft version, mods re-fetched to match.
 let copyInFlight = false;
+let copySourceId = null; // the instance a copy is being made from (not deleted meanwhile)
 ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
   const source = await instances.require(id);
   const r = request && typeof request === "object" ? request : {};
   if (!instances.isValidVersionId(r.mcVersion)) throw new Error("Pick a Minecraft version first.");
   if (copyInFlight) throw new Error("A copy is already being made - wait for it to finish.");
   copyInFlight = true;
+  copySourceId = id;
   try {
     const result = await migrate.copyToVersion(
       source,
@@ -850,6 +857,7 @@ ipcMain.handle("compat:copyToVersion", async (_e, id, request) => {
     return { ...result, instance: withRunning(result.instance) };
   } finally {
     copyInFlight = false;
+    copySourceId = null;
   }
 });
 
