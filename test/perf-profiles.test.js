@@ -1056,3 +1056,24 @@ test("main: a finished session adds its time to the lifetime counter and tells t
   assert.ok(after > before, `counter grew: ${before} -> ${after}`);
   assert.equal(told[1].totalPlayTimeMs, after);
 });
+
+test("Audit 16: Play and 'Update mods to fit' wait for a running mod update (content:applyUpdates)", async () => {
+  const real = content.applyUpdates;
+  let finish;
+  content.applyUpdates = () => new Promise((resolve) => (finish = () => resolve({ applied: ["A"], failed: [] })));
+  try {
+    const updating = call("content:applyUpdates", "i1", [{ file: "a.jar" }]);
+    await tick(5);
+    await assert.rejects(call("play:run", { instanceId: "i1" }), /being updated/);
+    await assert.rejects(call("content:applyUpdates", "i1", []), /already being updated/);
+    finish();
+    assert.deepEqual(await updating, { applied: ["A"], failed: [] });
+    // and free again afterwards
+    install = { promise: Promise.resolve({ removedMods: [] }) };
+    assert.deepEqual(await call("play:run", { instanceId: "i1" }), { launched: true });
+    lastChild.emit("exit", 0, null);
+    await tick(20);
+  } finally {
+    content.applyUpdates = real;
+  }
+});

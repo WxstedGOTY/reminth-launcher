@@ -735,10 +735,18 @@ ipcMain.handle("content:creators", async (_e, id) => content.lookupCreators((awa
 ipcMain.handle("content:checkUpdates", async (_e, id) => content.checkUpdates(await instances.require(id)));
 ipcMain.handle("content:applyUpdates", async (_e, id, updates) => {
   if (running.has(id)) throw new Error("Close the game first - Windows won't let files in use be replaced.");
+  // The same guard as "Update mods to fit": Play (which writes Reminth's own
+  // jars into mods/) and a second update can't start while jars are swapped.
+  if (syncing.has(id)) throw new Error("That instance's mods are already being updated.");
   const inst = await instances.require(id);
-  return content.applyUpdates(inst, Array.isArray(updates) ? updates.slice(0, 500) : [], (p) =>
-    send("content:progress", { instanceId: id, op: "update", ...p })
-  );
+  syncing.add(id);
+  try {
+    return await content.applyUpdates(inst, Array.isArray(updates) ? updates.slice(0, 500) : [], (p) =>
+      send("content:progress", { instanceId: id, op: "update", ...p })
+    );
+  } finally {
+    syncing.delete(id);
+  }
 });
 
 // ---- compatibility help (compat.js) ----
