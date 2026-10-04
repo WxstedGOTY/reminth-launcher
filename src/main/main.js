@@ -450,7 +450,7 @@ ipcMain.handle("app:info", () => ({
     ["fabric", "quilt", "forge", "neoforge"].map((l) => [l, (config.PERFORMANCE_PACK || []).filter((e) => (e.loaders || []).includes(l)).map((e) => e.label)])
   ),
   managedMods: [
-    { name: "ReminthHUD", tag: "HUD", note: "Reminth's own in-game HUD: FPS, coordinates and facing. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
+    { name: "ReminthHUD", tag: "HUD", note: "Reminth's own in-game bar: FPS, GPU, CPU and latency. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
     { name: "Reminth home screen", tag: "Home", note: "Reminth's own title screen for the game. Switch it on or off per instance in Edit.", required: false },
     { name: "Fabric API", tag: "Library", note: "ReminthHUD can't load without it, so Reminth installs it alongside.", required: true },
   ],

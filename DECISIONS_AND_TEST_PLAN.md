@@ -14,6 +14,22 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 00. Desktop window, 4 Oct 2026 evening: 1.4.7 built, `reminth://` tested for real
+
+- **Version 1.4.7** is built (`dist/Reminth-Setup.exe`, `latest.yml`, `.blockmap`; the owner uploads them). It has the
+  FPS bar for 1.20.1, 1.21-1.21.11, 26.1, 26.2, 26.3 (`assets/mods/reminthhud-1.2.2+*.jar`), the JEI fix, and the
+  prompt-17 code (bundled-mod mechanism + links). `npm test`: **621 pass** on Windows.
+- **`reminth://` links, tested on the packaged app** (`win-unpacked`, own profile, signed-in state forced because a
+  signed-out Reminth deliberately stays on Home): `reminth://skins` while running -> Skins PASS; `reminth://home` ->
+  Home PASS; `reminth://instance/reminth` -> instance page PASS; `reminth://play/zz`, `../../x`, `skins?x=1`,
+  `REMINTH://home`, unknown instance, `reminth://delete/reminth` -> ignored PASS. The packaged app registers the
+  scheme under the CURRENT USER (HKCU, no admin) PASS. NOT tested: the NSIS installer writing it, a link when
+  Reminth is fully closed (code path read: boot waits for sign-in state, so it should work), and a link while a game runs.
+- The in-game Reminth home screen mod does not exist yet (`home/` is being started); no `reminthhome` jar is bundled,
+  so that switch is a quiet no-op.
+
+---
+
 ## 0. Prompt 17 (cloud window, 4 Oct 2026): the launcher side of the Reminth home screen
 
 This is `HOME_SCREEN_PLAN.md` section 6. Nothing here builds the game mod: that is `home/`, the desktop window's
