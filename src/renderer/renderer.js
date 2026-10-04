@@ -1224,11 +1224,11 @@ const VERSION_TYPES = [
 ];
 
 const LOADER_CHOICES = [
-  { key: "vanilla", label: "Vanilla", note: "Plain Minecraft. No mods, just resource packs and data packs." },
-  { key: "fabric", label: "Fabric", note: "Light and fast to update. Most performance mods (Sodium, Lithium) live here." },
-  { key: "quilt", label: "Quilt", note: "A Fabric fork. Runs Quilt mods and almost every Fabric mod." },
-  { key: "forge", label: "Forge", note: "The classic. Huge mod library, especially for 1.12.2 and 1.20.1." },
-  { key: "neoforge", label: "NeoForge", note: "Forge's modern successor - where most big mods went from 1.20.2 on." },
+  { key: "vanilla", label: "Vanilla", note: "Plain Minecraft, just like the original game. No mods (resource packs and data packs still work)." },
+  { key: "fabric", label: "Fabric", note: "The best choice for most people who want mods. Fast, and it has the popular FPS mods (Sodium, Lithium). Not sure? Pick this." },
+  { key: "quilt", label: "Quilt", note: "A cousin of Fabric. Runs Quilt mods and almost every Fabric mod. Only pick it if a mod asks for it." },
+  { key: "forge", label: "Forge", note: "The oldest mod loader, with a huge mod library - especially for 1.12.2 and 1.20.1. Pick it if your mods say \"Forge\"." },
+  { key: "neoforge", label: "NeoForge", note: "Forge's newer version - where most big mods moved from 1.20.2 on. Pick it if your mods say \"NeoForge\"." },
 ];
 
 // Shown until window.reminth.perfProfiles() answers (and if it can't).
@@ -1310,7 +1310,7 @@ function openInstanceModal(existing) {
   body.appendChild(nameField);
 
   const loaderField = el("div", "field");
-  loaderField.appendChild(el("label", null, "Loader"));
+  loaderField.appendChild(el("label", null, "Mods: pick a loader"));
   const loaderRow = el("div", "radio-row loader-row");
   const loaderBtns = {};
   for (const l of LOADER_CHOICES) {
@@ -1380,7 +1380,7 @@ function openInstanceModal(existing) {
   // Loader build + ReminthHUD, side by side under the version list.
   const extras = el("div", "inst-extras");
   const buildField = el("div", "field build-field");
-  const buildLabel = el("label", null, "Loader build");
+  const buildLabel = el("label", null, "Loader version (leave on the newest)");
   buildField.appendChild(buildLabel);
   const buildDd = el("div", "sort-dd build-dd");
   buildField.appendChild(buildDd);
@@ -1389,7 +1389,7 @@ function openInstanceModal(existing) {
   hudField.appendChild(el("label", null, "ReminthHUD"));
   const hudRow = el("div", "toggle-row compact");
   const hudText = el("div");
-  const hudTitle = el("b", null, "FPS, coords and facing in game");
+  const hudTitle = el("b", null, "FPS, graphics card, processor and ping in game");
   const hudSub = el("span", null, "");
   hudText.appendChild(hudTitle);
   hudText.appendChild(hudSub);
