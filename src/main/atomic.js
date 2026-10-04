@@ -127,9 +127,10 @@ async function quarantine(file, { keep = 2 } = {}) {
     const dir = path.dirname(file);
     const prefix = `${path.basename(file)}.corrupt-`;
     const old = (await fsp.readdir(dir))
-      .filter((n) => n.startsWith(prefix) && /^\d+$/.test(n.slice(prefix.length)))
+      // The copy just made always stays, even when a clock that is behind makes it look the oldest.
+      .filter((n) => n.startsWith(prefix) && /^\d+$/.test(n.slice(prefix.length)) && n !== path.basename(target))
       .sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
-    for (const name of old.slice(Math.max(1, keep))) await fsp.rm(path.join(dir, name), { force: true });
+    for (const name of old.slice(Math.max(1, keep) - (moved ? 1 : 0))) await fsp.rm(path.join(dir, name), { force: true });
   } catch {
     // pruning is housekeeping only
   }

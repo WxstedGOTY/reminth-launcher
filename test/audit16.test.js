@@ -125,3 +125,23 @@ test("Audit 16: with the PC clock behind, the copy of the jars an update just re
   // still five kept in all
   assert.equal((await fsp.readdir(path.dirname(dir))).length, 5);
 });
+
+test("Audit 16: with the PC clock behind, a damaged file that was just set aside isn't pruned straight away", async () => {
+  const atomic = require("../src/main/atomic");
+  const dir = await gameFolder({});
+  const file = path.join(dir, "instances.json");
+  // two earlier set-aside copies, made when the clock was right
+  await fsp.writeFile(`${file}.corrupt-1790000000000`, "a");
+  await fsp.writeFile(`${file}.corrupt-1790000000001`, "b");
+  await fsp.writeFile(file, "{ damaged");
+  const realNow = Date.now;
+  Date.now = () => 1420070400000; // 2015
+  let moved;
+  try {
+    moved = await atomic.quarantine(file);
+  } finally {
+    Date.now = realNow;
+  }
+  assert.equal(await fsp.readFile(moved, "utf8"), "{ damaged");
+  assert.equal((await fsp.readdir(dir)).filter((n) => n.includes(".corrupt-")).length, 2);
+});
