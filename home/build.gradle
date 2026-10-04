@@ -27,6 +27,7 @@ def compatFamily = project.findProperty("compat") ?: "A"
 sourceSets {
 	client {
 		java.srcDir "compat/${compatFamily}/client/java"
+		java.srcDir "src/common/java"
 	}
 }
 

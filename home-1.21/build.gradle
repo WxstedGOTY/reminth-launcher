@@ -1,0 +1,79 @@
+plugins {
+	// Older Minecraft (1.21.x) is obfuscated, so the remapping flavour of Loom is used here;
+	// the 26.x project in ../hud uses the plain one.
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+}
+
+base {
+	archivesName = 'reminthhome'
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"reminthhome" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+// The few version-specific calls live in compat/<family>/ (A, B, C, D...); -Pcompat=B picks one.
+def compatFamily = project.findProperty("compat") ?: "A"
+sourceSets {
+	client {
+		java.srcDir "compat/${compatFamily}/client/java"
+		java.srcDir "../home/src/common/java"
+	}
+	main {
+		java.srcDir "compat/${compatFamily}/main/java"
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+	// The pictures, icons and texts are shared with the 26.x project in ../home.
+	from("../home/src/main/resources") {
+		exclude "fabric.mod.json", "reminthhome.mixins.json"
+	}
+	def version = project.version
+	def minecraftVersion = project.minecraft_version
+	// The Minecraft versions the jar accepts: exactly the one it was built for unless
+	// -Pmc_range=... says otherwise (for example -Pmc_range=">=1.21 <=1.21.1").
+	def minecraftRange = project.findProperty("mc_range") ?: project.minecraft_version.toString()
+	inputs.property "version", version
+	inputs.property "minecraftVersion", minecraftVersion
+	inputs.property "minecraftRange", minecraftRange
+	def javaRelease = project.findProperty("java_release") ?: "21"
+	inputs.property "javaRelease", javaRelease
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version, "minecraft_version": minecraftVersion, "minecraft_range": minecraftRange, "java_release": javaRelease
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = (project.findProperty('java_release') ?: '21').toInteger()
+}
+
+java {
+	withSourcesJar()
+	sourceCompatibility = JavaVersion.toVersion(project.findProperty('java_release') ?: '21')
+	targetCompatibility = JavaVersion.toVersion(project.findProperty('java_release') ?: '21')
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName"}
+	}
+}

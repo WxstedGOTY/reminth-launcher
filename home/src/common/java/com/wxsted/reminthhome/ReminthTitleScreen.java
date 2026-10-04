@@ -5,31 +5,21 @@ import java.util.List;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
-import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
-import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
-import net.minecraft.client.gui.screens.options.LanguageSelectScreen;
-import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.ServerList;
-import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /**
- * The vanilla TitleScreen (panorama, logo, splash, version text) with our own
- * buttons. If building them fails for any reason the vanilla buttons stay.
+ * The vanilla TitleScreen (panorama, logo, splash, version text, Mojang's copyright line) with our own
+ * buttons. If building them fails for any reason the vanilla buttons stay. Everything that differs between
+ * Minecraft versions (drawing, the names of the other screens) is in Compat and RoundButton, one copy
+ * per version family.
  */
 public class ReminthTitleScreen extends TitleScreen {
-	private static Identifier icon(String name) {
-		return Identifier.fromNamespaceAndPath(ReminthHomeClient.MOD_ID, "textures/gui/icons/" + name + ".png");
-	}
-
 	public ReminthTitleScreen(boolean fading) {
 		super(fading);
 	}
@@ -50,50 +40,35 @@ public class ReminthTitleScreen extends TitleScreen {
 		}
 	}
 
-	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-		try {
-			super.extractRenderState(g, mouseX, mouseY, delta);
-		} catch (Throwable t) {
-			ReminthHomeClient.fail(t);
-			Compat.setScreen(Minecraft.getInstance(), new TitleScreen(false));
-		}
-	}
-
-	/** The rotating panorama (vanilla's own), with a soft dark fade under the buttons that stays still. */
-	@Override
-	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
-		super.extractBackground(g, mouseX, mouseY, delta);
-		g.fillGradient(0, height * 2 / 5, width, height, 0x00000000, 0xA6000000);
-	}
-
 	private List<AbstractWidget> build() {
 		Minecraft mc = Minecraft.getInstance();
 		List<AbstractWidget> out = new ArrayList<>();
+		// First, so it is drawn right after the panorama and under everything else.
+		out.add(Compat.shade(width, height));
 
 		// Icon row at the bottom middle.
 		int iconSize = 22, gap = 6;
 		boolean mods = FabricLoader.getInstance().isModLoaded("modmenu");
-		List<RoundButton> icons = new ArrayList<>();
-		RoundButton skins = new RoundButton(0, 0, iconSize, iconSize, Component.translatable("reminthhome.skins"), icon("skins"), 4,
+		List<AbstractWidget> icons = new ArrayList<>();
+		AbstractWidget skins = Compat.button(0, 0, iconSize, iconSize, Component.translatable("reminthhome.skins"), "skins", 4,
 				() -> Links.open("reminth://skins"));
 		skins.setTooltip(Tooltip.create(Component.translatable("reminthhome.skins.tip")));
 		icons.add(skins);
 		if (mods) {
-			icons.add(new RoundButton(0, 0, iconSize, iconSize, Component.translatable("reminthhome.mods"), icon("mods"), 4, this::openMods));
+			icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("reminthhome.mods"), "mods", 4, this::openMods));
 		}
-		icons.add(new RoundButton(0, 0, iconSize, iconSize, Component.translatable("menu.options"), icon("options"), 4,
+		icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("menu.options"), "options", 4,
 				() -> Compat.setScreen(mc, Compat.options(this, mc))));
-		icons.add(new RoundButton(0, 0, iconSize, iconSize, Component.translatable("options.language"), icon("language"), 4,
-				() -> Compat.setScreen(mc, new LanguageSelectScreen(this, mc.options, mc.getLanguageManager()))));
-		icons.add(new RoundButton(0, 0, iconSize, iconSize, Component.translatable("menu.quit"), icon("quit"), 4, mc::stop));
-		for (RoundButton b : icons) {
+		icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("options.language"), "language", 4,
+				() -> Compat.setScreen(mc, Compat.language(this, mc))));
+		icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("menu.quit"), "quit", 4, mc::stop));
+		for (AbstractWidget b : icons) {
 			if (b != skins) b.setTooltip(Tooltip.create(b.getMessage()));
 		}
 		int rowW = icons.size() * iconSize + (icons.size() - 1) * gap;
 		int iconY = height - iconSize - 8;
 		int ix = (width - rowW) / 2;
-		for (RoundButton b : icons) {
+		for (AbstractWidget b : icons) {
 			b.setX(ix);
 			b.setY(iconY);
 			ix += iconSize + gap;
@@ -106,12 +81,10 @@ public class ReminthTitleScreen extends TitleScreen {
 		int bw = Math.min(200, width - 40);
 		int by = logoBottom + Math.max(0, (avail - (2 * bh + bgap)) / 3);
 		int bx = (width - bw) / 2;
-		out.add(new RoundButton(bx, by, bw, bh, Component.translatable("menu.singleplayer"), null, 5,
-				() -> Compat.setScreen(mc, new SelectWorldScreen(this))));
-		RoundButton multi = new RoundButton(bx, by + bh + bgap, bw, bh, Component.translatable("menu.multiplayer"), null, 5, () -> {
-			Screen next = mc.options.skipMultiplayerWarning ? new JoinMultiplayerScreen(this) : new SafetyScreen(this);
-			Compat.setScreen(mc, next);
-		});
+		out.add(Compat.button(bx, by, bw, bh, Component.translatable("menu.singleplayer"), null, 5,
+				() -> Compat.setScreen(mc, Compat.singleplayer(this))));
+		AbstractWidget multi = Compat.button(bx, by + bh + bgap, bw, bh, Component.translatable("menu.multiplayer"), null, 5,
+				() -> Compat.setScreen(mc, Compat.multiplayer(this, mc)));
 		multi.active = mc.allowsMultiplayer();
 		out.add(multi);
 
@@ -126,8 +99,8 @@ public class ReminthTitleScreen extends TitleScreen {
 					ServerData sd = list.get(i);
 					if (sd == null || sd.isLan() || sd.ip == null || sd.ip.isBlank()) continue;
 					String label = mc.font.plainSubstrByWidth(sd.name == null || sd.name.isBlank() ? sd.ip : sd.name, qw - 8);
-					out.add(new RoundButton(bx + shown * (qw + 4), qy, qw, 16, Component.literal(label), null, 4, () ->
-							ConnectScreen.startConnecting(this, mc, ServerAddress.parseString(sd.ip), sd, false, null)));
+					out.add(Compat.button(bx + shown * (qw + 4), qy, qw, 16, Component.literal(label), null, 4,
+							() -> Compat.connect(this, mc, sd)));
 					shown++;
 				}
 			} catch (Throwable ignored) {

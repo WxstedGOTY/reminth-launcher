@@ -17,6 +17,7 @@ import net.minecraft.resources.Identifier;
 public class RoundButton extends AbstractButton {
 	private final Runnable action;
 	private final Identifier icon; // 32x32 texture, or null for a text button
+	private static volatile boolean broken = false;
 	private final int radius;
 
 	public RoundButton(int x, int y, int w, int h, Component label, Identifier icon, int radius, Runnable action) {
@@ -60,6 +61,16 @@ public class RoundButton extends AbstractButton {
 
 	@Override
 	protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+		if (broken) return;
+		try {
+			draw(g);
+		} catch (Throwable t) {
+			broken = true;
+			ReminthHomeClient.drawFailed(t);
+		}
+	}
+
+	private void draw(GuiGraphicsExtractor g) {
 		boolean hot = isHoveredOrFocused() && active;
 		int fill = hot ? 0xF02A2A30 : 0xE60B0B0D;
 		int border = hot ? 0x80FFFFFF : 0x2AFFFFFF;

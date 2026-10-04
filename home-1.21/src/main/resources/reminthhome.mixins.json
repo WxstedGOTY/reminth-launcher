@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.wxsted.reminthhome.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"client": [
+		"ScreenSwapMixin",
+		"PanoramaPitchMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

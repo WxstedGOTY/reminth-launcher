@@ -6,6 +6,7 @@ import java.nio.file.Path;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import org.slf4j.Logger;
@@ -60,6 +61,13 @@ public class ReminthHomeClient implements ClientModInitializer {
 			LOG.warn("Reminth home screen could not start; using the normal title screen ({})", t.toString());
 			return screen;
 		}
+	}
+
+	/** One of our widgets failed while drawing: the vanilla title screen takes over from the next frame. */
+	static void drawFailed(Throwable t) {
+		fail(t);
+		Minecraft mc = Minecraft.getInstance();
+		mc.execute(() -> Compat.setScreen(mc, new TitleScreen(false)));
 	}
 
 	static void fail(Throwable t) {

@@ -158,3 +158,8 @@ home/.gradle/
 home/run/
 home/.idea/
 home/build-all/
+home-1.21/build/
+home-1.21/.gradle/
+home-1.21/run/
+home-1.21/.idea/
+home-1.21/build-all/

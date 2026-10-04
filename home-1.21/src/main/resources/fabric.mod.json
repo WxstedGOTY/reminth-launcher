@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "reminthhome",
+	"version": "${version}",
+	"name": "Reminth home screen",
+	"description": "Reminth's title screen: a night scene, dark rounded buttons and a row of icons. If anything goes wrong it falls back to the normal Minecraft title screen. Turn it off in config/reminthhome.json.",
+	"authors": [
+		"Wxsted"
+	],
+	"contact": {},
+	"license": "CC0-1.0",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.wxsted.reminthhome.ReminthHomeClient"
+		]
+	},
+	"mixins": [
+		{ "config": "reminthhome.mixins.json", "environment": "client" }
+	],
+	"depends": {
+		"fabricloader": "*",
+		"minecraft": "${minecraft_range}",
+		"java": ">=${java_release}",
+		"fabric-api": "*"
+	}
+}
