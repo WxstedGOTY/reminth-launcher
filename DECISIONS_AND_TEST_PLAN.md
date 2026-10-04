@@ -2,15 +2,167 @@
 
 **This is the one living hand-off file between the windows.** Every Claude Code session that finishes
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
-section 4 in order and report PASS/FAIL per step.
+section 0 (c) and section 4 in order and report PASS/FAIL per step.
 
-- **Last updated:** 3 Oct 2026 (evening), by the **desktop window**, which this time wrote the code itself
-  (owner's request: no prompts): the server ping fix (was prompt 14), ReminthHUD's FPS/GPU/CPU/LAT bar (was
-  prompt 15), updates without the Windows admin prompt, "Boost FPS…", and an FPS investigation measured in the
-  real game. **CLOUD_PROMPT_14.md and CLOUD_PROMPT_15.md are done - don't send them.**
-- **`main` is at:** see `git log` (this file's commit is the last of the batch). **`npm test`: 582 pass** on Windows.
-- Prompts 10-13 were released in 1.4.1; their steps below that aren't marked PASS are still open.
-- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1. Version bumped to **1.4.2** in `package.json`; `dist/Reminth-Setup.exe` built (not uploaded) - section 4, R2 first.
+- **Last updated:** 4 Oct 2026, by the **cloud window**: **Audit 16** (prompt 16, a bug and glitch audit, fixes
+  only). See section 0. Before that: the desktop window's 4 Oct batch (running-game scan, ReminthHUD for 1.21.1,
+  1.4.6).
+- **`main` is at:** this file's commit; the last code commit is `737d028`. **`npm test`: 602 pass** (Linux,
+  cloud). The last Windows count was 582 (desktop, before 1.4.6 and Audit 16).
+- **Version:** `package.json` says **1.4.6** (not bumped by Audit 16; nothing built). The Audit 16 fixes need a
+  release.
+- Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
+- Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0. Audit 16 (cloud window, 4 Oct 2026): bug and glitch audit, no features, no version bump, no build
+
+I read all of `src/main/*.js` and `src/renderer/*` looking for what a player on a normal Windows PC would hit. I also
+checked the UI in headless Chromium at 1000x660 (the smallest window size), 1100x700 and 1097x577 (1080p at 175 %).
+Each fix has a test that fails without the fix. `npm test`: **602 pass** (Linux). I did **not** touch `hud/`,
+`hud-1.21/`, `assets/mods/`, the privacy or terms text, or the version.
+
+**Not tested for real (I can't run Electron, Minecraft or Windows here):** PowerShell's real output on a Greek or
+accented user name; real Windows rename and antivirus behaviour; the real window on a scaled screen; the real
+Microsoft token refresh. The checks in (c) below cover these.
+
+### (a) Bugs fixed (file:line, what a player saw, the test)
+
+1. **`src/main/runningGames.js:58`**: on a PC whose Windows user name has Greek or accented letters
+   (`C:\Users\Γιώργος`), Reminth didn't find a game that was still running after a restart. Pressing Play then
+   started a second copy on the same worlds. Cause: PowerShell answered in the OEM code page, so the game folder
+   never matched. Fix: PowerShell is now told to answer in UTF-8.
+   Test: `test/running-games.test.js` "Audit 16: PowerShell is told to answer in UTF-8…".
+2. **`src/main/main.js:749` (`content:applyUpdates`)**: while "Update" (a mod update from the Mods tab or the compat
+   panel) was replacing jars, Play could start and write Reminth's own jars into the same `mods/`, and a second
+   update could run on top. Play then failed with "file in use", or the game started on a half-swapped mods folder.
+   Fix: this update now uses the same per-instance lock as "Update mods to fit".
+   Test: `test/perf-profiles.test.js` "Audit 16: Play and 'Update mods to fit' wait for a running mod update".
+3. **`src/main/main.js:590-595` (delete and Undo)**: an instance could be deleted while its mods were being
+   updated, while its game files were installing, or while a copy was being made from it. The delete ran under the
+   writer, so the player got random "couldn't delete" errors, or a half-deleted folder that the writer then filled
+   again. Fix: deleting is refused with a plain sentence while any of these runs.
+   Test: `test/perf-profiles.test.js` "Audit 16: an instance can't be deleted while it is being updated or installed".
+4. **`src/main/main.js:557-559` (`instances:update`)**: changing an instance's version or loader while its mods were
+   being updated left it on the new version with mods picked for the old one. Fix: a version or loader change
+   waits for the update (a rename still works).
+   Test: `test/perf-profiles.test.js` "Audit 16: an instance's version can't be changed while its mods…".
+5. **`src/main/content.js:778-783` (turning a mod on or off)**: Windows' rename replaces a file that already has the
+   target name. Example: the player turned off `sodium.jar`, then dropped a newer `sodium.jar` into the folder.
+   Turning the old one back on **silently deleted the newer jar**, and the other way round too. That is the
+   player's own file lost. Fix: the switch is refused with "There is already a file called sodium.jar in that
+   folder - remove or rename one of the two first."
+   Test: `test/audit16.test.js` "turning a mod on or off never overwrites another file with the same name".
+6. **`src/main/streamer.js:304-317` (screenshot hotkey)**: screenshot names are to the second, so pressing the hotkey
+   twice within a second kept only the last picture. Fix: the file is created with `wx`, and the second one gets
+   `-2`. Test: `test/audit16.test.js` "two screenshots in the same second are both kept".
+7. **`src/main/gameData.js:426` (add a server to the multiplayer list)**: two adds at once (two quick clicks on two
+   servers) both started from the old `servers.dat`, so the second dropped the first. Both still said "added".
+   Fix: adds to one list run one at a time. Test: `test/audit16.test.js` "two servers added at once…".
+8. **`src/main/msAuth.js:59,365` (wrong clock)**: the Minecraft token's expiry is saved as now + 24 h. If the PC
+   clock was days ahead at sign-in and then got corrected, the dead token looked valid for days. The game
+   started, but every server refused the login ("Invalid session"). Fix: an expiry more than 25 h away is
+   renewed. Test: `test/audit16.test.js` "a token saved while the PC clock ran ahead is renewed…".
+9. **`src/main/modsSync.js:212-215` (wrong clock)**: the copies of replaced jars (`.reminth/replaced-mods`) are
+   pruned to the newest five by name, and the name is the date. With the clock behind (a flat CMOS battery), the
+   copy just made sorted first and was **deleted right after being written**, so "Restore replaced mods" had
+   nothing to give back. Fix: the new copy is never the one pruned.
+   Test: `test/audit16.test.js` "with the PC clock behind, the copy of the jars an update just replaced…".
+10. **`src/main/atomic.js:126-133` (wrong clock)**: the same problem for the copy of a damaged `instances.json` or
+    `settings.json` (`.corrupt-<time>`). With the clock behind, the only copy of the damaged file was pruned at
+    once. Fix: same as 9. Test: `test/audit16.test.js` "a damaged file that was just set aside isn't pruned".
+11. **`src/main/windowRestore.js:66` + `src/main/main.js:118` (screen scaling)**: the window's minimum size was
+    fixed at 1000x660. At 1920x1080 with 175 % scaling (or 1366x768 at 125 %), the usable screen is about
+    1097x590, so the window could not fit, and its bottom (the Settings button) hung under the taskbar. Fix: the
+    minimum is now the smaller of 1000x660 and the screen; normal screens get exactly the sizes they had before.
+    I checked in Chromium that the page itself still works at 1097x577: the instance list in the rail scrolls.
+    Test: `test/audit16.test.js` "on a screen smaller than 1000x660… the window fits on it". (Before the fix the
+    test failed because `windowSizes` didn't exist; the old inline formula gave min 1000x660 whatever the screen.)
+
+### (b) Suspected, NOT fixed, most likely first
+
+1. **Captures go to `%USERPROFILE%\Videos\Reminth`, not the real Videos folder** (`paths.js` CAPTURES_DIR). With
+   OneDrive Backup on (the default on many new PCs), Videos is `%USERPROFILE%\OneDrive\Videos`. Captures still
+   save, just not where Explorer's "Videos" shows them. Not changed: moving it would hide existing captures from
+   the list. **Decision A16-D1.**
+2. **Reminth's data folder is `homedir\AppData\Roaming\Reminth`, not `%APPDATA%`** (`paths.js` ROOT). It's only
+   different on PCs where IT has redirected AppData (school or work PCs). Changing it would move every player's
+   data. **Decision A16-D2.**
+3. **Adding a server while the game is running** (`servers:add` is allowed then): Minecraft rewrites
+   `servers.dat` from its own copy when its multiplayer screen saves, so the added server can vanish. I'm not
+   sure exactly when vanilla saves. Test step A16-9 settles it; if it does vanish, refuse the add while the game
+   runs (one line).
+4. **The Discover "Installed" badges can be stale after an install** (`features.js` `loadPresence`). A second call
+   while one is running gets the first one's answer, which may have read the instance before the install
+   finished. It corrects itself on the next Discover visit. Not fixed: the renderer has no node test harness, and
+   the rule is a test for every fix.
+5. **Turning a mod on or off when antivirus is scanning the jar**: `content.setEnabled` uses a plain rename, with
+   no EBUSY/EPERM retry like the downloads have. The player gets "That file is in use — close Minecraft and try
+   again." and a second click works. One-line fix (`atomic.renameWithRetry`) if check A16-6 shows it.
+6. **Very long Java command line**: the classpath is passed on the command line with no `@argfile`. Windows'
+   limit is 32,767 characters. A Forge or NeoForge instance with a very long user name could get close; I
+   couldn't measure a real one. A16-10 measures it.
+7. **The main process doesn't stop a mod being installed, turned on or off, or removed in an instance while its
+   mods are being updated.** The page already refuses these, so only a stale page could do it. Worst case: one
+   install fails, or the "replaced" bookkeeping drops a copy.
+8. **`logs.importInstanceLogs` can run twice at once for one instance** (start-up import, the end of a session,
+   the Logs tab). Both write `index.json` through the same `.tmp` name, so one can fail with ENOENT/EPERM. It's
+   retried on the next look and nothing is lost: both work from the same sources.
+9. **A clip saved within one second of the previous clip replaces it** (`webm.joinSegments` opens with `"w"`). A
+   second clip waits for the first, so this only happens when joining took under a second, and the clip it
+   replaces is near-identical.
+10. **`catalogCache.warmCatalog`**: if the very first status write fails (disk full), that category is never
+    warmed again in this session (`warming` isn't cleared). Discover still works live.
+11. **The in-memory caches** (`versions:list` 15 min, loader lists, compat 2 min, skins) believe a clock that
+    jumped backwards during a session until Reminth restarts. Only the age check is affected.
+12. **The HUD jar cache copy** (`minecraft.js` around line 408) and **the skin cache** (`skin.js:192`) aren't
+    written atomically. Both repair themselves (a size check, or a re-fetch).
+13. **Only one "copy to another version" at a time across all instances** (`copyInFlight` is global). By design.
+
+Checked and fine (no change):
+- every download (stall timeout, `.part`, size and hash checked before the rename);
+- every fetch has a timeout;
+- no `innerHTML`, and no `shell: true` or exec anywhere;
+- links: https only (`markdown.safeLink`, `openExternally`), and there's a CSP;
+- mrpack paths;
+- the stale-answer guards in the content, worlds/servers and logs loaders;
+- every modal button re-enables after an error;
+- the 1.4.2 trap: no CSS animation with a `forwards` fill or an `opacity:0` start that needs it to finish;
+- no element wider than the window at 1000x660 or 1100x700.
+
+### (c) Windows checks for these fixes (PASS/FAIL each)
+
+A16-1. **Greek user name:** on a Windows account whose name has Greek or accented letters (a throwaway local
+       account is fine), start a game from Reminth, close Reminth, then reopen it. The instance shows "Running"
+       within about 6 s, and Play says it's already running.
+A16-2. **Update + Play:** in a throwaway instance, start "Update" for a few mods from the Mods tab, and press Play
+       while it runs. You get "Its mods are being updated - wait a moment…", and Play works once it's done.
+A16-3. **Delete while busy:** while an instance's mods are updating, choose Delete for it. You get "That instance
+       is busy…" and nothing is deleted. Delete works once the update ends.
+A16-4. **Version change while busy:** while an update runs, open the instance's edit dialog, change the version, and
+       save. You get the "wait a moment" sentence. A rename alone saves.
+A16-5. **Same-named mod:** in a throwaway instance, put `test.jar` and `test.jar.disabled` (two different files) in
+       `mods/`. Toggle either one in the Mods tab. You get "There is already a file called…", and both files are
+       unchanged (check their sizes in Explorer).
+A16-6. **Toggle right after a download** (antivirus on): install a mod and toggle it off at once. Note whether a
+       "file in use" toast appears (this is suspect (b) 5; report it, it isn't a FAIL).
+A16-7. **Two quick screenshots:** with streamer mode on and a game running, press the screenshot hotkey twice
+       quickly. Two files appear, one ending in `-2.png`.
+A16-8. **Two quick server adds:** in Discover → Servers, click "Add to server list" on two servers quickly for the
+       same instance (game closed). Open Minecraft's Multiplayer list: both are there, with the old entries intact.
+A16-9. **Server add while running (suspect (b) 3):** with the game open on the multiplayer screen, add a server from
+       Reminth, then press Refresh or leave and come back in game. Report whether it stays.
+A16-10. **Long command line (suspect (b) 6):** launch a Forge or NeoForge instance and copy the command line from
+        Task Manager (Details → Command line column). Report its length.
+A16-11. **Small scaled screen:** set Windows to 1920x1080 at 175 % (or a 1366x768 screen at 125 %), then start
+        Reminth. The whole window is on screen: the Settings button at the bottom left is visible above the
+        taskbar. Restore Down, then Maximize again: still fits. Back at 100 %: same size as before.
+A16-12. **Wrong clock (optional):** set the clock 3 days ahead and sign in again. Set the clock back to automatic,
+        then restart Reminth and press Play, joining a server. It joins, with no "Invalid session" (the token was
+        renewed). `main-errors.log` stays clean.
+A16-13. **"Restore replaced mods" still works** after "Update mods to fit" (normal clock): the newest folder in
+        `.reminth\replaced-mods` holds the old jars, and at most five folders are kept.
 
 ---
 
@@ -270,6 +422,13 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 ## 2. Decisions the owner must make (recommendation first)
 
+A16-D1. **Captures folder on OneDrive PCs.** Reminth saves clips and screenshots in `%USERPROFILE%\Videos\Reminth`,
+   even when Windows' Videos folder is really `OneDrive\Videos`. **Recommend: leave it for now.** If players ask
+   "where are my clips", change it then, and keep listing the old folder too so no capture disappears from the
+   Captures page.
+A16-D2. **Data folder on PCs with redirected AppData** (school or work PCs). **Recommend: leave it.** Moving every
+   player's data for a rare case isn't worth the risk.
+
 D1. **No more install-folder chooser** (one-click per-user installer). It's the price of no admin prompt; every
    big launcher (Modrinth App, Discord, VS Code user setup) does the same. **Recommend: keep.**
 D2. **Boost FPS changes 5 video settings on the owner's instance and can make the view shorter** (16 → 12
@@ -355,6 +514,9 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 3. Known weak spots (say them, don't hide them)
 
+- **Audit 16:** the suspected but unfixed problems are in section 0 (b), most likely first. The new screen-size rule
+  (fix 11) is untested on a real scaled screen; a frameless window as big as the whole work area may open looking
+  maximized (that's what the old 85 % rule avoided). It opens maximized anyway, so it should look the same.
 - **Desktop batch (3 Oct evening):** the migration away from `C:\Program Files\Reminth` has not run for real
   (R2). If the owner says No to the one Windows prompt, the old copy and its public shortcut stay, and starting
   Reminth from that shortcut runs the old version, which updates itself again (asks again). Pinned taskbar
@@ -422,11 +584,14 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 ## 4. Test plan for the desktop window (in order)
 
+**Audit 16 first:** do section 0 (c), A16-1 to A16-13, after Basics below. A16-5, A16-8 and A16-13 protect
+player files, so they matter most.
+
 Don't touch the screen while the owner plays. Use throwaway instances. Report PASS/FAIL per step with what
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` → **564 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **602 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
