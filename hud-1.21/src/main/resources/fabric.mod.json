@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "reminthhud",
+	"version": "${version}",
+	"name": "ReminthHUD",
+	"description": "A lightweight HUD: a top-right bar with FPS, GPU and CPU load and your latency. Toggle with H; pick what shows in config/reminthhud.json.",
+	"authors": [
+		"Wxsted"
+	],
+	"contact": {},
+	"license": "CC0-1.0",
+	"icon": "assets/reminthhud/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"main": [
+			"com.wxsted.reminthhud.ReminthHud"
+		],
+		"client": [
+			"com.wxsted.reminthhud.client.ReminthHudClient"
+		]
+	},
+	"depends": {
+		"fabricloader": "*",
+		"minecraft": "${minecraft_version}",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}

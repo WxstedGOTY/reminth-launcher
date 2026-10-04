@@ -148,3 +148,7 @@ hud/build/
 hud/.gradle/
 hud/run/
 hud/.idea/
+hud-1.21/build/
+hud-1.21/.gradle/
+hud-1.21/run/
+hud-1.21/.idea/

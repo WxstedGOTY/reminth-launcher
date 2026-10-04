@@ -263,6 +263,9 @@ opening a page from inside it would need it to close and reopen with its ticks k
 
 **Privacy policy v7 (4 Oct, written by the desktop window).** `site/privacy.html` + the in-app summary (`index.html`) now describe: the running-Java scan (only pid / start time / --gameDir; the token in the command line is never read), ReminthHUD and `config/reminthhud.json`, `hud-on-by-default.json`, Boost FPS and `.reminth\options-before-boost.json`, the early JEI start, and the installer moving to `%LOCALAPPDATA%\Programs/reminth-launcher`. The owner's name/country in the policy were NOT touched (his instruction). **The `site/` folder must be re-uploaded to Cloudflare for the website to show v7.** Terms stay at v6 (no change needed).
 
+
+**ReminthHUD for Minecraft 1.21.1 (4 Oct, `hud-1.21/`, jar `assets/mods/reminthhud-1.2.2+1.21.1.jar`; NOT yet in a release).** Same bar and same JEI early start as the 26.x mod, ported to the older obfuscated game: Loom remapping plugin + Mojang mappings, `GuiGraphics`/`HudRenderCallback`, Java 21. The GPU number uses JNA (shipped with Minecraft) because Java's foreign-function API is only a preview feature on Java 21. Seen in the real game (1.21.1, Fabric API 0.116.17): `FPS 872 | GPU 22% | CPU 2% | LAT 0 ms` top-right, no errors from the mod; with JEI 19.51 the early-start event exists and fired in the forced test. One folder = one Minecraft version; 1.21.4 and others still to do (each needs its own port). Reminth picks the jar by the `minecraft` range: 1.21.1 -> this one, 1.21/1.21.4/1.20.1 -> none.
+
 **Unreleased (committed, not in 1.4.3):** ReminthHUD is switched on once for every Fabric/Quilt instance (`src/main/hudDefault.js`, marker `hud-on-by-default.json` in %APPDATA%\Reminth). Needs a release (1.4.4, built, together with HUD 1.2.0 and the JEI early start).
 
 ## 2. Decisions the owner must make (recommendation first)
