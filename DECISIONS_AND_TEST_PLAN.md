@@ -52,6 +52,9 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   - Every other version: 26.1.2, 26.3, 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11 each started to the
     title screen with ours showing (buttons, icons, picture, copyright line, sky visible) and one icon click
     (Options or Language) opened the right screen.
+  - **1.21.6, 1.21.7, 1.21.9 and 26.1.1 were started with the jar and the matching Fabric API installed by
+    Reminth itself** (the whole real path, no hand-copied files): ours showed on all four. So every version
+    from the list was seen: 1.20.1, 1.21.1, 1.21.4-1.21.11, 26.1.1, 26.1.2, 26.2, 26.3.
   - Reminth's own install path (`ensureInstalled`) puts the right jar + Fabric API into a 26.2 / 26.3 / 26.1.2
     instance and nothing when the switch is off; the packaged app answers "build available" for exactly the
     versions of the HUD and "no" for 1.21.2, 1.21.3, 1.19.4, 1.8.9.
@@ -59,8 +62,7 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
     game window opened with the real mouse hovering there; looks like my PostMessage clicks, not the mod). Click
     through once for real on 26.3.
   - **NOT tested at all:** the Skins icon (opens the installed Reminth); controller/narrator; resource packs
-    that replace the panorama; Quick Play launch; fullscreen toggle; Forge/NeoForge/Quilt (not built); 1.21.9
-    / 1.21.6 / 1.21.7 (covered by the 1.21.8 / 1.21.10 jars' ranges but not started).
+    that replace the panorama; Quick Play launch; fullscreen toggle; Forge/NeoForge/Quilt (not built).
 - One thing I noticed: the owner's mod set shows a small extra avatar-like icon above the icon row - another mod
   (not ours) adds it to the title screen.
 
