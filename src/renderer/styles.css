@@ -445,10 +445,7 @@ svg use, .rail-btn svg, .top-action svg, .btn svg, .i {
 .stat { padding: 16px 18px; overflow: hidden; transition: border-color .16s; }
 /* Same hover outline as the "Jump back in" cards (.recent): border colour only. */
 .stat:hover, .stat:focus-within { border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
-.stat::after {
-  content: ""; position: absolute; right: -30px; top: -30px; width: 110px; height: 110px;
-  border-radius: 50%; background: var(--sc, var(--accent)); opacity: .09; filter: blur(22px);
-}
+/* no coloured glow on the stat cards */
 .s-cyan { --sc: var(--cyan); } .s-amber { --sc: var(--amber); }
 .s-violet { --sc: var(--violet); } .s-emerald { --sc: var(--emerald); }
 .s-rose { --sc: var(--rose); }
