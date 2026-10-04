@@ -1107,3 +1107,22 @@ test("Audit 16: an instance can't be deleted while it is being updated or instal
     instances.remove = realRemove;
   }
 });
+
+test("Audit 16: an instance's version can't be changed while its mods are being updated (a rename still can)", async () => {
+  const real = content.applyUpdates;
+  let finish;
+  content.applyUpdates = () => new Promise((resolve) => (finish = () => resolve({ applied: [], failed: [] })));
+  try {
+    const updating = call("content:applyUpdates", "i1", []);
+    await tick(5);
+    await assert.rejects(call("instances:update", "i1", { mcVersion: "1.20.1" }), /being updated/);
+    await assert.rejects(call("instances:update", "i1", { loader: "fabric" }), /being updated/);
+    updates = [];
+    await call("instances:update", "i1", { name: "Renamed" });
+    assert.deepEqual(updates, [{ name: "Renamed" }]);
+    finish();
+    await updating;
+  } finally {
+    content.applyUpdates = real;
+  }
+});

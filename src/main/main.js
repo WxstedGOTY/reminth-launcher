@@ -554,6 +554,11 @@ ipcMain.handle("instances:create", async (_e, { name, mcVersion, loader, loaderV
 ipcMain.handle("instances:update", async (_e, id, patch) => {
   if (running.has(id)) throw new Error("Close the game first - that instance is running.");
   const clean = { ...(patch || {}) };
+  // A version or loader change while its mods are being updated (which picked
+  // builds for the version it was on) would leave mods for the old one.
+  if (("mcVersion" in clean || "loader" in clean) && syncing.has(id)) {
+    throw new Error("Its mods are being updated - wait a moment for that to finish, then change the version.");
+  }
   if ("loader" in clean && !loaders.LOADERS.includes(clean.loader)) delete clean.loader;
   if ("mcVersion" in clean && !instances.isValidVersionId(clean.mcVersion)) throw new Error("That change isn't valid.");
   // The performance-pack switch: a real true/false or nothing at all.
