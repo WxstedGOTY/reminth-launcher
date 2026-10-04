@@ -5,7 +5,7 @@ Client-side only, CC0.
 
 ## What it shows
 
-- **Top-right bar:** `FPS 240 | GPU 16 % | CPU 53 % | LAT 0 ms`
+- **Top-right bar** (plain text, no background, 75 % size, light labels, bold white values): `FPS 240 | GPU 16% | CPU 53% | LAT 0 ms`
   - **FPS**: the game's own frame counter.
   - **GPU**: the whole PC's GPU load, the same number as Task Manager (Windows'
     `\GPU Engine(*)\Utilization Percentage` counters, busiest engine). Read on a

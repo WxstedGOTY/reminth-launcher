@@ -18,6 +18,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.ChatFormatting;
 import net.minecraft.world.effect.MobEffectInstance;
 
 public class ReminthHudClient implements ClientModInitializer {
@@ -42,27 +44,54 @@ public class ReminthHudClient implements ClientModInitializer {
 			)
 	);
 
-	// The bar's text, rebuilt once a second (the numbers don't change faster),
-	// with the widths measured then - not on every frame.
-	private static final int MAX_ITEMS = 4;
-	private static final String[] labels = new String[MAX_ITEMS];
-	private static final String[] values = new String[MAX_ITEMS];
-	private static final int[] labelWidths = new int[MAX_ITEMS];
-	private static final int[] valueWidths = new int[MAX_ITEMS];
-	private static int items = 0;
-	private static int barWidth = 0;
-	private static long nextRebuild = 0;
-	private static String coordsText = null;
-	private static int coordsWidth = 0;
-	private static long nextCoords = 0;
-
-	private static final int LABEL_COLOR = 0xFFA0A0A0;
+	// Plain text, no background, smaller than the game's own text (a light label,
+	// a bold white value, thin "|" between items) - like the usual FPS overlays.
+	private static final float SCALE = 0.75f;
+	private static final int LABEL_COLOR = 0xFFC8C8C8;
 	private static final int VALUE_COLOR = 0xFFFFFFFF;
-	private static final int SEPARATOR_COLOR = 0x40FFFFFF;
-	private static final int BACKDROP_COLOR = 0x50000000;
-	private static final int PAD_X = 5;
-	private static final int PAD_Y = 3;
-	private static final int GAP = 6; // either side of a separator
+	private static final int SEPARATOR_COLOR = 0xFF8A8A8A;
+	private static final int GAP = 4; // text units on each side of a "|"
+	private static final int MARGIN = 4; // screen pixels from the corner
+
+	/** One line of "LABEL value | LABEL value ...", measured once when its text changes. */
+	private static final class Line {
+		final String[] labels = new String[4];
+		final Component[] values = new Component[4];
+		final int[] labelWidths = new int[4];
+		final int[] valueWidths = new int[4];
+		int items = 0;
+		int width = 0; // in text units
+
+		void clear() {
+			items = 0;
+			width = 0;
+		}
+
+		void add(Font font, String label, String value) {
+			labels[items] = label;
+			values[items] = Component.literal(value).withStyle(ChatFormatting.BOLD);
+			labelWidths[items] = font.width(label);
+			valueWidths[items] = font.width(values[items]);
+			items++;
+		}
+
+		void measure(Font font) {
+			int w = 0;
+			int bar = font.width("|");
+			for (int i = 0; i < items; i++) {
+				w += labelWidths[i] + 3 + valueWidths[i];
+				if (i < items - 1) {
+					w += GAP * 2 + bar;
+				}
+			}
+			width = w;
+		}
+	}
+
+	private static final Line bar = new Line();
+	private static final Line where = new Line();
+	private static long nextRebuild = 0;
+	private static long nextCoords = 0;
 
 	/**
 	 * 26.3 merged the old KEYSYM/SCANCODE input types into KEYBOARD. Minecraft
@@ -119,72 +148,60 @@ public class ReminthHudClient implements ClientModInitializer {
 			return;
 		}
 
+		long now = System.nanoTime();
+		Font font = client.font;
+		if (now >= nextRebuild) {
+			rebuildBar(client, player);
+			nextRebuild = now + 1_000_000_000L;
+		}
+		// Ten times a second is plenty for coordinates, and keeps the
+		// String.format garbage off most frames.
+		boolean showWhere = config.coords && !player.isReducedDebugInfo();
+		if (showWhere && now >= nextCoords) {
+			where.clear();
+			where.add(font, "XYZ", String.format("%.1f / %.1f / %.1f", player.getX(), player.getY(), player.getZ()));
+			where.add(font, "Facing", facing(player.getYRot()));
+			where.measure(font);
+			nextCoords = now + 100_000_000L;
+		}
+
 		// Everything sits in the top-right corner: the top-left is where
 		// minimap mods (Xaero's, JourneyMap) draw.
 		int y = barTop(player);
-		y = renderBar(graphics, client, player, y);
-		// A server that hides coordinates (the reducedDebugInfo rule, which
-		// hides them in F3 too) doesn't get them from us either.
-		if (config.coords && !player.isReducedDebugInfo()) {
-			renderCoords(graphics, client, player, y);
+		if (bar.items > 0) {
+			y = drawLine(graphics, font, bar, y);
+		}
+		if (showWhere && where.items > 0) {
+			drawLine(graphics, font, where, y);
 		}
 	}
 
-	/** Under the bar: position and the way the player is looking, right-aligned. */
-	private static void renderCoords(GuiGraphicsExtractor graphics, Minecraft client, LocalPlayer player, int y) {
-		long now = System.nanoTime();
-		// Ten times a second is plenty for numbers to read, and keeps the
-		// String.format garbage off most frames.
-		if (coordsText == null || now >= nextCoords) {
-			coordsText = String.format("XYZ %.1f / %.1f / %.1f   Facing %s", player.getX(), player.getY(), player.getZ(), facing(player.getYRot()));
-			coordsWidth = client.font.width(coordsText);
-			nextCoords = now + 100_000_000L;
-		}
-		Font font = client.font;
-		int width = coordsWidth + PAD_X * 2;
-		int height = font.lineHeight + PAD_Y * 2;
-		int x = graphics.guiWidth() - width - 3;
-		graphics.fill(x, y, x + width, y + height, BACKDROP_COLOR);
-		graphics.text(font, coordsText, x + PAD_X, y + PAD_Y + 1, VALUE_COLOR, true);
-	}
-
-	/** Top-right bar: FPS | GPU % | CPU % | LAT ms. Returns where the next line goes. */
-	private static int renderBar(GuiGraphicsExtractor graphics, Minecraft client, LocalPlayer player, int y) {
-		long now = System.nanoTime();
-		if (now >= nextRebuild) {
-			rebuild(client, player);
-			nextRebuild = now + 1_000_000_000L;
-		}
-		if (items == 0) {
-			return y;
-		}
-
-		Font font = client.font;
-		int height = font.lineHeight + PAD_Y * 2;
-		int x = graphics.guiWidth() - barWidth - 3;
-		graphics.fill(x, y, x + barWidth, y + height, BACKDROP_COLOR);
-
-		int cx = x + PAD_X;
-		int ty = y + PAD_Y + 1;
-		for (int i = 0; i < items; i++) {
-			graphics.text(font, labels[i], cx, ty, LABEL_COLOR, true);
-			cx += labelWidths[i] + 3;
-			graphics.text(font, values[i], cx, ty, VALUE_COLOR, true);
-			cx += valueWidths[i];
-			if (i < items - 1) {
+	/** Draws one line right-aligned at screen row `y`; returns the row for the next line. */
+	private static int drawLine(GuiGraphicsExtractor graphics, Font font, Line line, int y) {
+		float x = graphics.guiWidth() - line.width * SCALE - MARGIN;
+		graphics.pose().pushMatrix();
+		graphics.pose().translate(x, (float) y);
+		graphics.pose().scale(SCALE, SCALE);
+		int cx = 0;
+		for (int i = 0; i < line.items; i++) {
+			graphics.text(font, line.labels[i], cx, 0, LABEL_COLOR, true);
+			cx += line.labelWidths[i] + 3;
+			graphics.text(font, line.values[i], cx, 0, VALUE_COLOR, true);
+			cx += line.valueWidths[i];
+			if (i < line.items - 1) {
 				cx += GAP;
-				graphics.fill(cx, y + 3, cx + 1, y + height - 3, SEPARATOR_COLOR);
-				cx += 1 + GAP;
+				graphics.text(font, "|", cx, 0, SEPARATOR_COLOR, true);
+				cx += font.width("|") + GAP;
 			}
 		}
-		return y + height + 2;
+		graphics.pose().popMatrix();
+		return y + Math.round(font.lineHeight * SCALE) + 2;
 	}
 
 	/**
 	 * The game draws effect icons in the top-right corner: good ones in a row
 	 * at y 1-25, bad ones ALWAYS in the row at y 27-51 (even with no good
-	 * ones). The bar and the coordinates line (about 32 px together) go under
-	 * every row that's there instead of on top of it.
+	 * ones). Our lines go under every row that's there instead of on top of it.
 	 */
 	private static int barTop(LocalPlayer player) {
 		boolean good = false;
@@ -195,43 +212,29 @@ public class ReminthHudClient implements ClientModInitializer {
 			else bad = true;
 		}
 		if (bad) return 53;
-		return good ? 27 : 3;
+		return good ? 27 : 4;
 	}
 
-	private static void rebuild(Minecraft client, LocalPlayer player) {
+	private static void rebuildBar(Minecraft client, LocalPlayer player) {
 		SystemLoad.lastWanted = System.nanoTime();
 		Font font = client.font;
-		int n = 0;
+		bar.clear();
 		if (config.fps) {
-			n = put(n, font, "FPS", Integer.toString(client.getFps()));
+			bar.add(font, "FPS", Integer.toString(client.getFps()));
 		}
 		if (config.gpu && SystemLoad.gpuAvailable) {
 			int gpu = SystemLoad.gpuPercent;
-			n = put(n, font, "GPU", (gpu < 0 ? "--" : Integer.toString(gpu)) + " %");
+			bar.add(font, "GPU", (gpu < 0 ? "--" : Integer.toString(gpu)) + "%");
 		}
 		if (config.cpu && SystemLoad.cpuAvailable) {
 			int cpu = SystemLoad.cpuPercent;
-			n = put(n, font, "CPU", (cpu < 0 ? "--" : Integer.toString(cpu)) + " %");
+			bar.add(font, "CPU", (cpu < 0 ? "--" : Integer.toString(cpu)) + "%");
 		}
 		if (config.lat) {
 			int lat = latency(client, player);
-			n = put(n, font, "LAT", (lat < 0 ? "--" : Integer.toString(lat)) + " ms");
+			bar.add(font, "LAT", (lat < 0 ? "--" : Integer.toString(lat)) + " ms");
 		}
-		items = n;
-		int w = PAD_X * 2;
-		for (int i = 0; i < n; i++) {
-			w += labelWidths[i] + 3 + valueWidths[i];
-		}
-		w += Math.max(0, n - 1) * (GAP * 2 + 1);
-		barWidth = w;
-	}
-
-	private static int put(int i, Font font, String label, String value) {
-		labels[i] = label;
-		values[i] = value;
-		labelWidths[i] = font.width(label);
-		valueWidths[i] = font.width(value);
-		return i + 1;
+		bar.measure(font);
 	}
 
 	/**
