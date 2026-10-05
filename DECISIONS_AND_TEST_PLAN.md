@@ -14,6 +14,20 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 0000000. Title screen bug found by the owner, and the audit after it (5 Oct 2026, evening)
+
+**Bug:** with no saved worlds, Singleplayer opens the Create World screen; Back/Cancel then showed Minecraft's normal title screen. Cause: when a screen is closed with nothing to show and no world is open, the game builds
+`new TitleScreen()` INSIDE `setScreen`, after my swap had already looked at the argument. Fix: a second hook (`@ModifyVariable ... at STORE`) in `ScreenSwapMixin`, all four copies.
+**Verified in the real game:** a throwaway test mod (`tools/overnight/hometest`) runs 8 ways back to the title screen (Back from Singleplayer, Options, Language, Multiplayer, Create World cancel via `setScreen(null)` and via a new `TitleScreen`,
+`setScreen(null)` with no world, 5 window resizes) and requires OUR screen with exactly one set of buttons: **26.2 and 26.3 all 8 PASS** (clean, with the owner's 29 mods, and with the full Reminth pack); the OLD jar fails 4 of them (so the test sees the bug).
+Other versions (26.1.2, 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11): a debug line (`-Dreminthhome.debug=true` logs every swap) shows the second swap after Singleplayer + Escape on every one.
+**Also found and fixed in the audit:** (1) Realms had no button at all on our screen - a Realms icon (cloud) is in the row now; (2) the demo version keeps the game's own title screen; (3) multiplayer disabled for an account now explains why on hover.
+Known and left: vanilla's small Accessibility and Friends (26.x) buttons are not on our screen (Options -> Accessibility Settings has the first); an unread Realms notification envelope can draw over the buttons (it is the game's own overlay).
+Jars are **1.0.1** (10 of them, bundled). A player's old 1.0.0 jar is replaced by 1.0.1 on the next Play (tested through Reminth's own install).
+**The owner's real instance (`%APPDATA%\Reminth\instance\game`) had NO home-screen jar at 20:36** (old 1.2.2 HUD only): the installed Reminth was still the old version. He must install `release-1.4.8` and press Play once to get it.
+
+---
+
 ## 000000. The "not covered" list, worked through (5 Oct 2026, daytime, desktop window)
 
 Scripts: `tools/overnight/` (README there). What was done on this PC, with real games:

@@ -2,7 +2,10 @@
 
 Everything else is already tested. Do these in this order, then publish `release-1.4.8\` as v1.4.8.
 
-## 0. Already open for you
+## 0. (changed) The earlier test window is closed
+I closed it while fixing a title-screen bug you found (Back from Create World showed the normal screen) - it is fixed in the new installer. Your own game is not touched.
+
+## 0b. Was open for you
 A Minecraft 26.2 window is open on the new **Reminth title screen** (aurora picture, dark rounded buttons, icon row at the bottom).
 It is a test copy with a fake player, so it can't join real servers. Look at it, click around (Options, Language), then close it.
 
@@ -15,9 +18,10 @@ Then open Settings: **Hardware acceleration** should say "Keep this on" (turn it
 - Click the blue words: the Streamer settings page opens, with an on/off switch at the top.
 
 ## 3. The home screen in your own game - 5 min
-Press **Play** on your Reminth instance (26.2):
+Your instance has no home screen yet - it arrives when you install step 1 and press **Play** once. Then on your Reminth instance (26.2):
 - the title screen is the aurora one, buttons look right;
-- click Singleplayer, Options, Language: each opens and **Back/Esc returns to the aurora screen**;
+- click Singleplayer (with no worlds it opens Create World - press Cancel), Options, Language: each opens and **Back/Esc returns to the aurora screen** (this was the bug);
+- the icon row now has a **cloud icon = Minecraft Realms**;
 - click the **person icon (Skins)**: Reminth comes to the front on its Skins page;
 - open a world and "Save and Quit to Title": the aurora screen is back.
 Then on **26.3** (any instance): click Singleplayer and Multiplayer once (my scripted clicks misfired there).

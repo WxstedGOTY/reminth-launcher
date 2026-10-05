@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "reminthtest",
+  "version": "${version}",
+  "name": "Reminth title test (throwaway)",
+  "description": "Test-only frame-time recorder.",
+  "license": "CC0-1.0",
+  "environment": "client",
+  "entrypoints": { "client": ["com.wxsted.reminthtest.TestClient"] },
+  "depends": { "fabricloader": "*", "minecraft": ">=26.2", "java": ">=25", "fabric-api": "*" }
+}

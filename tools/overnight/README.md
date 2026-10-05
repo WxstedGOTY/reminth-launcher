@@ -14,3 +14,5 @@ git-ignored. Windows only. They assume the repo is at `C:/Users/kolijos/Download
 | `fa_check.js` | the Fabric API download for every old version |
 
 `capwin.ps1` takes a picture of ONE window (PrintWindow), never the desktop.
+
+| `hometest/` | a throwaway mod: on the title screen it opens each screen, closes it like Back does, and prints PASS/FAIL that the Reminth title screen is back (build with gradle for 26.2, `-Pminecraft_version=26.3` and OptionsScreen with 2 arguments for 26.3) |
