@@ -164,3 +164,6 @@ home-1.21/run/
 home-1.21/.idea/
 home-1.21/build-all/
 release-*/
+tools/overnight/*-game/
+tools/overnight/*-shots/
+tools/overnight/*.jsonl
