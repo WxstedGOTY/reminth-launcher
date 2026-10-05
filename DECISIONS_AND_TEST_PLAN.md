@@ -14,6 +14,33 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 000000. The "not covered" list, worked through (5 Oct 2026, daytime, desktop window)
+
+Scripts: `tools/overnight/` (README there). What was done on this PC, with real games:
+- **Playing for an hour: PASS.** Fabric 26.2 with the owner's own 29 mods and the HUD, flying over fresh terrain for 3653 s: average 874 FPS, 1% low 430,
+  one frame over 50 ms (69 ms) in the whole hour, 1204 garbage collections (65 s in total, none long), memory flat at about 4.66 GB for the whole hour, clean exit. Not tested: 3+ hours.
+- **Player-added mods: PASS.** The 12 most downloaded Modrinth mods (plus their dependencies), installed the way Discover does, then started: Fabric 1.21.1, 26.2, 1.20.1, 1.19.4, 1.18.2;
+  Forge 1.20.1, 1.19.2, 1.16.5, 1.12.2; NeoForge 1.21.1, 1.20.4, 26.2: all started. **Quilt 1.21.1 did not**: Quilt reports real mod conflicts there
+  (the newest stable Iris is older than what the newest Sodium wants, and the newest Fabric Language Kotlin needs a newer Fabric loader than Quilt provides). That is the mods, not Reminth;
+  the Mods tab's compatibility check is the place that should say it. Quilt is rare, so I left it.
+- **Starting with no internet: PASS.** Every network request refused, then install + start from what was already on disk: vanilla 1.21.1, Fabric 1.21.1 (HUD + pack), Forge 1.20.1,
+  NeoForge 1.21.1, Fabric 1.18.2 all started. (Simulated inside the test, not by cutting the PC's real connection.)
+- **Version change with mod syncing: Forge and NeoForge PASS, Fabric has a REAL PROBLEM in one situation.**
+  Forge 1.19.2 -> 1.20.1 and NeoForge 1.21.1 -> 1.21.4: every mod moved to its build for the new version, game started.
+  Reminth's own pack alone also moves cleanly on Fabric (1.21.1 -> 1.21.4: no duplicate mods).
+  **Fabric, when the PLAYER added mods themselves that the pack also installs (Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling) and/or Iris:** after the switch
+  the mods folder keeps the OLD copy next to the new one (two Sodiums, two Lithiums...) or an old Iris that still claims "1.21.x" in its file, and the game stops with
+  "Incompatible mods found". Why: those jars are marked "yours" (installed through the mod browser, so Reminth never touches them), and the "Update mods to fit" step only fixes a jar whose OWN file
+  says it is for another version; Iris 1.8.8 says "1.21.x" although it only works on 1.21.1, and Modrinth lists it for 1.21.1 only (compat.js `judgeMod` deliberately does not overrule a jar's own range).
+  Reproduce: `node tools/overnight/packmove.js fabric 1.21.1 1.21.4 iris sodium` (shows the duplicate Sodium) and `node tools/overnight/syncswitch.js fabric 1.20.1 1.21.1 10`.
+  **Not fixed**: this is the "who owns which mod file" logic that several earlier prompts built; I did not want to change it blind overnight. Suggested fix, in this order:
+  (1) when the pack is about to install its own copy of a mod and a "yours" copy of the same mod id exists that is built for ANOTHER Minecraft version, sync should update that copy to the right build
+  (or turn it off) instead of leaving both; (2) in `planSync`, also treat a mod as a candidate when Modrinth lists the installed file only for other versions and a stable build for the new version exists.
+  Impact: players who install Iris/Sodium by hand and then switch an instance's version on Fabric. Players who only use Reminth's pack are fine.
+- **Joining a real server: NOT done** (needs the owner: my test account is offline; a local test server needs the owner to accept Mojang's EULA). **Other graphics cards: NOT done** (needs someone with AMD/Intel).
+
+---
+
 ## 00000. The overnight run (5 Oct 2026, desktop window): EVERY Minecraft version launched; five real bugs found and fixed
 
 Installer rebuilt: **`release-1.4.8\` has everything below** (nothing is published). `npm test`: 630 pass.
