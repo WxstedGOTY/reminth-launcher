@@ -536,6 +536,22 @@ async function latestFabricLoader(mcVersion) {
  * that world straight away, where the version's own arguments offer quick
  * play for singleplayer (supportsWorldJoin); elsewhere it is ignored.
  */
+/**
+ * Pure: the list without repeated files (same path, any letter case), in the first-seen order. A loader's
+ * profile can name a library the vanilla profile also has under the same path (NeoForge 1.20.6 and
+ * slf4j-api-2.0.9.jar); NeoForge's own start-up code stops with "Duplicate key" when a jar is on the
+ * classpath twice.
+ */
+function uniquePaths(list) {
+  const seen = new Set();
+  return (list || []).filter((p) => {
+    const key = String(p).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const LAUNCH_GRACE_MS = 15000;
 
 function launch(installResult, account, onCrash, settings = {}, instance = {}, options = {}) {
@@ -546,10 +562,10 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
   const gameDir = instance.gameDir || paths.GAME_DIR;
   fs.mkdirSync(gameDir, { recursive: true });
 
-  const classpath = [
+  const classpath = uniquePaths([
     ...libraries.filter((l) => !l.natives).map((l) => containedPath(paths.LIBRARIES_DIR, l.path)),
     clientJarPath,
-  ].join(";"); // Windows classpath separator - Reminth only targets Windows (see osRulesAllow)
+  ]).join(";"); // Windows classpath separator - Reminth only targets Windows (see osRulesAllow)
 
   const join = options.join && options.join.host ? options.join : null;
   const joinTarget = join ? `${join.host}${join.port && Number(join.port) !== 25565 ? ":" + join.port : ""}` : "";
@@ -3227,6 +3243,7 @@ module.exports = {
   latestFabricLoader,
   downloadFabricApi,
   pickFabricApiRelease,
+  uniquePaths,
   vanillaProfile,
   hasFeature,
   supportsWorldJoin,

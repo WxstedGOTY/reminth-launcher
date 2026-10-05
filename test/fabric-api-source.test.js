@@ -32,3 +32,18 @@ test("pickFabricApiRelease: betas, other Minecraft versions, other loaders and f
   assert.equal(pickFabricApiRelease([], "1.18.2"), null);
   assert.equal(pickFabricApiRelease(null, "1.18.2"), null);
 });
+
+test("uniquePaths: a jar on the classpath twice (NeoForge 1.20.6) is kept once, in order, whatever the letter case", () => {
+  const { uniquePaths } = require("../src/main/minecraft");
+  assert.deepEqual(uniquePaths(["C:\a.jar", "C:\b.jar", "c:\A.JAR", "C:\b.jar", "C:\c.jar"]), ["C:\a.jar", "C:\b.jar", "C:\c.jar"]);
+  assert.deepEqual(uniquePaths([]), []);
+  assert.deepEqual(uniquePaths(null), []);
+});
+
+test("libraryKey: an @jar suffix does not make it another library (NeoForge 1.20.6 duplicated log4j and slf4j)", () => {
+  const forge = require("../src/main/forge");
+  assert.equal(forge.libraryKey("org.slf4j:slf4j-api:2.0.9@jar"), forge.libraryKey("org.slf4j:slf4j-api:2.0.9"));
+  assert.equal(forge.libraryKey("org.slf4j:slf4j-api:2.0.9@jar"), forge.libraryKey("org.slf4j:slf4j-api:2.0.16"));
+  assert.notEqual(forge.libraryKey("a:b:1@zip"), forge.libraryKey("a:b:1"));
+  assert.notEqual(forge.libraryKey("org.lwjgl:lwjgl:3.3.3"), forge.libraryKey("org.lwjgl:lwjgl:3.3.3:natives-windows"));
+});

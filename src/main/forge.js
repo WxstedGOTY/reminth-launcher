@@ -55,7 +55,10 @@ function mavenPath(coord) {
 function libraryKey(name) {
   const [main, ext] = String(name || "").split("@");
   const [group, artifact, , classifier] = main.split(":");
-  return [group, artifact, classifier || "", ext || ""].join(":");
+  // "g:a:1.0@jar" and "g:a:1.0" are the same file: NeoForge writes the suffix, vanilla does not (without
+  // this, both copies of log4j and slf4j landed on NeoForge 1.20.6's classpath and it would not start).
+  const extension = ext && ext.toLowerCase() !== "jar" ? ext : "";
+  return [group, artifact, classifier || "", extension].join(":");
 }
 
 /**
