@@ -14,6 +14,36 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 00000. The overnight run (5 Oct 2026, desktop window): every version launched, three real bugs found and fixed
+
+Installer rebuilt: **`release-1.4.8\` has everything below** (nothing is published). `npm test`: 629 pass.
+
+**The sweep.** A script installed each Minecraft version through Reminth's own `ensureInstalled()` + `launch()`, waited for the game window and took a
+window-only picture (`sweep-shots`, not in the repo). Results (all with the fixed code unless said):
+- **Vanilla, 250 versions: 250 OK** = all 103 releases (1.0 to 26.3), all 26 betas, all 35 alphas and pre-classic (rd-*, c0.*, inf-*), and 86 snapshots
+  (the last one of every development cycle + the newest 12). One failed first: 13w16b (fixed, below).
+- **Fabric with Reminth's full performance pack, HUD and home screen, 48 releases (1.14 to 26.3): 48 OK** (3 failed first: 1.18.2, 1.19, 1.19.1, fixed below).
+- **NeoForge 9 versions (1.20.4 to 26.3): 9 OK** (1.20.6 failed first, fixed below). **Forge** 1.7.10 to 1.21.8: see "Still running" below. **Quilt** 5 versions: see below.
+- "OK" = the game window opened and was still alive about 10 seconds later; a picture is in `sweep-shots`. It does NOT prove the game is playable for hours.
+- The first run lost its internet for a few minutes: those versions failed with "fetch failed" and were run again (all OK). Not a launcher problem.
+
+**Bugs found by it, all fixed (each with tests):**
+1. **Fabric API was missing or empty on Minecraft 1.14 to 1.19.1.** Fabric's Maven has no Fabric API for most of those and only a 5 KB empty shell for
+   1.18.2, 1.19 and 1.19.1, so any mod that needs Fabric API crashed at start (Entity Culling in the performance pack did on 1.18.2/1.19/1.19.1).
+   Now: Maven first, and when its file is missing or tiny, Modrinth's real jar (verified sha1, Modrinth's own host only); old empty shells are removed.
+2. **NeoForge 1.20.6 did not start.** NeoForge writes library names with an "@jar" suffix, so Reminth thought vanilla's log4j/slf4j were different
+   libraries and put both on the classpath. `libraryKey` ignores "@jar" now, and the classpath never lists a file twice.
+3. **13w16a/13w16b did not start** (they do not know --width/--height): not sent for those two.
+Also tonight: friendlier New instance wording (Loader -> "Mods: pick a loader", plain notes, HUD text no longer says coordinates), Reminth stops its
+decorative animations while it is not the window in front (an idle installed Reminth used 7 to 10% of a CPU core; I could not measure the gain on my
+empty test profile), privacy policy v8 (server stats + the home screen), Library/streamer/hardware-acceleration changes (section 000), server statistics (section 0000).
+
+**Still running when I wrote this (check the files if you want the end result):** Forge/Quilt re-runs, then **all 667 remaining snapshots**
+(`sweep-snap-results.jsonl` in the scratchpad; ~3 to 4 hours). Anything that fails there gets listed in the final message of the session.
+**Not covered by any sweep:** playing for a long time, joining a server, mods the player added, Java 8-era mods, Forge mods, offline-only (no internet) starts.
+
+---
+
 ## 0000. Server statistics (5 Oct 2026, desktop window) - the owner's "my stats never go up on servers" bug
 
 Cause: the Statistics page only read stat files inside local WORLDS (`saves/*/players/stats`). A server keeps your stats on the server, so crystal/sword
