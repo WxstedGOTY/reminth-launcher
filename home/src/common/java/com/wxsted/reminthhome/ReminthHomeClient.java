@@ -18,6 +18,7 @@ public class ReminthHomeClient implements ClientModInitializer {
 	/** Set after the first failure: from then on the vanilla title screen is used. */
 	private static volatile boolean failed = false;
 	private static volatile boolean enabled = true;
+	private static final boolean DEBUG = Boolean.getBoolean("reminthhome.debug"); // -Dreminthhome.debug=true logs every swap
 
 	@Override
 	public void onInitializeClient() {
@@ -47,6 +48,8 @@ public class ReminthHomeClient implements ClientModInitializer {
 	public static Screen swap(Screen screen) {
 		if (!enabled || failed || screen == null || screen.getClass() != TitleScreen.class) return screen;
 		try {
+			// The demo version's title screen has its own buttons (Play Demo, Buy): leave it alone.
+			if (Minecraft.getInstance().isDemo()) return screen;
 			boolean fading = false;
 			try {
 				Field f = TitleScreen.class.getDeclaredField("fading");
@@ -55,7 +58,9 @@ public class ReminthHomeClient implements ClientModInitializer {
 			} catch (Throwable ignored) {
 				// the first-start fade-in is cosmetic
 			}
-			return new ReminthTitleScreen(fading);
+			Screen ours = new ReminthTitleScreen(fading);
+			if (DEBUG) LOG.info("ReminthHome: swapped the normal title screen for ours");
+			return ours;
 		} catch (Throwable t) {
 			failed = true;
 			LOG.warn("Reminth home screen could not start; using the normal title screen ({})", t.toString());

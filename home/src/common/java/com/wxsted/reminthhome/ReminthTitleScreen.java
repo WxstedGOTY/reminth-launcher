@@ -57,6 +57,10 @@ public class ReminthTitleScreen extends TitleScreen {
 		if (mods) {
 			icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("reminthhome.mods"), "mods", 4, this::openMods));
 		}
+		// Realms was on the normal title screen; without a button here Realms players could not reach it.
+		if (realmsAvailable()) {
+			icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("menu.online"), "realms", 4, this::openRealms));
+		}
 		icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("menu.options"), "options", 4,
 				() -> Compat.setScreen(mc, Compat.options(this, mc))));
 		icons.add(Compat.button(0, 0, iconSize, iconSize, Component.translatable("options.language"), "language", 4,
@@ -86,6 +90,7 @@ public class ReminthTitleScreen extends TitleScreen {
 		AbstractWidget multi = Compat.button(bx, by + bh + bgap, bw, bh, Component.translatable("menu.multiplayer"), null, 5,
 				() -> Compat.setScreen(mc, Compat.multiplayer(this, mc)));
 		multi.active = mc.allowsMultiplayer();
+		if (!multi.active) multi.setTooltip(Tooltip.create(Component.translatable("title.multiplayer.disabled"))); // the game's own explanation
 		out.add(multi);
 
 		// Quick-join: up to two saved servers, only if there is room.
@@ -109,6 +114,26 @@ public class ReminthTitleScreen extends TitleScreen {
 		}
 		out.addAll(icons);
 		return out;
+	}
+
+	private static final String REALMS_SCREEN = "com.mojang.realmsclient.RealmsMainScreen";
+
+	private static boolean realmsAvailable() {
+		try {
+			Class.forName(REALMS_SCREEN);
+			return !Minecraft.getInstance().isDemo();
+		} catch (Throwable t) {
+			return false;
+		}
+	}
+
+	private void openRealms() {
+		try {
+			Screen s = (Screen) Class.forName(REALMS_SCREEN).getConstructor(Screen.class).newInstance(this);
+			Compat.setScreen(Minecraft.getInstance(), s);
+		} catch (Throwable t) {
+			// Realms changed shape: do nothing rather than crash
+		}
 	}
 
 	private void openMods() {

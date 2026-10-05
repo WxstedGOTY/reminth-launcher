@@ -73,6 +73,14 @@ public class IconGen {
 		g.draw(new Line2D.Double(7.5, 10.5, 24.5, 10.5));
 		g.draw(new Line2D.Double(7.5, 21.5, 24.5, 21.5));
 		ImageIO.write(b, "png", new File(d, "language.png"));
+		// realms: a cloud
+		b = canvas();
+		g = g(b);
+		Area cloud = new Area(new RoundRectangle2D.Double(4, 15, 24, 10, 10, 10));
+		cloud.add(new Area(new Ellipse2D.Double(7, 9, 11, 11)));
+		cloud.add(new Area(new Ellipse2D.Double(13, 6, 13, 13)));
+		g.fill(cloud);
+		ImageIO.write(b, "png", new File(d, "realms.png"));
 		// quit: power symbol
 		b = canvas();
 		g = g(b);

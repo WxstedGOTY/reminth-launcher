@@ -14,4 +14,14 @@ public abstract class ScreenSwapMixin {
 	private Screen reminthhome$swapTitle(Screen screen) {
 		return ReminthHomeClient.swap(screen);
 	}
+
+	/**
+	 * setScreen(null) with no world open makes the game build a plain TitleScreen INSIDE setScreen
+	 * ("screen = new TitleScreen()"), after the hook above has looked at the argument. Create World's Back and
+	 * Cancel end here, and used to land on the normal title screen. This hook sees every assignment to the argument.
+	 */
+	@ModifyVariable(method = "setScreen", at = @At("STORE"), argsOnly = true, require = 0)
+	private Screen reminthhome$swapTitleAssigned(Screen screen) {
+		return ReminthHomeClient.swap(screen);
+	}
 }
