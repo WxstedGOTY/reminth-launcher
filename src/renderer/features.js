@@ -1028,7 +1028,7 @@ async function pickWorld(inst) {
  * screen said it would. `buttons`: elements that show progress / the
  * installed state.
  */
-async function installProject({ projectId, projectType, title, versionId, instanceId }, buttons = []) {
+async function installProject({ projectId, projectType, title, versionId, instanceId, quiet }, buttons = []) {
   const inst = instanceId ? instanceById(instanceId) : activeInstance();
   if (!inst) return false;
   if (projectType === "modpack") return installModpackFlow({ projectId, title });
@@ -1072,7 +1072,7 @@ async function installProject({ projectId, projectType, title, versionId, instan
     const result = await window.reminth.installContent(inst.id, { projectId, kind, world, ...(versionId ? { versionId } : {}) });
     const installed = result.installed || [];
     const extra = installed.length > 1 ? ` (+${installed.length - 1} it needs)` : "";
-    toast(`${title || installed[0]?.title || "Installed"} added to ${inst.name}${extra}.${warningNote(result.warnings)}`);
+    if (!quiet) toast(`${title || installed[0]?.title || "Installed"} added to ${inst.name}${extra}.${warningNote(result.warnings)}`);
     // Green check until the player leaves this page, then grey for good.
     freshAdds.add(`${inst.id}:${projectId}`);
     // Keep the open lists pointed at the active instance even when installing elsewhere.
@@ -1082,6 +1082,7 @@ async function installProject({ projectId, projectType, title, versionId, instan
   } catch (err) {
     // No build for this instance: say which versions it does have builds
     // for, and offer the way out, instead of only an error.
+    if (quiet) return false; // the caller (a list of many) says what failed at the end
     if (kind === "mod" && /has no version for Minecraft/i.test(err.message) && (await explainNoBuild(inst, projectId, title))) return false;
     toast(friendlyError(err.message));
     return false;
@@ -5542,6 +5543,216 @@ function openProfileExtras(instanceId, profile) {
     return item;
   }
 }
+
+/* ---- "What is this instance for?": researched mod and resource pack lists (main/purposes.js) ---- */
+/**
+ * Step 1: pick a playstyle. Step 2: two tabs (the playstyle, Performance), each with the important ones ticked
+ * and a "More" list below, unticked. Whatever is ticked when "Add selected" is pressed is installed like any mod.
+ * Returns a promise that is done when the dialog is closed.
+ */
+function openPurposeSetup(instanceId) {
+  return new Promise((resolve) => {
+    const inst = instanceById(instanceId);
+    if (!inst || (inst.loader !== "fabric" && inst.loader !== "quilt")) {
+      if (inst) toast("Playstyle lists are for Fabric and Quilt instances.");
+      resolve();
+      return;
+    }
+    const body = el("div", "purpose");
+    let handle = null;
+    let goal = null;
+    let tabs = null;
+    let tabId = "goal";
+    const picked = new Set(); // slugs
+
+    const updateButton = () => {
+      if (!handle) return;
+      const n = picked.size;
+      handle.buttons[1].textContent = n ? `Add ${n} selected` : "Add selected";
+      handle.buttons[1].disabled = n === 0;
+    };
+
+    const showGoals = async () => {
+      body.textContent = "";
+      goal = null;
+      handle.buttons[1].hidden = true;
+      handle.modal.querySelector("h2").textContent = `What is ${inst.name} for?`;
+      body.appendChild(el("p", null, "Pick what you play. Reminth suggests the mods and resource packs that help for it - you choose what to add on the next screen."));
+      const grid = el("div", "purpose-grid");
+      let goals = [];
+      try {
+        goals = await window.reminth.purposes();
+      } catch (err) {
+        body.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
+        return;
+      }
+      for (const g of goals) {
+        const card = el("button", "purpose-card");
+        card.type = "button";
+        card.appendChild(el("b", null, g.title));
+        card.appendChild(el("span", null, g.blurb));
+        card.onclick = () => showList(g);
+        grid.appendChild(card);
+      }
+      body.appendChild(grid);
+      body.appendChild(el("p", "set-note", "Nothing is added until you press Add selected, and every mod can be removed later like any other."));
+    };
+
+    const rowFor = (r, ticked) => {
+      const usable = r.available !== false && r.installed !== true;
+      const item = el("button", "pick-item extra-item");
+      item.type = "button";
+      item.setAttribute("role", "checkbox");
+      item.disabled = !usable;
+      item.appendChild(el("span", "chk"));
+      const main = el("div", "extra-main");
+      const top = el("div", "extra-top");
+      top.appendChild(el("b", null, r.title));
+      top.appendChild(el("span", "tag dim", r.kind === "resourcepack" ? "Resource pack" : "Mod"));
+      if (r.installed) top.appendChild(el("span", "tag emerald", "Already added"));
+      else if (r.available === false) top.appendChild(el("span", "tag dim", `No build for ${inst.mcVersion}`));
+      else if (r.available === null) top.appendChild(el("span", "tag dim", "Couldn't check"));
+      if (r.experimental) top.appendChild(el("span", "tag rose", "Experimental"));
+      else if (usable && r.channel && r.channel !== "release") top.appendChild(el("span", "tag amber", r.channel === "beta" ? "Beta build" : "Alpha build"));
+      main.appendChild(top);
+      main.appendChild(el("span", "extra-why", r.why));
+      if (r.warning) main.appendChild(el("span", "extra-warn", r.warning));
+      item.appendChild(main);
+      const paint = () => {
+        const on = picked.has(r.slug);
+        item.classList.toggle("selected", on);
+        item.setAttribute("aria-checked", on ? "true" : "false");
+      };
+      paint();
+      item.onclick = () => {
+        if (item.disabled) return;
+        if (picked.has(r.slug)) picked.delete(r.slug);
+        else picked.add(r.slug);
+        paint();
+        updateButton();
+      };
+      return item;
+    };
+
+    const paintTab = () => {
+      const tab = tabs.find((t) => t.id === tabId) || tabs[0];
+      const holder = body.querySelector(".purpose-list");
+      holder.textContent = "";
+      if (tab.note) holder.appendChild(el("p", "set-note", tab.note));
+      holder.appendChild(el("h3", "purpose-h", "Recommended"));
+      for (const r of tab.core) holder.appendChild(rowFor(r, true));
+      if (tab.more.length) {
+        holder.appendChild(el("h3", "purpose-h", "More - less important, not ticked"));
+        for (const r of tab.more) holder.appendChild(rowFor(r, false));
+      }
+      holder.appendChild(el("p", "set-note", "Looking for something else? Discover has the whole catalog; whatever you add there stays."));
+      body.querySelectorAll(".purpose-tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
+    };
+
+    const showList = async (g) => {
+      goal = g;
+      body.textContent = "";
+      picked.clear();
+      handle.modal.querySelector("h2").textContent = `${g.title} - ${inst.name}`;
+      const bar = el("div", "purpose-bar");
+      const back = el("button", "btn ghost sm", "Back");
+      back.type = "button";
+      back.onclick = () => showGoals();
+      bar.appendChild(back);
+      const tabBar = el("div", "purpose-tabs");
+      bar.appendChild(tabBar);
+      body.appendChild(bar);
+      const holder = el("div", "purpose-list");
+      body.appendChild(holder);
+      holder.appendChild(el("p", "set-note", `Checking which of these have a build for ${inst.mcVersion}…`));
+      handle.buttons[1].hidden = false;
+      handle.buttons[1].disabled = true;
+      try {
+        tabs = await window.reminth.purposeItems(instanceId, g.id);
+      } catch (err) {
+        holder.textContent = "";
+        holder.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
+        return;
+      }
+      if (handle.closed || goal !== g) return;
+      if (!Array.isArray(tabs) || !tabs.length) {
+        holder.textContent = "";
+        holder.appendChild(el("p", "set-note", "Nothing to suggest for this instance."));
+        return;
+      }
+      // The important ones start ticked (when a stable or beta build exists and it isn't already added).
+      for (const t of tabs) {
+        for (const r of t.core) {
+          if (r.available !== false && r.installed !== true && !r.experimental && r.channel !== "alpha") picked.add(r.slug);
+        }
+      }
+      tabId = tabs[0].id;
+      for (const t of tabs) {
+        const b = el("button", "purpose-tab", t.title);
+        b.type = "button";
+        b.dataset.tab = t.id;
+        b.onclick = () => {
+          tabId = t.id;
+          paintTab();
+        };
+        tabBar.appendChild(b);
+      }
+      paintTab();
+      updateButton();
+    };
+
+    handle = openModal({
+      title: `What is ${inst.name} for?`,
+      body,
+      wide: true,
+      onClose: () => resolve(),
+      buttons: [
+        { label: "Skip", className: "outline" },
+        {
+          label: "Add selected",
+          className: "primary",
+          icon: "#i-plus",
+          onClick: async () => {
+            const items = new Map();
+            for (const t of tabs || []) for (const r of [...t.core, ...t.more]) items.set(r.slug, r);
+            const chosen = [...picked].map((s) => items.get(s)).filter(Boolean);
+            if (!chosen.length) return false;
+            const risky = chosen.filter((r) => r.experimental || r.channel === "alpha");
+            if (risky.length) {
+              const lines = risky.map((r) => `${r.title}: ${r.warning || "only an alpha build exists."}`);
+              const ok = await confirmModal("Add experimental mods?", [...lines, "Back up your worlds before you play with these."], "Add anyway", true);
+              if (!ok) return false;
+            }
+            handle.buttons[0].disabled = true;
+            handle.buttons[1].disabled = true;
+            const done = [];
+            const failed = [];
+            for (let i = 0; i < chosen.length; i++) {
+              const r = chosen[i];
+              handle.buttons[1].textContent = `Adding ${i + 1} of ${chosen.length}…`;
+              const ok = await installProject({ projectId: r.slug, projectType: r.kind, title: r.title, instanceId, quiet: true });
+              (ok ? done : failed).push(r);
+            }
+            try {
+              await window.reminth.purposeFinish(instanceId, goal.id, done.map((r) => r.slug));
+            } catch {
+              // the mods are in; only the ready-made settings and the pack switch-on are missing
+            }
+            toast(
+              failed.length
+                ? `${done.length} added to ${inst.name}. Couldn't add: ${failed.map((r) => r.title).join(", ")}.`
+                : `${done.length} added to ${inst.name}, with settings ready. Press Play.`
+            );
+            return true;
+          },
+        },
+      ],
+    });
+    handle.buttons[1].hidden = true;
+    showGoals();
+  });
+}
+window.openPurposeSetup = openPurposeSetup;
 
 /* ---- safe mode: the JVM refused Reminth's settings, so it ran on basic ones ---- */
 window.reminth.onSafeMode(({ instanceId, reason }) => {

@@ -2469,3 +2469,17 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .boot-bar i { position: absolute; inset: 0; border-radius: 6px; background: linear-gradient(90deg, var(--accent), var(--accent-deep)); transform-origin: left center; transform: scaleX(0); will-change: transform; }
 .boot-note { position: relative; font-size: 12px; color: var(--text-muted, #8b98ad); letter-spacing: 0.02em; }
 @keyframes bootBreath { 0%, 100% { transform: scale(0.92); opacity: 0.07; } 50% { transform: scale(1.05); opacity: 0.13; } }
+
+/* "What is this instance for?" (features.js openPurposeSetup) */
+.purpose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 8px; }
+.purpose-card { display: flex; flex-direction: column; gap: 6px; text-align: left; padding: 16px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.purpose-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.purpose-card b { font-size: 15px; }
+.purpose-card span { font-size: 12.5px; color: var(--text-2); }
+.purpose-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.purpose-tabs { display: flex; gap: 6px; }
+.purpose-tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); cursor: pointer; font-weight: 600; font-size: 12.5px; }
+.purpose-tab.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.purpose-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.purpose-h { margin: 10px 0 2px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+@media (max-width: 640px) { .purpose-grid { grid-template-columns: 1fr; } }

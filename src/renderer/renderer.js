@@ -1758,7 +1758,12 @@ function openInstanceModal(existing) {
               await loadInstances();
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);
-              if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
+              // New instances that can run mods: "what is it for?" first, then the profile's own suggestions.
+              if (typeof openPurposeSetup === "function" && (pick.loader === "fabric" || pick.loader === "quilt")) {
+                openPurposeSetup(inst.id).then(() => {
+                  if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
+                });
+              } else if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
             }
             return true;
           } catch (err) {
@@ -1816,7 +1821,7 @@ function openInstanceMenu(id, at = {}) {
     index,
     count: state.instances.length,
   });
-  const icons = { play: "#i-play", open: "#i-cube", rename: "#i-edit", folder: "#i-folder", verify: "#i-refresh", boost: "#i-bolt", up: "#i-chevron", down: "#i-chevron", top: "#i-chevron", bottom: "#i-chevron", delete: "#i-trash" };
+  const icons = { play: "#i-play", open: "#i-cube", rename: "#i-edit", folder: "#i-folder", verify: "#i-refresh", boost: "#i-bolt", setup: "#i-sliders", up: "#i-chevron", down: "#i-chevron", top: "#i-chevron", bottom: "#i-chevron", delete: "#i-trash" };
   const box = el("div", "dd-menu inst-menu");
   box.setAttribute("role", "menu");
   box.setAttribute("aria-label", `${inst.name}: menu`);
@@ -1918,6 +1923,7 @@ async function runInstanceMenuItem(id, what) {
   if (what === "rename") return renameInstanceFlow(id);
   if (what === "folder") return openFolder("game", id);
   if (what === "boost") return boostFpsFlow(id);
+  if (what === "setup") return typeof openPurposeSetup === "function" ? openPurposeSetup(id) : undefined;
   if (what === "verify") {
     await selectInstance(id, false);
     switchPage("home");

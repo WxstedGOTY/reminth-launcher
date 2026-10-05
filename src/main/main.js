@@ -29,6 +29,7 @@ const compat = require("./compat");
 const migrate = require("./migrate");
 const runningGames = require("./runningGames");
 const perfProfiles = require("./perfProfiles");
+const purposes = require("./purposes");
 const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
 const atomic = require("./atomic");
@@ -512,6 +513,41 @@ ipcMain.handle("perf:gpuHelp", async () => {
     opened = false; // not Windows 10/11 - the paths are still worth showing
   }
   return { javaPaths: await java.installedJavawPaths(), opened };
+});
+
+// ---- "what is this instance for?": researched mod and resource pack lists (purposes.js) ----
+ipcMain.handle("purpose:list", () => purposes.list());
+ipcMain.handle("purpose:items", async (_e, id, goalId) => purposes.listFor(String(goalId), await instances.require(id)));
+// After the chosen ones were installed (the ordinary content install, from the renderer): their ready-made
+// settings go into config/ (never over an existing file) and the resource packs are switched on for the next start.
+ipcMain.handle("purpose:finish", async (_e, id, goalId, slugs) => {
+  const inst = await instances.require(id);
+  const chosen = (Array.isArray(slugs) ? slugs : []).filter((s) => typeof s === "string").slice(0, 80);
+  const configs = await purposes.writeConfigs(inst.gameDir, String(goalId), chosen);
+  const items = purposes.itemBySlug(String(goalId));
+  const packSlugs = chosen.filter((s) => items.get(s) && items.get(s).kind === "resourcepack");
+  const files = [];
+  if (packSlugs.length) {
+    try {
+      const manifest = await content.readManifest(inst.gameDir);
+      const ids = new Set();
+      for (const slug of packSlugs) {
+        try {
+          const project = await modrinth.getProject(slug);
+          if (project && project.id) ids.add(project.id);
+        } catch {
+          // a pack that can't be looked up just isn't switched on
+        }
+      }
+      for (const [key, entry] of Object.entries((manifest && manifest.files) || {})) {
+        if (entry && entry.kind === "resourcepack" && ids.has(entry.projectId) && key.startsWith("resourcepacks/")) files.push(key.slice("resourcepacks/".length));
+      }
+    } catch {
+      // nothing to switch on
+    }
+  }
+  const queued = files.length ? await purposes.queuePacks(inst.gameDir, files) : false;
+  return { configs, packsQueued: queued ? files.length : 0 };
 });
 
 // ---- performance profiles and the performance pack (instance page) ----

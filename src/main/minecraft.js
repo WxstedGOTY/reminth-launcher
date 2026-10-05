@@ -154,6 +154,13 @@ async function ensureInstalled(instance, onProgress) {
   } catch {
     // no starting options - the game makes its own
   }
+  // Resource packs the player ticked in "What is this instance for?" are switched on here, after the starting
+  // options.txt above (so a new instance gets both). Never stops Play.
+  try {
+    await require("./purposes").applyPendingPacks(gameDir, { clientJar: vanillaJarPath });
+  } catch {
+    // the packs stay in the folder, switched off
+  }
   const modsDir = path.join(gameDir, "mods");
   let removed = [];
   let performanceModsInstalled = [];

@@ -14,6 +14,14 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 00000000000. "What is this instance for?" (6 Oct 2026) - desktop window
+
+New: `src/main/purposes.js` (data + helpers), `purpose:*` IPC, `openPurposeSetup` in features.js, "Set up for a playstyle..." in the instance menu, `tools/overnight/check-purposes.js` (re-checks every slug on Modrinth). After a new Fabric/Quilt instance is created: pick Survival & SMP / Crystal PvP / Sword & Axe PvP / Creative; two tabs (the playstyle, Performance), important ones ticked, a "More" list unticked; Add selected installs them (with dependencies), writes ready-made config files (never over an existing file) and switches the resource packs on at the next Play (options.txt; packs that declare an old pack format are also accepted as incompatible, otherwise the game drops them). 50 slugs, all with a build for 26.2 and 26.1 on 6 Oct 2026. Left out on purpose: anything servers call cheating (fullbright, freecam, auto-totem, macros, hitbox helpers). Crystal optimizers and minimaps carry a "check the server rules" warning.
+Tested for real: Crystal PvP list installed 24 items into a throwaway instance on 26.2 (29 jars with dependencies), the game started with all of them plus the home screen, the 3 resource packs load. Not tested: the other three playstyles in a real game, other Minecraft versions (items without a build show "No build for ..."), installing while signed in.
+Test plan: (1) make a new Fabric instance: the playstyle dialog opens; (2) pick Crystal PvP, press Add selected, press Play: mods load, no crash, Options > Resource Packs shows the three packs on; (3) same for Sword & Axe PvP and Survival; (4) instance menu > Set up for a playstyle... works on an old instance; (5) tell me any mod you would not want there.
+
+---
+
 ## 0000000000. Sign-in and pointer batch (5 Oct 2026, night) - desktop window
 
 Changed: Sign in (`renderer.js doSignIn`, `main.js auth:signIn`): the Microsoft page now opens by itself when the code appears, the code panel has "Open the Microsoft page" and "Copy code" buttons, and the Sign in button stays pressable ("Get a new code") - before, a second press shared the first, still-waiting sign-in and the button was disabled for up to 15 minutes. "Download game files without signing in" removed. New in mod 1.0.3: `CursorFix.java` resets the game's mouse pointer to the normal arrow after F11/window-mode changes and now and then while a menu is open (all by name/reflection, one copy for every version). Seen in a real 26.2 game: it runs and logs once, no errors; the real invisible pointer bug was NOT reproduced here, so it is untested. 26.3 and old versions compile but were not run for this.
