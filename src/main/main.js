@@ -300,9 +300,16 @@ const auth = msAuth.createSession({
   log: logAuth,
 });
 
-ipcMain.handle("auth:signIn", async () => {
+ipcMain.handle("auth:signIn", async (_e, restart) => {
+  // "Get a new code": drop a sign-in that is still waiting (nobody is signed in then) and start again.
+  if (restart === true && !auth.current()) await auth.signOut();
   const account = await auth.signIn({
-    onCode: (data) => send("auth:code", data),
+    onCode: (data) => {
+      send("auth:code", data);
+      // The Microsoft page opens by itself; a link in the window that would not open was the common complaint.
+      const href = markdown.safeLink(data && data.verificationUri);
+      if (href) shell.openExternal(href).catch(() => {});
+    },
     onWaiting: () => send("auth:waiting"),
   });
   return { username: account.username };

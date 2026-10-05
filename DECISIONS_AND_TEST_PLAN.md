@@ -14,6 +14,13 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 0000000000. Sign-in and pointer batch (5 Oct 2026, night) - desktop window
+
+Changed: Sign in (`renderer.js doSignIn`, `main.js auth:signIn`): the Microsoft page now opens by itself when the code appears, the code panel has "Open the Microsoft page" and "Copy code" buttons, and the Sign in button stays pressable ("Get a new code") - before, a second press shared the first, still-waiting sign-in and the button was disabled for up to 15 minutes. "Download game files without signing in" removed. New in mod 1.0.3: `CursorFix.java` resets the game's mouse pointer to the normal arrow after F11/window-mode changes and now and then while a menu is open (all by name/reflection, one copy for every version). Seen in a real 26.2 game: it runs and logs once, no errors; the real invisible pointer bug was NOT reproduced here, so it is untested. 26.3 and old versions compile but were not run for this.
+Test plan: (1) Sign in with Microsoft: browser opens with the code page, code copies, a second press gives a new code and the old one stops; (2) have the friend try sign-in; (3) in game press F11 a few times and open menus: the pointer must stay visible; if it ever vanishes, tell me what you did just before.
+
+---
+
 ## 000000000. Second feedback batch (5 Oct 2026, night) - desktop window
 
 Changed: loading screen redesigned (glow, wordmark, bar that moves every frame, 1.8-3 s); the rail broadcast button only OPENS the streamer page (the switch on the page toggles); Test it / Turn this on go to the streamer page; Discover shows Installed only when the item is in EVERY instance (`installedProjectIds`, uses `presence`); the home screen is forced (`forced: true` in `config.BUNDLED_MODS`, the create/edit switch is hidden, the jar is hidden from the mod list); title-screen mod 1.0.3: the head on the buttons was the ukulib mod's button (found by removing mods one by one; it also shows on the plain game), now moved off screen by reflection; icons redrawn at 64 px with smooth scaling (`blur` mcmeta). Tests: 633 pass. Not tested for real: Discover Installed rule with several instances, the loading screen with a signed-in account, the icons on versions other than 26.2.

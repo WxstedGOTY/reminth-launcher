@@ -933,10 +933,21 @@ function applyAccountUI() {
   refreshSkin();
 }
 
-async function doSignIn(btn) {
-  if (btn) btn.disabled = true;
+let signInSeq = 0;
+let signInCode = null; // { userCode, verificationUri } of the sign-in waiting right now
+async function doSignIn(btn, restart) {
+  const mine = ++signInSeq;
+  // Stays pressable while it waits: pressing it again gets a new code (a closed tab or an expired code
+  // used to leave the button dead until Microsoft's 15 minutes were up).
+  const paintWaiting = (waiting) => {
+    for (const b of [$("signInBtn"), $("settingsAuthBtn")]) {
+      b.textContent = waiting ? "Get a new code" : b === $("signInBtn") ? "Sign in with Microsoft" : "Sign in";
+    }
+  };
   try {
-    const { username } = await window.reminth.signIn();
+    paintWaiting(true);
+    const { username } = await window.reminth.signIn(restart);
+    if (mine !== signInSeq) return;
     state.signedIn = true;
     state.username = username;
     $("codePanel").hidden = true;
@@ -948,12 +959,13 @@ async function doSignIn(btn) {
     loadRecent();
     toast(state.privacy ? "Signed in." : `Signed in as ${username}`);
   } catch (err) {
+    if (mine !== signInSeq) return; // a newer press owns the card now
     $("codePanel").hidden = true;
     const why = friendlyError(err.message);
     appendLog("Sign-in failed: " + why, true, "Out");
     toast(`Sign-in didn't finish: ${why}`);
   } finally {
-    if (btn) btn.disabled = false;
+    if (mine === signInSeq) paintWaiting(false);
   }
 }
 
@@ -993,9 +1005,9 @@ function signedOutByBackend(err) {
   return true;
 }
 
-$("signInBtn").onclick = () => doSignIn($("signInBtn"));
+$("signInBtn").onclick = () => doSignIn($("signInBtn"), true);
 $("accountBtn").onclick = () => switchPage("settings");
-$("settingsAuthBtn").onclick = () => (state.signedIn ? doSignOut() : doSignIn($("settingsAuthBtn")));
+$("settingsAuthBtn").onclick = () => (state.signedIn ? doSignOut() : doSignIn($("settingsAuthBtn"), true));
 
 window.reminth.onAccountRestored(({ username }) => {
   state.signedIn = true;
@@ -1004,11 +1016,23 @@ window.reminth.onAccountRestored(({ username }) => {
   loadRecent();
 });
 window.reminth.onAuthCode(({ userCode, verificationUri }) => {
+  signInCode = { userCode, verificationUri };
   $("codePanel").hidden = false;
   $("userCode").textContent = userCode;
-  $("verificationLink").href = verificationUri;
-  $("verificationLink").textContent = verificationUri.replace(/^https?:\/\//, "");
+  $("codeHint").textContent = "The Microsoft page opens in your browser. Enter this code there.";
 });
+$("codeOpenBtn").onclick = () => {
+  if (signInCode) window.reminth.openLink(signInCode.verificationUri).catch(() => toast("Couldn't open your browser. Go to microsoft.com/link and enter the code."));
+};
+$("codeCopyBtn").onclick = async () => {
+  if (!signInCode) return;
+  try {
+    await navigator.clipboard.writeText(signInCode.userCode);
+    toast("Code copied.");
+  } catch {
+    toast("Couldn't copy it. Select the code and press Ctrl+C.");
+  }
+};
 window.reminth.onAuthWaiting(() => {
   $("codeHint").textContent = "Waiting for you to finish signing in…";
 });
@@ -2440,7 +2464,6 @@ $("instStopBtn").onclick = () => {
   const inst = activeInstance();
   if (inst) stopGame(inst.id);
 };
-$("updateBtnOut").onclick = () => runInstall();
 $("repairBtn2").onclick = () => {
   switchPage("home");
   runInstall();

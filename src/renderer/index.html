@@ -182,11 +182,15 @@
               <div class="code-panel" id="codePanel" hidden>
                 <div class="code-box" id="userCode">----</div>
                 <p class="hint" id="codeHint">
-                  Go to <a id="verificationLink" href="#" rel="noopener">microsoft.com/link</a> and enter this code.
+                  The Microsoft page opens in your browser. Enter this code there.
                 </p>
+                <div class="code-actions">
+                  <button class="btn outline sm" id="codeOpenBtn" type="button">Open the Microsoft page</button>
+                  <button class="btn outline sm" id="codeCopyBtn" type="button">Copy code</button>
+                </div>
+                <p class="hint">Nothing opened, or the code ran out? Press <b>Get a new code</b> above.</p>
               </div>
 
-              <button class="btn ghost" id="updateBtnOut">Download game files without signing in</button>
               <div class="progress" id="progressWrapOut" hidden>
                 <div class="progress-row">
                   <span id="progressStageOut">Preparing…</span>

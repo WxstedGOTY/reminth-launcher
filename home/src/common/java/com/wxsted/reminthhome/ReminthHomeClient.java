@@ -23,6 +23,7 @@ public class ReminthHomeClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		enabled = readEnabled();
+		CursorFix.init();
 	}
 
 	/** config/reminthhome.json {"enabled": false} turns the screen off; anything unreadable leaves it on. */

@@ -21,7 +21,7 @@ contextBridge.exposeInMainWorld("reminth", {
 
   // account + skins
   currentAccount: () => ipcRenderer.invoke("auth:current"),
-  signIn: () => ipcRenderer.invoke("auth:signIn"),
+  signIn: (restart) => ipcRenderer.invoke("auth:signIn", Boolean(restart)),
   signOut: () => ipcRenderer.invoke("auth:signOut"),
   skin: () => ipcRenderer.invoke("auth:skin"),
   skinProfile: () => ipcRenderer.invoke("skin:profile"),
