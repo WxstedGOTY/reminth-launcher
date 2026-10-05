@@ -25,18 +25,13 @@ Scripts: `tools/overnight/` (README there). What was done on this PC, with real 
   the Mods tab's compatibility check is the place that should say it. Quilt is rare, so I left it.
 - **Starting with no internet: PASS.** Every network request refused, then install + start from what was already on disk: vanilla 1.21.1, Fabric 1.21.1 (HUD + pack), Forge 1.20.1,
   NeoForge 1.21.1, Fabric 1.18.2 all started. (Simulated inside the test, not by cutting the PC's real connection.)
-- **Version change with mod syncing: Forge and NeoForge PASS, Fabric has a REAL PROBLEM in one situation.**
-  Forge 1.19.2 -> 1.20.1 and NeoForge 1.21.1 -> 1.21.4: every mod moved to its build for the new version, game started.
-  Reminth's own pack alone also moves cleanly on Fabric (1.21.1 -> 1.21.4: no duplicate mods).
-  **Fabric, when the PLAYER added mods themselves that the pack also installs (Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling) and/or Iris:** after the switch
-  the mods folder keeps the OLD copy next to the new one (two Sodiums, two Lithiums...) or an old Iris that still claims "1.21.x" in its file, and the game stops with
-  "Incompatible mods found". Why: those jars are marked "yours" (installed through the mod browser, so Reminth never touches them), and the "Update mods to fit" step only fixes a jar whose OWN file
-  says it is for another version; Iris 1.8.8 says "1.21.x" although it only works on 1.21.1, and Modrinth lists it for 1.21.1 only (compat.js `judgeMod` deliberately does not overrule a jar's own range).
-  Reproduce: `node tools/overnight/packmove.js fabric 1.21.1 1.21.4 iris sodium` (shows the duplicate Sodium) and `node tools/overnight/syncswitch.js fabric 1.20.1 1.21.1 10`.
-  **Not fixed**: this is the "who owns which mod file" logic that several earlier prompts built; I did not want to change it blind overnight. Suggested fix, in this order:
-  (1) when the pack is about to install its own copy of a mod and a "yours" copy of the same mod id exists that is built for ANOTHER Minecraft version, sync should update that copy to the right build
-  (or turn it off) instead of leaving both; (2) in `planSync`, also treat a mod as a candidate when Modrinth lists the installed file only for other versions and a stable build for the new version exists.
-  Impact: players who install Iris/Sodium by hand and then switch an instance's version on Fabric. Players who only use Reminth's pack are fine.
+- **Version change with mod syncing: PASS after one fix.** Forge 1.19.2 -> 1.20.1 and NeoForge 1.21.1 -> 1.21.4 moved every mod. On Fabric my first test did things in an order a player cannot reach (it
+  installed Sodium by hand on top of Reminth's own Sodium) and left two copies; in the realistic order (the player adds mods in Discover, Reminth's first start, then the switch) there were no duplicates.
+  The REAL gap that test showed: **Iris 1.8.8 says "1.21.x" in its own file but only works on 1.21.1**, so after a switch to 1.21.4 nothing flagged it and the game stopped. Fixed (`compat.js judgeMod`/`checkInstance`):
+  a mod whose file says yes but whose Modrinth listing names only OLDER versions is now updated when Modrinth has a proper STABLE build for the new version, and left alone (no warning at all) when it has none.
+  3 new tests. Real games after the fix: Fabric 1.21.1 -> 1.21.4 OK, 1.19.4 -> 1.20.1 OK, 26.2 -> 26.3 OK (with the top 10 mods, Iris included).
+  **Still fails, and is the mods' fault:** Fabric 1.20.1 -> 1.21.1 with BOTH Iris and Sodium by hand: the newest STABLE Sodium (0.8.13) says "breaks Iris below 1.8.13" and the newest stable Iris is 1.8.8 (which wants Sodium 0.6.x),
+  so no stable pair exists on 1.21.1; the mods folder is clean and the Mods tab already warns about this pair. Making Reminth pick a matching pair (it would need to use Iris's beta) is a bigger decision for the owner.
 - **Joining a real server: NOT done** (needs the owner: my test account is offline; a local test server needs the owner to accept Mojang's EULA). **Other graphics cards: NOT done** (needs someone with AMD/Intel).
 
 ---
