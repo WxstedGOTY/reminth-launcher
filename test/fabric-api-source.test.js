@@ -47,3 +47,13 @@ test("libraryKey: an @jar suffix does not make it another library (NeoForge 1.20
   assert.notEqual(forge.libraryKey("a:b:1@zip"), forge.libraryKey("a:b:1"));
   assert.notEqual(forge.libraryKey("org.lwjgl:lwjgl:3.3.3"), forge.libraryKey("org.lwjgl:lwjgl:3.3.3:natives-windows"));
 });
+
+test("acceptsWindowSize: only the first 2013 'Main' snapshots refuse --width/--height", () => {
+  const { acceptsWindowSize } = require("../src/main/minecraft");
+  assert.equal(acceptsWindowSize("13w16a"), false);
+  assert.equal(acceptsWindowSize("13w16b"), false);
+  assert.equal(acceptsWindowSize("13w17a"), true);
+  assert.equal(acceptsWindowSize("1.5.2"), true);
+  assert.equal(acceptsWindowSize("26.3"), true);
+  assert.equal(acceptsWindowSize(undefined), true);
+});

@@ -552,6 +552,14 @@ function uniquePaths(list) {
   });
 }
 
+/**
+ * Pure: does this Minecraft version's command line parser know --width and --height? The first versions
+ * with the new "Main" class (April 2013) did not, and stop with "'width' is not a recognized option".
+ */
+function acceptsWindowSize(versionId) {
+  return !/^13w16[ab]$/i.test(String(versionId || ""));
+}
+
 const LAUNCH_GRACE_MS = 15000;
 
 function launch(installResult, account, onCrash, settings = {}, instance = {}, options = {}) {
@@ -652,7 +660,7 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
   // Vanilla client flags - Minecraft itself understands these.
   if (settings.fullscreen) {
     gameArgs.push("--fullscreen");
-  } else if (settings.gameWidth > 0 && settings.gameHeight > 0) {
+  } else if (settings.gameWidth > 0 && settings.gameHeight > 0 && acceptsWindowSize(profile.inheritsFrom || profile.id)) {
     gameArgs.push("--width", String(settings.gameWidth), "--height", String(settings.gameHeight));
   }
 
@@ -3244,6 +3252,7 @@ module.exports = {
   downloadFabricApi,
   pickFabricApiRelease,
   uniquePaths,
+  acceptsWindowSize,
   vanillaProfile,
   hasFeature,
   supportsWorldJoin,
