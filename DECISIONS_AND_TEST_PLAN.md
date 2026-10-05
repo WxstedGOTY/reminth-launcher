@@ -21,7 +21,7 @@ Installer rebuilt: **`release-1.4.8\` has everything below** (nothing is publish
 **The sweep.** A script installed each Minecraft version through Reminth's own `ensureInstalled()` + `launch()`, waited for the game window and took a
 window-only picture (`sweep-shots` in the scratchpad, not in the repo). **All 917 versions Mojang lists were launched at least once**: 103 releases
 (1.0 to 26.3), 26 betas, 35 alphas and pre-classic (rd-*, c0.*, inf-*), and all 753 snapshots (April Fools versions included).
-- **Result with the final code: every one of the 917 started.** On the way, 14 snapshots failed in the first pass (below); each was fixed or started on a second try.
+- **Result: every one of the 917 started in at least one run.** 14 snapshots failed in the first pass (below); each one started after its fix or on a second try, and I re-ran exactly those afterwards. The whole list was not re-run on the very last code, only the versions each fix touched.
 - **Fabric with Reminth's full performance pack + HUD + home screen, 48 releases (1.14 to 26.3): 48 OK** (after the fix below; 3 crashed before it).
 - **Forge 12 versions (1.7.10 to 1.21.8): 12 OK. NeoForge 9 (1.20.4 to 26.3): 9 OK** (1.20.6 crashed before the fix). **Quilt 5 (1.19.4 to 26.2): 5 OK.**
 - "OK" = the game window opened and was still alive about 10 seconds later, and a picture shows the main menu (a few show Mojang's loading screen because the
