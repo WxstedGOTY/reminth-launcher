@@ -5,10 +5,6 @@ Everything else is already tested. Do these in this order, then publish `release
 ## 0. (changed) The earlier test window is closed
 I closed it while fixing a title-screen bug you found (Back from Create World showed the normal screen) - it is fixed in the new installer. Your own game is not touched.
 
-## 0b. Was open for you
-A Minecraft 26.2 window is open on the new **Reminth title screen** (aurora picture, dark rounded buttons, icon row at the bottom).
-It is a test copy with a fake player, so it can't join real servers. Look at it, click around (Options, Language), then close it.
-
 ## 1. Install the new launcher - 5 min
 Run `release-1.4.8\Reminth-Setup.exe`. Reminth opens by itself. Expected: it keeps your account and instances.
 Then open Settings: **Hardware acceleration** should say "Keep this on" (turn it OFF only to see the warning popup, then press Cancel).
