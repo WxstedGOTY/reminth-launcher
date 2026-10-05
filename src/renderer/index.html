@@ -18,9 +18,11 @@
 
 <!-- Loading screen: removed by renderer.js once the app's pages are ready (3 seconds at most). -->
 <div class="boot-splash" id="bootSplash" aria-hidden="true">
-  <img src="../../assets/icon.png" alt="" />
-  <div class="boot-name">Reminth</div>
-  <div class="boot-bar"><i></i></div>
+  <div class="boot-glow"></div>
+  <div class="boot-brand"><img src="../../assets/icon.png" alt="" /><span>Reminth</span></div>
+  <div class="boot-bar"><i id="bootFill"></i></div>
+  <div class="boot-note" id="bootNote">Getting everything ready</div>
+</div>
 </div>
 
 <!-- Icon sprite. 24px grid, 2px round strokes. -->

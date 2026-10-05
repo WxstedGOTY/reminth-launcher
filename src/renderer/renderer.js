@@ -1621,9 +1621,11 @@ function openInstanceModal(existing) {
   let homeToken = 0;
   async function paintHome() {
     const token = ++homeToken;
+    // Not a choice any more: Reminth's title screen is always installed on Fabric and Quilt instances.
+    homeField.hidden = true;
+    return;
+    // eslint-disable-next-line no-unreachable
     const eligible = pick.loader === "fabric" || pick.loader === "quilt";
-    homeField.hidden = !eligible;
-    if (!eligible) return;
     let available = false;
     if (pick.version) {
       try {
@@ -3137,17 +3139,43 @@ let bootDone;
 const booted = new Promise((resolve) => (bootDone = resolve));
 document.addEventListener("DOMContentLoaded", () => boot().finally(bootDone));
 
-// Loading screen: shown over the app for 1.2-3 seconds while the app builds its heavy pages (the skin viewer and
+// Loading screen: shown over the app for about 2-3 seconds while the app builds its heavy pages (the skin viewer and
 // both skin grids) in the background, so the first click on a tab finds it ready. Never longer than 3 seconds,
-// and never blocks the app if something fails.
+// and never blocks the app if something fails. The bar moves every frame (it eases towards 90% while it waits and
+// runs on to 100% when the pages are ready), so it never jumps.
 (function loadingScreen() {
   const splash = document.getElementById("bootSplash");
-  if (!splash) return;
+  const fill = document.getElementById("bootFill");
+  if (!splash || !fill) return;
+  const MIN_MS = 1800;
+  const MAX_MS = 3000;
+  const start = performance.now();
+  let readyAt = null; // when the pages were ready (and the bar's value then)
+  let readyFrom = 0;
+  let shown = 0;
+  let finished = false;
+  const frame = (now) => {
+    const t = now - start;
+    let target;
+    if (readyAt === null) target = 0.9 * (1 - Math.exp(-t / 900));
+    else target = readyFrom + (1 - readyFrom) * Math.min(1, (now - readyAt) / 350);
+    shown = Math.max(shown, target); // never backwards
+    fill.style.transform = `scaleX(${shown.toFixed(4)})`;
+    if (readyAt !== null && now - readyAt >= 350) {
+      if (finished) return;
+      finished = true;
+      splash.classList.add("done");
+      setTimeout(() => splash.remove(), 260);
+      return;
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const ready = booted.then(() => (window.reminthWarm ? window.reminthWarm() : null)).catch(() => {});
-  Promise.race([Promise.all([ready, wait(1200)]), wait(3000)]).then(() => {
-    splash.classList.add("done");
-    setTimeout(() => splash.remove(), 260);
+  Promise.race([Promise.all([ready, wait(MIN_MS)]), wait(MAX_MS)]).then(() => {
+    readyFrom = shown;
+    readyAt = performance.now();
   });
 })();
 

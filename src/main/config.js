@@ -118,7 +118,7 @@ module.exports = {
   //              player switched it off (homeScreen === false)
   BUNDLED_MODS: [
     { mod: "reminthhud", filePrefix: "reminthhud-", flag: "hud", label: "ReminthHUD", defaultOn: false },
-    { mod: "reminthhome", filePrefix: "reminthhome-", flag: "homeScreen", label: "Reminth home screen", defaultOn: true },
+    { mod: "reminthhome", filePrefix: "reminthhome-", flag: "homeScreen", label: "Reminth home screen", defaultOn: true, forced: true },
   ],
 
   /** The BUNDLED_MODS entry for a managed-mods key, or null. */
@@ -129,6 +129,7 @@ module.exports = {
   /** Does this instance want this bundled mod (before asking whether a build fits)? */
   bundledModWanted(entry, instance) {
     if (!entry || !instance || (instance.loader !== "fabric" && instance.loader !== "quilt")) return false;
+    if (entry.forced) return true; // part of the launcher, not a choice (a title-screen mod the player adds still wins in game)
     const value = instance[entry.flag];
     return entry.defaultOn ? value !== false : value === true;
   },

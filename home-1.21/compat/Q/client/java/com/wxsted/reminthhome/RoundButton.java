@@ -77,7 +77,7 @@ public class RoundButton extends AbstractButton {
 		Minecraft mc = Minecraft.getInstance();
 		if (icon != null) {
 			int s = Math.min(16, Math.min(getWidth(), getHeight()) - 6);
-			g.blit(icon, getX() + (getWidth() - s) / 2, getY() + (getHeight() - s) / 2, s, s, 0f, 0f, 32, 32, 32, 32);
+			g.blit(icon, getX() + (getWidth() - s) / 2, getY() + (getHeight() - s) / 2, s, s, 0f, 0f, 64, 64, 64, 64);
 		} else {
 			g.drawCenteredString(mc.font, getMessage(), getX() + getWidth() / 2, getY() + (getHeight() - 8) / 2, tint);
 		}

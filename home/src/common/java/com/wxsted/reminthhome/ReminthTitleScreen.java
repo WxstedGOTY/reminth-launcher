@@ -33,6 +33,7 @@ public class ReminthTitleScreen extends TitleScreen {
 			}
 			clearWidgets();
 			for (AbstractWidget w : mine) addRenderableWidget(w);
+			hideForeignCornerButtons();
 		} catch (Throwable t) {
 			ReminthHomeClient.fail(t);
 		}
@@ -104,6 +105,28 @@ public class ReminthTitleScreen extends TitleScreen {
 		}
 		out.addAll(icons);
 		return out;
+	}
+
+	/**
+	 * Some mods draw their own small button (a developer's head, for one) straight from a field of the vanilla title
+	 * screen, so clearing the widgets does not remove it and it ends up on top of our buttons. Those fields are
+	 * found by name and moved off screen. Nothing happens when there are none.
+	 */
+	private void hideForeignCornerButtons() {
+		try {
+			for (java.lang.reflect.Field f : TitleScreen.class.getDeclaredFields()) {
+				if (!f.getName().toLowerCase(java.util.Locale.ROOT).contains("ukulibbutton")) continue;
+				f.setAccessible(true);
+				if (f.get(this) instanceof AbstractWidget w) {
+					w.setX(-1000);
+					w.setY(-1000);
+					w.visible = false;
+					w.active = false;
+				}
+			}
+		} catch (Throwable ignored) {
+			// a different mod version: leave it as it is
+		}
 	}
 
 	private static final String REALMS_SCREEN = "com.mojang.realmsclient.RealmsMainScreen";

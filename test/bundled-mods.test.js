@@ -80,7 +80,7 @@ test("bundled mods: who wants which (HUD opt-in, home screen on unless switched 
   assert.equal(config.bundledModWanted(hud, inst({ hud: undefined })), false);
   assert.equal(config.bundledModWanted(home, inst({})), true, "a missing value counts as on");
   assert.equal(config.bundledModWanted(home, inst({ homeScreen: true })), true);
-  assert.equal(config.bundledModWanted(home, inst({ homeScreen: false })), false);
+  assert.equal(config.bundledModWanted(home, inst({ homeScreen: false })), true, "the home screen is forced: the old switch no longer turns it off");
   assert.equal(config.bundledModWanted(home, inst({ loader: "quilt" })), true);
   for (const loader of ["vanilla", "forge", "neoforge"]) {
     assert.equal(config.bundledModWanted(home, inst({ loader })), false, loader);
@@ -138,10 +138,11 @@ test("bundled mods: the home screen is copied in on Play, removed when switched 
   assert.deepEqual(moved, { installed: [], removed: [] });
   assert.deepEqual(await list(), ["players-own-mod.jar", "reminthhome-1.0.0+26.2.jar"]);
 
-  // switched off: Reminth's copy goes, the player's mod stays
+  // the old "off" value in an instance no longer removes it: the home screen is part of the launcher
   const off = await playOnce(inst({ homeScreen: false }), modsDir);
-  assert.deepEqual(off.removed, ["reminthhome-1.0.0+26.2.jar"]);
-  assert.deepEqual(await list(), ["players-own-mod.jar"]);
+  assert.deepEqual(off.removed, []);
+  assert.deepEqual(await list(), ["players-own-mod.jar", "reminthhome-1.0.0+26.2.jar"]);
+  await fsp.rm(path.join(modsDir, "reminthhome-1.0.0+26.2.jar"), { force: true }); // so the Forge check below starts clean
 
   // and a Forge instance never has it
   assert.deepEqual(minecraft.bundledModsToDrop(inst({ loader: "forge" })), ["reminthhome"]);
@@ -158,7 +159,7 @@ test("bundled mods: the home screen and the HUD are each switched on their own",
   await playOnce(inst({ hud: false }), modsDir);
   assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar"]);
   await playOnce(inst({ hud: true, homeScreen: false }), modsDir);
-  assert.deepEqual(await list(), ["reminthhud-1.2.2+26.2.jar"]);
+  assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar", "reminthhud-1.2.2+26.2.jar"], "the home screen stays whatever the old switch says");
 });
 
 test("bundled mods: the home screen is never a performance-pack mod and never steps aside for the player's copy", () => {
@@ -205,7 +206,7 @@ test("instances: create and update keep the player's explicit false; a missing v
   // an unrelated change (a rename) keeps the "no"
   const renamed = await instances.update(made.id, { name: "Home test 2" });
   assert.equal(renamed.homeScreen, false);
-  assert.equal(config.bundledModWanted(config.bundledMod("reminthhome"), renamed), false);
+  assert.equal(config.bundledModWanted(config.bundledMod("reminthhome"), renamed), true, "forced: an old false does not switch it off");
   const madeOff = await instances.create({ name: "Home off", mcVersion: "26.2", loader: "fabric", homeScreen: false });
   assert.equal(madeOff.homeScreen, false);
   const back = await instances.update(made.id, { homeScreen: true });

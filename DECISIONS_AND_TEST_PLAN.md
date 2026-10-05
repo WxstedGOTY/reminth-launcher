@@ -14,6 +14,13 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 000000000. Second feedback batch (5 Oct 2026, night) - desktop window
+
+Changed: loading screen redesigned (glow, wordmark, bar that moves every frame, 1.8-3 s); the rail broadcast button only OPENS the streamer page (the switch on the page toggles); Test it / Turn this on go to the streamer page; Discover shows Installed only when the item is in EVERY instance (`installedProjectIds`, uses `presence`); the home screen is forced (`forced: true` in `config.BUNDLED_MODS`, the create/edit switch is hidden, the jar is hidden from the mod list); title-screen mod 1.0.3: the head on the buttons was the ukulib mod's button (found by removing mods one by one; it also shows on the plain game), now moved off screen by reflection; icons redrawn at 64 px with smooth scaling (`blur` mcmeta). Tests: 633 pass. Not tested for real: Discover Installed rule with several instances, the loading screen with a signed-in account, the icons on versions other than 26.2.
+Test plan: (1) start Reminth: new loading screen, bar moves smoothly, Skins opens fast; (2) press the broadcast icon in the left bar: only opens the page; (3) Discover: a mod in one of two instances says Install, in both says Installed; (4) the instance's mod list has no "Reminth home screen"; (5) in game: no head on the title screen, icons smooth; (6) 26.3 and 1.21.1 title screen once.
+
+---
+
 ## 00000000. Owner feedback batch (5 Oct 2026, night) - desktop window
 
 **Changed (all uncommitted before this commit, tested with `npm test`: 633 pass):**

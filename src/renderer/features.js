@@ -128,6 +128,8 @@ async function loadContentNow(id, seq) {
   }
   const switched = id !== content.instanceId;
   content.instanceId = id;
+  // The home screen jar is part of the launcher, not one of the player's mods: never listed or counted.
+  if (Array.isArray(data.mod)) data = { ...data, mod: data.mod.filter((m) => !/^reminthhome-/i.test(m.file || "")) };
   content.data = data;
   // The panel is about one instance: on a switch it shows what's already
   // known about the new one (or nothing) until its own check answers.
@@ -148,12 +150,21 @@ async function loadContentNow(id, seq) {
   scheduleCompatCheck(id);
 }
 
-/** Installed Modrinth project ids in the active instance - for "Installed" badges in Discover. */
+/**
+ * Project ids for the "Installed" badges in Discover: only what is in EVERY instance. With even one instance
+ * missing it, the button says Install (the "which instance?" panel then shows who has it). An instance whose
+ * contents are not known yet counts as missing it.
+ */
 function installedProjectIds() {
   const out = new Set();
   if (!content.data || content.instanceId !== state.activeId) return out;
   for (const kind of ["mod", "resourcepack", "shader", "datapack"]) {
     for (const item of content.data[kind] || []) if (item.projectId) out.add(item.projectId);
+  }
+  for (const inst of state.instances || []) {
+    if (inst.id === state.activeId) continue;
+    const have = presence.get(inst.id);
+    for (const pid of [...out]) if (!have || !have.has(pid)) out.delete(pid);
   }
   return out;
 }
@@ -1474,7 +1485,7 @@ async function loadPresence() {
   } finally {
     presenceLoading = null;
   }
-  paintHomeCards();
+  refreshInstalledMarks(); // also repaints the home cards
   if (cardMenu) renderCardMenu();
 }
 window.loadPresence = loadPresence;
@@ -1716,7 +1727,7 @@ function refreshInstalledMarks() {
 /** What an Install button does when pressed: with two or more instances it asks which one. */
 function installTip(installed) {
   const list = state.instances || [];
-  if (list.length !== 1) return "Choose which instance to add it to";
+  if (list.length !== 1) return installed ? "In every instance - click to see them" : "Choose which instance to add it to";
   return installed ? `Already in ${list[0].name}` : `Add to ${list[0].name}`;
 }
 
@@ -2663,6 +2674,8 @@ pageHooks.discover = () => {
   renderInstallTarget();
   if (!sortDd) setDiscoverType(disc.type);
   else renderFilterPanel();
+  // "Installed" means in every instance, so every instance's contents have to be known.
+  if (window.loadPresence) window.loadPresence().then(refreshInstalledMarks).catch(() => {});
 };
 
 /* ================================================================== *
@@ -3450,7 +3463,7 @@ function applyStreamerUi(settings, problems) {
   const cfg = (settings && settings.streamer) || {};
   $("streamerToggle").classList.toggle("on", on);
   $("streamerToggle").setAttribute("aria-pressed", on ? "true" : "false");
-  $("streamerToggle").dataset.tip = on ? "Streamer mode: on — click to turn off" : "Streamer mode: off";
+  $("streamerToggle").dataset.tip = on ? "Streamer mode: on — open its settings" : "Streamer mode: off — open its settings";
   $("railStreamer").hidden = !on;
   $("livePill").hidden = !on;
   const privacy = on && cfg.hidePersonalInfo !== false;
@@ -3520,14 +3533,14 @@ window.onSettingsSaved = (settings, problems) => {
   if (currentPage === "settings") paintAutoMemory(); // the slider may have moved, or gone back to automatic
 };
 
-$("streamerToggle").onclick = async () => {
+// The broadcast button in the rail only OPENS the streamer page (it used to flip the mode on every press, so just
+// looking for a screenshot switched it on and off); the switch on that page is what turns it on or off.
+$("streamerToggle").onclick = () => switchPage("streamer");
+async function toggleStreamerMode() {
   const on = !(state.settings && state.settings.streamerMode);
   const ok = await saveSetting({ streamerMode: on });
-  if (ok) {
-    toast(on ? `Streamer mode on. ${state.settings.streamer.clipKey || "Your clip key"} saves the last ${CLIP_LENGTHS.find((c) => c[0] === state.settings.streamer.clipSeconds)?.[1] || "minute"}.` : "Streamer mode off.");
-    if (on) switchPage("library");
-  }
-};
+  if (ok) toast(on ? `Streamer mode on. ${state.settings.streamer.clipKey || "Your clip key"} saves the last ${CLIP_LENGTHS.find((c) => c[0] === state.settings.streamer.clipSeconds)?.[1] || "minute"}.` : "Streamer mode off.");
+}
 
 for (const [id, key] of [["toggleAudio", "audio"], ["toggleHideInfo", "hidePersonalInfo"], ["toggleNotify", "notify"]]) {
   $(id).onclick = () => saveStreamer({ [key]: !$(id).classList.contains("on") });
@@ -3780,6 +3793,7 @@ async function startStreamerTest() {
   const ok = await saveSetting({ streamerMode: true });
   if (!ok) return;
   closeStreamerTestBox();
+  switchPage("streamer");
   const box = el("div", "revert-box");
   const left = el("div", "rb-left");
   left.appendChild(el("b", null, "Streamer mode is on (test)"));
@@ -3817,7 +3831,10 @@ async function startStreamerTest() {
 async function turnStreamerOn() {
   closeStreamerTestBox();
   const ok = await saveSetting({ streamerMode: true });
-  if (ok) toast(`Streamer mode is on. ${(state.settings.streamer && state.settings.streamer.clipKey) || "Your clip key"} saves a clip while Minecraft runs.`);
+  if (ok) {
+    toast(`Streamer mode is on. ${(state.settings.streamer && state.settings.streamer.clipKey) || "Your clip key"} saves a clip while Minecraft runs.`);
+    switchPage("streamer");
+  }
 }
 function openStreamerOffer() {
   if (state.settings && state.settings.streamerMode) {
@@ -3838,7 +3855,7 @@ function openStreamerOffer() {
   });
 }
 $("creatorTipLink").onclick = openStreamerOffer;
-$("toggleStreamerMode").onclick = () => $("streamerToggle").onclick();
+$("toggleStreamerMode").onclick = () => toggleStreamerMode();
 pageHooks.streamer = () => {
   if (state.info) $("capturesPath").textContent = state.info.capturesDir;
 };

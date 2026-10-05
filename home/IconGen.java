@@ -4,18 +4,19 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;
 
-/** Draws the five 32x32 title-screen icons (light grey, transparent). Run: java IconGen.java <outDir> */
+/** Draws the six 64x64 title-screen icons (32 grid, 2x) (light grey, transparent). Run: java IconGen.java <outDir> */
 public class IconGen {
 	static final Color C = new Color(0xE6E6EA);
 
 	static BufferedImage canvas() {
-		return new BufferedImage(32, 32, BufferedImage.TYPE_INT_ARGB);
+		return new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
 	}
 
 	static Graphics2D g(BufferedImage b) {
 		Graphics2D g = b.createGraphics();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+		g.scale(2, 2); // drawn on the 32 grid, rendered at 64 px for sharp edges
 		g.setColor(C);
 		g.setStroke(new BasicStroke(2.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
 		return g;
