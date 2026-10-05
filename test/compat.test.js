@@ -131,8 +131,11 @@ test("judgeMod: the jar's own word beats Modrinth's list", () => {
   const really = compat.judgeMod({ descriptors: fab, mcDep: "1.21.1" }, { game_versions: ["1.21.4"], loaders: ["fabric"] }, inst, ["fabric"], false);
   assert.equal(really.severity, "blocked");
   assert.equal(really.reason, "wrong-mc");
-  // jar says yes, Modrinth's list is just short -> nothing reported
-  assert.equal(compat.judgeMod({ descriptors: fab, mcDep: ">=1.21" }, { game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] }, inst, ["fabric"], false), null);
+  // jar says yes, Modrinth's list is just short -> a soft hint only (checkInstance reports it only with a proper build, see may-not-work.test.js)
+  const soft = compat.judgeMod({ descriptors: fab, mcDep: ">=1.21" }, { game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] }, inst, ["fabric"], false);
+  assert.equal(soft.softOlder, true);
+  // ... but a build listed for this very version is silent
+  assert.equal(compat.judgeMod({ descriptors: fab, mcDep: ">=1.21" }, { game_versions: ["1.21", "1.21.4"], loaders: ["fabric"] }, inst, ["fabric"], false), null);
   // jar doesn't say, Modrinth lists other versions -> a warning only
   const warn = compat.judgeMod({ descriptors: fab, mcDep: null }, { game_versions: ["1.20.1"], loaders: ["fabric"] }, inst, ["fabric"], false);
   assert.equal(warn.severity, "warn");

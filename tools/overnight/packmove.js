@@ -18,8 +18,11 @@ const modrinth = require(path.join(REPO, "src/main/modrinth"));
   fs.mkdirSync(gameDir, { recursive: true });
   const inst = { id: "zz-pm", name: "PM", mcVersion: from, loader, gameDir, hud: loader === "fabric", lastPlayed: Date.now() };
   const list = () => fs.readdirSync(path.join(gameDir, "mods")).filter((f) => /\.jar/.test(f)).sort();
-  await minecraft.ensureInstalled(inst, () => {});
-  console.log("on", from, ":", list().join(", "));
+  const modsFirst = process.env.MODS_FIRST === "1";
+  if (!modsFirst) {
+    await minecraft.ensureInstalled(inst, () => {});
+    console.log("on", from, ":", list().join(", "));
+  } else fs.mkdirSync(path.join(gameDir, "mods"), { recursive: true });
   for (const slug of extras) {
     try {
       const p = await modrinth.getProject(slug);
@@ -27,7 +30,16 @@ const modrinth = require(path.join(REPO, "src/main/modrinth"));
     } catch (e) { console.log("extra", slug, "->", String(e.message).slice(0, 100)); }
   }
   if (extras.length) console.log("with extras:", list().join(", "));
+  if (modsFirst) {
+    await minecraft.ensureInstalled(inst, () => {});
+    console.log("after first start on", from, ":", list().join(", "));
+  }
   inst.mcVersion = to;
+  if (process.env.DO_SYNC === "1") {
+    const modsSync = require(path.join(REPO, "src/main/modsSync"));
+    const r = await modsSync.applySync(inst, () => {});
+    console.log("sync applied:", JSON.stringify(r.applied), "noBuild:", JSON.stringify(r.noBuild.map((x) => x.title)));
+  }
   await minecraft.ensureInstalled(inst, () => {});
   const after = list();
   console.log("on", to, ":", after.join(", "));

@@ -98,8 +98,12 @@ test("judgeMod: a build listed only for a NEWER Minecraft is 'may not work' even
   assert.equal(v.reason, "wrong-mc");
   assert.equal(v.listedElsewhere, true);
   assert.match(v.detail, /listed for Minecraft 26\.3, not 26\.2/);
-  // listed for older versions only and the jar says yes: still nothing (the rule from before)
-  assert.equal(compat.judgeMod({ descriptors: fab, mcDep: ">=1.21" }, { game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] }, { mcVersion: "1.21.4", loader: "fabric" }, ["fabric"], false), null);
+  // listed for older versions only and the jar says yes: a SOFT hint - checkInstance drops it unless a proper
+  // build for this version exists (the two tests below)
+  const older = compat.judgeMod({ descriptors: fab, mcDep: ">=1.21" }, { game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] }, { mcVersion: "1.21.4", loader: "fabric" }, ["fabric"], false);
+  assert.equal(older.softOlder, true);
+  assert.equal(older.listedElsewhere, true);
+  assert.equal(older.severity, "warn");
   // listed for this version among others: nothing
   assert.equal(compat.judgeMod({ descriptors: fab, mcDep: ">=1.21.9" }, { game_versions: ["26.2", "26.3"], loaders: ["fabric"] }, inst, ["fabric"], false), null);
   // the jar doesn't say: the old "listed for" warning, now also marked
@@ -399,4 +403,37 @@ test("checkInstance: the crashed mod is 'Crashed the game' while that exact file
     r = await compat.checkInstance(inst, { force: true, deps: { ...checkDeps(api), readCrashFinding: async () => f } });
     assert.equal(r.issues.some((x) => x.crashed), false);
   }
+});
+
+const IRIS_JSON = {
+  id: "iris",
+  name: "Iris",
+  version: "1.8.8+mc1.21.1",
+  environment: "client",
+  entrypoints: { client: ["net.irisshaders.iris.fabric.IrisFabricMod"] },
+  depends: { fabricloader: ">=0.15", minecraft: "1.21.x" },
+};
+
+test("checkInstance: Iris-style - the file says 1.21.x but Modrinth lists 1.21.1 only: reported when a 1.21.4 build exists", async () => {
+  const inst = await instanceWith("iris-older-yes", "1.21.4", { "iris-fabric-1.8.8+mc1.21.1.jar": (out) => makeJar(out, IRIS_JSON) });
+  const api = fakeModrinth({
+    found: { "h-iris-fabric-1.8.8+mc1.21.1.jar": { id: "i1", project_id: "YL57xq9U", version_number: "1.8.8+mc1.21.1", game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] } },
+    updates: { "h-iris-fabric-1.8.8+mc1.21.1.jar": { id: "i2", project_id: "YL57xq9U", version_number: "1.8.8+mc1.21.4", version_type: "release", files: relFile("iris-fabric-1.8.8+mc1.21.4.jar", "4") } },
+  });
+  const r = await compat.checkInstance(inst, { force: true, deps: checkDeps(api) });
+  assert.equal(r.issues.length, 1);
+  const i = r.issues[0];
+  assert.deepEqual([i.severity, i.reason, i.listedElsewhere], ["warn", "wrong-mc", true]);
+  assert.equal(i.fix.type, "update");
+  assert.equal(r.blocked, 0);
+});
+
+test("checkInstance: the same file with NO build for the new version is left alone (a loose range often works)", async () => {
+  const inst = await instanceWith("iris-older-nobuild", "1.21.4", { "iris-fabric-1.8.8+mc1.21.1.jar": (out) => makeJar(out, IRIS_JSON) });
+  const api = fakeModrinth({
+    found: { "h-iris-fabric-1.8.8+mc1.21.1.jar": { id: "i1", project_id: "YL57xq9U", version_number: "1.8.8+mc1.21.1", game_versions: ["1.21", "1.21.1"], loaders: ["fabric"] } },
+    updates: {},
+  });
+  const r = await compat.checkInstance(inst, { force: true, deps: checkDeps(api) });
+  assert.equal(r.issues.length, 0);
 });

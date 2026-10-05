@@ -25,11 +25,13 @@ const ps = (cmd) => cp.execFileSync("powershell", ["-NoProfile", "-Command", cmd
   const gameDir = path.join(SP, "syncswitch-game", String(Date.now()));
   fs.mkdirSync(path.join(gameDir, "saves"), { recursive: true });
   const inst = { id: "zz-sync", name: "SyncSwitch", mcVersion: from, loader, gameDir, hud: loader === "fabric" };
-  await minecraft.ensureInstalled(inst, () => {});
+  fs.mkdirSync(path.join(gameDir, "mods"), { recursive: true });
+  // the realistic order: the player adds mods from Discover first, Reminth's first start comes after
   const search = await modrinth.searchProjects({ projectType: "mod", loaders: [loader], gameVersions: [from], index: "downloads", limit: N });
   for (const h of search.hits.slice(0, N)) {
     try { await content.install(inst, { projectId: h.project_id, kind: "mod" }, () => {}, {}); } catch {}
   }
+  await minecraft.ensureInstalled(inst, () => {});
   const before = fs.readdirSync(path.join(gameDir, "mods")).filter((f) => f.endsWith(".jar"));
   console.log(`installed for ${from}: ${before.length} jars`);
   // the instance moves to the new version (what the switch does first), then the mods are brought along

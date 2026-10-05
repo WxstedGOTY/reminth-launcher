@@ -399,7 +399,22 @@ function judgeMod(item, version, instance, wanted, hasConnector) {
     // reaching back is often just loose, and code compiled for 26.3 asking
     // 26.2 for things it doesn't have crashes in play (AppleSkin's
     // NoSuchFieldError, 3 Oct 2026). That is worth a warning.
-    if (!builtForNewerOnly(games, instance.mcVersion)) return null;
+    if (!builtForNewerOnly(games, instance.mcVersion)) {
+      // Listed ONLY for older versions while the file's own range says yes ("1.21.x" on a build made for 1.21.1:
+      // Iris 1.8.8 on 1.21.4 stops on a mixin that is not there). A loose range often still works, so this is only
+      // reported - quietly, see "softOlder" - when Modrinth also has a proper stable build for THIS version.
+      if (builtForOlderOnly(games, instance.mcVersion)) {
+        return {
+          severity: "warn",
+          reason: "wrong-mc",
+          madeFor: summariseVersions(games),
+          listedElsewhere: true,
+          softOlder: true,
+          detail: `This build is listed for Minecraft ${summariseVersions(games)}, not ${instance.mcVersion}. Its own file lets it load, but a build made for an older Minecraft can fail in the game. A build made for ${instance.mcVersion} is available.`,
+        };
+      }
+      return null;
+    }
     return {
       severity: "warn",
       reason: "wrong-mc",
@@ -428,6 +443,12 @@ function modSetOf(loaded) {
  * False when it lists no release that can be read, or the instance's
  * version can't be read (a snapshot): nothing is claimed then.
  */
+function builtForOlderOnly(games, mcVersion) {
+  const mine = parseMcVersion(mcVersion);
+  const listed = (games || []).map(parseMcVersion).filter(Boolean);
+  return Boolean(mine) && listed.length > 0 && listed.every((v) => compareTriples(v, mine) < 0);
+}
+
 function builtForNewerOnly(games, mcVersion) {
   const mine = parseMcVersion(mcVersion);
   const listed = (games || []).map(parseMcVersion).filter(Boolean);
@@ -1046,6 +1067,8 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
     const current = versionOf(item);
     const next = hash ? replacements[hash] : null;
     const file = next ? content.primaryFile(next) : null;
+    // A "listed for older versions" hint is only worth showing when there is a proper build to switch to.
+    if (verdict.softOlder && !(next && file && file.hashes && file.hashes.sha1 && file.hashes.sha1 !== hash)) continue;
     let fix = { type: "disable", label: "Switch off" };
     if (next && file && file.hashes && file.hashes.sha1 && file.hashes.sha1 !== hash) {
       fix = {
