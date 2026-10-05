@@ -1262,6 +1262,16 @@ async function startGame(inst, join, claim, worldRequest) {
         // A game that was stopped (or has since been replaced by a newer
         // launch) isn't this session any more - nothing to report or undo.
         if (stopped() || claim.child !== child) return;
+        // A native crash in the first seconds (an access violation right after a fresh install):
+        // start the same game once more, quietly - it nearly always works the second time.
+        if (!retried && !safe && minecraft.isEarlyNativeCrash(crashInfo)) {
+          retried = true;
+          try {
+            if (spawnGame(null)) return;
+          } catch {
+            // the second start failed outright - report the first failure below
+          }
+        }
         const plan = minecraft.planSafeModeRetry({
           code: crashInfo.code,
           elapsedMs: crashInfo.elapsedMs,

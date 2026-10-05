@@ -553,11 +553,22 @@ function uniquePaths(list) {
 }
 
 /**
- * Pure: does this Minecraft version's command line parser know --width and --height? The first versions
- * with the new "Main" class (April 2013) did not, and stop with "'width' is not a recognized option".
+ * Pure: did the game die in its first seconds with Windows' "access violation" (0xC0000005)? That happens now
+ * and then right after a fresh install (a graphics driver or virus scanner holding a new native library for a
+ * moment): the overnight test saw it on a few 1.18 snapshots and never twice for the same version. One
+ * silent second start fixes it; the caller allows it once per Play.
+ */
+function isEarlyNativeCrash({ code, elapsedMs } = {}) {
+  const early = Number(elapsedMs) >= 0 && Number(elapsedMs) <= 10000;
+  return early && (code === 0xc0000005 || code === -1073741819);
+}
+
+/**
+ * Pure: does this Minecraft version's command line parser know --width and --height? The first snapshots
+ * with the new "Main" class (13w16a to 13w23a, April to June 2013) did not, and stop with "'width' is not a recognized option".
  */
 function acceptsWindowSize(versionId) {
-  return !/^13w16[ab]$/i.test(String(versionId || ""));
+  return !/^13w(1[6-9]|2[0-3])[a-z]$/i.test(String(versionId || ""));
 }
 
 const LAUNCH_GRACE_MS = 15000;
@@ -3253,6 +3264,7 @@ module.exports = {
   pickFabricApiRelease,
   uniquePaths,
   acceptsWindowSize,
+  isEarlyNativeCrash,
   vanillaProfile,
   hasFeature,
   supportsWorldJoin,

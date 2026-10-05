@@ -48,12 +48,25 @@ test("libraryKey: an @jar suffix does not make it another library (NeoForge 1.20
   assert.notEqual(forge.libraryKey("org.lwjgl:lwjgl:3.3.3"), forge.libraryKey("org.lwjgl:lwjgl:3.3.3:natives-windows"));
 });
 
-test("acceptsWindowSize: only the first 2013 'Main' snapshots refuse --width/--height", () => {
+test("acceptsWindowSize: the 2013 snapshots 13w16a to 13w23a refuse --width/--height", () => {
   const { acceptsWindowSize } = require("../src/main/minecraft");
   assert.equal(acceptsWindowSize("13w16a"), false);
   assert.equal(acceptsWindowSize("13w16b"), false);
-  assert.equal(acceptsWindowSize("13w17a"), true);
+  for (const id of ["13w17a", "13w18c", "13w19a", "13w21b", "13w23a"]) assert.equal(acceptsWindowSize(id), false, id);
+  assert.equal(acceptsWindowSize("13w24a"), true);
+  assert.equal(acceptsWindowSize("13w15a"), true);
   assert.equal(acceptsWindowSize("1.5.2"), true);
   assert.equal(acceptsWindowSize("26.3"), true);
   assert.equal(acceptsWindowSize(undefined), true);
+});
+
+test("isEarlyNativeCrash: only a Windows access violation in the first seconds counts", () => {
+  const { isEarlyNativeCrash } = require("../src/main/minecraft");
+  assert.equal(isEarlyNativeCrash({ code: 3221225477, elapsedMs: 5337 }), true);
+  assert.equal(isEarlyNativeCrash({ code: -1073741819, elapsedMs: 900 }), true);
+  assert.equal(isEarlyNativeCrash({ code: 3221225477, elapsedMs: 60000 }), false); // a crash in play
+  assert.equal(isEarlyNativeCrash({ code: 1, elapsedMs: 2000 }), false); // an ordinary error exit
+  assert.equal(isEarlyNativeCrash({ code: 0, elapsedMs: 2000 }), false);
+  assert.equal(isEarlyNativeCrash({}), false);
+  assert.equal(isEarlyNativeCrash(), false);
 });
