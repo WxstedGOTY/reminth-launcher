@@ -8,6 +8,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.wxsted.reminthhud.ReminthHud;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -25,8 +26,8 @@ import net.minecraft.stats.StatsCounter;
  * Minecraft only saves your statistics (blocks mined, kills, deaths, time played...) for worlds on
  * THIS computer. On a server they live on the server, so Reminth's Player Statistics page could never
  * show them. The game can ask a server for the player's own statistics - it is what the Statistics
- * screen does - and this does the same, quietly, while you are on a server: about ten seconds after
- * joining and then every ninety seconds, it asks, waits a moment, and saves the answer to
+ * screen does - and this does the same, quietly, while you are on a server: about five seconds after
+ * joining and then every thirty seconds, it asks, waits a moment, and saves the answer to
  * .reminth/server-stats/&lt;server&gt;.json in the instance (the same layout as a world's stats file).
  *
  * Nothing is sent anywhere but to the server you are already playing on, and the file stays on this
@@ -34,8 +35,8 @@ import net.minecraft.stats.StatsCounter;
  * nothing back (some minigame networks keep no vanilla statistics) simply leaves no file.
  */
 final class ServerStats {
-	private static final int FIRST_ASK_TICKS = Integer.getInteger("reminthhud.statsFirst", 200);
-	private static final int EVERY_TICKS = Integer.getInteger("reminthhud.statsEvery", 1800);
+	private static final int FIRST_ASK_TICKS = Integer.getInteger("reminthhud.statsFirst", 100);
+	private static final int EVERY_TICKS = Integer.getInteger("reminthhud.statsEvery", 600);
 	private static final int WAIT_TICKS = 60;
 	// Test only (-Dreminthhud.statsTest=true): also ask the built-in server of a singleplayer world.
 	private static final boolean TEST = Boolean.getBoolean("reminthhud.statsTest");
@@ -108,8 +109,22 @@ final class ServerStats {
 		for (StatType<?> type : BuiltInRegistries.STAT_TYPE) {
 			total += collect(type, counter, stats);
 		}
-		if (total == 0 || total == lastTotal) {
-			return; // the server sent nothing, or nothing changed
+		if (total == 0) {
+			return; // the server sent nothing
+		}
+		File dir = new File(client.gameDirectory, ".reminth/server-stats");
+		Path file = new File(dir, server + ".json").toPath();
+		// A server can answer with less than before (a lobby or another world has its own counters): never let a
+		// saved number go down, keep the larger value of every counter.
+		stats = keepLargest(stats, file, client.player.getUUID().toString());
+		total = 0;
+		for (var type : stats.entrySet()) {
+			for (var e : type.getValue().getAsJsonObject().entrySet()) {
+				total += e.getValue().getAsInt();
+			}
+		}
+		if (total == lastTotal) {
+			return; // nothing changed
 		}
 		lastTotal = total;
 		JsonObject root = new JsonObject();
@@ -117,12 +132,36 @@ final class ServerStats {
 		root.addProperty("server", server);
 		root.addProperty("uuid", client.player.getUUID().toString());
 		root.addProperty("savedAt", System.currentTimeMillis());
-		File dir = new File(client.gameDirectory, ".reminth/server-stats");
 		Files.createDirectories(dir.toPath());
-		Path file = new File(dir, server + ".json").toPath();
 		Path tmp = new File(dir, server + ".json.tmp").toPath();
 		Files.writeString(tmp, root.toString(), StandardCharsets.UTF_8);
 		Files.move(tmp, file, StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	/** The new counters, with every counter that was higher in the earlier file (same player) kept at its higher value. */
+	private static JsonObject keepLargest(JsonObject fresh, Path file, String uuid) {
+		try {
+			if (!Files.exists(file)) {
+				return fresh;
+			}
+			JsonObject old = new JsonParser().parse(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+			if (!old.has("uuid") || !uuid.equals(old.get("uuid").getAsString()) || !old.has("stats")) {
+				return fresh;
+			}
+			for (var type : old.getAsJsonObject("stats").entrySet()) {
+				JsonObject target = fresh.has(type.getKey()) ? fresh.getAsJsonObject(type.getKey()) : new JsonObject();
+				for (var e : type.getValue().getAsJsonObject().entrySet()) {
+					int before = e.getValue().getAsInt();
+					if (!target.has(e.getKey()) || target.get(e.getKey()).getAsInt() < before) {
+						target.addProperty(e.getKey(), before);
+					}
+				}
+				fresh.add(type.getKey(), target);
+			}
+		} catch (Throwable t) {
+			// an unreadable old file: just write the new numbers
+		}
+		return fresh;
 	}
 
 	/** Adds this type's non-zero counters as {"minecraft:mined": {"minecraft:stone": 12}}; returns their sum. */

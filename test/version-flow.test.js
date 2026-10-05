@@ -72,7 +72,7 @@ test("modGroups: every mod in one plain group, saying exactly what happens - per
   assert.deepEqual(sw.map((g) => [g.key, g.title, g.names.length]), [
     ["works", "Will work (23)", 23],
     ["nobuild", "No build for 1.21.4 (3)", 3],
-    ["unknown", "Not from Modrinth, Reminth can't check these (2)", 2],
+    ["unknown", "Not in the catalog, Reminth can't check these (2)", 2],
     ["failed", "Couldn't be checked just now (1)", 1],
   ]);
   assert.deepEqual(sw[1].names, ["Mod 1", "Mod 2", "Mod 3"]);
@@ -217,12 +217,12 @@ test("switchVersion: the mod swap stopping half way -> on the new version, said 
   const gameDir = await folder({ mods: ["old-mod.jar", "b.jar"] });
   const f = fakeDeps(gameDir, {
     applySync: async () => {
-      throw new Error("Modrinth couldn't be reached");
+      throw new Error("The catalog couldn't be reached");
     },
   });
   const r = await versionSwitch.switchVersion("i1", "26.3", f.deps);
   assert.equal(r.instance.mcVersion, "26.3");
-  assert.match(r.incomplete, /^Reminth copy is now on Minecraft 26\.3, but updating its mods stopped: Modrinth couldn't be reached\. Press "Update mods to fit 26\.3"/);
+  assert.match(r.incomplete, /^Reminth copy is now on Minecraft 26\.3, but updating its mods stopped: The catalog couldn't be reached\. Press "Update mods to fit 26\.3"/);
   const note = await noteOf(gameDir);
   assert.deepEqual([note.state, note.from.mcVersion, note.from.loaderVersion, note.to.mcVersion], ["mods-pending", "26.2", "0.17.0", "26.3"]);
   assert.deepEqual(await filesIn(gameDir), ["b.jar", "old-mod.jar"]);

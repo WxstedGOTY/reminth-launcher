@@ -2157,7 +2157,7 @@ async function runBrowse() {
       const r = await window.reminth.browseCachedCatalog({ projectType: disc.type, query: disc.query, sort: "downloads", offset: (disc.page - 1) * disc.view, limit: disc.view });
       hits = r.hits.map((h) => ({ ...h, project_id: h.id }));
       total = r.total;
-      offlineNote = "Couldn't reach Modrinth — showing your saved catalog without filters.";
+      offlineNote = "Couldn't reach the catalog — showing your saved catalog without filters.";
     } catch {
       hits = [];
       offlineNote = friendlyError(err.message);
@@ -3408,20 +3408,27 @@ document.addEventListener("reminth:page", (e) => {
  * page is hidden - so opening Skins mostly just shows them.
  */
 function warmSkinsPage() {
-  if (skins.warmStarted || !state.signedIn || currentPage === "skins") return;
+  if (skins.warmStarted || !state.signedIn || currentPage === "skins") return skins.warmPromise || Promise.resolve();
   skins.warmStarted = true;
-  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 200));
-  idle(
-    () =>
-      skinsTimed("warm", async () => {
-        if (currentPage === "skins") return;
-        ensureViewer();
-        if (window.onAccountSkin) window.onAccountSkin(state.accountSkin);
-        await Promise.all([loadSkinLibrary(), loadDefaultSkins()]);
-      }).catch(() => {}),
-    { timeout: 5000 }
+  const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 50));
+  // Resolves when the page is ready (the loading screen waits for it); never rejects.
+  skins.warmPromise = new Promise((resolve) =>
+    idle(
+      () =>
+        skinsTimed("warm", async () => {
+          if (currentPage === "skins") return;
+          ensureViewer();
+          if (window.onAccountSkin) window.onAccountSkin(state.accountSkin);
+          await Promise.all([loadSkinLibrary(), loadDefaultSkins()]);
+        })
+          .catch(() => {})
+          .finally(resolve),
+      { timeout: 400 }
+    )
   );
+  return skins.warmPromise;
 }
+window.reminthWarm = warmSkinsPage;
 
 /* ================================================================== *
  * 6. streamer mode                                                    *
@@ -3760,7 +3767,77 @@ pageHooks.library = () => {
   loadCaptures();
   paintLivePill();
 };
-$("creatorTipLink").onclick = () => switchPage("streamer");
+/* The Library's "streamer mode" line: a popup, not a page change. Turn it on, try it for 30 seconds, or leave it. */
+let streamerTest = null; // { timer, tick, box } while the test box is showing
+function closeStreamerTestBox() {
+  if (!streamerTest) return;
+  clearInterval(streamerTest.tick);
+  clearTimeout(streamerTest.timer);
+  streamerTest.box.remove();
+  streamerTest = null;
+}
+async function startStreamerTest() {
+  const ok = await saveSetting({ streamerMode: true });
+  if (!ok) return;
+  closeStreamerTestBox();
+  const box = el("div", "revert-box");
+  const left = el("div", "rb-left");
+  left.appendChild(el("b", null, "Streamer mode is on (test)"));
+  const note = el("span", null, "");
+  left.appendChild(note);
+  box.appendChild(left);
+  const revert = el("button", "btn outline sm", "Revert changes");
+  revert.type = "button";
+  const x = el("button", "rb-x");
+  x.type = "button";
+  x.title = "Close";
+  x.setAttribute("aria-label", "Close");
+  x.appendChild(icon("#i-x"));
+  box.appendChild(revert);
+  box.appendChild(x);
+  document.body.appendChild(box);
+  let left_s = 30;
+  const paint = () => (note.textContent = `You can undo this for ${left_s} more second${left_s === 1 ? "" : "s"}.`);
+  paint();
+  streamerTest = {
+    box,
+    tick: setInterval(() => {
+      left_s -= 1;
+      paint();
+    }, 1000),
+    timer: setTimeout(() => closeStreamerTestBox(), 30000), // the box goes away; streamer mode stays on
+  };
+  revert.onclick = async () => {
+    closeStreamerTestBox();
+    const done = await saveSetting({ streamerMode: false });
+    if (done) toast("Streamer mode is off again.");
+  };
+  x.onclick = () => closeStreamerTestBox();
+}
+async function turnStreamerOn() {
+  closeStreamerTestBox();
+  const ok = await saveSetting({ streamerMode: true });
+  if (ok) toast(`Streamer mode is on. ${(state.settings.streamer && state.settings.streamer.clipKey) || "Your clip key"} saves a clip while Minecraft runs.`);
+}
+function openStreamerOffer() {
+  if (state.settings && state.settings.streamerMode) {
+    switchPage("streamer"); // already on: the link goes to its settings
+    return;
+  }
+  const body = el("div");
+  body.appendChild(el("p", null, "Streamer mode keeps recording the last few minutes of your game while Minecraft runs, so one key saves a clip and another takes a screenshot. It can also blur your name and server addresses in this window while you stream."));
+  body.appendChild(el("p", null, "Everything stays on this PC and shows up in the Library. Not sure? Test it for 30 seconds - you get a button to undo it."));
+  openModal({
+    title: "Turn streamer mode on?",
+    body,
+    buttons: [
+      { label: "Not now", className: "outline" },
+      { label: "Test it (30 seconds)", className: "outline", onClick: () => startStreamerTest() },
+      { label: "Turn this on", className: "primary", onClick: () => turnStreamerOn() },
+    ],
+  });
+}
+$("creatorTipLink").onclick = openStreamerOffer;
 $("toggleStreamerMode").onclick = () => $("streamerToggle").onclick();
 pageHooks.streamer = () => {
   if (state.info) $("capturesPath").textContent = state.info.capturesDir;
@@ -4124,7 +4201,7 @@ function renderCompatPanel() {
   actions.appendChild(advise);
   head.appendChild(actions);
   panel.appendChild(head);
-  if (result.online === false) panel.appendChild(el("div", "cp-note", "Couldn't reach Modrinth — only checks that work offline were run."));
+  if (result.online === false) panel.appendChild(el("div", "cp-note", "Couldn't reach the catalog — only checks that work offline were run."));
 
   const list = el("div", "cp-list");
   for (const issue of result.issues) {
@@ -4642,7 +4719,7 @@ function openVersionAdvisor(instanceId, options = {}) {
   const choicesFor = (c) =>
     window.ReminthPure.versionChoices({ from: inst.mcVersion, to: c.version, worlds: worlds === null ? 1 : worlds, modpack: Boolean(inst.modpack), running: state.running.has(inst.id) });
 
-  /** The four plain groups (Will work / No build / Not from Modrinth / Not checked) as collapsible lists. */
+  /** The four plain groups (Will work / No build / Not in catalog / Not checked) as collapsible lists. */
   function groupsView(c, action, groups) {
     const box = el("div", "adv-group-list");
     for (const g of groups || window.ReminthPure.modGroups(advice, c, action)) {
@@ -4673,8 +4750,8 @@ function openVersionAdvisor(instanceId, options = {}) {
     const a = advice;
     const bits = [];
     if (a.total) bits.push(`${a.total} of your mods ${a.total === 1 ? "is" : "are"} on Modrinth and ${a.total === 1 ? "was" : "were"} checked.`);
-    else bits.push("None of this instance's mods are on Modrinth, so there is nothing to compare.");
-    if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not from Modrinth).`);
+    else bits.push("None of this instance's mods are in the catalog, so there is nothing to compare.");
+    if (a.unknown && a.unknown.length) bits.push(`${a.unknown.length} can't be checked (not in the catalog).`);
     if (a.failed && a.failed.length) bits.push(`${a.failed.length} couldn't be looked up just now.`);
     context.textContent = bits.join(" ");
     const compatNow = compatUi.results.get(instanceId) || null;
@@ -4774,7 +4851,7 @@ function openVersionAdvisor(instanceId, options = {}) {
     list.textContent = "";
     groupsBox.textContent = "";
     bestBox.hidden = true;
-    const wait = el("div", "vpick-empty", "Checking each of your mods on Modrinth — this takes a moment…");
+    const wait = el("div", "vpick-empty", "Checking each of your mods — this takes a moment…");
     const track = el("div", "track adv-wait");
     const fill = el("div", "fill busy");
     fill.style.width = "100%";
@@ -5066,7 +5143,7 @@ function openVersionAdvisor(instanceId, options = {}) {
     }
     if (unknown.length) {
       const d = section(`Not checked (${unknown.length})`, unknown.length <= 6);
-      d.appendChild(el("p", "adv-group-what", doing === "switch" ? "Not from Modrinth (or Modrinth didn't answer), so Reminth left them as they were." : "Not from Modrinth, so they weren't copied. Add them by hand if they have a version for this Minecraft."));
+      d.appendChild(el("p", "adv-group-what", doing === "switch" ? "Not in the catalog (or it didn't answer), so Reminth left them as they were." : "Not in the catalog, so they weren't copied. Add them by hand if they have a version for this Minecraft."));
       const ul = el("ul", "adv-group-names");
       unknown.forEach((t) => ul.appendChild(el("li", null, t)));
       d.appendChild(ul);
@@ -5767,7 +5844,7 @@ async function runModsSync(id) {
   const parts = [];
   if (applied.length) parts.push(`Updated ${applied.length} ${plural(applied.length, "mod")} in ${inst.name}${addedNote(r.added)}.`);
   if (failed.length) parts.push(`${failed.length} couldn't be updated — ${failed[0].title}: ${friendlyError(failed[0].error)}`);
-  if (unchecked.length) parts.push(`Couldn't reach Modrinth for ${unchecked.length} — try again in a moment.`);
+  if (unchecked.length) parts.push(`Couldn't check ${unchecked.length} — try again in a moment.`);
   if (noBuild.length) parts.push(`${noBuild.length} ${plural(noBuild.length, "has", "have")} no stable build for ${mcVersion} yet.`);
   toast((parts.join(" ") || "Nothing needed updating.") + warningNote(r.warnings));
   // The "no build" choice is about this instance: only asked while it's the one open.
@@ -6235,7 +6312,7 @@ function renderProjectView() {
 
 function pvDescription(data) {
   const box = el("div", "card pv-desc");
-  box.appendChild(el("p", "pv-credit", "Description by the project's author, shown from Modrinth."));
+  box.appendChild(el("p", "pv-credit", "Description by the project's author, shown as published."));
   const tree = data.body;
   if (!tree || !tree.c || !tree.c.length) {
     box.appendChild(el("p", "set-note", "The author hasn't written a description."));
@@ -6354,7 +6431,7 @@ function pvVersionRow(p, b, kind, inst) {
       const body = el("div", "pv-ver-body");
       if (typeof b.changelog === "string" && b.changelog.trim()) {
         body.appendChild(window.ReminthMarkdown.toDom(window.ReminthMarkdown.parse(b.changelog), { onLink: openProjectLink }));
-        if (b.changelogCut) body.appendChild(el("p", "set-note", "The rest of this changelog is on Modrinth."));
+        if (b.changelogCut) body.appendChild(el("p", "set-note", "The rest of this changelog is on the project's page."));
       } else body.appendChild(el("p", "set-note", b.changelog === undefined ? "Changelogs are shown for the newest 50 versions." : "No changelog for this version."));
       row.appendChild(body);
     },
@@ -6366,7 +6443,7 @@ function pvVersionRow(p, b, kind, inst) {
 function pvLinks(p) {
   const box = el("div", "card pv-links");
   const all = [...p.links];
-  if (p.modrinthUrl) all.push({ kind: "modrinth", label: "View on Modrinth", href: p.modrinthUrl });
+  if (p.modrinthUrl) all.push({ kind: "modrinth", label: "View original page", href: p.modrinthUrl });
   if (!all.length) {
     box.appendChild(el("p", "set-note", "No links."));
     return box;
@@ -6419,7 +6496,7 @@ window.onInstancesChanged = () => {
 };
 
 window.bootFeatures = () => {
-  setTimeout(warmSkinsPage, 4000);
+  warmSkinsPage(); // while the loading screen is still up
   buildDiscover();
   applyStreamerUi(state.settings);
   paintPerfSettings(state.settings);

@@ -62,7 +62,7 @@ async function copyToVersion(source, { mcVersion, name }, tools, onProgress) {
   const readManifest = tools.readManifest || content.readManifest;
 
   report("Looking at your mods");
-  // Worked out BEFORE anything is created: if Modrinth can't be reached the
+  // Worked out BEFORE anything is created: if The catalog can't be reached the
   // player gets an error, not an empty instance.
   const { mods, unknown } = source.loader === "vanilla" ? { mods: [], unknown: [] } : await listMods(source);
 

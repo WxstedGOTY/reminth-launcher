@@ -19,6 +19,9 @@ test("deep links: the allow-listed pages", () => {
   assert.deepEqual(parse("reminth://skins/"), { page: "skins" }, "the trailing slash Windows/browsers add");
   assert.deepEqual(parse("reminth://home"), { page: "home" });
   assert.deepEqual(parse("reminth://home/"), { page: "home" });
+  assert.deepEqual(parse("reminth://discover"), { page: "discover" });
+  assert.deepEqual(parse("reminth://discover/"), { page: "discover" });
+  assert.equal(parse("reminth://discover/x"), null);
   assert.deepEqual(parse("reminth://instance/survival-1a2b"), { page: "instance", id: "survival-1a2b" });
   assert.deepEqual(parse("reminth://instance/reminth/"), { page: "instance", id: "reminth" });
 });
@@ -155,11 +158,12 @@ test("deep links: the handler does nothing but bring the window forward and swit
 test("deep links: the page only switches pages, and only to allow-listed ones", () => {
   assert.deepEqual(pure.deepLinkTarget({ page: "skins" }, IDS), { page: "skins" });
   assert.deepEqual(pure.deepLinkTarget({ page: "home" }, IDS), { page: "home" });
+  assert.deepEqual(pure.deepLinkTarget({ page: "discover" }, IDS), { page: "discover" });
   assert.deepEqual(pure.deepLinkTarget({ page: "instance", id: "reminth" }, IDS), { instance: "reminth" });
   // the instance isn't in the list (deleted meanwhile, or not loaded): nothing
   assert.equal(pure.deepLinkTarget({ page: "instance", id: "gone-0000" }, IDS), null);
   assert.equal(pure.deepLinkTarget({ page: "instance", id: "reminth" }, []), null);
-  for (const bad of [null, undefined, "skins", { page: "settings" }, { page: "play", id: "reminth" }, { page: "discover" }, { page: "instance" }, { page: "instance", id: "../x" }, { page: "__proto__" }]) {
+  for (const bad of [null, undefined, "skins", { page: "settings" }, { page: "play", id: "reminth" }, { page: "instance" }, { page: "instance", id: "../x" }, { page: "__proto__" }]) {
     assert.equal(pure.deepLinkTarget(bad, IDS), null, JSON.stringify(bad));
   }
 });

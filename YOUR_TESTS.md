@@ -36,3 +36,12 @@ Scroll Home and switch tabs: should be smooth with hardware acceleration on.
 - Publish: GitHub -> Releases -> new release v1.4.8 -> upload the 3 files in `release-1.4.8\` -> paste the description.
 
 Not covered anywhere: playing more than an hour, joining servers that need a login (my test account is offline).
+
+## NEW tonight (5 Oct, the installer in `release-1.4.8\` was rebuilt)
+Install it again, then:
+- Loading screen when Reminth starts (about 2-3 seconds), then click **Skins**: should open at once.
+- Settings: red "Keep this on." under Hardware acceleration.
+- Library: click the blue words -> popup. "Test it" -> small box at the bottom with Revert and a cross.
+- Press Play: under Multiplayer there are now **Discover** and **Connect Discord** (Discord says "Coming soon").
+- If you cannot see the Reminth background: turn off the resource pack `Crystal PvP LT3 Essentials` (it replaces the background).
+- DonutSMP: play 2 minutes, open Player Statistics. Kills/deaths show; blocks placed is an estimate (the server's own counters are not readable).

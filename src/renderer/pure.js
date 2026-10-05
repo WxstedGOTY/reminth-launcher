@@ -316,7 +316,7 @@
     if (unknown.length) {
       out.push({
         key: "unknown",
-        title: `Not from Modrinth, Reminth can't check these (${unknown.length})`,
+        title: `Not in the catalog, Reminth can't check these (${unknown.length})`,
         names: unknown,
         sentence: copy ? "They will be left out of the copy. Add them by hand if they have a version for this Minecraft." : `They will be kept as they are, unless the file itself says it can't run on ${v} — then it is turned off.`,
       });
@@ -353,7 +353,7 @@
         sentence: `They can't work with the rest on ${version}, so they will be turned off (you can turn them on again).`,
       });
     }
-    if (unknown.length) out.push({ key: "unknown", title: `Not checked (${unknown.length})`, names: unknown, sentence: "Not from Modrinth (or Modrinth didn't answer) - they will be kept as they are." });
+    if (unknown.length) out.push({ key: "unknown", title: `Not checked (${unknown.length})`, names: unknown, sentence: "Not in the catalog (or it didn't answer) - they will be kept as they are." });
     return out;
   }
 
@@ -502,7 +502,7 @@
    */
   function deepLinkTarget(link, instanceIds) {
     if (!link || typeof link !== "object") return null;
-    if (link.page === "skins" || link.page === "home") return { page: link.page };
+    if (link.page === "skins" || link.page === "home" || link.page === "discover") return { page: link.page };
     if (link.page === "instance" && typeof link.id === "string" && /^[a-z0-9-]{1,40}$/.test(link.id) && (instanceIds || []).includes(link.id)) return { instance: link.id };
     return null;
   }

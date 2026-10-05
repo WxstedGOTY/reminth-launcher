@@ -928,7 +928,7 @@
         }
         case "cut": {
           const p = make("p", "md-cut", "This description is long, so it is cut here. ");
-          if (options.fullUrl) p.appendChild(linkEl(options.fullUrl, "md-link", "Read the rest on Modrinth"));
+          if (options.fullUrl) p.appendChild(linkEl(options.fullUrl, "md-link", "Read the rest online"));
           return p;
         }
         case "doc":

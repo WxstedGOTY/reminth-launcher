@@ -1613,7 +1613,7 @@ async function downloadFabricApiFromMaven(modsDir, mcVersion) {
 async function downloadFabricApiFromModrinth(modsDir, mcVersion) {
   const versions = await require("./modrinth").getProjectVersions(FABRIC_API_PROJECT_ID, { loaders: ["fabric"], gameVersions: [mcVersion] });
   const release = pickFabricApiRelease(versions, mcVersion);
-  if (!release) throw new Error(`No Fabric API release for Minecraft ${mcVersion} on Modrinth.`);
+  if (!release) throw new Error(`No Fabric API release for Minecraft ${mcVersion} in the catalog.`);
   // Modrinth writes some file names with a literal "%2B" for the "+": use the plain name when that is still a safe one.
   let name = release.file.filename;
   try {
@@ -2585,7 +2585,7 @@ async function lookupPackReleases(project, mcVersion, wantedLoaders, { api, cach
   let list;
   try {
     list = await api.getProjectVersions(project, { loaders: wantedLoaders, gameVersions: [mcVersion] });
-    if (!Array.isArray(list)) throw new Error("Modrinth gave no version list");
+    if (!Array.isArray(list)) throw new Error("The catalog gave no version list");
   } catch (err) {
     if (cached) return { ...cached, source: "stale-cache", cacheFile: file };
     return { unavailable: true, error: err };
@@ -2625,7 +2625,7 @@ async function settleWithin(items, limit, budgetMs, fn) {
   await Promise.race([workers, new Promise((resolve) => (timer = setTimeout(resolve, budgetMs)))]);
   clearTimeout(timer);
   stopped = true;
-  return results.map((r) => (r === undefined ? { unavailable: true, error: new Error("Modrinth took too long to answer") } : r));
+  return results.map((r) => (r === undefined ? { unavailable: true, error: new Error("The catalog took too long to answer") } : r));
 }
 
 /**
@@ -2735,15 +2735,15 @@ async function downloadPerformancePack(instance, modsDir, options = {}) {
     const a = answers[i];
     const label = q.entry.label;
     if (a.unavailable) {
-      const why = (a.error && a.error.message) || "Modrinth can't be reached";
+      const why = (a.error && a.error.message) || "The catalog can't be reached";
       if (q.entry.github && fabricLike) {
         fallback.push(q);
         return;
       }
       states[q.key] = q.hasManagedCopy
-        ? { state: "installed", file: q.present[0], version: null, detail: `Modrinth couldn't be reached, so the installed copy was kept (${why})` }
-        : { state: "failed", file: null, version: null, detail: `Modrinth couldn't be reached (${why})` };
-      logLines.push(q.hasManagedCopy ? `Kept ${label} as it is: Modrinth couldn't be reached (${why})` : `${label} not installed: Modrinth couldn't be reached (${why})`);
+        ? { state: "installed", file: q.present[0], version: null, detail: `The catalog couldn't be reached, so the installed copy was kept (${why})` }
+        : { state: "failed", file: null, version: null, detail: `The catalog couldn't be reached (${why})` };
+      logLines.push(q.hasManagedCopy ? `Kept ${label} as it is: the catalog couldn't be reached (${why})` : `${label} not installed: the catalog couldn't be reached (${why})`);
       return;
     }
     const choice = pickPackRelease(a.releases, { now, hasManagedCopy: q.hasManagedCopy });
@@ -2855,7 +2855,7 @@ async function downloadPerformancePack(instance, modsDir, options = {}) {
     }
     const check = await verifyDownloadedJar(dest, { mcVersion, loader }, ours);
     if (check.ok === false) {
-      const msg = `Skipped ${label}: the build Modrinth offered is not for ${mcVersion} (${check.why})`;
+      const msg = `Skipped ${label}: the build offered is not for ${mcVersion} (${check.why})`;
       say(msg);
       if (ours) {
         manifest.skipped[key] = { asset: filename, reason: "not-for-version", because: null, at: new Date(now).toISOString() };
@@ -2884,17 +2884,17 @@ async function downloadPerformancePack(instance, modsDir, options = {}) {
   if (fallback.length) {
     const mods = (config.PERFORMANCE_MODS || []).filter((m) => fallback.some((q) => q.key === performanceModKey(m)));
     const ghDetail = [];
-    logLines.push("Modrinth couldn't be reached - trying GitHub for " + mods.map((m) => m.label).join(", "));
+    logLines.push("The catalog couldn't be reached - trying GitHub for " + mods.map((m) => m.label).join(", "));
     const got = await downloadPerformanceMods(modsDir, mcVersion, onProgress, ghDetail, { loader, isOurs, mods, logLines }).catch(() => []);
     installed.push(...got);
     if (detail) detail.push(...ghDetail);
     for (const q of fallback) {
       const d = ghDetail.find((x) => x.mod === q.key);
       states[q.key] = d
-        ? { state: "installed", file: d.file, version: null, detail: "From GitHub (Modrinth couldn't be reached)" }
+        ? { state: "installed", file: d.file, version: null, detail: "From GitHub (the catalog couldn't be reached)" }
         : q.hasManagedCopy
-          ? { state: "installed", file: q.present[0], version: null, detail: "Modrinth couldn't be reached, so the installed copy was kept" }
-          : { state: "failed", file: null, version: null, detail: "Modrinth couldn't be reached" };
+          ? { state: "installed", file: q.present[0], version: null, detail: "The catalog couldn't be reached, so the installed copy was kept" }
+          : { state: "failed", file: null, version: null, detail: "The catalog couldn't be reached" };
     }
   }
 

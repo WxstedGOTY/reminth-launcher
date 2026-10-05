@@ -412,7 +412,7 @@ test("perfProfiles.listExtras: a missing project is 'not available', Modrinth do
     modrinth: {
       async getProjectVersions(slug) {
         if (slug === "bobby") throw new Error("Modrinth API GET /project/bobby/version failed: 404 Not Found");
-        throw new Error("Modrinth couldn't be reached");
+        throw new Error("The catalog couldn't be reached");
       },
     },
   });

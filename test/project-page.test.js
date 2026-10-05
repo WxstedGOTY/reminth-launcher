@@ -49,7 +49,7 @@ function fakeModrinth({ fail = {}, versions } = {}) {
     calls,
     async getProject(id) {
       calls.project++;
-      if (fail.project) throw new Error("Modrinth couldn't be reached");
+      if (fail.project) throw new Error("The catalog couldn't be reached");
       return { ...PROJECT, slug: id === "AANobbMI" ? "sodium" : id };
     },
     async getProjectVersions() {

@@ -4,13 +4,39 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **Last updated:** 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+- **Last updated:** 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
   screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
 - **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
 - **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
   release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000. Owner feedback batch (5 Oct 2026, night) - desktop window
+
+**Changed (all uncommitted before this commit, tested with `npm test`: 633 pass):**
+- Settings: "Keep this on." in red right under Hardware acceleration (`index.html`, `styles.css`). Streamer settings page: Hotkeys card first, Streamer mode card second.
+- Library's blue "streamer mode" link now opens a popup (Not now / Test it (30 seconds) / Turn this on) instead of leaving the page; Test turns it on and shows a small box near the bottom middle with "Revert changes" and a cross (`features.js`: `openStreamerOffer`, `startStreamerTest`). Checked in the real app (isolated profile): popup, test box, revert, cross, mode stays on after the box closes.
+- Loading screen (`#bootSplash`, `renderer.js loadingScreen`): 1.2 to 3 seconds, builds the skin viewer and both skin grids before it goes away (before: 4 s after start, in the background). Checked: gone after about 3 s.
+- Title screen mod **1.0.2**: the two saved-server shortcuts are gone; third row = **Discover** (opens Reminth Discover through `reminth://discover`, new allowed link) and **Connect Discord** (shows "Coming soon" when clicked; no Discord feature exists yet). Seen in a real 26.2 game. Privacy page text updated (the mod no longer reads the server list). Not re-run: the 8-case Back test on 26.2/26.3 and all other versions (only the 26.2 picture), see test list.
+- Stats: ReminthHUD **1.3.1** asks the server 5 s after joining and then every 30 s (was 10 s / 90 s) and keeps the larger value of every counter, so a lobby or another world can no longer make saved numbers go down. Home "Blocks placed" now uses an estimate (`gameData.estimatePlacedBlocks`: item uses minus tools, food, throwables, buckets...; minecraft has no real placed counter). DonutSMP's own mined/placed numbers are plugin data and are not in the vanilla stats; kills and deaths are, which is why only those showed.
+- The word "Modrinth" removed from visible app text and error messages (now "the catalog", "View original page"). Left on purpose: the privacy page, terms page and the Settings privacy summary (they must name the services the launcher talks to), and code/API names.
+- All 20 bundled jars rebuilt (home 1.0.2, HUD 1.3.1). `release-1.4.8\` holds the new installer.
+
+**Not done / honest limits:**
+- Ping: network ping to a server is not something the launcher controls; the launcher already starts the game with low-pause GC settings. 400 ms spikes once in 20+ minutes are most likely a stall on the PC (disk, antivirus, other programs) or the route; I did not measure it and promise no number (35 ms). Needs a test with the in-game ping next to the Modrinth app on the same server.
+- The panorama background is hidden on the owner's instance by the resource pack `Crystal PvP LT3 Essentials v25.2.zip` (a pack beats a mod). Disabling that pack shows ours.
+
+**Test plan for the other window (PASS/FAIL):**
+1. Install `release-1.4.8\Reminth-Setup.exe`, open Settings: red "Keep this on." under the name.
+2. Streamer settings page: Hotkeys card above Streamer mode.
+3. Library, click the blue words: popup; Test it shows the small box; Revert undoes; the cross keeps it on.
+4. Press Play on the 26.2 instance: title screen has Discover | Connect Discord under Multiplayer; Discover brings Reminth to Discover; Connect Discord says "Coming soon"; Back from Singleplayer/Options still returns to this screen.
+5. Same on 26.3 and one old version (1.21.1).
+6. Play on DonutSMP 2 minutes: Player Statistics shows kills/deaths/mined within about 40 s of the next refresh; blocks placed is an estimate.
+7. Reminth start: loading screen under 3 seconds, then Skins opens instantly.
 
 ---
 

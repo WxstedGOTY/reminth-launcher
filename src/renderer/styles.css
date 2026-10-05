@@ -2438,3 +2438,30 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .link-blue:hover, .link-blue:focus-visible { text-decoration: underline; }
 .hw-warn { font-weight: 700; }
 .hw-off-note { display: block; margin-top: 6px; color: #fb923c; }
+
+/* Settings -> Hardware acceleration: the warning sits right under the name, in red */
+.toggle-row span.hw-keep { color: #f87171; font-weight: 700; font-size: 12px; }
+.hw-warn { font-weight: 700; }
+
+/* Streamer mode test: a small box near the bottom middle with the undo button */
+.revert-box {
+  position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); z-index: 95;
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px;
+  background: rgba(12, 17, 30, .94); border: 1px solid rgba(255, 255, 255, .14); backdrop-filter: blur(18px);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .5); font-size: 13px; color: var(--text-1, #fff);
+}
+.revert-box[hidden] { display: none; }
+.revert-box .rb-left { display: flex; flex-direction: column; gap: 1px; }
+.revert-box .rb-left span { font-size: 11.5px; color: var(--text-3); }
+.revert-box .rb-x { background: none; border: 0; color: var(--text-3); cursor: pointer; padding: 4px; border-radius: 8px; display: grid; place-items: center; }
+.revert-box .rb-x:hover { color: var(--text-1, #fff); background: rgba(255, 255, 255, .08); }
+.revert-box .rb-x svg { width: 14px; height: 14px; }
+
+/* Loading screen (index.html #bootSplash), over everything until the pages are warmed up. */
+.boot-splash { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: var(--bg); transition: opacity 0.2s ease; }
+.boot-splash.done { opacity: 0; pointer-events: none; }
+.boot-splash img { width: 72px; height: 72px; }
+.boot-name { font-weight: 700; font-size: 18px; letter-spacing: 0.04em; color: var(--text); }
+.boot-bar { width: 160px; height: 3px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.boot-bar i { display: block; height: 100%; width: 40%; border-radius: 3px; background: var(--accent); animation: bootSlide 1s ease-in-out infinite; }
+@keyframes bootSlide { 0% { transform: translateX(-100%); } 100% { transform: translateX(260%); } }

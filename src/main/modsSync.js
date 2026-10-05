@@ -140,7 +140,7 @@ async function planSync(instance, deps = {}, options = {}) {
   await mapLimit(candidates, LOOKUP_CONCURRENCY, async (issue) => {
     const row = { file: issue.file, title: issue.title };
     if (!issue.projectId) {
-      out.noBuild.push({ ...row, why: "Not on Modrinth, so Reminth can't look for another build" });
+      out.noBuild.push({ ...row, why: "Not in the catalog, so Reminth can't look for another build" });
       return;
     }
     let versions;

@@ -9,8 +9,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.ServerList;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -83,7 +81,8 @@ public class ReminthTitleScreen extends TitleScreen {
 		int avail = iconY - 10 - logoBottom;
 		int bh = avail >= 70 ? 24 : 20, bgap = avail >= 70 ? 6 : 4;
 		int bw = Math.min(200, width - 40);
-		int by = logoBottom + Math.max(0, (avail - (2 * bh + bgap)) / 3);
+		int rows = avail >= 3 * bh + 2 * bgap + 12 ? 3 : 2;
+		int by = logoBottom + Math.max(0, (avail - (rows * bh + (rows - 1) * bgap)) / 3);
 		int bx = (width - bw) / 2;
 		out.add(Compat.button(bx, by, bw, bh, Component.translatable("menu.singleplayer"), null, 5,
 				() -> Compat.setScreen(mc, Compat.singleplayer(this))));
@@ -93,24 +92,15 @@ public class ReminthTitleScreen extends TitleScreen {
 		if (!multi.active) multi.setTooltip(Tooltip.create(Component.translatable("title.multiplayer.disabled"))); // the game's own explanation
 		out.add(multi);
 
-		// Quick-join: up to two saved servers, only if there is room.
-		int qy = by + 2 * (bh + bgap);
-		if (multi.active && qy + 16 <= iconY - 6) {
-			try {
-				ServerList list = new ServerList(mc);
-				list.load();
-				int qw = (bw - 4) / 2;
-				for (int i = 0, shown = 0; i < list.size() && shown < 2; i++) {
-					ServerData sd = list.get(i);
-					if (sd == null || sd.isLan() || sd.ip == null || sd.ip.isBlank()) continue;
-					String label = mc.font.plainSubstrByWidth(sd.name == null || sd.name.isBlank() ? sd.ip : sd.name, qw - 8);
-					out.add(Compat.button(bx + shown * (qw + 4), qy, qw, 16, Component.literal(label), null, 4,
-							() -> Compat.connect(this, mc, sd)));
-					shown++;
-				}
-			} catch (Throwable ignored) {
-				// a broken servers.dat: no shortcuts
-			}
+		// Third row, where the normal title screen has Realms: Discover (opens Reminth's Discover page) and Discord.
+		int ry = by + 2 * (bh + bgap);
+		if (ry + bh <= iconY - 6) {
+			int hw = (bw - 4) / 2;
+			out.add(Compat.button(bx, ry, hw, bh, Component.literal("Discover"), null, 5, () -> Links.open("reminth://discover")));
+			AbstractWidget[] discord = new AbstractWidget[1];
+			discord[0] = Compat.button(bx + hw + 4, ry, bw - hw - 4, bh, Component.literal("Connect Discord"), null, 5,
+					() -> discord[0].setMessage(Component.literal("Coming soon")));
+			out.add(discord[0]);
 		}
 		out.addAll(icons);
 		return out;

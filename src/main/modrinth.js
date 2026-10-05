@@ -86,7 +86,7 @@ function rateLimitWaitMs(headers, maxWaitMs = MAX_RATE_LIMIT_WAIT_MS) {
 /** The error a caller sees once every attempt has failed without an answer. */
 function unreachableError(err) {
   const timedOut = err && (err.name === "TimeoutError" || err.name === "AbortError");
-  return new Error(timedOut ? "Modrinth took too long to answer — check your connection and try again." : `Couldn't reach Modrinth: ${(err && err.message) || err}`, { cause: err });
+  return new Error(timedOut ? "The catalog took too long to answer — check your connection and try again." : `Couldn't reach the catalog: ${(err && err.message) || err}`, { cause: err });
 }
 
 /**
@@ -172,7 +172,7 @@ async function request(path, { method = "GET", body, query, base = BASE_URL, max
     (r) => (r.ok ? r.json() : r.text())
   );
   if (res.status === 429) {
-    throw new Error(`Modrinth rate limit hit - resets in ${rateLimit.resetSeconds ?? "?"}s`);
+    throw new Error(`Rate limit hit - resets in ${rateLimit.resetSeconds ?? "?"}s`);
   }
   if (!res.ok) {
     throw new Error(`Modrinth API ${method} ${path} failed: ${res.status} ${answer}`);

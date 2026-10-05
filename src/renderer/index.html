@@ -16,6 +16,13 @@
 </head>
 <body>
 
+<!-- Loading screen: removed by renderer.js once the app's pages are ready (3 seconds at most). -->
+<div class="boot-splash" id="bootSplash" aria-hidden="true">
+  <img src="../../assets/icon.png" alt="" />
+  <div class="boot-name">Reminth</div>
+  <div class="boot-bar"><i></i></div>
+</div>
+
 <!-- Icon sprite. 24px grid, 2px round strokes. -->
 <svg class="sprite" aria-hidden="true">
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.8 10.4 12 3.8l8.2 6.6"/><path d="M5.8 9v10.2c0 .6.5 1 1 1h3.4v-5.4h3.6v5.4h3.4c.6 0 1-.4 1-1V9"/></symbol>
@@ -406,7 +413,7 @@
               <div>
                 <div class="eyebrow">Discover</div>
                 <h1 class="display">Find something new</h1>
-                <p class="lede">Modpacks, mods, packs, shaders and servers from Modrinth.</p>
+                <p class="lede">Modpacks, mods, packs, shaders and servers.</p>
                 <!-- The instance whose version and loader the list is filtered for (and
                      whose "Installed" marks are shown). Install itself asks which instance. -->
                 <div class="install-target"><span>Showing what fits</span><div class="sort-dd target-dd" id="discoverTargetDd"></div></div>
@@ -610,13 +617,13 @@
           </div>
           <div class="settings-stack">
             <div class="card set">
-              <div class="toggle-row"><div><b>Streamer mode</b><span>Turns on the replay buffer and the clip and screenshot keys while Minecraft runs, and can hide personal info on stream. Clips and screenshots are saved in the Library.</span></div><button class="switch" id="toggleStreamerMode" role="switch" aria-checked="false"></button></div>
-            </div>
-            <div class="card set">
               <div class="set-head"><h2>Hotkeys</h2><p>Work while you're in game. Click one, then press the key you want.</p></div>
               <div class="toggle-row"><div><b>Save a clip</b><span>Saves the replay buffer below.</span></div><button class="key-btn" id="keyClip" data-key="clipKey">F9</button></div>
               <div class="toggle-row"><div><b>Take a screenshot</b><span>Just the game window, full resolution.</span></div><button class="key-btn" id="keyShot" data-key="screenshotKey">F8</button></div>
               <p class="set-note warn-note" id="hotkeyNote" hidden></p>
+            </div>
+            <div class="card set">
+              <div class="toggle-row"><div><b>Streamer mode</b><span>Turns on the replay buffer and the clip and screenshot keys while Minecraft runs, and can hide personal info on stream. Clips and screenshots are saved in the Library.</span></div><button class="switch" id="toggleStreamerMode" role="switch" aria-checked="false"></button></div>
             </div>
             <div class="card set">
               <div class="set-head"><h2>Replay buffer</h2><p>How far back a clip reaches when you press the key.</p></div>
@@ -736,7 +743,7 @@
                 <button class="switch" id="toggleLaunchMinimized" role="switch" aria-checked="false"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Hardware acceleration</b><span>Uses your GPU to draw the launcher. <b class="hw-warn">Keep this on.</b> Only turn it off if the Reminth window shows up black or flickering - otherwise the launcher gets very slow and laggy. Restart Reminth to apply.</span><span class="hw-off-note" id="hwOffNote" hidden>It is off right now, so Reminth is drawn by your processor and will feel laggy. Turn it on and restart Reminth.</span></div>
+                <div><b>Hardware acceleration</b><span class="hw-keep">Keep this on.</span><span>Uses your GPU to draw the launcher. Only turn it off if the Reminth window shows up black or flickering - otherwise the launcher gets very slow and laggy. Restart Reminth to apply.</span><span class="hw-off-note" id="hwOffNote" hidden>It is off right now, so Reminth is drawn by your processor and will feel laggy. Turn it on and restart Reminth.</span></div>
                 <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
               </div>
               <div class="toggle-row">

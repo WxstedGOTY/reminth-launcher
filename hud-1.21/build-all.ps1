@@ -12,7 +12,7 @@ $jars = @(
   @{ mc = "1.21.10"; api = "0.138.4+1.21.10"; compat = "C"; range = ">=1.21.9 <=1.21.10"; name = "1.21.9-1.21.10" },
   @{ mc = "1.21.11"; api = "0.141.6+1.21.11"; compat = "D"; range = "1.21.11";          name = "1.21.11" }
 )
-$version = "1.3.0"
+$version = "1.3.1"
 New-Item -ItemType Directory -Force build-all | Out-Null
 foreach ($j in $jars) {
   & .\gradlew.bat build -q "-Pminecraft_version=$($j.mc)" "-Pfabric_api_version=$($j.api)" "-Pversion=$version+$($j.name)" "-Pcompat=$($j.compat)" "-Pmc_range=$($j.range)" "-Pjava_release=$(if ($j.java) { $j.java } else { 21 })"

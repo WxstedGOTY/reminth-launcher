@@ -1424,7 +1424,7 @@ function openInstanceModal(existing) {
   const perfRow = el("div", "toggle-row compact");
   const perfText = el("div");
   const perfTitle = el("b");
-  const perfSub = el("span", null, "Stable builds only, from Modrinth. Reminth leaves a mod out when you have your own copy or one that conflicts.");
+  const perfSub = el("span", null, "Stable builds only. Reminth leaves a mod out when you have your own copy or one that conflicts.");
   perfText.appendChild(perfTitle);
   perfText.appendChild(perfSub);
   const perfSwitch = el("button", "switch");
@@ -2765,7 +2765,7 @@ const CHANGELOG = [
   "\"Pick a Minecraft version for my mods\" shows what happens to each mod first, then switches your instance or makes a new one.",
   "Servers show which versions they take. Play finds, or makes, an instance that fits.",
   "Safer saves: settings, instances and downloads are written so a crash or power cut can't leave a half-written file.",
-  "Performance: Java settings chosen for your Java version, a bigger performance pack from Modrinth (stable builds only, now on Forge and NeoForge too), and optional Max FPS and Far view profiles for new instances.",
+  "Performance: Java settings chosen for your Java version, a bigger performance pack (stable builds only, now on Forge and NeoForge too), and optional Max FPS and Far view profiles for new instances.",
   "Any Minecraft version, on Fabric, Quilt, Forge or NeoForge. Modpacks install in one click, and one button updates everything in an instance.",
   "Logs kept per instance, 3D skins and capes, and streamer mode with clips and screenshots.",
 ];
@@ -2819,7 +2819,7 @@ function updateHomeStatRow(stats) {
   $("statPlayerKills").textContent = ok ? num(stats.playerKills) : "—";
   $("statDeaths").textContent = ok ? num(stats.deaths) : "—";
   $("statDeathsNote").textContent = ok ? (stats.deaths ? "Happens to everyone" : "Flawless so far") : "—";
-  $("statPlaced").textContent = ok ? num(stats.totals && stats.totals.used) : "—";
+  $("statPlaced").textContent = ok ? num(stats.totals && (stats.totals.placed != null ? stats.totals.placed : stats.totals.used)) : "—";
   $("statBroken").textContent = ok ? num(stats.totals && stats.totals.mined) : "—";
 }
 
@@ -2888,6 +2888,10 @@ async function loadStats() {
     )
   );
 }
+// While a game runs, the numbers on Home and on the statistics page follow it (the HUD asks the server every 30 seconds).
+setInterval(() => {
+  if (state.signedIn && state.running.size > 0 && !document.hidden) loadStats();
+}, 20000);
 $("refreshStats").onclick = () => {
   loadStats();
   toast("Statistics refreshed.");
@@ -3132,6 +3136,20 @@ async function boot() {
 let bootDone;
 const booted = new Promise((resolve) => (bootDone = resolve));
 document.addEventListener("DOMContentLoaded", () => boot().finally(bootDone));
+
+// Loading screen: shown over the app for 1.2-3 seconds while the app builds its heavy pages (the skin viewer and
+// both skin grids) in the background, so the first click on a tab finds it ready. Never longer than 3 seconds,
+// and never blocks the app if something fails.
+(function loadingScreen() {
+  const splash = document.getElementById("bootSplash");
+  if (!splash) return;
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const ready = booted.then(() => (window.reminthWarm ? window.reminthWarm() : null)).catch(() => {});
+  Promise.race([Promise.all([ready, wait(1200)]), wait(3000)]).then(() => {
+    splash.classList.add("done");
+    setTimeout(() => splash.remove(), 260);
+  });
+})();
 
 // A reminth:// link (the game's Skins button): only ever a page switch,
 // after startup has read the instances (a link can be what started Reminth).

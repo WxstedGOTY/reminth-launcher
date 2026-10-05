@@ -302,7 +302,7 @@ test("a 5 MB body is cut at 200 KB with a 'Read the rest' note, quickly", () => 
   assert.equal(t.c[t.c.length - 1].t, "cut");
   assert.ok(ms < 1500, `parse took ${ms} ms`);
   const el = md.toDom(t, { doc: fakeDoc, fullUrl: "https://modrinth.com/mod/x" });
-  assert.match(el.textContent, /Read the rest on Modrinth/);
+  assert.match(el.textContent, /Read the rest online/);
 });
 
 test("huge tables are capped", () => {

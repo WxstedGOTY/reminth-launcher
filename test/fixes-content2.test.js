@@ -333,7 +333,7 @@ test("modrinth: a body that times out is retried like a network error, and ends 
 
   const never = scripted(t, [slowBody()]);
   await assert.rejects(modrinth.getProject("P"), (err) => {
-    assert.equal(err.message, "Modrinth took too long to answer — check your connection and try again.");
+    assert.equal(err.message, "The catalog took too long to answer — check your connection and try again.");
     assert.doesNotMatch(err.message, /TimeoutError|aborted/);
     return true;
   });
@@ -341,7 +341,7 @@ test("modrinth: a body that times out is retried like a network error, and ends 
 
   // the headers timing out gets the same words
   scripted(t, [new DOMException("The operation was aborted due to timeout", "TimeoutError")]);
-  await assert.rejects(modrinth.getProject("P"), /Modrinth took too long to answer/);
+  await assert.rejects(modrinth.getProject("P"), /The catalog took too long to answer/);
 });
 
 test("modrinth: a 404 is still final, keeps its status text, and survives an unreadable error body", async (t) => {
@@ -720,7 +720,7 @@ test("install: when Modrinth can't say what the jars in mods/ are, a new mod is 
   await content.install(inst, { projectId: "MAIN", kind: "mod" }); // empty mods folder: nothing to look up
 
   patch(t, modrinth, "getVersionsFromHashes", async () => {
-    throw new Error("Couldn't reach Modrinth: fetch failed");
+    throw new Error("Couldn't reach the catalog: fetch failed");
   });
   await assert.rejects(content.install(inst, { projectId: "OTHER", kind: "mod" }), /Couldn't check what's already installed — try again in a moment\./);
   assert.deepEqual(await fsp.readdir(mods), ["main-1.jar"], "nothing was downloaded");

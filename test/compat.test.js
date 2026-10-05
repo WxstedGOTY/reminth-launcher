@@ -630,7 +630,7 @@ test("adviseVersions: one lookup failing doesn't sink the rest", async () => {
 });
 
 test("adviseVersions / projectSupport: Modrinth not answering is said in its own words", async () => {
-  const slow = new Error("Modrinth took too long to answer — check your connection and try again.");
+  const slow = new Error("The catalog took too long to answer — check your connection and try again.");
   const mods = [jar("a.jar", { name: "Alpha" }), jar("b.jar", { name: "Beta" })];
   // the first request fails -> that error, untouched
   const d1 = depsFor(mods);

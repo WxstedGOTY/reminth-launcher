@@ -303,6 +303,24 @@ function topEntries(map, limit) {
     .map(([id, count]) => ({ id, count }));
 }
 
+// Minecraft has no "blocks placed" statistic: placing a block counts as USING that item, and so does swinging a
+// pickaxe, eating, throwing a pearl or drawing a bow. So "placed" = every item used that is not obviously one of
+// those. Approximate on purpose (it can't know a modded item), but far closer than the raw total.
+const NOT_A_BLOCK_SUFFIX = /_(pickaxe|axe|shovel|hoe|sword|spear|helmet|chestplate|leggings|boots|horse_armor|nautilus_armor|bucket|boat|raft|minecart|spawn_egg|dye|banner_pattern|smithing_template|stew|soup)$/;
+const NOT_A_BLOCK_NAME = /^(bow|crossbow|trident|mace|shield|elytra|shears|flint_and_steel|fishing_rod|carrot_on_a_stick|warped_fungus_on_a_stick|brush|spyglass|compass|recovery_compass|clock|bucket|lead|name_tag|saddle|ender_pearl|ender_eye|snowball|egg|wind_charge|fire_charge|arrow|spectral_arrow|tipped_arrow|firework_rocket|firework_star|totem_of_undying|potion|splash_potion|lingering_potion|ominous_bottle|experience_bottle|glass_bottle|honey_bottle|bone_meal|apple|golden_apple|enchanted_golden_apple|bread|carrot|golden_carrot|potato|baked_potato|poisonous_potato|beetroot|melon_slice|sweet_berries|glow_berries|chorus_fruit|cookie|pumpkin_pie|dried_kelp|rotten_flesh|spider_eye|tropical_fish|pufferfish|salmon|cod|beef|porkchop|chicken|mutton|rabbit|cooked_[a-z_]+|map|filled_map|book|writable_book|written_book|enchanted_book|paper|stick|coal|charcoal|diamond|emerald|iron_ingot|gold_ingot|copper_ingot|netherite_ingot|netherite_scrap|gold_nugget|iron_nugget|lapis_lazuli|redstone_dust|glowstone_dust|gunpowder|blaze_powder|blaze_rod|ghast_tear|nether_star|slime_ball|magma_cream|leather|feather|flint|bowl|clay_ball|brick|nether_brick|prismarine_shard|prismarine_crystals|amethyst_shard|echo_shard|disc_fragment_5|heart_of_the_sea|nautilus_shell|turtle_scute|armadillo_scute|phantom_membrane|rabbit_foot|rabbit_hide|ink_sac|glow_ink_sac|nether_wart)$/;
+
+/** Pure: how many of the item uses in a stats file's "used" map were (very probably) blocks being set down. */
+function estimatePlacedBlocks(used) {
+  let n = 0;
+  for (const [id, count] of Object.entries(used || {})) {
+    if (typeof count !== "number") continue;
+    const name = String(id).replace(/^[a-z0-9_.-]+:/, "");
+    if (NOT_A_BLOCK_SUFFIX.test(name) || NOT_A_BLOCK_NAME.test(name)) continue;
+    n += count;
+  }
+  return n;
+}
+
 function sumValues(map) {
   return Object.values(map).reduce((a, b) => a + b, 0);
 }
@@ -405,6 +423,7 @@ async function playerStats(accountUuid, instances) {
       mined: sumValues(mined),
       killed: sumValues(killed),
       used: sumValues(used),
+      placed: estimatePlacedBlocks(used),
       crafted: sumValues(crafted),
       pickedUp: sumValues(pickedUp),
     },
@@ -597,4 +616,4 @@ async function worldFolderToOpen(gameDir, name) {
   }
 }
 
-module.exports = { listWorlds, listServers, playerStats, readServerStats, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };
+module.exports = { listWorlds, listServers, playerStats, readServerStats, estimatePlacedBlocks, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };

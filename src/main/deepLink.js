@@ -10,6 +10,7 @@
  *
  *   reminth://skins             -> { page: "skins" }
  *   reminth://home              -> { page: "home" }
+ *   reminth://discover          -> { page: "discover" }
  *   reminth://instance/<id>     -> { page: "instance", id }   (an instance that exists)
  *
  * (one trailing "/" is allowed: Windows and browsers often add one). Any
@@ -34,6 +35,7 @@ function parseLink(text, knownIds) {
   if (rest.endsWith("/")) rest = rest.slice(0, -1);
   if (rest === "skins") return { page: "skins" };
   if (rest === "home") return { page: "home" };
+  if (rest === "discover") return { page: "discover" };
   const m = /^instance\/([a-z0-9-]+)$/.exec(rest);
   if (m && INSTANCE_ID.test(m[1]) && !/^-|-$/.test(m[1])) {
     const ids = knownIds instanceof Set ? knownIds : new Set(Array.isArray(knownIds) ? knownIds : []);

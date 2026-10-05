@@ -880,7 +880,7 @@ function invalidate(instanceId) {
 /**
  * Looks at every enabled mod in the instance. Returns
  * {
- *   mcVersion, loader, online,   online=false: Modrinth couldn't be reached,
+ *   mcVersion, loader, online,   online=false: the catalog couldn't be reached,
  *                                so only what the jars say themselves was used
  *   partial,                     only with `localOnly`: true, and online=false
  *   checked,                     how many mods were looked at
@@ -1480,9 +1480,9 @@ async function adviseVersions(instance, { accepts = null, loaderVersions = null,
       )
     : ids.map(() => null);
   // One mod that can't be looked up is listed as such. But when NOTHING
-  // answered because Modrinth couldn't be reached, that is the thing to
+  // answered because The catalog couldn't be reached, that is the thing to
   // say - in Modrinth's own words - not "no version fits your mods".
-  if (ids.length && firstFailure && sets.every((set) => !set) && /^(Modrinth took too long|Couldn't reach Modrinth)/.test(String(firstFailure.message || ""))) {
+  if (ids.length && firstFailure && sets.every((set) => !set) && /^(The catalog took too long|Couldn't reach the catalog)/.test(String(firstFailure.message || ""))) {
     throw firstFailure;
   }
   const mods = ids.map((pid, i) => ({ projectId: pid, title: projects.get(pid), versions: sets[i] }));

@@ -500,7 +500,7 @@ test("creators: a failed owner lookup isn't cached as 'no author'", async (t) =>
   let teamCalls = 0;
   patch(t, modrinth, "getTeams", async () => {
     teamCalls++;
-    throw new Error("Modrinth rate limit hit");
+    throw new Error("Rate limit hit");
   });
 
   const first = await content.lookupCreators(gameDir);
@@ -555,7 +555,7 @@ test("modrinth: 5xx and network errors back off 0.5s then 1.5s; three strikes an
   assert.deepEqual(s.waits, [500, 1500]);
 
   const down = scripted(t, [new TypeError("fetch failed")]);
-  await assert.rejects(modrinth.getProject("P"), /Couldn't reach Modrinth: fetch failed/);
+  await assert.rejects(modrinth.getProject("P"), /Couldn't reach the catalog: fetch failed/);
   assert.equal(down.calls(), 3);
 
   const broken = scripted(t, [{ status: 500 }]);

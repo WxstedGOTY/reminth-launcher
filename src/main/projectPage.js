@@ -137,7 +137,7 @@ async function getProjectPage(idOrSlug, deps = {}) {
       .then(() => api.getProjectVersions(asked, {}))
       .catch(() => null),
   ]);
-  if (!raw || typeof raw !== "object") throw new Error("Modrinth didn't send that project.");
+  if (!raw || typeof raw !== "object") throw new Error("The catalog didn't send that project.");
   const project = shapeProject(raw);
 
   let people = [];
