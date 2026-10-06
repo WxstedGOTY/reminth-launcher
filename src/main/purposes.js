@@ -73,6 +73,13 @@ const CFG = {
     content:
       '{\n  "initialZoom": 4,\n  "zoomInTime": 1.0,\n  "zoomOutTime": 0.5,\n  "zoomInTransition": "ease_out_exp",\n  "zoomOutTransition": "ease_out_exp",\n  "affectHandFov": true,\n  "retainZoomSteps": false,\n  "scrollZoom": true,\n  "scrollStepCount": 10,\n  "zoomPerStep": 150,\n  "scrollZoomSmoothness": 70,\n  "zoomKeyBehaviour": "hold",\n  "_keybindScrolling": false,\n  "relativeSensitivity": 100,\n  "relativeViewBobbing": true,\n  "cinematicCamera": 0,\n  "spyglassBehaviour": "combine",\n  "spyglassOverlayVisibility": "holding",\n  "spyglassSoundBehaviour": "with_overlay",\n  "secondaryZoomAmount": 4,\n  "secondaryZoomInTime": 10.0,\n  "secondaryZoomOutTime": 1.0,\n  "secondaryHideHUDOnZoom": true,\n  "_firstLaunch": false\n}\n',
   },
+  // Inventory Profiles Next draws its auto-refill icon on every hotbar slot by default; this keeps it to the inventory
+  // (auto refill itself stays on). Format checked in the game, 7 Oct 2026: the icons were gone.
+  ipn: {
+    file: "inventoryprofilesnext/inventoryprofiles.json",
+    content:
+      '{\n    "ModSettings": {\n        "first_run": false\n    },\n    "AutoRefillSettings": {\n        "auto_refill_enable_horbar_indicator_icons": false\n    }\n}\n',
+  },
   appleskin: {
     file: "appleskin.json5",
     content:
@@ -136,7 +143,7 @@ const GOALS = {
       mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: MINIMAP }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
       mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it."),
-      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out."),
+      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out.", { configs: [CFG.ipn] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
       mod("status-effect-bars", "Status Effect Bars", "A small bar under each potion effect shows how long it has left."),
@@ -191,8 +198,7 @@ const GOALS = {
     more: [
       mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
       mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
-      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen."),
-      mod("cps-plus", "CPS+", "Shows your clicks per second."),
+      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen, with your clicks per second."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it - handy for restocking kits."),
       mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
     ],
@@ -205,8 +211,7 @@ const GOALS = {
     core: [
       mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
       mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
-      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen."),
-      mod("cps-plus", "CPS+", "Shows your clicks per second."),
+      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen, with your clicks per second."),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
       mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
@@ -408,6 +413,7 @@ async function writeConfigs(gameDir, goalIds, slugs) {
       for (const cfg of (item && item.configs) || []) {
         const target = path.join(dir, cfg.file);
         try {
+          await fsp.mkdir(path.dirname(target), { recursive: true });
           await fsp.writeFile(target, cfg.content, { encoding: "utf8", flag: "wx" });
           written.push(cfg.file);
         } catch (err) {

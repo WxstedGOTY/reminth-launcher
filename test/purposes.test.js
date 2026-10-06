@@ -65,7 +65,7 @@ test("the owner's rules: important ones ticked even when a few servers ban them,
   for (const s of ["xaeros-minimap", "xaeros-world-map"]) assert.ok(core("survival").includes(s), `survival: ${s}`);
   // one per job: these doubles are gone everywhere
   for (const id of ["crystal", "sword", "survival", "pvp"]) {
-    for (const s of ["kinds-crystal-optimizer", "kinds-anker-optimizer", "mini-totem", "small-totem-pop-animation", "small-low-totem", "short-pvp-swords", "short-swords-pack", "low-shield-pack", "crystal-vanilla-tweaks", "cull-leaves", "clientsort", "mouse-wheelie", "cpvp"]) {
+    for (const s of ["kinds-crystal-optimizer", "kinds-anker-optimizer", "mini-totem", "small-totem-pop-animation", "small-low-totem", "short-pvp-swords", "short-swords-pack", "low-shield-pack", "crystal-vanilla-tweaks", "cull-leaves", "clientsort", "mouse-wheelie", "cpvp", "cps-plus"]) {
       assert.ok(!all(id).includes(s), `${id}: ${s} is a second mod for the same job`);
     }
   }
@@ -109,6 +109,10 @@ test("ready-made settings are written only when the file is missing", async () =
     assert.match(fs.readFileSync(path.join(dir, "config", "betterhurtcam.toml"), "utf8"), /enabled = true/);
     // a second run changes nothing
     assert.deepEqual(await purposes.writeConfigs(dir, "crystal", ["betterhurtcam"]), []);
+    // one in a sub-folder (Inventory Profiles Next): the folder is made; the hotbar icons are off
+    assert.deepEqual(await purposes.writeConfigs(dir, "survival", ["inventory-profiles-next"]), ["inventoryprofilesnext/inventoryprofiles.json"]);
+    const ipn = JSON.parse(fs.readFileSync(path.join(dir, "config", "inventoryprofilesnext", "inventoryprofiles.json"), "utf8"));
+    assert.equal(ipn.AutoRefillSettings.auto_refill_enable_horbar_indicator_icons, false);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -193,7 +197,7 @@ test("crystal and sword picked together: everything sword recommends is still re
   const tabs = purposes.tabsFor(["crystal", "sword"], { loader: "fabric" });
   const ticked = new Set(tabs.flatMap((t) => t.core.map((i) => i.slug)));
   const unticked = new Set(tabs.flatMap((t) => t.more.map((i) => i.slug)));
-  for (const s of ["crittweaks", "hitcolorx", "clean-keystrokes", "cps-plus"]) {
+  for (const s of ["crittweaks", "hitcolorx", "clean-keystrokes"]) {
     assert.ok(ticked.has(s), s);
     assert.ok(!unticked.has(s), s);
   }
