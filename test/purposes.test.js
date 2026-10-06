@@ -153,7 +153,7 @@ test("queued packs are switched on once, only if the file still exists, and the 
 });
 
 test("the player is offered PvP and Survival only; PvP holds the crystal and the sword/axe items; no Creative", () => {
-  assert.deepEqual(purposes.list().map((g) => g.id), ["pvp", "survival", "performance"]);
+  assert.deepEqual(purposes.list().map((g) => g.id), ["crystal", "sword", "survival", "performance"]);
   assert.ok(!purposes.GOAL_IDS.includes("creative"));
   const [goal] = purposes.tabsFor("pvp", { loader: "fabric" });
   const slugs = new Set([...goal.core, ...goal.more].map((i) => i.slug));

@@ -5715,7 +5715,8 @@ function openProfileExtras(instanceId, profile) {
 
 /* ---- "What is this instance for?": researched mod and resource pack lists (main/purposes.js) ---- */
 const PLAYSTYLE_FALLBACK = [
-  { id: "pvp", title: "PvP", blurb: "Crystal PvP and sword & axe fights." },
+  { id: "crystal", title: "Crystal PvP", blurb: "End crystals, anchors and totems." },
+  { id: "sword", title: "Sword & Axe PvP", blurb: "Sword, axe, shield and minecart fights." },
   { id: "survival", title: "Survival", blurb: "Survival worlds and servers." },
   { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading." },
 ];

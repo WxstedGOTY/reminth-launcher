@@ -259,9 +259,9 @@ const GOALS = {
 })();
 
 const GOAL_IDS = Object.keys(GOALS);
-// What the player is offered (any of them, together). crystal and sword stay valid ids (tests, old calls) but are not
-// shown on their own; "performance" is its own card.
-const LISTED_GOALS = ["pvp", "survival", "performance"];
+// What the player is offered (any of them, together): four cards. "pvp" (crystal + sword merged) stays a valid id for
+// old calls; "performance" is its own card.
+const LISTED_GOALS = ["crystal", "sword", "survival", "performance"];
 const PERFORMANCE_CARD = { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading on any server." };
 
 /* ------------------------------------------------------------------ */
