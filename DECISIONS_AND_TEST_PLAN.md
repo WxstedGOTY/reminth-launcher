@@ -4,13 +4,83 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026, desktop window: the old chat was lost from the desktop app, `HANDOFF_FULL.md` hands everything over; newest section below is 00000000000. Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 000000000000 (warm-up, create flow, modpacks). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
   screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
 - **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
 - **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
   release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000. Loading-screen warm-up, PvP/Survival create flow, modpack Cancel and "add to existing" (6 Oct 2026, evening) - desktop window
+
+**State:** `main` at this commit (code commits `9e2f32d`, `b7e59e5`, `0b96998`, after merging
+`origin/claude/stoic-lovelace-y9p76z` = `c76d22f`). `npm test`: **649 pass, 0 fail**. Installer rebuilt in `release-1.4.8\`
+(20:31). Version still 1.4.8, **not published**.
+
+**What changed**
+1. Merge `c76d22f` (from a cloud branch): playstyle lists are **PvP** (crystal + sword/axe merged) and **Survival**; Creative
+   dropped (`src/main/purposes.js`, `test/purposes.test.js`). Survival's title is now "Survival".
+2. Loading screen warm-up (`src/renderer/features.js` `prewarmPages` / `stopPrewarm`, `src/renderer/renderer.js`
+   `loadingScreen`): while the splash is up (signed in only), Skins, Settings, Library, Stats, Streamer and Discover are each
+   shown once for real (2-4 frames; Discover waits up to 1.5 s for its first list), then the page that was showing comes
+   back before the splash fades. Stops at once when the splash ends or a reminth:// link switches the page.
+   Measured on a test profile (signed in with a fake account), first open of each page, worst frame in the 600 ms after the
+   click (3 runs each):
+   | Page | Before | After (real boot path) |
+   |---|---|---|
+   | Skins | 143-157 ms | 26-40 ms (repeat opens: 21-24 ms) |
+   | Discover | 91-105 ms | 24-51 ms |
+   | Settings | 38-52 ms | 13-27 ms |
+   | Library | 7-38 ms | 6-12 ms |
+   | Stats / Streamer | 4-5 ms | 4-10 ms |
+   Not measured: the owner's real account and skin library (heavier than the test profile).
+3. Create flow (`renderer.js` `openInstanceModal`, `features.js` `choosePlaystyle` / `openPurposeSetup`): for Fabric/Quilt the
+   button says **Continue** (Create instance for other loaders, updates when the loader changes). Continue asks PvP / Survival
+   / None ("A choice only adds some helpful mods and resource packs, which you can untick on the next screen. None adds
+   nothing."). Cancel creates nothing and the New instance dialog stays. A choice creates the instance and opens that
+   playstyle's mod list (tabs: the playstyle + Performance); None creates it plain. The old goal grid is gone. The instance
+   menu's "Set up for a playstyle..." asks PvP or Survival. Seen working in the real app (test profile).
+4. Modpacks (`src/main/mrpack.js`, `src/main/content.js` `downloadWithHash({ signal })`, `src/main/main.js`
+   `modpack:install` (token, `intoInstanceId`) / `modpack:cancel` / `modpack:target`, `preload.js`, `features.js`
+   `installModpackFlow`, test `test/modpack-into.test.js`):
+   - **Cancel works during the install**: stops the download, removes the half-made instance and its folder (new instance),
+     or every file this run added (existing instance). Seen working in the real app with Fabulously Optimized, cancelled both
+     while the .mrpack downloaded and while its files downloaded.
+   - **Add to an existing instance**: the install dialog lists New instance + every instance; only the ones with the pack's
+     Minecraft version and loader (and not running) can be picked, the rest are greyed with the reason. Nothing of the
+     player's is overwritten: a file already there (or its .disabled twin), or a mod with the same mod id, keeps the player's
+     copy and the pack's copy goes to `<instance>\.reminth\modpack-clashes\<pack>-<time>\`. Added files are recorded in
+     content.json with `playerOwned: true` and never in managed-mods.json, so Reminth never removes them. Blocked while the
+     instance runs or its mods are being changed (`syncing`, which also blocks Play during the install). Seen working:
+     Fabulously Optimized into a 26.2 test instance, 88 files added, 13 clashes kept as the player's; the game then reached the
+     title screen with 173 mods.
+
+**Mistake to own:** the last real-game test (20:28) started a Minecraft window while the owner's own game was running
+(multiplayer since 20:25). The pack's crash helper then opened a "crashed" window (caused by the test closing the game);
+it was closed. Rule for next time: check `Get-Process javaw` window titles before every launch, not only at the start.
+
+**Decisions (recommendation first)**
+- Privacy page: say that adding a modpack to an existing instance keeps the pack's clashing files in
+  `.reminth\modpack-clashes` (recommend yes, one sentence, with the next website upload).
+- Merging a pack into an instance that already has other mods can still make the game fail if the pack's mods need newer
+  versions of the player's kept mods. Recommend: leave as is (the player's files win, as asked) and rely on the existing
+  "Update mods to fit" / crash notice.
+
+**Weak spots / not tested**
+- Warm-up numbers are from a test profile; the owner must feel Skins himself.
+- Not tested: a modpack added while signed in on his real data; a pack whose overrides include worlds (saves); Quilt packs.
+
+**Test plan for the owner (PASS/FAIL), with the installer in `release-1.4.8\`**
+1. Install, start Reminth: loading screen 2-3 s, then click Skins, Discover, Settings: each opens with no hitch.
+2. New instance, Fabric: button says Continue (Forge: Create instance). Continue -> PvP / Survival / None. Cancel -> nothing
+   made. PvP -> instance made and the PvP mod list opens. None -> plain instance.
+3. Instance menu -> Set up for a playstyle... -> PvP / Survival.
+4. Discover -> a modpack -> Install: New instance or one of your instances (wrong version/loader greyed with the reason).
+   Press Install, then Cancel while it downloads: nothing is left.
+5. Add a modpack to a test instance with the same version: your files stay; the toast says how many were kept.
 
 ---
 
