@@ -84,7 +84,7 @@ function deps(extra = {}) {
 // The two real shapes.
 async function crystalsBundle(out) {
   const v = (mc) => inner(`csc-${mc}.jar`, { id: "clientsidecrystals", name: "Client Side Crystals", version: mc, depends: { minecraft: mc } });
-  return makeJar(out, { id: "clientsidecrystals_bundle", name: "Client Side Crystals", version: "26.3", depends: { minecraft: ">=1.21 <=26.3" } }, [
+  return makeJar(out, { id: "clientsidecrystals_bundle", name: "Client Side Crystals", version: "26.3", depends: { minecraft: ">=1.21 <=26.3", clientsidecrystals: "*" } }, [
     await v("1.21.11"),
     await v("26.1"),
     await v("26.2"),
@@ -92,7 +92,7 @@ async function crystalsBundle(out) {
   ]);
 }
 async function jeiWithMezz(out) {
-  return makeJar(out, { id: "jei", name: "JEI", version: "26.3.0.1", depends: { minecraft: ">=26.2" } }, [
+  return makeJar(out, { id: "jei", name: "JEI", version: "26.3.0.1", depends: { minecraft: ">=26.2", mezz_config: ">=0.6.3 <1.0.0" } }, [
     await inner("mezz.jar", { id: "mezz_config", name: "MezzConfig", version: "0.6.6", depends: { minecraft: "26.3" } }),
   ]);
 }
@@ -108,18 +108,15 @@ test("readJarMeta: nested jars carry their name and Minecraft requirement", asyn
 
 /* ---------------- the rule (pure) ---------------- */
 
-test("findNestedMcProblems: a bundle loads its HIGHEST nested copy - the 26.3 one on 26.2 - so it won't load", async () => {
+test("findNestedMcProblems: a bundle with a copy for this version loads that copy (seen in the real game, 7 Oct 2026)", async () => {
   const inst = await instanceWith("bundle", "26.2", { "ClientSideCrystals-26.3.jar": crystalsBundle });
   const mods = (await content.listAll(inst.gameDir)).mod;
-  const p = compat.findNestedMcProblems(mods, { loader: "fabric", mcVersion: "26.2" });
-  assert.equal(p.length, 1);
-  assert.equal(p[0].file, "ClientSideCrystals-26.3.jar");
-  assert.equal(p[0].id, "clientsidecrystals");
-  assert.equal(p[0].version, "26.3");
-  assert.equal(p[0].bundle, true);
-  assert.equal(p[0].certain, true);
-  // On 26.3 the highest copy fits: nothing to say.
-  assert.deepEqual(compat.findNestedMcProblems(mods, { loader: "fabric", mcVersion: "26.3" }), []);
+  // the real ClientSideCrystals-26.3.jar started on 26.2 with its 26.2 copy, and the 1.21.X-26.X one on 1.21.11
+  for (const mc of ["26.2", "26.3", "1.21.11", "26.1"]) assert.deepEqual(compat.findNestedMcProblems(mods, { loader: "fabric", mcVersion: mc }), [], mc);
+  // no copy for 1.21.10 (the outer jar's range allows it): it won't load
+  const p = compat.findNestedMcProblems(mods, { loader: "fabric", mcVersion: "1.21.10" });
+  assert.ok(p.length >= 1);
+  assert.ok(p.every((x) => x.file === "ClientSideCrystals-26.3.jar" && x.id === "clientsidecrystals" && x.bundle && x.certain));
 });
 
 test("findNestedMcProblems: copies whose versions only differ after '+' are a tie - a warning, never 'blocked'", () => {
@@ -129,6 +126,7 @@ test("findNestedMcProblems: copies whose versions only differ after '+' are a ti
     modVersion: "1.0.6+26.3",
     mcDep: ">=26.1 <=26.3",
     descriptors: { fabric: true },
+    depends: { client_side_anchors: "*" },
     nestedMods: ["26.1", "26.2", "26.3"].map((mc) => ({ id: "client_side_anchors", name: "Anchor Optimizer", version: `1.0.6+${mc}`, provides: [], mcDep: mc })),
   };
   const p = compat.findNestedMcProblems([anchor], { loader: "fabric", mcVersion: "26.2" });
@@ -157,26 +155,51 @@ test("findNestedMcProblems: a packed library that needs 26.3 blocks its outer mo
   assert.deepEqual(compat.findNestedMcProblems(mods, { loader: "fabric", mcVersion: "26.3-snapshot-1" }), []);
 });
 
+test("findNestedMcProblems: packed copies nothing needs are left out by Fabric (BetterHurtCam 1.5.5 on 1.20.1 started fine)", () => {
+  const bhc = {
+    file: "betterhurtcam-1.5.5.jar",
+    modId: "betterhurtcam",
+    modVersion: "1.5.5",
+    descriptors: { fabric: true },
+    depends: { fabricloader: ">=0.13", ukulib: ">=0.3.0" },
+    nestedMods: [
+      { id: "betterhurtcam-mc118", version: "1.5.5", mcDep: "1.18.x" },
+      { id: "betterhurtcam-mc1194", version: "1.5.5", mcDep: "1.19.4" },
+      { id: "betterhurtcam-mc120", version: "1.5.5", mcDep: ">=1.20" },
+    ],
+  };
+  assert.deepEqual(compat.findNestedMcProblems([bhc], { loader: "fabric", mcVersion: "1.20.1" }), []);
+  // ...but a mod that needs one of them makes it count
+  const fan = { file: "fan.jar", modId: "fan", modVersion: "1", descriptors: { fabric: true }, depends: { "betterhurtcam-mc118": "*" } };
+  assert.equal(compat.findNestedMcProblems([bhc, fan], { loader: "fabric", mcVersion: "1.20.1" })[0].id, "betterhurtcam-mc118");
+});
+
 test("findNestedMcProblems: an unreadable packed jar that could be another copy keeps it a warning", () => {
-  const jei = { file: "jei.jar", modId: "jei", modVersion: "1", descriptors: { fabric: true }, nestedMods: [{ id: "mezz_config", version: "0.6.6", mcDep: "26.3" }] };
+  const jei = { file: "jei.jar", modId: "jei", modVersion: "1", descriptors: { fabric: true }, depends: { mezz_config: "*" }, nestedMods: [{ id: "mezz_config", version: "0.6.6", mcDep: "26.3" }] };
   const other = { file: "x.jar", modId: "x", modVersion: "1", descriptors: { fabric: true }, nestedUnread: true, nestedUnreadNames: ["META-INF/jars/mezz_config-0.8.jar"] };
   assert.equal(compat.findNestedMcProblems([jei, other], { loader: "fabric", mcVersion: "26.2" })[0].certain, false);
 });
 
 /* ---------------- in the full check, and for the button ---------------- */
 
-test("checkInstance: both shapes are 'won't load' on 26.2, with plain reasons naming the outer file", async () => {
+test("checkInstance: a packed library for another version is 'won't load'; a bundle without a copy for this version too", async () => {
   const inst = await instanceWith("full", "26.2", { "ClientSideCrystals-26.3.jar": crystalsBundle, "jei-26.3-fabric.jar": jeiWithMezz });
   const r = await compat.checkInstance(inst, { force: true, deps: deps() });
   const by = Object.fromEntries(r.issues.map((i) => [i.file, i]));
   assert.equal(by["jei-26.3-fabric.jar"].severity, "blocked");
   assert.equal(by["jei-26.3-fabric.jar"].reason, "wrong-mc");
   assert.match(by["jei-26.3-fabric.jar"].detail, /^JEI contains MezzConfig, which needs Minecraft 26\.3 — this instance is on 26\.2\./);
-  assert.equal(by["ClientSideCrystals-26.3.jar"].severity, "blocked");
-  assert.match(by["ClientSideCrystals-26.3.jar"].detail, /carries a copy for each Minecraft version, and Fabric loads the newest one \(26\.3\)/);
-  // ...which is exactly what "Update mods to fit" picks up
+  // the bundle has a 26.2 copy: fine
+  assert.ok(!by["ClientSideCrystals-26.3.jar"] || by["ClientSideCrystals-26.3.jar"].reason !== "wrong-mc");
+  // ...and "Update mods to fit" picks up only the one that really won't load
   const { syncCandidates } = require("../src/main/modsSync");
-  assert.deepEqual(syncCandidates(r.issues).map((i) => i.file).sort(), ["ClientSideCrystals-26.3.jar", "jei-26.3-fabric.jar"]);
+  assert.deepEqual(syncCandidates(r.issues).map((i) => i.file).sort(), ["jei-26.3-fabric.jar"]);
+
+  const old = await instanceWith("full-12110", "1.21.10", { "ClientSideCrystals-26.3.jar": crystalsBundle });
+  const r2 = await compat.checkInstance(old, { force: true, deps: deps() });
+  const csc = r2.issues.find((i) => i.file === "ClientSideCrystals-26.3.jar");
+  assert.equal(csc.severity, "blocked");
+  assert.match(csc.detail, /carries a copy for several Minecraft versions, but none of them is for 1\.21\.10/);
 });
 
 /* ---------------- the game's own report ---------------- */

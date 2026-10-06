@@ -658,7 +658,7 @@ function findDependencyProblems(mods, { loader = "fabric", hasConnector = false 
  * Why this exists (a real instance, Fabric 26.2, October 2026): three mods
  * stopped the game and the old check saw none of them.
  *  - ClientSideCrystals-26.3.jar and AnchorOptimizer-26.3.jar are
- *    multi-version bundles. Their outer fabric.mod.json says
+ *    multi-version bundles (see 7 Oct below for what was really going on). Their outer fabric.mod.json says
  *    ">=1.21 <=26.3" / ">=26.1 <=26.3" (26.2 passes that), but they carry
  *    one nested jar per Minecraft version under META-INF/jars/, each with
  *    the SAME mod id. Fabric doesn't pick the copy that fits: of several
@@ -667,16 +667,29 @@ function findDependencyProblems(mods, { loader = "fabric", hasConnector = false 
  *  - jei-26.3-fabric-*.jar carries MezzConfig, whose own fabric.mod.json
  *    needs exactly 26.3. Nothing else has MezzConfig, so it is loaded.
  *
+ * Tested again in the real game, 7 Oct 2026: the SAME ClientSideCrystals-26.3
+ * bundle on 26.2 started fine (Fabric took its nested 26.2 copy), and the
+ * 1.21.X-26.X bundle on 1.21.11 took its 1.21.11 copy. Fabric's resolver
+ * does pick a copy that fits when the copies have different versions; the
+ * October 3rd failure came from something else in that instance.
+ *
  * The rule, per mod id that has at least one packed copy:
  *  1. Every loaded copy counts: jars in the folder and copies packed inside
  *     any of them.
- *  2. The copy Fabric loads is the highest version. If the highest version
- *     is shared by several copies (versions that only differ after a "+",
- *     like 1.0.6+26.3 and 1.0.6+26.2, ARE equal to Fabric) or a version
- *     can't be read, which copy loads can't be told.
- *  3. If that copy is a packed one and its "depends.minecraft" fails this
- *     version, the OUTER jar won't load: "blocked".
- *  4. A false "blocked" is the worst outcome, so it is "blocked" only when
+ *  2. If a copy fits this Minecraft version and no copy that doesn't fit has
+ *     the same version, Fabric takes a fitting one: nothing to report.
+ *     Versions that only differ after a "+" (1.0.6+26.3 and 1.0.6+26.2) ARE
+ *     equal to Fabric, so which of those it takes can't be told: a warning.
+ *  3. Packed copies are optional to Fabric: one that doesn't fit is simply
+ *     left out, unless a loaded mod needs that id ("depends") or the id also
+ *     has a jar of its own in the folder. BetterHurtCam 1.5.5 packs one mod
+ *     per Minecraft version (betterhurtcam-mc114 ... -mc120, nothing needs
+ *     them) and starts fine on 1.20.1; JEI needs its packed MezzConfig and
+ *     Client Side Crystals' outer jar needs "clientsidecrystals".
+ *  4. If such a needed id has no copy that fits, the outer jar won't load:
+ *     "blocked". (When a version can't be read, the highest-version guess
+ *     below is used, and it is never more than a warning.)
+ *  5. A false "blocked" is the worst outcome, so it is "blocked" only when
  *     every copy that could be the one loaded fails, every requirement
  *     involved could be read, and no unreadable packed jar could be another
  *     copy. Anything less certain is a warning (and the game's own report
@@ -702,9 +715,13 @@ function findNestedMcProblems(mods, { loader = "fabric", mcVersion, hasConnector
     for (const n of nestedModsOf(m)) add(n.id, { item: m, version: n.version, nested: true, mcDep: n.mcDep || null, name: n.name || n.id });
   }
   const verdict = (c) => (c.mcDep ? fabricPredicateAllows(c.mcDep, mcVersion) : true);
+  // ids something loaded asks for: a packed copy nobody needs is just left out
+  const needed = new Set();
+  for (const m of live) for (const dep of Object.keys(m.depends || {})) needed.add(dep.toLowerCase());
   const out = [];
   for (const [id, list] of candidates) {
     if (!list.some((c) => c.nested && c.mcDep)) continue;
+    if (!needed.has(id) && list.every((c) => c.nested)) continue;
     const parsed = list.map((c) => parseVer(c.version));
     const readable = parsed.every(Boolean);
     let top = list;
@@ -712,9 +729,14 @@ function findNestedMcProblems(mods, { loader = "fabric", mcVersion, hasConnector
       const best = parsed.reduce((a, b) => (compareVer(a, b) >= 0 ? a : b));
       top = list.filter((c, i) => compareVer(parsed[i], best) === 0);
     }
-    const failing = top.filter((c) => c.nested && verdict(c) === false);
+    const failing = (readable ? list : top).filter((c) => c.nested && verdict(c) === false);
     if (!failing.length) continue;
-    const certain = top.every((c) => verdict(c) === false) && !unreadMayProvide(id, live);
+    if (readable) {
+      const fits = list.filter((c) => verdict(c) !== false);
+      // a fitting copy Fabric can tell apart from every failing one: it takes that one
+      if (fits.length && !fits.some((f) => failing.some((c) => compareVer(parseVer(f.version), parseVer(c.version)) === 0))) continue;
+    }
+    const certain = readable && list.every((c) => verdict(c) === false) && !unreadMayProvide(id, live);
     const seen = new Set();
     for (const c of failing) {
       if (seen.has(c.item.file)) continue;
@@ -999,7 +1021,9 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
     if (!item) continue;
     const outer = displayName(item);
     const what = p.bundle
-      ? `${outer} carries a copy for each Minecraft version, and Fabric loads the newest one (${p.version || "?"}), which needs Minecraft ${p.need}`
+      ? p.certain
+        ? `${outer} carries a copy for several Minecraft versions, but none of them is for ${instance.mcVersion}`
+        : `${outer} carries a copy for several Minecraft versions, and Fabric can't tell its ${p.version || "?"} copy (needs Minecraft ${p.need}) from the one that fits`
       : `${outer} contains ${p.name}, which needs Minecraft ${p.need}`;
     const verdict = {
       severity: p.certain ? "blocked" : "warn",
