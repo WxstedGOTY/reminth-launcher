@@ -167,3 +167,6 @@ release-*/
 tools/overnight/*-game/
 tools/overnight/*-shots/
 tools/overnight/*.jsonl
+
+# Local notes: chat logs and personal context, never committed (public repo)
+local-notes/
