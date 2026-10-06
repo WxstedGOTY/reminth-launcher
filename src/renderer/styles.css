@@ -1649,6 +1649,10 @@ body.privacy .log-pane:not(.revealed) .log-veil {
 /* ── modals ────────────────────────────────────────────────── */
 .modal-root { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 30px; background: rgba(3, 5, 10, .66); backdrop-filter: blur(6px); animation: fade .15s ease-out; }
 .modal-root[hidden] { display: none; }
+/* A dialog opened from another dialog sits ON it (same grid cell), not in a new row below it, where it was half off
+   the screen. The one underneath is dimmed and can't be clicked (it is inert). */
+.modal-root > .modal { grid-area: 1 / 1; position: relative; } /* position: the newest one paints on top even when the one below is dimmed (filter) */
+.modal-root > .modal[inert] { filter: brightness(.55); }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .modal {
   width: min(560px, 100%); max-height: calc(100vh - 60px); display: flex; flex-direction: column;
