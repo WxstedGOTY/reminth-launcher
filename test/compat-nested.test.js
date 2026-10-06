@@ -342,3 +342,20 @@ test("content.checkUpdates: each update says its channel, so the list can tag a 
     Object.assign(modrinth, real);
   }
 });
+
+test("findMissingLibraries: a library a jar requires that is nowhere (Status Effect Bars needs Cloth Config)", () => {
+  const seb = { file: "status-effect-bars-1.0.10.jar", modId: "status-effect-bars", descriptors: { fabric: true }, depends: { minecraft: ">=1.21", fabricloader: "*", "fabric-api": "*", "cloth-config2": "*", java: ">=21" } };
+  const here = (list) => new Set(list);
+  const m = compat.findMissingLibraries([seb], { loader: "fabric", idsHere: here(["status-effect-bars", "fabric-api"]) });
+  assert.deepEqual([...m.keys()], ["cloth-config2"]);
+  // there (by id, by a spelling with "_" for "-", or as something a jar provides): nothing missing
+  assert.equal(compat.findMissingLibraries([seb], { loader: "fabric", idsHere: here(["cloth-config2"]) }).size, 0);
+  assert.equal(compat.findMissingLibraries([seb], { loader: "fabric", idsHere: here(["cloth_config2"]) }).size, 0);
+  // an unread packed jar that could be it: not claimed
+  const big = { file: "big.jar", modId: "big", nestedUnread: true, nestedUnreadNames: ["META-INF/jars/cloth-config2-fabric-15.jar"] };
+  assert.equal(compat.findMissingLibraries([seb, big], { loader: "fabric", idsHere: here([]) }).size, 0);
+  // Fabric API modules, the loader, Java and Minecraft are never "missing libraries"; Forge doesn't read this at all
+  const api = { file: "x.jar", modId: "x", descriptors: { fabric: true }, depends: { "fabric-rendering-v1": "*", fabric: "*", quilt_loader: "*" } };
+  assert.equal(compat.findMissingLibraries([api], { loader: "fabric", idsHere: here([]) }).size, 0);
+  assert.equal(compat.findMissingLibraries([seb], { loader: "neoforge", idsHere: here([]) }).size, 0);
+});

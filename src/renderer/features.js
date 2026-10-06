@@ -5963,6 +5963,8 @@ async function openPurposeSetup(instanceId, goalIds) {
             let msg = failed.length
               ? `${done.length} added to ${inst.name}. Couldn't add: ${failed.map((r) => r.title).join(", ")}.`
               : `${done.length} added to ${inst.name}, with settings ready. Press Play.`;
+            const extra = finish && Array.isArray(finish.added) ? finish.added : [];
+            if (extra.length) msg += ` Also added ${extra.join(", ")}, which they need.`;
             if (off.length) msg += ` Turned off (no working build for ${inst.mcVersion} yet): ${off.join(", ")}.`;
             toast(msg);
             return true;

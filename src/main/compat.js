@@ -462,6 +462,56 @@ function builtForNewerOnly(games, mcVersion) {
 // Things a Fabric mod can "depend" on that aren't mods in the folder.
 const NOT_A_MOD = new Set(["minecraft", "java", "fabricloader", "fabric-loader", "quilt_loader", "quilt_base", "mixinextras"]);
 
+// Mod ids that aren't their Modrinth project's slug, for libraries a jar asks for by id (the rest are looked up by id).
+const LIBRARY_PROJECTS = {
+  "cloth-config2": "cloth-config",
+  "cloth-config": "cloth-config",
+  yet_another_config_lib_v3: "yacl",
+  owo: "owo-lib",
+  libipn: "libipn",
+  architectury: "architectury-api",
+  "fabric-language-kotlin": "fabric-language-kotlin",
+  xaerolib: "xaerolib",
+  geckolib: "geckolib",
+  ukulib: "ukulib",
+  "placeholder-api": "placeholder-api",
+  midnightlib: "midnightlib",
+  puzzleslib: "puzzles-lib",
+  forgeconfigapiport: "forge-config-api-port",
+  balm: "balm",
+  bookshelf: "bookshelf-lib",
+  konkrete: "konkrete",
+  fancymenu: "fancymenu",
+  searchables: "searchables",
+  spruceui: "spruceui",
+  lambdynlights_api: "lambdynamiclights",
+};
+
+/**
+ * Pure: mod ids a loaded jar's own fabric.mod.json requires ("depends") that nothing in the instance is - not a jar,
+ * not something a jar "provides", not a packed copy. Fabric refuses to start then ("requires any version of
+ * cloth-config2, which is missing!" - Status Effect Bars 1.0.10, whose Modrinth page doesn't list Cloth Config).
+ * The loader, Minecraft, Java and Fabric API (reported on its own) aren't counted, nor an id an unread packed jar may
+ * hold. Returns Map(id -> [asking items]).
+ */
+function findMissingLibraries(mods, { loader = "fabric", idsHere = new Set() } = {}) {
+  const out = new Map();
+  if (!isFabricLike(loader)) return out;
+  const squashed = new Set([...idsHere].map(squashId));
+  for (const m of mods || []) {
+    if (!m || m.environment === "server" || !fabricRulesApply(m, loader)) continue;
+    if (loader === "quilt" && m.descriptors && m.descriptors.quilt && m.descriptors.fabric) continue;
+    for (const id of Object.keys(m.depends || {})) {
+      const key = id.toLowerCase();
+      if (NOT_A_MOD.has(key) || FABRIC_API_PROVIDERS.has(key) || /^fabric[-_]/.test(key) || /^quilt/.test(key)) continue;
+      if (idsHere.has(key) || squashed.has(squashId(key)) || unreadMayProvide(key, mods)) continue;
+      if (!out.has(key)) out.set(key, []);
+      if (!out.get(key).includes(m)) out.get(key).push(m);
+    }
+  }
+  return out;
+}
+
 /**
  * Pure: could a jar tucked inside another mod be supplying `id`? Mods can
  * carry other mods inside them, and the loader uses the newest copy it
@@ -1203,6 +1253,37 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
     }
   }
 
+  // --- a library a jar itself requires that isn't anywhere: the game won't start
+  const libs = findMissingLibraries(loaded, { loader, idsHere });
+  if (libs.size) {
+    let found_ = [];
+    if (result.online) {
+      try {
+        found_ = (await api.getProjects([...new Set([...libs.keys()].map((id) => LIBRARY_PROJECTS[id] || id))])) || [];
+      } catch {
+        found_ = [];
+      }
+    }
+    for (const [id, askers] of libs) {
+      const slug = LIBRARY_PROJECTS[id] || id;
+      const p = found_.find((x) => x && (x.slug === slug || x.id === slug)) || null;
+      const title = (p && p.title) || id;
+      result.issues.push({
+        file: null,
+        title,
+        iconUrl: (p && p.icon_url) || null,
+        projectId: (p && p.id) || null,
+        severity: "blocked",
+        reason: "missing-dep",
+        madeFor: null,
+        detail: `${askers.length === 1 ? displayName(askers[0]) + " needs" : askers.length + " of your mods need"} ${title}, and it isn't installed. The game won't start without it.`,
+        neededBy: askers.slice(0, 12).map(displayName),
+        neededByFiles: askers.slice(0, 12).map((a) => a.file),
+        fix: p ? { type: "install", label: `Install ${title}`, projectId: p.id, title } : { type: "disable", label: `Switch off ${displayName(askers[0])}` },
+      });
+    }
+  }
+
   // --- anything else Modrinth says a mod requires that isn't here
   if (result.online) {
     // "Already here" means LOADED: a switched-off copy doesn't satisfy
@@ -1229,6 +1310,8 @@ async function checkInstance(instance, { force = false, localOnly = false, deps 
       const alreadyApi = result.issues.some((i) => i.reason === "missing-dep");
       for (const p of projects) {
         if (!p || !missing.has(p.id)) continue;
+        // already reported from what the jars themselves say
+        if (result.issues.some((i) => i.reason === "missing-dep" && i.projectId === p.id)) continue;
         // Fabric API was already reported above, from what the jars say.
         if (alreadyApi && (p.slug === FABRIC_API || p.slug === QUILT_API)) continue;
         // On Quilt the Fabric API is provided by its Quilt port.
@@ -1614,6 +1697,7 @@ module.exports = {
   versionSatisfies,
   findDependencyProblems,
   findNestedMcProblems,
+  findMissingLibraries,
   parseIncompatibleMods,
   minecraftMismatches,
   mapReportToFiles,

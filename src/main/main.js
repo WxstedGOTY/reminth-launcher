@@ -550,20 +550,23 @@ ipcMain.handle("purpose:finish", async (_e, id, goalIds, slugs, startedAt) => {
   }
   const queued = files.length ? await purposes.queuePacks(inst.gameDir, files) : false;
   const since = Number.isFinite(startedAt) && startedAt > 0 ? startedAt : null;
-  const turnedOff = await turnOffWhatWontLoad(inst, chosen, since).catch(() => []);
-  return { configs, packsQueued: queued ? files.length : 0, turnedOff };
+  const fixed = await turnOffWhatWontLoad(inst, chosen, since).catch(() => ({ off: [], added: [] }));
+  return { configs, packsQueued: queued ? files.length : 0, turnedOff: fixed.off, added: fixed.added };
 });
 
 // After a playstyle install: a mod from the list that the compatibility check says would stop the game (a build that
 // is tagged for this version on Modrinth but whose jar asks for another one) is switched off - never deleted - with
 // the reason kept, so the instance starts. Only files this install added are touched: the list's own mods, and the
 // libraries they pulled in (put in since `since`). Switching a library off makes the mods that need it "won't load"
-// too (they are switched off with it), so it checks again, up to three times.
+// too (they are switched off with it), so it checks again, up to four times.
+// A library one of them requires that is missing altogether (Status Effect Bars needs Cloth Config, which its page
+// doesn't list) is installed first. Returns { off: [{ file, title }], added: [title] }.
 async function turnOffWhatWontLoad(inst, slugs, since) {
-  if (!slugs.length) return [];
+  const added = [];
+  if (!slugs.length) return { off: [], added };
   const projects = await modrinth.getProjects(slugs).catch(() => []);
   const ids = new Set((projects || []).map((p) => p && p.id).filter(Boolean));
-  if (!ids.size) return [];
+  if (!ids.size) return { off: [], added };
   const manifest = await content.readManifest(inst.gameDir);
   const ours = new Map(); // file -> title from the list or the manifest
   for (const [key, entry] of Object.entries((manifest && manifest.files) || {})) {
@@ -582,13 +585,36 @@ async function turnOffWhatWontLoad(inst, slugs, since) {
       return false; // left on; the instance page shows it as "won't load" with its fix
     }
   };
-  for (let round = 0; round < 3; round++) {
+  const tried = new Set();
+  for (let round = 0; round < 4; round++) {
     compat.invalidate(inst.id);
     const report = await compat.checkInstance(inst, { force: true });
-    const hits = (report.issues || []).filter((i) => i.severity === "blocked" && ours.has(i.file) && !out.some((o) => o.file === i.file));
     let changed = false;
+    // missing libraries our mods need: put them in (once each)
+    for (const issue of report.issues || []) {
+      if (issue.severity !== "blocked" || issue.reason !== "missing-dep" || !issue.fix || issue.fix.type !== "install") continue;
+      if (!(issue.neededByFiles || []).some((f) => ours.has(f)) || tried.has(issue.fix.projectId)) continue;
+      tried.add(issue.fix.projectId);
+      try {
+        await content.install(inst, { projectId: issue.fix.projectId, kind: "mod" }, () => {});
+        added.push(issue.title);
+        changed = true;
+      } catch {
+        // not installable: the mods that need it are switched off below on the next check
+      }
+    }
+    if (changed) continue;
+    const hits = (report.issues || []).filter((i) => i.severity === "blocked" && ours.has(i.file) && !out.some((o) => o.file === i.file));
     for (const issue of hits) {
       if (await off(issue.file, ours.get(issue.file) || issue.title || issue.file, issue.detail || "It wouldn't let the game start.")) changed = true;
+    }
+    // a library that couldn't be put in: the mods from this install that need it go off
+    for (const issue of report.issues || []) {
+      if (issue.severity !== "blocked" || issue.reason !== "missing-dep") continue;
+      for (const f of issue.neededByFiles || []) {
+        if (!ours.has(f) || out.some((o) => o.file === f)) continue;
+        if (await off(f, ours.get(f) || f, issue.detail || "A library it needs is missing.")) changed = true;
+      }
     }
     // A mod from this install that requires one that is now off (and nothing else switched on gives that id) can't
     // start either: off too, with the reason.
@@ -608,7 +634,7 @@ async function turnOffWhatWontLoad(inst, slugs, since) {
     if (!changed) break;
   }
   compat.invalidate(inst.id);
-  return out;
+  return { off: out, added };
 }
 
 // ---- performance profiles and the performance pack (instance page) ----
