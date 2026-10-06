@@ -3193,6 +3193,8 @@ document.addEventListener("DOMContentLoaded", () => boot().finally(bootDone));
     if (readyAt !== null && now - readyAt >= 350) {
       if (finished) return;
       finished = true;
+      // Whatever page the warm-up is on goes back before the splash fades.
+      if (window.reminthPrewarmStop) window.reminthPrewarmStop();
       splash.classList.add("done");
       setTimeout(() => splash.remove(), 260);
       return;
@@ -3201,7 +3203,11 @@ document.addEventListener("DOMContentLoaded", () => boot().finally(bootDone));
   };
   requestAnimationFrame(frame);
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const ready = booted.then(() => (window.reminthWarm ? window.reminthWarm() : null)).catch(() => {});
+  // Signed in: every heavy page is shown once under the splash (features.js prewarmPages); otherwise only the
+  // skin data is prepared.
+  const ready = booted
+    .then(() => (window.reminthPrewarmPages ? window.reminthPrewarmPages() : window.reminthWarm ? window.reminthWarm() : null))
+    .catch(() => {});
   Promise.race([Promise.all([ready, wait(MIN_MS)]), wait(MAX_MS)]).then(() => {
     readyFrom = shown;
     readyAt = performance.now();

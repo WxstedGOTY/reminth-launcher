@@ -3444,6 +3444,66 @@ function warmSkinsPage() {
 }
 window.reminthWarm = warmSkinsPage;
 
+/**
+ * Under the loading screen: show every heavy page once for real, so its layout, drawing and GPU upload happen
+ * now instead of on the player's first click. (A page built while hidden - display:none - still pays all of that
+ * the first time it is shown; the Skins page did exactly that.) The splash covers the screen the whole time.
+ * Stops at once when the loading screen ends (prewarm.stop) or when anything else switches the page (a
+ * reminth:// link), and always puts the page that was showing back.
+ */
+const PREWARM_PAGES = ["skins", "settings", "library", "stats", "streamer", "discover"];
+const prewarm = { active: false, start: null, mine: null };
+const nextFrame = () => new Promise((r) => requestAnimationFrame(() => r()));
+async function prewarmPages() {
+  if (!state.signedIn || prewarm.active) return;
+  await warmSkinsPage(); // the skin lists and the viewer's data first
+  prewarm.active = true;
+  prewarm.start = currentPage;
+  try {
+    for (const page of PREWARM_PAGES) {
+      if (!prewarm.active || !state.signedIn) break;
+      // Someone else switched the page (a link): leave it there, stop warming.
+      if (prewarm.mine && currentPage !== prewarm.mine) {
+        prewarm.start = null;
+        break;
+      }
+      prewarm.mine = page;
+      switchPage(page);
+      await nextFrame();
+      await nextFrame();
+      if (page === "skins") {
+        // the 3D viewer draws and uploads its textures in its first frames
+        await nextFrame();
+        await nextFrame();
+      }
+      if (page === "discover") {
+        // the first list of projects arrives a moment later; it has to be drawn while visible too
+        const grid = $("browseGrid");
+        const until = performance.now() + 1500;
+        while (prewarm.active && performance.now() < until && (grid.classList.contains("loading") || !grid.children.length)) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+        await nextFrame();
+        await nextFrame();
+      }
+    }
+  } finally {
+    stopPrewarm();
+  }
+}
+/** Ends the warm-up now and shows the page that was there before it (unless a link switched it meanwhile). */
+function stopPrewarm() {
+  if (!prewarm.active) return;
+  prewarm.active = false;
+  const back = prewarm.start;
+  const stillOurs = prewarm.mine && currentPage === prewarm.mine;
+  prewarm.mine = null;
+  prewarm.start = null;
+  if (back && stillOurs && currentPage !== back) switchPage(back);
+}
+window.reminthPrewarmPages = prewarmPages;
+window.reminthPrewarmStop = stopPrewarm;
+
 /* ================================================================== *
  * 6. streamer mode                                                    *
  * ================================================================== */
