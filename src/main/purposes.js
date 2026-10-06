@@ -294,14 +294,20 @@ function tabsFor(goalIds, instance) {
   const keep = (items) => items.filter((i) => fitsLoader(i, loader));
   const seen = new Set();
   const dedupe = (items) => items.filter((i) => (seen.has(i.slug) ? false : (seen.add(i.slug), true)));
+  // Recommended in ANY picked playstyle wins: such an item is never shown (unticked) under another one's "More".
+  const withPerf = !many || ids.includes("performance");
+  const recommended = new Set();
+  for (const id of ids) if (GOALS[id]) for (const i of GOALS[id].core) recommended.add(i.slug);
+  if (withPerf) for (const i of PERFORMANCE.core) recommended.add(i.slug);
+  const notRecommended = (items) => items.filter((i) => !recommended.has(i.slug));
   const tabs = [];
   for (const id of ids) {
     if (id === "performance") continue;
     const goal = GOALS[id];
-    tabs.push({ id: many ? id : "goal", title: goal.title, note: null, core: dedupe(keep(goal.core)).map(strip), more: dedupe(keep(goal.more)).map(strip) });
+    tabs.push({ id: many ? id : "goal", title: goal.title, note: null, core: dedupe(keep(goal.core)).map(strip), more: dedupe(notRecommended(keep(goal.more))).map(strip) });
   }
-  if (!many || ids.includes("performance")) {
-    tabs.push({ id: "performance", title: "Performance", note: PERFORMANCE_NOTE, core: dedupe(keep(PERFORMANCE.core)).map(strip), more: dedupe(keep(PERFORMANCE.more)).map(strip) });
+  if (withPerf) {
+    tabs.push({ id: "performance", title: "Performance", note: PERFORMANCE_NOTE, core: dedupe(keep(PERFORMANCE.core)).map(strip), more: dedupe(notRecommended(keep(PERFORMANCE.more))).map(strip) });
   }
   return tabs;
 }

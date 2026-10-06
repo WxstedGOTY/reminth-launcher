@@ -188,3 +188,17 @@ test("several playstyles at once: one tab each, Performance only when it was tic
   const pvp = tabs[0].core.map((i) => i.slug);
   for (const s of ["small-shield-totem", "small-tools-", "marlow-crystal-optimizer", "anchoroptimizer"]) assert.ok(pvp.includes(s), s);
 });
+
+test("crystal and sword picked together: everything sword recommends is still recommended (not hidden under crystal's More)", () => {
+  const tabs = purposes.tabsFor(["crystal", "sword"], { loader: "fabric" });
+  const ticked = new Set(tabs.flatMap((t) => t.core.map((i) => i.slug)));
+  const unticked = new Set(tabs.flatMap((t) => t.more.map((i) => i.slug)));
+  for (const s of ["crittweaks", "hitcolorx", "clean-keystrokes", "cps-plus"]) {
+    assert.ok(ticked.has(s), s);
+    assert.ok(!unticked.has(s), s);
+  }
+  // and for all four: no item is both in a Recommended and a More list
+  const four = purposes.tabsFor(["crystal", "sword", "survival", "performance"], { loader: "fabric" });
+  const rec = new Set(four.flatMap((t) => t.core.map((i) => i.slug)));
+  for (const i of four.flatMap((t) => t.more)) assert.ok(!rec.has(i.slug), i.slug);
+});
