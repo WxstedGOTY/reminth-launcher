@@ -219,37 +219,28 @@ const GOALS = {
       pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens."),
     ],
   },
-
-  creative: {
-    id: "creative",
-    title: "Creative & building",
-    blurb: "Big builds, schematics and screenshots.",
-    core: [
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
-      mod("clientsort", "Client Sort", "A button to sort chests and your inventory."),
-      mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
-      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
-      mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
-      mod("jade", "Jade", "Shows what block or mob you are looking at."),
-      mod("litematica", "Litematica", "Shows a build as a ghost in the world, so you can copy builds and schematics.", {
-        warning: "Some servers don't allow it. Fine in singleplayer and on your own server.",
-      }),
-      mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
-      pack("clear-glass", "Clear Glass", "Glass panes connect smoothly with no lines."),
-      pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
-    ],
-    more: [
-      mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen.", { warning: MINIMAP }),
-      mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored.", { warning: MINIMAP }),
-      mod("lambdynamiclights", "LambDynamicLights", "Torches and other lit items light up the area around you."),
-      mod("chat-heads", "Chat Heads", "Shows the sender's head next to chat messages."),
-      mod("simple-voice-chat", "Simple Voice Chat", "Talk to people near you. The server needs the mod too."),
-      pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens."),
-    ],
-  },
 };
 
+// "PvP" is what the player picks: crystal and sword/axe fights share almost every mod, so one list
+// (crystal's first, then whatever only the sword list has). The two separate lists stay as the source.
+// An item that is recommended in either list stays recommended; the rest go to "More".
+(function mergePvp() {
+  const seen = new Set();
+  const take = (items) => items.filter((i) => (seen.has(i.slug) ? false : (seen.add(i.slug), true)));
+  const core = take([...GOALS.crystal.core, ...GOALS.sword.core]);
+  const more = take([...GOALS.crystal.more, ...GOALS.sword.more]);
+  GOALS.pvp = {
+    id: "pvp",
+    title: "PvP",
+    blurb: "Crystal PvP and sword & axe fights: totems, armor, keystrokes, a clear screen.",
+    core,
+    more,
+  };
+})();
+
 const GOAL_IDS = Object.keys(GOALS);
+// What the player is offered. crystal and sword stay valid ids (tests, old calls) but are not shown on their own.
+const LISTED_GOALS = ["pvp", "survival"];
 
 /* ------------------------------------------------------------------ */
 /* pure parts                                                          */
@@ -257,7 +248,7 @@ const GOAL_IDS = Object.keys(GOALS);
 
 /** Pure: what the renderer shows on the first step - [{ id, title, blurb }]. */
 function list() {
-  return GOAL_IDS.map((id) => ({ id, title: GOALS[id].title, blurb: GOALS[id].blurb }));
+  return LISTED_GOALS.map((id) => ({ id, title: GOALS[id].title, blurb: GOALS[id].blurb }));
 }
 
 /** Pure: can an item go into an instance with this loader? Resource packs fit every loader. */
@@ -546,6 +537,7 @@ async function applyPendingPacks(gameDir, { clientJar } = {}) {
 module.exports = {
   GOALS,
   GOAL_IDS,
+  LISTED_GOALS,
   PERFORMANCE,
   PERFORMANCE_NOTE,
   CFG,

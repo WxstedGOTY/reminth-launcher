@@ -151,3 +151,14 @@ test("queued packs are switched on once, only if the file still exists, and the 
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("the player is offered PvP and Survival only; PvP holds the crystal and the sword/axe items; no Creative", () => {
+  assert.deepEqual(purposes.list().map((g) => g.id), ["pvp", "survival"]);
+  assert.ok(!purposes.GOAL_IDS.includes("creative"));
+  const [goal] = purposes.tabsFor("pvp", { loader: "fabric" });
+  const slugs = new Set([...goal.core, ...goal.more].map((i) => i.slug));
+  for (const id of ["marlow-crystal-optimizer", "anchoroptimizer", "short-pvp-swords", "hitcolorx", "totemcounter"]) assert.ok(slugs.has(id), id);
+  // still one crystal optimizer recommended, the second is only a "more" item
+  assert.ok(goal.core.some((i) => i.slug === "marlow-crystal-optimizer"));
+  assert.ok(!goal.core.some((i) => i.slug === "clientsidecrystals"));
+});
