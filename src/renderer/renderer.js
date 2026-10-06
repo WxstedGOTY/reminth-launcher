@@ -1744,11 +1744,16 @@ function openInstanceModal(existing) {
           // build for this version the switch can't be used, and the stored
           // choice (a missing value = on) is left as it is.
           const home = (pick.loader === "fabric" || pick.loader === "quilt") && pick.homeTouched && !homeSwitch.disabled ? { homeScreen: pick.home } : {};
-          // A new Fabric/Quilt instance: PvP, Survival or None first. Cancelling that creates nothing.
+          // A new Fabric/Quilt instance: the playstyle cards next. This dialog steps out of the way meanwhile and
+          // comes back if the cards are closed with the X (nothing is created then); Skip makes a plain instance.
           let playstyle = null;
           if (!editing && (pick.loader === "fabric" || pick.loader === "quilt") && typeof choosePlaystyle === "function") {
-            playstyle = await choosePlaystyle({ withNone: true, instanceName: name });
-            if (!playstyle) return false;
+            dialog.modal.style.display = "none";
+            playstyle = await choosePlaystyle({ instanceName: name });
+            if (!playstyle) {
+              dialog.modal.style.display = "";
+              return false;
+            }
           }
           saving = true;
           handle.buttons[0].disabled = true;
@@ -1773,8 +1778,8 @@ function openInstanceModal(existing) {
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);
               // The mod list for the playstyle picked before (None: nothing), then the profile's own suggestions.
-              if (playstyle && playstyle !== "none" && typeof openPurposeSetup === "function") {
-                openPurposeSetup(inst.id, playstyle).then(() => {
+              if (playstyle && playstyle.action === "finish" && typeof openPurposeSetup === "function") {
+                openPurposeSetup(inst.id, playstyle.goals).then(() => {
                   if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
                 });
               } else if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
@@ -1786,6 +1791,7 @@ function openInstanceModal(existing) {
           } finally {
             saving = false;
             handle.buttons[0].disabled = false;
+            if (dialog) dialog.modal.style.display = ""; // back if the create failed (closed anyway when it worked)
           }
         },
       },

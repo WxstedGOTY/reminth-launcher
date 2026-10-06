@@ -517,14 +517,16 @@ ipcMain.handle("perf:gpuHelp", async () => {
 
 // ---- "what is this instance for?": researched mod and resource pack lists (purposes.js) ----
 ipcMain.handle("purpose:list", () => purposes.list());
-ipcMain.handle("purpose:items", async (_e, id, goalId) => purposes.listFor(String(goalId), await instances.require(id)));
+// One playstyle id, or the list the player ticked (["pvp", "survival", "performance"]).
+const goalIdsArg = (g) => (Array.isArray(g) ? g.map(String).slice(0, 8) : String(g));
+ipcMain.handle("purpose:items", async (_e, id, goalIds) => purposes.listFor(goalIdsArg(goalIds), await instances.require(id)));
 // After the chosen ones were installed (the ordinary content install, from the renderer): their ready-made
 // settings go into config/ (never over an existing file) and the resource packs are switched on for the next start.
-ipcMain.handle("purpose:finish", async (_e, id, goalId, slugs) => {
+ipcMain.handle("purpose:finish", async (_e, id, goalIds, slugs) => {
   const inst = await instances.require(id);
   const chosen = (Array.isArray(slugs) ? slugs : []).filter((s) => typeof s === "string").slice(0, 80);
-  const configs = await purposes.writeConfigs(inst.gameDir, String(goalId), chosen);
-  const items = purposes.itemBySlug(String(goalId));
+  const configs = await purposes.writeConfigs(inst.gameDir, goalIdsArg(goalIds), chosen);
+  const items = purposes.itemBySlug(goalIdsArg(goalIds));
   const packSlugs = chosen.filter((s) => items.get(s) && items.get(s).kind === "resourcepack");
   const files = [];
   if (packSlugs.length) {

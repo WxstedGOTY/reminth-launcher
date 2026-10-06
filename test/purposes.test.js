@@ -28,7 +28,7 @@ test("every playstyle has recommended and less important items, and none is on t
     assert.ok(tabs[0].core.length >= 8, `${id} has too few recommended items`);
     assert.ok(tabs[0].more.length >= 4, `${id} has too few "more" items`);
     const total = tabs.reduce((n, t) => n + t.core.length + t.more.length, 0);
-    assert.ok(total >= 20 && total <= 45, `${id}: ${total} items`);
+    assert.ok(total >= 20 && total <= 60, `${id}: ${total} items`);
     for (const t of tabs) for (const i of [...t.core, ...t.more]) assert.ok(!FORBIDDEN.includes(i.slug), `${id}: ${i.slug} is on the forbidden list`);
   }
 });
@@ -153,7 +153,7 @@ test("queued packs are switched on once, only if the file still exists, and the 
 });
 
 test("the player is offered PvP and Survival only; PvP holds the crystal and the sword/axe items; no Creative", () => {
-  assert.deepEqual(purposes.list().map((g) => g.id), ["pvp", "survival"]);
+  assert.deepEqual(purposes.list().map((g) => g.id), ["pvp", "survival", "performance"]);
   assert.ok(!purposes.GOAL_IDS.includes("creative"));
   const [goal] = purposes.tabsFor("pvp", { loader: "fabric" });
   const slugs = new Set([...goal.core, ...goal.more].map((i) => i.slug));
@@ -161,4 +161,17 @@ test("the player is offered PvP and Survival only; PvP holds the crystal and the
   // still one crystal optimizer recommended, the second is only a "more" item
   assert.ok(goal.core.some((i) => i.slug === "marlow-crystal-optimizer"));
   assert.ok(!goal.core.some((i) => i.slug === "clientsidecrystals"));
+});
+
+test("several playstyles at once: one tab each, Performance only when it was ticked, every item once", () => {
+  const tabs = purposes.tabsFor(["pvp", "survival", "performance"], { loader: "fabric" });
+  assert.deepEqual(tabs.map((t) => t.id), ["pvp", "survival", "performance"]);
+  const all = tabs.flatMap((t) => [...t.core, ...t.more].map((i) => i.slug));
+  assert.equal(all.length, new Set(all).size, "no item twice");
+  assert.deepEqual(purposes.tabsFor(["survival"], { loader: "fabric" }).map((t) => t.id), ["survival"]);
+  assert.deepEqual(purposes.tabsFor(["performance"], { loader: "fabric" }).map((t) => t.id), ["performance"]);
+  assert.equal(purposes.tabsFor([], { loader: "fabric" }), null);
+  // PvP recommends the small shield/totem and small tools packs and the crystal and anchor optimizers
+  const pvp = tabs[0].core.map((i) => i.slug);
+  for (const s of ["small-shield-totem", "small-tools-", "marlow-crystal-optimizer", "anchoroptimizer"]) assert.ok(pvp.includes(s), s);
 });

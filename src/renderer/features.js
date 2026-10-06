@@ -5717,42 +5717,81 @@ function openProfileExtras(instanceId, profile) {
 const PLAYSTYLE_FALLBACK = [
   { id: "pvp", title: "PvP", blurb: "Crystal PvP and sword & axe fights." },
   { id: "survival", title: "Survival", blurb: "Survival worlds and servers." },
+  { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading." },
 ];
 
 /**
- * The playstyle question: PvP, Survival (and "None" when making a new instance). Resolves with the chosen id,
- * "none", or null when the player cancels (then nothing is made or changed).
+ * The playstyle picture cards (PvP, Survival, Performance): pick any number, each picked card glows; Finish or Skip.
+ * Pictures come from assets/playstyles/<id>.jpg when they exist (see the README there), over a coloured fallback.
+ * Resolves { action: "finish", goals: [ids] }, { action: "skip" }, or null when closed with the X / Esc.
  */
-function choosePlaystyle({ withNone = false, instanceName = "" } = {}) {
+function choosePlaystyle({ instanceName = "" } = {}) {
   return new Promise((resolve) => {
-    let chosen = null;
-    const body = el("div", "purpose");
-    body.appendChild(el("p", null, "A choice only adds some helpful mods and resource packs, which you can untick on the next screen. None adds nothing."));
-    const grid = el("div", "purpose-grid");
+    let answer = null;
+    const picked = new Set();
+    const body = el("div", "style-pick");
+    body.appendChild(el("h3", "style-pick-title", "Personalize your experience so we can match your vibe"));
+    body.appendChild(el("p", "style-pick-sub", "Pick one or more. Each only adds a few helpful mods and resource packs, and you can untick any of them on the next screen."));
+    const grid = el("div", "style-grid");
     body.appendChild(grid);
     const handle = openModal({
-      title: instanceName ? `What is ${instanceName} for?` : "What will you play?",
+      title: instanceName ? `Set up ${instanceName}` : "Set up this instance",
       body,
       wide: true,
-      onClose: () => resolve(chosen),
-      buttons: [{ label: "Cancel", className: "outline" }],
+      onClose: () => resolve(answer),
+      buttons: [
+        {
+          label: "Skip",
+          className: "outline",
+          onClick: () => {
+            answer = { action: "skip" };
+            return true;
+          },
+        },
+        {
+          label: "Finish",
+          className: "primary",
+          icon: "#i-check",
+          onClick: () => {
+            if (!picked.size) return false;
+            answer = { action: "finish", goals: [...picked] };
+            return true;
+          },
+        },
+      ],
     });
-    const card = (id, title, blurb) => {
-      const c = el("button", "purpose-card" + (id === "none" ? " none" : ""));
+    handle.modal.classList.add("playstyle-modal");
+    const finish = handle.buttons[1];
+    finish.disabled = true;
+    const card = (g) => {
+      const c = el("button", "style-card");
       c.type = "button";
-      c.appendChild(el("b", null, title));
-      c.appendChild(el("span", null, blurb));
+      c.dataset.id = g.id;
+      c.setAttribute("aria-pressed", "false");
+      const art = el("span", "style-card-art");
+      art.style.backgroundImage = `url("../../assets/playstyles/${encodeURIComponent(g.id)}.jpg"), var(--fallback)`;
+      c.appendChild(art);
+      const text = el("span", "style-card-text");
+      text.appendChild(el("b", null, g.title));
+      text.appendChild(el("span", null, g.blurb));
+      c.appendChild(text);
+      const tick = el("span", "style-card-tick");
+      tick.appendChild(icon("#i-check"));
+      c.appendChild(tick);
       c.onclick = () => {
-        chosen = id;
-        handle.close();
+        const on = !picked.has(g.id);
+        if (on) picked.add(g.id);
+        else picked.delete(g.id);
+        c.classList.toggle("selected", on);
+        c.setAttribute("aria-pressed", on ? "true" : "false");
+        finish.disabled = picked.size === 0;
       };
       grid.appendChild(c);
     };
     const fill = (goals) => {
       if (handle.closed) return;
       grid.textContent = "";
-      for (const g of goals) card(g.id, g.title, g.blurb);
-      if (withNone) card("none", "None", "A plain instance. Nothing extra is added.");
+      for (const g of goals) card(g);
     };
     window.reminth
       .purposes()
@@ -5763,31 +5802,26 @@ function choosePlaystyle({ withNone = false, instanceName = "" } = {}) {
 window.choosePlaystyle = choosePlaystyle;
 
 /**
- * The mod list for one playstyle: two tabs (the playstyle, Performance), each with the important ones ticked and a
- * "More" list below, unticked. Whatever is ticked when "Add selected" is pressed is installed like any mod.
- * Without a goal it asks the playstyle question first (PvP or Survival). Done when the dialog is closed.
+ * The mod list for the playstyles picked: one tab per playstyle (plus Performance when it was picked), the important
+ * ones ticked and a "More" list below, unticked. Whatever is ticked when "Add selected" is pressed is installed like
+ * any mod. Without playstyles it asks first. Done when the dialog is closed.
  */
-async function openPurposeSetup(instanceId, goalId) {
+async function openPurposeSetup(instanceId, goalIds) {
   const inst = instanceById(instanceId);
   if (!inst || (inst.loader !== "fabric" && inst.loader !== "quilt")) {
     if (inst) toast("Playstyle lists are for Fabric and Quilt instances.");
     return;
   }
-  if (!goalId) {
-    goalId = await choosePlaystyle({ withNone: false, instanceName: inst.name });
-    if (!goalId || goalId === "none") return;
+  if (typeof goalIds === "string") goalIds = [goalIds];
+  if (!Array.isArray(goalIds) || !goalIds.length) {
+    const choice = await choosePlaystyle({ instanceName: inst.name });
+    if (!choice || choice.action !== "finish") return;
+    goalIds = choice.goals;
   }
-  let goals = [];
-  try {
-    goals = await window.reminth.purposes();
-  } catch {
-    goals = PLAYSTYLE_FALLBACK;
-  }
-  const goal = (goals || []).find((g) => g.id === goalId) || PLAYSTYLE_FALLBACK.find((g) => g.id === goalId) || { id: goalId, title: goalId };
   return new Promise((resolve) => {
     const body = el("div", "purpose");
     let tabs = null;
-    let tabId = "goal";
+    let tabId = null;
     const picked = new Set(); // slugs
 
     const updateButton = () => {
@@ -5854,7 +5888,7 @@ async function openPurposeSetup(instanceId, goalId) {
     };
 
     const handle = openModal({
-      title: `${goal.title} - ${inst.name}`,
+      title: `Mods for ${inst.name}`,
       body,
       wide: true,
       onClose: () => resolve(),
@@ -5886,7 +5920,7 @@ async function openPurposeSetup(instanceId, goalId) {
               (ok ? done : failed).push(r);
             }
             try {
-              await window.reminth.purposeFinish(instanceId, goal.id, done.map((r) => r.slug));
+              await window.reminth.purposeFinish(instanceId, goalIds, done.map((r) => r.slug));
             } catch {
               // the mods are in; only the ready-made settings and the pack switch-on are missing
             }
@@ -5904,7 +5938,7 @@ async function openPurposeSetup(instanceId, goalId) {
     holder.appendChild(el("p", "set-note", `Checking which of these have a build for ${inst.mcVersion}…`));
 
     window.reminth
-      .purposeItems(instanceId, goal.id)
+      .purposeItems(instanceId, goalIds)
       .then((answer) => {
         if (handle.closed) return;
         tabs = answer;

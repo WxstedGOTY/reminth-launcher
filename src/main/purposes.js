@@ -89,7 +89,7 @@ function pack(slug, title, why, extra = {}) {
 }
 
 /* ------------------------------------------------------------------ */
-/* the performance tab, the same for every playstyle                   */
+/* Performance: its own card (it used to be a tab under every playstyle) */
 /* ------------------------------------------------------------------ */
 const PERFORMANCE_NOTE =
   "Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux come with Reminth's own performance pack (Settings, or the Performance pack switch of the instance). These are on top of that.";
@@ -99,7 +99,10 @@ const PERFORMANCE = {
     mod("sodium-extra", "Sodium Extra", "More video options for Sodium: turn off animations and particles you don't need, FPS and coordinates overlays."),
     mod("reeses-sodium-options", "Reese's Sodium Options", "Tidier, easier to read video settings screen for Sodium."),
     mod("moreculling", "More Culling", "Skips drawing more hidden things (leaves, signs, item frames) on top of Entity Culling."),
+    mod("cull-leaves", "Cull Leaves", "Draws only the outside of leaf blocks: forests cost far fewer frames."),
     mod("badoptimizations", "BadOptimizations", "Small speed-ups to lighting, sky and entity code. Nothing looks different."),
+    mod("krypton", "Krypton", "A faster, lighter network stack: less work per packet on busy servers."),
+    mod("debugify", "Debugify", "Fixes dozens of known Minecraft bugs, a few of them slowdowns."),
     mod("dynamic-fps", "Dynamic FPS", "Slows the game down while it's in the background, so your PC stays cool and other apps stay quick."),
     mod("fastquit", "FastQuit", "Lets you leave a world right away while it saves in the background."),
   ],
@@ -117,6 +120,9 @@ const PERFORMANCE = {
 /* ------------------------------------------------------------------ */
 /* the playstyles                                                      */
 /* ------------------------------------------------------------------ */
+// Researched again 6 Oct 2026 (Modrinth, builds for 26.2): what crystal/sword PvP players actually run (crystal and
+// anchor optimizers, totem counter and small pop, potion timers, low fire, armor HUD, small shield/totem/tools packs)
+// and the survival quality-of-life mods with the most players. Nothing that automates play or shows what vanilla hides.
 const GOALS = {
   survival: {
     id: "survival",
@@ -126,20 +132,28 @@ const GOALS = {
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
-      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
-      mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it."),
+      mod("status-effect-bars", "Status Effect Bars", "A small bar under each potion effect shows how long it has left."),
+      mod("enchantment-descriptions", "Enchantment Descriptions", "Says what every enchantment does, right in the tooltip."),
+      mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("lambdynamiclights", "LambDynamicLights", "Torches and other lit items light up the area around you while you hold them."),
       mod("ukus-armor-hud", "uku's Armor HUD", "Shows your armor and its durability next to the hotbar.", { configs: [CFG.armorHud] }),
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
       mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
+      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
     ],
     more: [
       mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen.", { warning: MINIMAP }),
       mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: MINIMAP }),
-      mod("clientsort", "Client Sort", "A button to sort chests and your inventory."),
+      mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Reminth starts it early, so the first inventory open doesn't freeze."),
+      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory, refill tools and blocks as they run out. Use this or Client Sort, not both."),
+      mod("clientsort", "Client Sort", "A simpler sort button for chests and your inventory. Use this or Inventory Profiles Next, not both."),
+      mod("mouse-wheelie", "Mouse Wheelie", "Scroll to move items, sort with a middle click, refill the slot you use up."),
+      mod("continuity", "Continuity", "Connected glass and bookshelves, like in the trailers."),
+      mod("ambientsounds", "AmbientSounds", "Wind, birds, water and caves sound alive."),
+      mod("not-enough-animations", "Not Enough Animations", "Eating, maps and climbing look right in third person."),
       mod("simple-voice-chat", "Simple Voice Chat", "Talk to people near you. The server needs the mod too."),
       mod("sound-physics-remastered", "Sound Physics Remastered", "Sound gets muffled behind walls and echoes in caves."),
       mod("chat-heads", "Chat Heads", "Shows the sender's head next to chat messages."),
@@ -154,35 +168,38 @@ const GOALS = {
     title: "Crystal PvP",
     blurb: "End crystals, anchors and totems on crystal PvP servers.",
     core: [
-      mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "Crystals blow up the moment you hit them on your screen, without waiting for the server.", {
+      mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "The most used crystal optimizer: crystals blow up the moment you hit them, without waiting for the server.", {
         warning: `${RULES} ${ONE_OPTIMIZER}`,
       }),
-      mod("anchoroptimizer", "Anchor Optimizer", "The same for respawn anchors: they explode right away on your screen.", { warning: RULES, configs: [CFG.anchors] }),
+      mod("anchoroptimizer", "Anchor Optimizer", "The most used anchor optimizer: respawn anchors explode right away on your screen.", { warning: RULES, configs: [CFG.anchors] }),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
       mod("cpvp", "Totem Tweaks", "A smaller totem pop animation, so you can see during a fight.", { configs: [CFG.totemTweaks] }),
+      mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
       mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
       mod("ukus-armor-hud", "uku's Armor HUD", "Shows your armor and its durability next to the hotbar.", { configs: [CFG.armorHud] }),
-      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen."),
-      mod("cps-plus", "CPS+", "Shows your clicks per second."),
       mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
-      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
+      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster - restock between fights."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
-      pack("crystal-vanilla-tweaks", "Crystal Vanilla Tweaks", "Crystal PvP look: low fire, small totem, clear crystals and more, in the vanilla style."),
-      pack("pvp-crosshair", "PvP Crosshair", "A small crosshair that doesn't get in the way."),
+      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, and a small totem pop."),
+      pack("small-tools-", "Small Tools", "Smaller swords, axes and pickaxes in your hand: more of the screen to see."),
+      pack("crystal-vanilla-tweaks", "Crystal Vanilla Tweaks", "Crystal PvP look in the vanilla style: clear crystals, low fire and more."),
       pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during crystal fights."),
+      pack("pvp-crosshair", "PvP Crosshair", "A small crosshair that doesn't get in the way."),
     ],
     more: [
+      mod("kinds-crystal-optimizer", "Kind's Crystal Optimizer", "Another popular crystal optimizer. Only if you don't use Marlow's.", { warning: `${RULES} ${ONE_OPTIMIZER}` }),
       mod("clientsidecrystals", "Client Side Crystals", "Crystals show up instantly when you place them.", { warning: `${RULES} ${ONE_OPTIMIZER}`, configs: [CFG.clientCrystals] }),
       mod("kinds-anker-optimizer", "Kind's Anchor Optimizer", "Another anchor optimizer. Only if you don't use Anchor Optimizer.", { warning: RULES }),
+      mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
       mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
-      mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
+      mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it - handy for restocking kits."),
+      pack("small-totem-pop-animation", "Small Totem Pop Animation", "A pack-only small totem pop (if you don't use Totem Tweaks)."),
+      pack("mini-totem", "Mini Totem", "An even smaller totem in your offhand."),
       pack("short-pvp-swords", "PvP Swords", "Shorter swords, so they block less of the screen."),
       pack("low-shield-pack", "Low Shield", "Holds the shield lower so you can see over it."),
-      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem models, and a small totem pop."),
     ],
   },
 
@@ -199,8 +216,8 @@ const GOALS = {
       mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
       mod("cpvp", "Totem Tweaks", "A smaller totem pop animation, so you can see during a fight.", { configs: [CFG.totemTweaks] }),
+      mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
-      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
@@ -208,9 +225,12 @@ const GOALS = {
       pack("short-pvp-swords", "PvP Swords", "Shorter swords, so they block less of the screen."),
       pack("low-shield-pack", "Low Shield", "Holds the shield lower so you can see over it."),
       pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem models, and a small totem pop."),
+      pack("small-tools-", "Small Tools", "Smaller swords, axes and pickaxes in your hand."),
       pack("pvp-crosshair", "PvP Crosshair", "A small crosshair that doesn't get in the way."),
     ],
     more: [
+      mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
+      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
       mod("jade", "Jade", "Shows what block or mob you are looking at."),
       pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during a fight."),
@@ -232,15 +252,17 @@ const GOALS = {
   GOALS.pvp = {
     id: "pvp",
     title: "PvP",
-    blurb: "Crystal PvP and sword & axe fights: totems, armor, keystrokes, a clear screen.",
+    blurb: "Crystal PvP and sword & axe fights: optimizers, totems, armor, a clear screen.",
     core,
     more,
   };
 })();
 
 const GOAL_IDS = Object.keys(GOALS);
-// What the player is offered. crystal and sword stay valid ids (tests, old calls) but are not shown on their own.
-const LISTED_GOALS = ["pvp", "survival"];
+// What the player is offered (any of them, together). crystal and sword stay valid ids (tests, old calls) but are not
+// shown on their own; "performance" is its own card.
+const LISTED_GOALS = ["pvp", "survival", "performance"];
+const PERFORMANCE_CARD = { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading on any server." };
 
 /* ------------------------------------------------------------------ */
 /* pure parts                                                          */
@@ -248,7 +270,7 @@ const LISTED_GOALS = ["pvp", "survival"];
 
 /** Pure: what the renderer shows on the first step - [{ id, title, blurb }]. */
 function list() {
-  return LISTED_GOALS.map((id) => ({ id, title: GOALS[id].title, blurb: GOALS[id].blurb }));
+  return LISTED_GOALS.map((id) => (id === "performance" ? { ...PERFORMANCE_CARD } : { id, title: GOALS[id].title, blurb: GOALS[id].blurb }));
 }
 
 /** Pure: can an item go into an instance with this loader? Resource packs fit every loader. */
@@ -256,26 +278,41 @@ function fitsLoader(item, loader) {
   return item.loaders.includes(loader);
 }
 
-/** Pure: the two tabs for one playstyle on one instance. Items that can't go in this instance (wrong loader) are left out. */
-function tabsFor(goalId, instance) {
-  const goal = GOALS[goalId];
-  if (!goal) return null;
+const strip = (i) => ({
+  slug: i.slug,
+  kind: i.kind,
+  title: i.title,
+  why: i.why,
+  warning: i.warning || null,
+  experimental: i.experimental === true,
+  shadersNote: i.shadersNote === true,
+});
+
+/**
+ * Pure: the tabs of the mod list for one instance. Items that can't go in this instance (wrong loader) are left out,
+ * and an item shows once (in the first tab that has it).
+ *  - one playstyle id (string): [that playstyle, Performance] - the original shape;
+ *  - several (array, what the player ticked): one tab per playstyle, plus Performance only if it was ticked.
+ */
+function tabsFor(goalIds, instance) {
+  const many = Array.isArray(goalIds);
+  const ids = many ? goalIds.filter((id) => id === "performance" || GOALS[id]) : [goalIds];
+  if (!many && !GOALS[goalIds]) return null;
+  if (!ids.length) return null;
   const loader = (instance && instance.loader) || "vanilla";
   const keep = (items) => items.filter((i) => fitsLoader(i, loader));
-  const dedupe = (items, seen) => items.filter((i) => (seen.has(i.slug) ? false : (seen.add(i.slug), true)));
   const seen = new Set();
-  const strip = (i) => ({
-    slug: i.slug,
-    kind: i.kind,
-    title: i.title,
-    why: i.why,
-    warning: i.warning || null,
-    experimental: i.experimental === true,
-    shadersNote: i.shadersNote === true,
-  });
-  const gameplay = { id: "goal", title: goal.title, note: null, core: dedupe(keep(goal.core), seen).map(strip), more: dedupe(keep(goal.more), seen).map(strip) };
-  const perf = { id: "performance", title: "Performance", note: PERFORMANCE_NOTE, core: dedupe(keep(PERFORMANCE.core), seen).map(strip), more: dedupe(keep(PERFORMANCE.more), seen).map(strip) };
-  return [gameplay, perf];
+  const dedupe = (items) => items.filter((i) => (seen.has(i.slug) ? false : (seen.add(i.slug), true)));
+  const tabs = [];
+  for (const id of ids) {
+    if (id === "performance") continue;
+    const goal = GOALS[id];
+    tabs.push({ id: many ? id : "goal", title: goal.title, note: null, core: dedupe(keep(goal.core)).map(strip), more: dedupe(keep(goal.more)).map(strip) });
+  }
+  if (!many || ids.includes("performance")) {
+    tabs.push({ id: "performance", title: "Performance", note: PERFORMANCE_NOTE, core: dedupe(keep(PERFORMANCE.core)).map(strip), more: dedupe(keep(PERFORMANCE.more)).map(strip) });
+  }
+  return tabs;
 }
 
 /** Pure: the most stable channel in a version list, or null. */
@@ -285,11 +322,13 @@ function bestChannel(versions) {
   return null;
 }
 
-/** Pure: every item of a playstyle and the performance tab, by slug (for settings and installs). */
-function itemBySlug(goalId) {
-  const goal = GOALS[goalId];
+/** Pure: every item of one or more playstyles and the performance list, by slug (for settings and installs). */
+function itemBySlug(goalIds) {
+  const ids = Array.isArray(goalIds) ? goalIds : [goalIds];
   const out = new Map();
-  for (const i of [...PERFORMANCE.core, ...PERFORMANCE.more, ...(goal ? [...goal.core, ...goal.more] : [])]) if (!out.has(i.slug)) out.set(i.slug, i);
+  const items = [...PERFORMANCE.core, ...PERFORMANCE.more];
+  for (const id of ids) if (GOALS[id]) items.push(...GOALS[id].core, ...GOALS[id].more);
+  for (const i of items) if (!out.has(i.slug)) out.set(i.slug, i);
   return out;
 }
 
@@ -298,8 +337,8 @@ function itemBySlug(goalId) {
  * available true (a build exists) / false (none, or no such project) / null (couldn't ask), channel, installed.
  * deps: { modrinth, content } (the real ones; tests pass fakes). Never throws; a failed lookup is "unknown".
  */
-async function listFor(goalId, instance, deps = {}) {
-  const tabs = tabsFor(goalId, instance);
+async function listFor(goalIds, instance, deps = {}) {
+  const tabs = tabsFor(goalIds, instance);
   if (!tabs) return null;
   const modrinth = deps.modrinth || require("./modrinth");
   const content = deps.content || require("./content");
@@ -346,10 +385,10 @@ async function listFor(goalId, instance, deps = {}) {
  * Writes the ready-made settings of the chosen mods into <gameDir>/config, for every mod whose file is not there
  * yet. Returns the file names written. Never throws, never overwrites.
  */
-async function writeConfigs(gameDir, goalId, slugs) {
+async function writeConfigs(gameDir, goalIds, slugs) {
   const written = [];
   try {
-    const items = itemBySlug(goalId);
+    const items = itemBySlug(goalIds);
     const dir = path.join(gameDir, "config");
     await fsp.mkdir(dir, { recursive: true });
     for (const slug of slugs || []) {
@@ -538,6 +577,7 @@ module.exports = {
   GOALS,
   GOAL_IDS,
   LISTED_GOALS,
+  PERFORMANCE_CARD,
   PERFORMANCE,
   PERFORMANCE_NOTE,
   CFG,
