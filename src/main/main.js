@@ -522,7 +522,7 @@ const goalIdsArg = (g) => (Array.isArray(g) ? g.map(String).slice(0, 8) : String
 ipcMain.handle("purpose:items", async (_e, id, goalIds) => purposes.listFor(goalIdsArg(goalIds), await instances.require(id)));
 // After the chosen ones were installed (the ordinary content install, from the renderer): their ready-made
 // settings go into config/ (never over an existing file) and the resource packs are switched on for the next start.
-ipcMain.handle("purpose:finish", async (_e, id, goalIds, slugs) => {
+ipcMain.handle("purpose:finish", async (_e, id, goalIds, slugs, startedAt) => {
   const inst = await instances.require(id);
   const chosen = (Array.isArray(slugs) ? slugs : []).filter((s) => typeof s === "string").slice(0, 80);
   const configs = await purposes.writeConfigs(inst.gameDir, goalIdsArg(goalIds), chosen);
@@ -549,8 +549,67 @@ ipcMain.handle("purpose:finish", async (_e, id, goalIds, slugs) => {
     }
   }
   const queued = files.length ? await purposes.queuePacks(inst.gameDir, files) : false;
-  return { configs, packsQueued: queued ? files.length : 0 };
+  const since = Number.isFinite(startedAt) && startedAt > 0 ? startedAt : null;
+  const turnedOff = await turnOffWhatWontLoad(inst, chosen, since).catch(() => []);
+  return { configs, packsQueued: queued ? files.length : 0, turnedOff };
 });
+
+// After a playstyle install: a mod from the list that the compatibility check says would stop the game (a build that
+// is tagged for this version on Modrinth but whose jar asks for another one) is switched off - never deleted - with
+// the reason kept, so the instance starts. Only files this install added are touched: the list's own mods, and the
+// libraries they pulled in (put in since `since`). Switching a library off makes the mods that need it "won't load"
+// too (they are switched off with it), so it checks again, up to three times.
+async function turnOffWhatWontLoad(inst, slugs, since) {
+  if (!slugs.length) return [];
+  const projects = await modrinth.getProjects(slugs).catch(() => []);
+  const ids = new Set((projects || []).map((p) => p && p.id).filter(Boolean));
+  if (!ids.size) return [];
+  const manifest = await content.readManifest(inst.gameDir);
+  const ours = new Map(); // file -> title from the list or the manifest
+  for (const [key, entry] of Object.entries((manifest && manifest.files) || {})) {
+    if (!entry || entry.kind !== "mod" || !key.startsWith("mods/")) continue;
+    const fresh = since && Number(entry.installedAt) >= since;
+    if (ids.has(entry.projectId) || fresh) ours.set(key.slice("mods/".length), entry.title || null);
+  }
+  const out = [];
+  const off = async (file, title, why) => {
+    try {
+      const r = await content.setEnabled(inst.gameDir, { kind: "mod", world: null, file }, false);
+      await content.setOffReason(inst.gameDir, { kind: "mod", world: null, file: (r && r.file) || file + ".disabled" }, why);
+      out.push({ file, title });
+      return true;
+    } catch {
+      return false; // left on; the instance page shows it as "won't load" with its fix
+    }
+  };
+  for (let round = 0; round < 3; round++) {
+    compat.invalidate(inst.id);
+    const report = await compat.checkInstance(inst, { force: true });
+    const hits = (report.issues || []).filter((i) => i.severity === "blocked" && ours.has(i.file) && !out.some((o) => o.file === i.file));
+    let changed = false;
+    for (const issue of hits) {
+      if (await off(issue.file, ours.get(issue.file) || issue.title || issue.file, issue.detail || "It wouldn't let the game start.")) changed = true;
+    }
+    // A mod from this install that requires one that is now off (and nothing else switched on gives that id) can't
+    // start either: off too, with the reason.
+    const mods = ((await content.listAll(inst.gameDir)) || {}).mod || [];
+    const ids = (m) => [m.modId, ...(m.provides || [])].filter(Boolean).map((x) => String(x).toLowerCase());
+    const onIds = new Set(mods.filter((m) => m.enabled).flatMap(ids));
+    const offById = new Map();
+    for (const m of mods) if (!m.enabled && out.some((o) => o.file === m.file.replace(/\.disabled$/i, ""))) for (const id of ids(m)) offById.set(id, m);
+    for (const m of mods) {
+      if (!m.enabled || !ours.has(m.file) || out.some((o) => o.file === m.file)) continue;
+      const lost = Object.keys(m.depends || {}).map((d) => d.toLowerCase()).find((d) => offById.has(d) && !onIds.has(d));
+      if (!lost) continue;
+      const lib = offById.get(lost);
+      const libTitle = ours.get(lib.file.replace(/\.disabled$/i, "")) || lib.title || lost;
+      if (await off(m.file, ours.get(m.file) || m.title || m.file, `It needs ${libTitle}, which was turned off because it wouldn't let the game start.`)) changed = true;
+    }
+    if (!changed) break;
+  }
+  compat.invalidate(inst.id);
+  return out;
+}
 
 // ---- performance profiles and the performance pack (instance page) ----
 ipcMain.handle("perf:profiles", () => perfProfiles.list());

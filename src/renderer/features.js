@@ -5946,22 +5946,25 @@ async function openPurposeSetup(instanceId, goalIds) {
             handle.buttons[1].disabled = true;
             const done = [];
             const failed = [];
+            const startedAt = Date.now();
             for (let i = 0; i < chosen.length; i++) {
               const r = chosen[i];
               handle.buttons[1].textContent = `Adding ${i + 1} of ${chosen.length}…`;
               const ok = await installProject({ projectId: r.slug, projectType: r.kind, title: r.title, instanceId, quiet: true });
               (ok ? done : failed).push(r);
             }
+            let finish = null;
             try {
-              await window.reminth.purposeFinish(instanceId, goalIds, done.map((r) => r.slug));
+              finish = await window.reminth.purposeFinish(instanceId, goalIds, done.map((r) => r.slug), startedAt);
             } catch {
               // the mods are in; only the ready-made settings and the pack switch-on are missing
             }
-            toast(
-              failed.length
-                ? `${done.length} added to ${inst.name}. Couldn't add: ${failed.map((r) => r.title).join(", ")}.`
-                : `${done.length} added to ${inst.name}, with settings ready. Press Play.`
-            );
+            const off = (finish && Array.isArray(finish.turnedOff) ? finish.turnedOff : []).map((x) => x.title);
+            let msg = failed.length
+              ? `${done.length} added to ${inst.name}. Couldn't add: ${failed.map((r) => r.title).join(", ")}.`
+              : `${done.length} added to ${inst.name}, with settings ready. Press Play.`;
+            if (off.length) msg += ` Turned off (no working build for ${inst.mcVersion} yet): ${off.join(", ")}.`;
+            toast(msg);
             return true;
           },
         },

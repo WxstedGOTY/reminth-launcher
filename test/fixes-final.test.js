@@ -796,3 +796,20 @@ test("modpack: the instance it creates has the performance pack switched off - t
   // an instance made by hand still gets the pack unless it is switched off
   assert.notEqual((await instances.create({ name: "By hand", mcVersion: "1.20.1", loader: "fabric" })).performanceMods, false);
 });
+
+test("findDependencyProblems: Fabric API's own packed modules don't make a Fabric API requirement unsure (YACL on 1.21.2)", () => {
+  const yacl = { file: "yacl.jar", modId: "yet_another_config_lib_v3", modVersion: "3.8.2+1.21.3-fabric", depends: { "fabric-api": ">=0.114.0+1.21.3" }, nestedMods: [] };
+  const fapi = {
+    file: "fabric-api-0.106.1+1.21.2.jar",
+    modId: "fabric-api",
+    modVersion: "0.106.1+1.21.2",
+    nested: ["META-INF/jars/fabric-api-base-0.4.48.jar", "META-INF/jars/fabric-api-lookup-api-v1-1.6.75.jar"],
+    nestedMods: [{ id: "fabric-api-base", version: "0.4.48" }, { id: "fabric-api-lookup-api-v1", version: "1.6.75" }],
+  };
+  const p = compat.findDependencyProblems([yacl, fapi]);
+  assert.equal(p.length, 1);
+  assert.equal(p[0].certain, true);
+  // a jar from before packed jars were read (no nestedMods) still counts as a maybe
+  const { nestedMods, ...oldFapi } = fapi;
+  assert.equal(compat.findDependencyProblems([yacl, oldFapi])[0].certain, false);
+});

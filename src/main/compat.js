@@ -614,7 +614,10 @@ function findDependencyProblems(mods, { loader = "fabric", hasConnector = false 
           targetNested: target.nested,
           need: describePredicate(pred),
           have: target.version || null,
-          certain: !unread(id) && !selfUnsure && !copyUnsure(list) && !nestedMayProvide(id, live),
+          // A jar whose packed jars were all read can't hide a copy (those copies are in `list`); guessing from the
+          // packed file names is only for jars read before packed jars were (Fabric API's own "fabric-api-base"
+          // made every Fabric API requirement unsure - YACL needing a newer one than 1.21.2 has never was "won't start").
+          certain: !unread(id) && !selfUnsure && !copyUnsure(list) && !nestedMayProvide(id, live.filter((x) => !Array.isArray(x.nestedMods))),
         });
       }
       for (const [id, pred] of Object.entries(m.breaks || {})) {
