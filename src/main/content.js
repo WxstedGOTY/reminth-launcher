@@ -1115,10 +1115,34 @@ function kindForProjectType(projectType) {
   return { mod: "mod", resourcepack: "resourcepack", shader: "shader", datapack: "datapack" }[projectType] || null;
 }
 
-/** Pure: the version to install out of a list Modrinth returned newest-first - a release if there is one. */
-function pickVersion(versions) {
+/** Pure: does this version's number or file name name exactly this Minecraft version ("+mc1.21.11", "-1.21.11-")? */
+function namesMcVersion(version, mcVersion) {
+  if (!mcVersion) return false;
+  const esc = String(mcVersion).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(^|[^0-9.])${esc}([^0-9.]|$)`);
+  const file = primaryFile(version);
+  return re.test(String(version.version_number || "")) || (file ? re.test(String(file.filename || "")) : false);
+}
+
+/**
+ * Pure: the version to install out of a list Modrinth returned newest-first - a release if there is one.
+ * With `mcVersion`: some authors upload one build per Minecraft version in one go, each tagged for a whole range
+ * (CPS+ 1.0.0, 12 Aug 2026: "+mc1.21" is tagged 1.21-1.21.11 but its jar needs exactly 1.21, and it was the newest by a
+ * few seconds). Among builds uploaded within a day of the newest one, the one whose number or file names this exact
+ * Minecraft version wins.
+ */
+function pickVersion(versions, mcVersion) {
   if (!Array.isArray(versions) || !versions.length) return null;
-  return versions.find((v) => v.version_type === "release") || versions[0];
+  const releases = versions.filter((v) => v.version_type === "release");
+  const pool = releases.length ? releases : versions;
+  const first = pool[0];
+  if (mcVersion) {
+    const t0 = Date.parse(first.date_published);
+    const batch = Number.isFinite(t0) ? pool.filter((v) => Math.abs(t0 - Date.parse(v.date_published)) <= 24 * 3600 * 1000) : [first];
+    const named = batch.find((v) => namesMcVersion(v, mcVersion));
+    if (named) return named;
+  }
+  return first;
 }
 
 /** Pure: is this Modrinth version a build for the instance's Minecraft version and loader? */
@@ -1252,7 +1276,7 @@ async function createInstaller(instance, kind, world, report, { releaseOnly = fa
         loaders: loadersFor(k, instance),
         gameVersions: [instance.mcVersion],
       });
-      version = pickVersion(versions);
+      version = pickVersion(versions, instance.mcVersion);
     }
     // releaseOnly (the "update mods to fit" button): nothing the player didn't
     // pick themselves may be a beta or alpha - not even a build another mod
@@ -1443,7 +1467,7 @@ async function install(instance, { projectId, kind, world, versionId }, onProgre
     }
     for (const id of has ? [] : candidates) {
       const versions = await modrinth.getProjectVersions(id, { loaders: loadersFor("mod", instance), gameVersions: [instance.mcVersion] });
-      const v = pickVersion(versions);
+      const v = pickVersion(versions, instance.mcVersion);
       if (!v) continue;
       report(`Installing ${id === IRIS_ID ? "Iris" : "Oculus"} (shaders need it)`);
       await installOne(id, "mod", null, v.id, true);

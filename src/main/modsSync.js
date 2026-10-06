@@ -59,7 +59,8 @@ function pickStableBuild(versions, mcVersion, loaders) {
     (v) => v && v.version_type === "release" && versionFits(v, mcVersion, loaders || [])
   );
   fits.sort((a, b) => String(b.date_published || "").localeCompare(String(a.date_published || "")));
-  return fits[0] || null;
+  // one build per Minecraft version uploaded together: the one named for this version (content.pickVersion)
+  return require("./content").pickVersion(fits, mcVersion);
 }
 
 /** Pure: the primary file of a version (the one Modrinth marks, else the first). */

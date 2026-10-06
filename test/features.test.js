@@ -439,3 +439,26 @@ test("webm: EBML size encoding round-trips, including fixed-length placeholders"
   }
   assert.equal(webm.readSize(Buffer.from([0x01, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]), 0).size, -1); // unknown size
 });
+
+test("content: pickVersion takes the build named for this Minecraft version out of a batch uploaded together (CPS+ 1.0.0)", () => {
+  const b = (num, at, games, type = "release") => ({ id: num, version_number: num, version_type: type, date_published: at, game_versions: games, files: [{ primary: true, filename: `cpsplus-${num}.jar` }] });
+  // newest first, as Modrinth returns them; "+mc1.21" is tagged up to 1.21.11 but needs exactly 1.21
+  const list = [
+    b("1.0.0+mc1.21", "2026-08-12T19:23:57Z", ["1.21", "1.21.1", "1.21.11"]),
+    b("1.0.0+mc1.21.1", "2026-08-12T19:23:47Z", ["1.21.1", "1.21.11"]),
+    b("1.0.0+mc1.21.11", "2026-08-12T19:21:34Z", ["1.21.11"]),
+    b("1.0.0", "2025-12-12T11:06:19Z", ["1.21.11"]),
+  ];
+  assert.equal(content.pickVersion(list, "1.21.11").id, "1.0.0+mc1.21.11");
+  assert.equal(content.pickVersion(list, "1.21.1").id, "1.0.0+mc1.21.1");
+  assert.equal(content.pickVersion(list, "1.21").id, "1.0.0+mc1.21");
+  // nothing named for it: the newest, as before; without a version: the newest
+  assert.equal(content.pickVersion(list, "1.21.5").id, "1.0.0+mc1.21");
+  assert.equal(content.pickVersion(list).id, "1.0.0+mc1.21");
+  // an old build that happens to be named for it doesn't beat a newer release
+  const old = [b("2.0.0", "2026-09-01T00:00:00Z", ["1.21.11"]), b("1.0.0+1.21.11", "2026-01-01T00:00:00Z", ["1.21.11"])];
+  assert.equal(content.pickVersion(old, "1.21.11").id, "2.0.0");
+  // a named beta doesn't beat a release
+  const beta = [b("1.1+1.21.11", "2026-08-12T19:30:00Z", ["1.21.11"], "beta"), b("1.0", "2026-08-12T19:20:00Z", ["1.21.11"])];
+  assert.equal(content.pickVersion(beta, "1.21.11").id, "1.0");
+});

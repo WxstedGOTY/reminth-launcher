@@ -1294,8 +1294,23 @@ function modLoadersFor(inst) {
   if (inst.loader === "neoforge") return inst.mcVersion === "1.20.1" ? ["neoforge", "forge"] : ["neoforge"];
   return [];
 }
-// Mirrors content.js pickVersion: newest release, else newest of any kind.
-const defaultVersion = (versions) => versions.find((v) => v.version_type === "release") || versions[0] || null;
+// Mirrors content.js pickVersion: newest release, else newest of any kind - and out of builds uploaded within a day of
+// it, the one whose number or file names this exact Minecraft version.
+const defaultVersion = (versions, mcVersion) => {
+  const releases = versions.filter((v) => v.version_type === "release");
+  const pool = releases.length ? releases : versions;
+  const first = pool[0] || null;
+  if (!first || !mcVersion) return first;
+  const esc = String(mcVersion).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(^|[^0-9.])${esc}([^0-9.]|$)`);
+  const named = (v) => {
+    const f = (v.files || []).find((x) => x.primary) || (v.files || [])[0];
+    return re.test(String(v.version_number || "")) || (f ? re.test(String(f.filename || "")) : false);
+  };
+  const t0 = Date.parse(first.date_published);
+  if (!Number.isFinite(t0)) return first;
+  return pool.find((v) => Math.abs(t0 - Date.parse(v.date_published)) <= 24 * 3600 * 1000 && named(v)) || first;
+};
 const DEP_LABELS = { required: "Required", optional: "Optional", incompatible: "Incompatible", embedded: "Bundled inside" };
 
 async function chooseModVersion({ projectId, title, instanceId }, buttons = []) {
@@ -1407,7 +1422,7 @@ async function chooseModVersion({ projectId, title, instanceId }, buttons = []) 
     }
   };
 
-  const suggested = defaultVersion(versions);
+  const suggested = defaultVersion(versions, inst.mcVersion);
   const select = (version, item) => {
     chosen = version;
     list.querySelectorAll(".pick-item").forEach((x) => x.classList.toggle("selected", x === item));
