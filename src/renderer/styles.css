@@ -2483,3 +2483,4 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .purpose-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
 .purpose-h { margin: 10px 0 2px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
 @media (max-width: 640px) { .purpose-grid { grid-template-columns: 1fr; } }
+.purpose-card.none { border-style: dashed; }

@@ -1304,6 +1304,7 @@ function packOffReason(loader, existing, touched) {
 }
 
 function openInstanceModal(existing) {
+  let dialog = null; // the open dialog (its Create button says "Continue" for Fabric/Quilt)
   const editing = Boolean(existing);
   const pick = {
     name: existing ? existing.name : "",
@@ -1531,7 +1532,14 @@ function openInstanceModal(existing) {
   function supports(v) {
     return pick.loader === "vanilla" || v[pick.loader] !== false;
   }
+  // New Fabric/Quilt instances ask "what will you play?" next, so the button says Continue there.
+  function paintCreateLabel() {
+    if (editing || !dialog) return;
+    const label = dialog.buttons[1] && dialog.buttons[1].querySelector("span");
+    if (label) label.textContent = pick.loader === "fabric" || pick.loader === "quilt" ? "Continue" : "Create instance";
+  }
   function paintLoader() {
+    paintCreateLabel();
     for (const [k, b] of Object.entries(loaderBtns)) b.classList.toggle("on", pick.loader === k);
     const choice = LOADER_CHOICES.find((l) => l.key === pick.loader);
     const down = versionsCache && (versionsCache.unknown || []).includes(pick.loader);
@@ -1707,7 +1715,7 @@ function openInstanceModal(existing) {
   // Esc, the backdrop and Cancel wait for a save that's running: closing the
   // dialog used to leave it running unseen (and then jump to the new instance).
   let saving = false;
-  openModal({
+  dialog = openModal({
     title: editing ? `Edit ${existing.name}` : "New instance",
     body,
     wide: true,
@@ -1736,6 +1744,12 @@ function openInstanceModal(existing) {
           // build for this version the switch can't be used, and the stored
           // choice (a missing value = on) is left as it is.
           const home = (pick.loader === "fabric" || pick.loader === "quilt") && pick.homeTouched && !homeSwitch.disabled ? { homeScreen: pick.home } : {};
+          // A new Fabric/Quilt instance: PvP, Survival or None first. Cancelling that creates nothing.
+          let playstyle = null;
+          if (!editing && (pick.loader === "fabric" || pick.loader === "quilt") && typeof choosePlaystyle === "function") {
+            playstyle = await choosePlaystyle({ withNone: true, instanceName: name });
+            if (!playstyle) return false;
+          }
           saving = true;
           handle.buttons[0].disabled = true;
           try {
@@ -1758,9 +1772,9 @@ function openInstanceModal(existing) {
               await loadInstances();
               await selectInstance(inst.id, true);
               toast(`${inst.name} created. Press Play and it downloads what it needs.`);
-              // New instances that can run mods: "what is it for?" first, then the profile's own suggestions.
-              if (typeof openPurposeSetup === "function" && (pick.loader === "fabric" || pick.loader === "quilt")) {
-                openPurposeSetup(inst.id).then(() => {
+              // The mod list for the playstyle picked before (None: nothing), then the profile's own suggestions.
+              if (playstyle && playstyle !== "none" && typeof openPurposeSetup === "function") {
+                openPurposeSetup(inst.id, playstyle).then(() => {
                   if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
                 });
               } else if (typeof offerProfileExtras === "function") offerProfileExtras(inst.id, pick.profile, pick.loader);
@@ -1777,6 +1791,7 @@ function openInstanceModal(existing) {
       },
     ],
   });
+  paintCreateLabel();
 }
 
 $("railAdd").onclick = () => openInstanceModal(null);

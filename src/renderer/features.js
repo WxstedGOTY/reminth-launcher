@@ -5605,60 +5605,89 @@ function openProfileExtras(instanceId, profile) {
 }
 
 /* ---- "What is this instance for?": researched mod and resource pack lists (main/purposes.js) ---- */
+const PLAYSTYLE_FALLBACK = [
+  { id: "pvp", title: "PvP", blurb: "Crystal PvP and sword & axe fights." },
+  { id: "survival", title: "Survival", blurb: "Survival worlds and servers." },
+];
+
 /**
- * Step 1: pick a playstyle. Step 2: two tabs (the playstyle, Performance), each with the important ones ticked
- * and a "More" list below, unticked. Whatever is ticked when "Add selected" is pressed is installed like any mod.
- * Returns a promise that is done when the dialog is closed.
+ * The playstyle question: PvP, Survival (and "None" when making a new instance). Resolves with the chosen id,
+ * "none", or null when the player cancels (then nothing is made or changed).
  */
-function openPurposeSetup(instanceId) {
+function choosePlaystyle({ withNone = false, instanceName = "" } = {}) {
   return new Promise((resolve) => {
-    const inst = instanceById(instanceId);
-    if (!inst || (inst.loader !== "fabric" && inst.loader !== "quilt")) {
-      if (inst) toast("Playstyle lists are for Fabric and Quilt instances.");
-      resolve();
-      return;
-    }
+    let chosen = null;
     const body = el("div", "purpose");
-    let handle = null;
-    let goal = null;
+    body.appendChild(el("p", null, "A choice only adds some helpful mods and resource packs, which you can untick on the next screen. None adds nothing."));
+    const grid = el("div", "purpose-grid");
+    body.appendChild(grid);
+    const handle = openModal({
+      title: instanceName ? `What is ${instanceName} for?` : "What will you play?",
+      body,
+      wide: true,
+      onClose: () => resolve(chosen),
+      buttons: [{ label: "Cancel", className: "outline" }],
+    });
+    const card = (id, title, blurb) => {
+      const c = el("button", "purpose-card" + (id === "none" ? " none" : ""));
+      c.type = "button";
+      c.appendChild(el("b", null, title));
+      c.appendChild(el("span", null, blurb));
+      c.onclick = () => {
+        chosen = id;
+        handle.close();
+      };
+      grid.appendChild(c);
+    };
+    const fill = (goals) => {
+      if (handle.closed) return;
+      grid.textContent = "";
+      for (const g of goals) card(g.id, g.title, g.blurb);
+      if (withNone) card("none", "None", "A plain instance. Nothing extra is added.");
+    };
+    window.reminth
+      .purposes()
+      .then((goals) => fill(Array.isArray(goals) && goals.length ? goals : PLAYSTYLE_FALLBACK))
+      .catch(() => fill(PLAYSTYLE_FALLBACK));
+  });
+}
+window.choosePlaystyle = choosePlaystyle;
+
+/**
+ * The mod list for one playstyle: two tabs (the playstyle, Performance), each with the important ones ticked and a
+ * "More" list below, unticked. Whatever is ticked when "Add selected" is pressed is installed like any mod.
+ * Without a goal it asks the playstyle question first (PvP or Survival). Done when the dialog is closed.
+ */
+async function openPurposeSetup(instanceId, goalId) {
+  const inst = instanceById(instanceId);
+  if (!inst || (inst.loader !== "fabric" && inst.loader !== "quilt")) {
+    if (inst) toast("Playstyle lists are for Fabric and Quilt instances.");
+    return;
+  }
+  if (!goalId) {
+    goalId = await choosePlaystyle({ withNone: false, instanceName: inst.name });
+    if (!goalId || goalId === "none") return;
+  }
+  let goals = [];
+  try {
+    goals = await window.reminth.purposes();
+  } catch {
+    goals = PLAYSTYLE_FALLBACK;
+  }
+  const goal = (goals || []).find((g) => g.id === goalId) || PLAYSTYLE_FALLBACK.find((g) => g.id === goalId) || { id: goalId, title: goalId };
+  return new Promise((resolve) => {
+    const body = el("div", "purpose");
     let tabs = null;
     let tabId = "goal";
     const picked = new Set(); // slugs
 
     const updateButton = () => {
-      if (!handle) return;
       const n = picked.size;
       handle.buttons[1].textContent = n ? `Add ${n} selected` : "Add selected";
       handle.buttons[1].disabled = n === 0;
     };
 
-    const showGoals = async () => {
-      body.textContent = "";
-      goal = null;
-      handle.buttons[1].hidden = true;
-      handle.modal.querySelector("h2").textContent = `What is ${inst.name} for?`;
-      body.appendChild(el("p", null, "Pick what you play. Reminth suggests the mods and resource packs that help for it - you choose what to add on the next screen."));
-      const grid = el("div", "purpose-grid");
-      let goals = [];
-      try {
-        goals = await window.reminth.purposes();
-      } catch (err) {
-        body.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
-        return;
-      }
-      for (const g of goals) {
-        const card = el("button", "purpose-card");
-        card.type = "button";
-        card.appendChild(el("b", null, g.title));
-        card.appendChild(el("span", null, g.blurb));
-        card.onclick = () => showList(g);
-        grid.appendChild(card);
-      }
-      body.appendChild(grid);
-      body.appendChild(el("p", "set-note", "Nothing is added until you press Add selected, and every mod can be removed later like any other."));
-    };
-
-    const rowFor = (r, ticked) => {
+    const rowFor = (r) => {
       const usable = r.available !== false && r.installed !== true;
       const item = el("button", "pick-item extra-item");
       item.type = "button";
@@ -5694,75 +5723,29 @@ function openPurposeSetup(instanceId) {
       return item;
     };
 
+    const tabBar = el("div", "purpose-tabs");
+    const bar = el("div", "purpose-bar");
+    bar.appendChild(tabBar);
+    body.appendChild(bar);
+    const holder = el("div", "purpose-list");
+    body.appendChild(holder);
+
     const paintTab = () => {
       const tab = tabs.find((t) => t.id === tabId) || tabs[0];
-      const holder = body.querySelector(".purpose-list");
       holder.textContent = "";
       if (tab.note) holder.appendChild(el("p", "set-note", tab.note));
       holder.appendChild(el("h3", "purpose-h", "Recommended"));
-      for (const r of tab.core) holder.appendChild(rowFor(r, true));
+      for (const r of tab.core) holder.appendChild(rowFor(r));
       if (tab.more.length) {
         holder.appendChild(el("h3", "purpose-h", "More - less important, not ticked"));
-        for (const r of tab.more) holder.appendChild(rowFor(r, false));
+        for (const r of tab.more) holder.appendChild(rowFor(r));
       }
       holder.appendChild(el("p", "set-note", "Looking for something else? Discover has the whole catalog; whatever you add there stays."));
-      body.querySelectorAll(".purpose-tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
+      tabBar.querySelectorAll(".purpose-tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabId));
     };
 
-    const showList = async (g) => {
-      goal = g;
-      body.textContent = "";
-      picked.clear();
-      handle.modal.querySelector("h2").textContent = `${g.title} - ${inst.name}`;
-      const bar = el("div", "purpose-bar");
-      const back = el("button", "btn ghost sm", "Back");
-      back.type = "button";
-      back.onclick = () => showGoals();
-      bar.appendChild(back);
-      const tabBar = el("div", "purpose-tabs");
-      bar.appendChild(tabBar);
-      body.appendChild(bar);
-      const holder = el("div", "purpose-list");
-      body.appendChild(holder);
-      holder.appendChild(el("p", "set-note", `Checking which of these have a build for ${inst.mcVersion}…`));
-      handle.buttons[1].hidden = false;
-      handle.buttons[1].disabled = true;
-      try {
-        tabs = await window.reminth.purposeItems(instanceId, g.id);
-      } catch (err) {
-        holder.textContent = "";
-        holder.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
-        return;
-      }
-      if (handle.closed || goal !== g) return;
-      if (!Array.isArray(tabs) || !tabs.length) {
-        holder.textContent = "";
-        holder.appendChild(el("p", "set-note", "Nothing to suggest for this instance."));
-        return;
-      }
-      // The important ones start ticked (when a stable or beta build exists and it isn't already added).
-      for (const t of tabs) {
-        for (const r of t.core) {
-          if (r.available !== false && r.installed !== true && !r.experimental && r.channel !== "alpha") picked.add(r.slug);
-        }
-      }
-      tabId = tabs[0].id;
-      for (const t of tabs) {
-        const b = el("button", "purpose-tab", t.title);
-        b.type = "button";
-        b.dataset.tab = t.id;
-        b.onclick = () => {
-          tabId = t.id;
-          paintTab();
-        };
-        tabBar.appendChild(b);
-      }
-      paintTab();
-      updateButton();
-    };
-
-    handle = openModal({
-      title: `What is ${inst.name} for?`,
+    const handle = openModal({
+      title: `${goal.title} - ${inst.name}`,
       body,
       wide: true,
       onClose: () => resolve(),
@@ -5808,8 +5791,44 @@ function openPurposeSetup(instanceId) {
         },
       ],
     });
-    handle.buttons[1].hidden = true;
-    showGoals();
+    handle.buttons[1].disabled = true;
+    holder.appendChild(el("p", "set-note", `Checking which of these have a build for ${inst.mcVersion}…`));
+
+    window.reminth
+      .purposeItems(instanceId, goal.id)
+      .then((answer) => {
+        if (handle.closed) return;
+        tabs = answer;
+        if (!Array.isArray(tabs) || !tabs.length) {
+          holder.textContent = "";
+          holder.appendChild(el("p", "set-note", "Nothing to suggest for this instance."));
+          return;
+        }
+        // The important ones start ticked (when a stable or beta build exists and it isn't already added).
+        for (const t of tabs) {
+          for (const r of t.core) {
+            if (r.available !== false && r.installed !== true && !r.experimental && r.channel !== "alpha") picked.add(r.slug);
+          }
+        }
+        tabId = tabs[0].id;
+        for (const t of tabs) {
+          const b = el("button", "purpose-tab", t.title);
+          b.type = "button";
+          b.dataset.tab = t.id;
+          b.onclick = () => {
+            tabId = t.id;
+            paintTab();
+          };
+          tabBar.appendChild(b);
+        }
+        paintTab();
+        updateButton();
+      })
+      .catch((err) => {
+        if (handle.closed) return;
+        holder.textContent = "";
+        holder.appendChild(el("p", "set-note warn-note", friendlyError(err.message)));
+      });
   });
 }
 window.openPurposeSetup = openPurposeSetup;

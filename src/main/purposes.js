@@ -120,7 +120,7 @@ const PERFORMANCE = {
 const GOALS = {
   survival: {
     id: "survival",
-    title: "Survival & SMP",
+    title: "Survival",
     blurb: "Long worlds, hardcore runs and survival servers like DonutSMP.",
     core: [
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
