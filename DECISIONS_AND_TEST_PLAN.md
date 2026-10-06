@@ -4,13 +4,44 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 000000000000 (warm-up, create flow, modpacks). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 0000000000000 (playstyle cards). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
   screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
 - **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
 - **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
   release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000. Playstyle picture cards and better lists (6 Oct 2026, late) - desktop window
+
+**State:** code commits `031aeb5` (stacked dialogs fix) and `d129267`; `npm test` **650 pass**. Installer rebuilt in
+`release-1.4.8\`. Not published.
+
+**What changed**
+- Fix (`styles.css`): a dialog opened from another one appeared in a row under it, half off screen; now on top, the one
+  below dimmed (`.modal-root > .modal { grid-area: 1 / 1; position: relative }`).
+- Playstyle step (`features.js` `choosePlaystyle`, `renderer.js` create flow, `styles.css` `.style-*`,
+  `.playstyle-modal`): "Personalize your experience so we can match your vibe"; three big picture cards **PvP, Survival,
+  Performance**; several can be picked; a picked card gets a glowing light-blue outline and a tick; nothing happens until
+  **Finish** (disabled until one is picked) or **Skip** (plain instance). The New instance window is hidden while the
+  cards show and comes back if the cards are closed with the X (nothing created). The box is 980 px wide and at least as
+  tall as the New instance window. Pictures: `assets/playstyles/{pvp,survival,performance}.jpg` (README there; the owner
+  makes them with Claude Design); without them each card shows a coloured gradient.
+- Mod list (`openPurposeSetup(id, goals[])`): one tab per picked playstyle, Performance only when picked; the menu item
+  asks with the same cards.
+- Lists (`purposes.js`, re-researched on Modrinth, all 64 items have 26.2 builds): Performance is now its own card (+ Cull
+  Leaves, Krypton, Debugify); PvP + Status Effect Bars, Small Shield & Totem and Small Tools packs (recommended), Kind's
+  Crystal Optimizer, CritTweaks, Mini Totem, Small Totem Pop Animation (more); Survival + Status Effect Bars, Enchantment
+  Descriptions (recommended), JEI, Inventory Profiles Next, Mouse Wheelie, Continuity, AmbientSounds, Not Enough
+  Animations (more). Nothing removed.
+- Answered: mods are always the newest build for the instance's exact Minecraft version (stable first).
+
+**Test plan (owner)**
+1. New instance -> Fabric -> Continue: only the card box shows; pick two cards -> both glow; Finish -> the mod list with a
+   tab per card. 2. X on the card box -> the New instance window comes back, nothing made. 3. Skip -> plain instance.
+4. Right-click an instance -> Set up for a playstyle... -> same cards.
 
 ---
 
