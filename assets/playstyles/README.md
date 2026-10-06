@@ -1,7 +1,7 @@
 # Playstyle pictures
 
 The cards in "Personalize your experience" (new Fabric/Quilt instance, and the instance menu's
-"Set up for a playstyle...") show a picture behind their text when a file is here:
+"Set up for a playstyle...") show these pictures:
 
 | File | Card |
 |---|---|
@@ -10,7 +10,8 @@ The cards in "Personalize your experience" (new Fabric/Quilt instance, and the i
 | `survival.jpg` | Survival |
 | `performance.jpg` | Performance |
 
-- JPG, about **1200 x 1200 px** (the card is a tall rectangle about 280 x 330 px on screen, shown with "cover",
-  so keep the important part in the middle; the bottom third sits under the card's title and dark fade).
-- Keep each under ~400 KB (they ship inside the installer).
-- No file: the card shows its coloured gradient instead, so nothing breaks.
+- **1280 x 600 px JPG (32:15)**. Each card's picture box has exactly this shape, so nothing is cut off or stretched.
+  A new picture must have the same shape (resize/crop it to 1280 x 600 first).
+- The playstyle's name is drawn **inside the picture** (bottom left), so the card doesn't write it again. When a
+  file is missing the card shows its coloured gradient with the name written on it instead.
+- Keep each under ~400 KB (they ship inside the installer). Today's are 100-125 KB.

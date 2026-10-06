@@ -5717,8 +5717,8 @@ function openProfileExtras(instanceId, profile) {
 const PLAYSTYLE_FALLBACK = [
   { id: "crystal", title: "Crystal PvP", blurb: "End crystals, anchors and totems." },
   { id: "sword", title: "Sword & Axe PvP", blurb: "Sword, axe, shield and minecart fights." },
-  { id: "survival", title: "Survival", blurb: "Survival worlds and servers." },
-  { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading." },
+  { id: "survival", title: "Survival", blurb: "Long worlds and servers like DonutSMP." },
+  { id: "performance", title: "Performance", blurb: "More FPS and smoother frames." },
 ];
 
 /**
@@ -5769,13 +5769,20 @@ function choosePlaystyle({ instanceName = "" } = {}) {
       c.type = "button";
       c.dataset.id = g.id;
       c.setAttribute("aria-pressed", "false");
+      c.setAttribute("aria-label", `${g.title}: ${g.blurb}`);
+      // The picture is wide (1280x600) and already has the playstyle's name drawn in its bottom-left corner, so the
+      // box has the picture's exact shape and the written title only shows while there is no picture (fallback).
       const art = el("span", "style-card-art");
-      art.style.backgroundImage = `url("../../assets/playstyles/${encodeURIComponent(g.id)}.jpg"), var(--fallback)`;
+      art.style.backgroundImage = "var(--fallback)";
+      art.appendChild(el("b", "style-card-name", g.title));
       c.appendChild(art);
-      const text = el("span", "style-card-text");
-      text.appendChild(el("b", null, g.title));
-      text.appendChild(el("span", null, g.blurb));
-      c.appendChild(text);
+      const pic = new Image();
+      pic.onload = () => {
+        art.style.backgroundImage = `url("${pic.src}")`;
+        c.classList.add("has-art");
+      };
+      pic.src = `../../assets/playstyles/${encodeURIComponent(g.id)}.jpg`;
+      c.appendChild(el("span", "style-card-blurb", g.blurb));
       const tick = el("span", "style-card-tick");
       tick.appendChild(icon("#i-check"));
       c.appendChild(tick);

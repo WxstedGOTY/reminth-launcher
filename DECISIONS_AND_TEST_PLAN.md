@@ -4,13 +4,41 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 0000000000000 (playstyle cards). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 00000000000000 (playstyle card pictures, cloud window, 6 Oct night); before it 0000000000000 (playstyle cards). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
   screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
 - **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
 - **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
   release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000. Playstyle card pictures (6 Oct 2026, night) - cloud window
+
+**State:** this commit (on branch `claude/stoic-lovelace-y9p76z`, on top of `main` `1bf6e81`); `npm test` **650 pass** (Linux).
+Not in any installer yet. **Desktop window: `git fetch origin claude/stoic-lovelace-y9p76z` and merge it into `main` first.**
+
+**What changed**
+- `assets/playstyles/{crystal,sword,survival,performance}.jpg`: the owner's four pictures, resized to **1280 x 600** (32:15),
+  100-125 KB each. The old pictures (none were committed) are replaced. README updated.
+- Cards re-shaped to the pictures (`features.js` `choosePlaystyle`, `styles.css` `.style-*`, `.playstyle-modal`): 2 x 2 grid,
+  each picture box has the picture's exact 32:15 shape (no crop, no stretch), the description sits under the picture.
+  The pictures already have the name drawn in them, so the card's written title only shows when a picture is missing
+  (gradient fallback). The dialog is as wide as the cards need and the cards shrink on short windows, so both rows fit
+  with no scrolling and no empty bands at the sides.
+- Shorter card descriptions (`purposes.js` list + renderer fallback) so they fit on one line.
+- `styles.css`: the `background-origin: border-box` rule had ended up in the middle of the file (later batches appended
+  after it); moved back to the very end, as the codebase rule says.
+
+**Checked:** headless Chromium with the real `styles.css` at 1920x1080, 1366x768 and 1100x700: boxes 557x261 / 343x161 /
+270x127 (ratio 2.133 = the pictures'), no scrollbar, pictures sharp. **Not checked:** the real Electron app.
+
+**Test (desktop window / owner):**
+1. New instance -> Fabric 26.2 -> Continue: four cards in a 2 x 2 grid, each picture fills its box exactly, no text over
+   the picture except the one drawn in it, descriptions under. PASS/FAIL.
+2. Click two cards: both glow with a tick; Finish works. PASS/FAIL.
+3. Make the Reminth window small (Restore Down, drag to the smallest size): the cards shrink, nothing scrolls or is cut. PASS/FAIL.
 
 ---
 

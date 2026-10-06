@@ -2432,10 +2432,6 @@ body.game-running *, body.game-running *::before, body.game-running *::after { a
    windows should cost nothing, not 7-10% of a CPU core for animations nobody can see. */
 body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation: none !important; }
 
-/* !important because every "background:" shorthand elsewhere silently resets
-   this back to the padding edge. */
-*, *::before, *::after { background-origin: border-box !important; }
-
 /* Library: the line that points people at streamer mode */
 .creator-tip { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(255, 255, 255, .03); color: var(--text-2); font-size: 13px; }
 .creator-tip .i { width: 16px; height: 16px; flex: none; }
@@ -2490,25 +2486,30 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .purpose-card.none { border-style: dashed; }
 
 /* The playstyle cards ("Personalize your experience"): big picture cards, several can be picked. */
-.modal.playstyle-modal { width: min(1180px, 100%); min-height: min(660px, calc(100vh - 60px)); }
+/* The dialog is as wide as the 2x2 cards need, and the cards get smaller on short windows (each box keeps the
+   picture's 32:15 shape), so both rows always fit without scrolling and there is no empty band at the sides. */
+.modal.playstyle-modal { width: min(1180px, 100%, calc((100vh - 445px) * 2.1333 + 16px + 46px)); min-width: min(100%, 500px); }
 .modal.playstyle-modal .modal-body { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-.style-pick-title { margin: 2px 0 6px; font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+.style-pick-title { margin: 2px 0 6px; font-size: clamp(16px, 2.2vh + 2px, 22px); font-weight: 800; letter-spacing: -0.01em; }
 .style-pick-sub { margin: 0 0 18px; color: var(--text-2); font-size: 13px; }
-.style-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.style-card { position: relative; height: 330px; padding: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #0b111c; color: #fff; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+/* Two by two. The pictures are 1280x600 (32:15) and each box has exactly that shape: nothing is cut off or stretched. */
+.style-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.style-card { position: relative; display: flex; flex-direction: column; padding: 0; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #0b111c; color: #fff; text-align: left; cursor: pointer; transition: border-color .15s ease, box-shadow .15s ease; }
 .style-card[data-id="pvp"], .style-card[data-id="crystal"] { --fallback: linear-gradient(160deg, #3d1450 0%, #1a0d26 55%, #0b0d16 100%); }
 .style-card[data-id="sword"] { --fallback: linear-gradient(160deg, #4a1424 0%, #1b0d1a 55%, #0b0d16 100%); }
 .style-card[data-id="survival"] { --fallback: linear-gradient(160deg, #173d2a 0%, #0f2219 55%, #0a1110 100%); }
 .style-card[data-id="performance"] { --fallback: linear-gradient(160deg, #0f3a4a 0%, #0d1f33 55%, #0a0f1a 100%); }
-.style-card-art { position: absolute; inset: 0; background-size: cover; background-position: center; }
-.style-card::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(4, 7, 12, .88) 0%, rgba(4, 7, 12, .35) 45%, rgba(4, 7, 12, 0) 70%); pointer-events: none; }
-.style-card-text { position: absolute; left: 18px; right: 18px; bottom: 16px; z-index: 1; display: flex; flex-direction: column; gap: 6px; }
-.style-card-text b { font-size: 22px; font-weight: 800; }
-.style-card-text span { font-size: 13px; color: rgba(255, 255, 255, .82); line-height: 1.35; }
+.style-card-art { position: relative; display: block; width: 100%; aspect-ratio: 32 / 15; background-size: cover; background-position: center; }
+.style-card-name { position: absolute; left: 18px; bottom: 14px; font-size: 22px; font-weight: 800; }
+.style-card.has-art .style-card-name { display: none; } /* the picture already says it */
+.style-card-blurb { display: block; padding: 10px 14px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; line-height: 1.35; color: rgba(255, 255, 255, .78); border-top: 1px solid rgba(255, 255, 255, .06); }
 .style-card-tick { position: absolute; top: 12px; right: 12px; z-index: 1; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, .45); border: 1px solid rgba(255, 255, 255, .25); opacity: 0; transition: opacity .15s ease; }
 .style-card-tick .i { width: 15px; height: 15px; }
 .style-card:hover { border-color: rgba(125, 211, 252, .55); }
 .style-card.selected { border-color: #7dd3fc; box-shadow: 0 0 0 2px #7dd3fc, 0 0 26px rgba(125, 211, 252, .55); }
 .style-card.selected .style-card-tick { opacity: 1; background: #38bdf8; border-color: #7dd3fc; color: #04121c; }
-@media (max-width: 1100px) { .style-grid { grid-template-columns: repeat(2, 1fr); } .style-card { height: 240px; } }
-@media (max-width: 640px) { .style-grid { grid-template-columns: 1fr; } .style-card { height: 200px; } }
+@media (max-width: 640px) { .style-grid { grid-template-columns: 1fr; } }
+
+/* Must stay the LAST rule in this file (removes the thin lighter line inside gradient boxes). !important because
+   every "background:" shorthand elsewhere silently resets this back to the padding edge. */
+*, *::before, *::after { background-origin: border-box !important; }

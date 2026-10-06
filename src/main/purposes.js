@@ -127,7 +127,7 @@ const GOALS = {
   survival: {
     id: "survival",
     title: "Survival",
-    blurb: "Long worlds, hardcore runs and survival servers like DonutSMP.",
+    blurb: "Long worlds and servers like DonutSMP.",
     core: [
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
@@ -166,7 +166,7 @@ const GOALS = {
   crystal: {
     id: "crystal",
     title: "Crystal PvP",
-    blurb: "End crystals, anchors and totems on crystal PvP servers.",
+    blurb: "End crystals, anchors and totems.",
     core: [
       mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "The most used crystal optimizer: crystals blow up the moment you hit them, without waiting for the server.", {
         warning: `${RULES} ${ONE_OPTIMIZER}`,
@@ -262,7 +262,7 @@ const GOAL_IDS = Object.keys(GOALS);
 // What the player is offered (any of them, together): four cards. "pvp" (crystal + sword merged) stays a valid id for
 // old calls; "performance" is its own card.
 const LISTED_GOALS = ["crystal", "sword", "survival", "performance"];
-const PERFORMANCE_CARD = { id: "performance", title: "Performance", blurb: "More FPS, smoother frames and faster loading on any server." };
+const PERFORMANCE_CARD = { id: "performance", title: "Performance", blurb: "More FPS and smoother frames." };
 
 /* ------------------------------------------------------------------ */
 /* pure parts                                                          */
