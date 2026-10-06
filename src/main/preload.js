@@ -46,6 +46,8 @@ contextBridge.exposeInMainWorld("reminth", {
   hudSupports: (mc) => ipcRenderer.invoke("hud:supports", mc),
   bundledSupports: (mod, mc) => ipcRenderer.invoke("bundled:supports", mod, mc),
   installModpack: (req) => ipcRenderer.invoke("modpack:install", req),
+  cancelModpack: (token) => ipcRenderer.invoke("modpack:cancel", token),
+  modpackTarget: (projectId, versionId) => ipcRenderer.invoke("modpack:target", projectId, versionId),
 
   // play / install
   play: (options) => ipcRenderer.invoke("play:run", options || {}),

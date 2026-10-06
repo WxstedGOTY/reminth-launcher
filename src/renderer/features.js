@@ -1099,7 +1099,25 @@ async function installProject({ projectId, projectType, title, versionId, instan
 
 async function installModpackFlow({ projectId, versionId, title, then }) {
   const body = el("div");
-  body.appendChild(el("p", null, `${title || "This modpack"} becomes a new instance with its own folder, so it can't clash with your other mods or worlds.`));
+  // Where it goes: a new instance (default), or an existing one with the same Minecraft version and loader.
+  const where = { mode: "new", instanceId: null };
+  const choice = el("div", "pick-list modpack-where");
+  const optNew = el("button", "pick-item selected");
+  optNew.type = "button";
+  optNew.appendChild(el("span", "chk"));
+  const newText = el("div", "extra-main");
+  newText.appendChild(el("b", null, "New instance"));
+  newText.appendChild(el("span", "extra-why", `${title || "This modpack"} gets its own folder, so it can't clash with your other mods or worlds.`));
+  optNew.appendChild(newText);
+  choice.appendChild(optNew);
+  const existingHead = el("p", "set-note", "Or add it to an instance you have (same Minecraft version and loader only). Checking which ones fit…");
+  choice.appendChild(existingHead);
+  const existingList = el("div", "pick-list");
+  choice.appendChild(existingList);
+  body.appendChild(choice);
+  const note = el("p", "set-note", "");
+  note.hidden = true;
+  body.appendChild(note);
   const prog = el("div", "progress modal-progress");
   prog.hidden = true;
   const row = el("div", "progress-row");
@@ -1113,10 +1131,27 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
   prog.appendChild(row);
   prog.appendChild(track);
   body.appendChild(prog);
+
+  const optionButtons = [optNew];
+  const select = (mode, instanceId, btn) => {
+    where.mode = mode;
+    where.instanceId = instanceId;
+    for (const b of optionButtons) b.classList.toggle("selected", b === btn);
+    note.hidden = mode !== "existing";
+    note.textContent =
+      mode === "existing"
+        ? "Nothing of yours is overwritten: if a file is already there, yours stays and the pack's copy goes to a backup folder. The pack's mods count as your own from then on."
+        : "";
+  };
+  optNew.onclick = () => select("new", null, optNew);
+
   return new Promise((resolve) => {
     let result = null;
     let installing = false;
+    let cancelling = false;
+    const token = `mp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const off = (p) => {
+      if (cancelling) return;
       const determinate = p.total > 1;
       stage.textContent = p.stage;
       const v = determinate ? Math.round((p.current / p.total) * 100) : null;
@@ -1125,29 +1160,61 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
       fill.classList.toggle("busy", !determinate);
     };
     modpackListeners.add(off);
-    openModal({
+    const handle = openModal({
       title: `Install ${title || "modpack"}?`,
       body,
-      // Esc or a click on the backdrop used to close this mid-install: the
-      // install carried on unseen and could be started a second time.
+      wide: true,
+      // Esc or a click on the backdrop must not close it mid-install (the install would carry on unseen);
+      // the Cancel button stops the install instead.
       canClose: () => !installing,
       onClose: () => {
         modpackListeners.delete(off);
         resolve(result);
       },
       buttons: [
-        { label: "Cancel", className: "outline" },
+        {
+          label: "Cancel",
+          className: "outline",
+          onClick: async () => {
+            if (!installing) return true;
+            // Stop the download; the install itself cleans up (removes the half-made instance or the added files).
+            cancelling = true;
+            stage.textContent = "Cancelling…";
+            pct.textContent = "";
+            fill.classList.add("busy");
+            try {
+              await window.reminth.cancelModpack(token);
+            } catch {
+              // nothing running any more
+            }
+            return false; // closes when the install has really stopped
+          },
+        },
         {
           label: "Install",
           className: "primary",
           icon: "#i-download",
-          onClick: async (handle) => {
+          onClick: async () => {
             if (installing) return false;
+            if (where.mode === "existing" && !where.instanceId) {
+              toast("Pick an instance first.");
+              return false;
+            }
             installing = true;
             prog.hidden = false;
-            handle.buttons.forEach((b) => (b.disabled = true));
+            handle.buttons[1].disabled = true;
+            for (const b of optionButtons) b.disabled = true;
             try {
-              const inst = await window.reminth.installModpack({ projectId, versionId });
+              if (where.mode === "existing") {
+                const r = await window.reminth.installModpack({ projectId, versionId, token, intoInstanceId: where.instanceId });
+                result = r.instance;
+                await loadContent(state.activeId);
+                if (window.loadPresence) window.loadPresence();
+                const kept = r.clashes && r.clashes.length ? ` ${r.clashes.length} of your files were already there and were kept; the pack's copies are in a backup folder.` : "";
+                toast(`${r.title || title || "The modpack"} added to ${r.instance.name}: ${r.added} new files.${kept}`);
+                return true;
+              }
+              const inst = await window.reminth.installModpack({ projectId, versionId, token });
               result = inst;
               await loadInstances();
               await selectInstance(inst.id, false);
@@ -1155,9 +1222,17 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
               if (then) then(inst);
               return true;
             } catch (err) {
+              if (cancelling || /Cancelled/i.test(String(err && err.message))) {
+                toast("Cancelled. Nothing from the modpack was kept.");
+                installing = false;
+                handle.close();
+                return false;
+              }
               stage.textContent = friendlyError(err.message);
               fill.style.width = "0%";
-              handle.buttons.forEach((b) => (b.disabled = false));
+              fill.classList.remove("busy");
+              handle.buttons[1].disabled = false;
+              for (const b of optionButtons) b.disabled = b.dataset.fits === "0";
               return false;
             } finally {
               installing = false;
@@ -1166,6 +1241,40 @@ async function installModpackFlow({ projectId, versionId, title, then }) {
         },
       ],
     });
+
+    // Which existing instances it fits (from the pack's listing; checked again against the pack itself).
+    window.reminth
+      .modpackTarget(projectId, versionId)
+      .then((t) => {
+        if (handle.closed) return;
+        const list = (t && t.instances) || [];
+        existingHead.textContent = list.some((i) => i.ok)
+          ? `Or add it to an instance you have (it needs Minecraft ${t.mcVersion} with ${LOADER_LABELS[t.loader] || t.loader}):`
+          : `No instance of yours fits: it needs Minecraft ${t.mcVersion} with ${LOADER_LABELS[t.loader] || t.loader}.`;
+        for (const inst of list) {
+          const b = el("button", "pick-item");
+          b.type = "button";
+          b.dataset.fits = inst.ok ? "1" : "0";
+          b.disabled = !inst.ok;
+          b.appendChild(el("span", "chk"));
+          const text = el("div", "extra-main");
+          const top = el("div", "extra-top");
+          top.appendChild(el("b", null, inst.name));
+          top.appendChild(el("span", "tag dim", `${LOADER_LABELS[inst.loader] || inst.loader} ${inst.mcVersion}`));
+          text.appendChild(top);
+          if (!inst.ok && inst.why) text.appendChild(el("span", "extra-why", inst.why));
+          b.appendChild(text);
+          b.onclick = () => {
+            if (!b.disabled) select("existing", inst.id, b);
+          };
+          optionButtons.push(b);
+          existingList.appendChild(b);
+        }
+      })
+      .catch(() => {
+        if (handle.closed) return;
+        existingHead.textContent = "Couldn't check which of your instances it fits, so it can only go into a new instance.";
+      });
   });
 }
 const modpackListeners = new Set();

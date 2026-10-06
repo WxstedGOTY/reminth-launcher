@@ -937,7 +937,7 @@ const DOWNLOAD_STALL_MS = 30000;
  * (no bytes for `stallMs`), the disk fills up, the folder disappears
  * mid-download, or the bytes don't match.
  */
-async function downloadWithHash(url, dest, sha1, onBytes, { stallMs = DOWNLOAD_STALL_MS } = {}) {
+async function downloadWithHash(url, dest, sha1, onBytes, { stallMs = DOWNLOAD_STALL_MS, signal } = {}) {
   const controller = new AbortController();
   // One promise that rejects the moment the download can't go on (stalled,
   // or the file can't be written). Every wait below races against it, so
@@ -958,6 +958,18 @@ async function downloadWithHash(url, dest, sha1, onBytes, { stallMs = DOWNLOAD_S
   let tmp = null;
   let out = null;
   let reader = null;
+  // The caller's Cancel (a modpack install): stop now, leave nothing behind.
+  let cancelled = false;
+  const cancelError = () => Object.assign(new Error("Cancelled."), { code: "CANCELLED" });
+  const onAbort = () => {
+    cancelled = true;
+    controller.abort();
+    fail(cancelError());
+  };
+  if (signal) {
+    if (signal.aborted) throw cancelError();
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
   try {
     alive();
     const res = await Promise.race([fetch(url, { headers: { "User-Agent": modrinth.USER_AGENT }, signal: controller.signal }), failed]);
@@ -1010,10 +1022,12 @@ async function downloadWithHash(url, dest, sha1, onBytes, { stallMs = DOWNLOAD_S
       });
     }
     if (tmp) await removeFile(tmp).catch(() => {});
+    if (cancelled) throw cancelError();
     if (stalled) throw new Error("The download stalled - no data arrived for a while. Check your connection and try again.");
     throw err;
   } finally {
     clearTimeout(stallTimer);
+    if (signal) signal.removeEventListener("abort", onAbort);
   }
 }
 

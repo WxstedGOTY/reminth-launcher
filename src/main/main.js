@@ -991,12 +991,55 @@ ipcMain.handle("compat:previewSwitch", async (_e, id, request) => {
   return versionSwitch.previewSwitch(id, r.mcVersion);
 });
 
+// Modpack installs in progress, by the token the renderer chose, so its Cancel button can stop one.
+const modpackInstalls = new Map(); // token -> AbortController
 ipcMain.handle("modpack:install", async (_e, request) => {
-  const inst = await mrpack.installModpack(request || {}, (p) => send("modpack:progress", p));
-  // The pack's own files own its settings: no starting options.txt from a
-  // profile picked later, ever.
-  await gameOptions.markNoSeed(inst && inst.gameDir, "modpack");
-  return withRunning(inst);
+  const r = request && typeof request === "object" ? request : {};
+  const token = typeof r.token === "string" && r.token.length <= 64 ? r.token : null;
+  const controller = new AbortController();
+  if (token) modpackInstalls.set(token, controller);
+  const progress = (p) => send("modpack:progress", p);
+  try {
+    if (r.intoInstanceId) {
+      // Into an instance the player already has: same Minecraft version and loader only, never while it runs or
+      // while its mods are being changed (the same lock Play and the mod updates use).
+      const inst = await instances.require(String(r.intoInstanceId));
+      if (running.has(inst.id)) throw new Error("Close the game first - that instance is running.");
+      if (syncing.has(inst.id)) throw new Error("That instance's mods are already being updated.");
+      syncing.add(inst.id);
+      try {
+        const result = await mrpack.installModpackInto(inst, { projectId: r.projectId, versionId: r.versionId }, progress, { signal: controller.signal });
+        return { ...result, instance: withRunning(inst) };
+      } finally {
+        syncing.delete(inst.id);
+      }
+    }
+    const inst = await mrpack.installModpack(r, progress, { signal: controller.signal });
+    // The pack's own files own its settings: no starting options.txt from a
+    // profile picked later, ever.
+    await gameOptions.markNoSeed(inst && inst.gameDir, "modpack");
+    return withRunning(inst);
+  } finally {
+    if (token) modpackInstalls.delete(token);
+  }
+});
+ipcMain.handle("modpack:cancel", (_e, token) => {
+  const controller = modpackInstalls.get(String(token || ""));
+  if (controller) controller.abort();
+  return Boolean(controller);
+});
+// What a pack version is for (from its listing), so instances it can't go into can be greyed out with a reason.
+ipcMain.handle("modpack:target", async (_e, projectId, versionId) => {
+  const target = await mrpack.packTarget(String(projectId || ""), versionId ? String(versionId) : undefined);
+  const list = await instances.list();
+  return {
+    ...target,
+    instances: list.map((inst) => {
+      const fit = mrpack.packFitsInstance(target, inst);
+      const why = running.has(inst.id) ? "Close the game first - it is running." : fit.why;
+      return { id: inst.id, name: inst.name, loader: inst.loader, mcVersion: inst.mcVersion, ok: fit.ok && !running.has(inst.id), why };
+    }),
+  };
 });
 
 // ---- what the player has actually played (read-only, see gameData.js) ----
