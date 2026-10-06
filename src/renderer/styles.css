@@ -2512,4 +2512,6 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 
 /* Must stay the LAST rule in this file (removes the thin lighter line inside gradient boxes). !important because
    every "background:" shorthand elsewhere silently resets this back to the padding edge. */
+.extra-icon { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; object-fit: cover; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); }
+.extra-icon.blank { display: block; }
 *, *::before, *::after { background-origin: border-box !important; }

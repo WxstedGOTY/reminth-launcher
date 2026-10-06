@@ -53,12 +53,25 @@ test("a Forge instance is offered resource packs only; a vanilla instance too; Q
   assert.equal(purposes.tabsFor("nope", { loader: "fabric" }), null);
 });
 
-test("two crystal optimizers are not both recommended; the second is a 'more' item with a warning", () => {
-  const [goal] = purposes.tabsFor("crystal", { loader: "fabric" });
-  assert.ok(goal.core.some((i) => i.slug === "marlow-crystal-optimizer"));
-  assert.ok(!goal.core.some((i) => i.slug === "clientsidecrystals"));
-  const second = goal.more.find((i) => i.slug === "clientsidecrystals");
-  assert.ok(second && /one crystal optimizer/i.test(second.warning));
+test("the owner's rules: important ones ticked even when a few servers ban them, one mod per job, no automation", () => {
+  const core = (id) => purposes.tabsFor(id, { loader: "fabric" })[0].core.map((i) => i.slug);
+  const all = (id) => purposes.tabsFor(id, { loader: "fabric" }).flatMap((t) => [...t.core, ...t.more]).map((i) => i.slug);
+  // crystal: both crystal mods (they do different jobs and work together) and the anchor optimizer are ticked
+  for (const s of ["marlow-crystal-optimizer", "clientsidecrystals", "anchoroptimizer", "small-shield-totem", "small-tools-", "no-explosion-particles", "low-fire-reborn"]) {
+    assert.ok(core("crystal").includes(s), `crystal: ${s}`);
+  }
+  for (const s of ["small-shield-totem", "small-tools-", "low-fire-reborn", "crittweaks"]) assert.ok(core("sword").includes(s), `sword: ${s}`);
+  // survival: Xaero's maps are ticked
+  for (const s of ["xaeros-minimap", "xaeros-world-map"]) assert.ok(core("survival").includes(s), `survival: ${s}`);
+  // one per job: these doubles are gone everywhere
+  for (const id of ["crystal", "sword", "survival", "pvp"]) {
+    for (const s of ["kinds-crystal-optimizer", "kinds-anker-optimizer", "mini-totem", "small-totem-pop-animation", "small-low-totem", "short-pvp-swords", "short-swords-pack", "low-shield-pack", "crystal-vanilla-tweaks", "cull-leaves", "clientsort", "mouse-wheelie", "cpvp"]) {
+      assert.ok(!all(id).includes(s), `${id}: ${s} is a second mod for the same job`);
+    }
+  }
+  // the server-rules warning stays on the ones some servers ban
+  const crystalItems = purposes.tabsFor("crystal", { loader: "fabric" })[0].core;
+  for (const s of ["marlow-crystal-optimizer", "clientsidecrystals", "anchoroptimizer"]) assert.match(crystalItems.find((i) => i.slug === s).warning, /check the rules/i);
 });
 
 test("listFor marks availability, channel and installed from Modrinth and the manifest; a 404 is 'not available', other failures 'unknown'", async () => {
@@ -157,10 +170,10 @@ test("the player is offered PvP and Survival only; PvP holds the crystal and the
   assert.ok(!purposes.GOAL_IDS.includes("creative"));
   const [goal] = purposes.tabsFor("pvp", { loader: "fabric" });
   const slugs = new Set([...goal.core, ...goal.more].map((i) => i.slug));
-  for (const id of ["marlow-crystal-optimizer", "anchoroptimizer", "short-pvp-swords", "hitcolorx", "totemcounter"]) assert.ok(slugs.has(id), id);
-  // still one crystal optimizer recommended, the second is only a "more" item
+  for (const id of ["marlow-crystal-optimizer", "anchoroptimizer", "small-tools-", "hitcolorx", "totemcounter"]) assert.ok(slugs.has(id), id);
+  // both crystal mods are recommended (they do different jobs)
   assert.ok(goal.core.some((i) => i.slug === "marlow-crystal-optimizer"));
-  assert.ok(!goal.core.some((i) => i.slug === "clientsidecrystals"));
+  assert.ok(goal.core.some((i) => i.slug === "clientsidecrystals"));
 });
 
 test("several playstyles at once: one tab each, Performance only when it was ticked, every item once", () => {

@@ -5845,6 +5845,16 @@ async function openPurposeSetup(instanceId, goalIds) {
       item.setAttribute("role", "checkbox");
       item.disabled = !usable;
       item.appendChild(el("span", "chk"));
+      // The project's icon on the left of its name, like in Discover (Modrinth's own image server only).
+      const src = safeIconUrl(r.iconUrl);
+      if (src) {
+        const img = el("img", "extra-icon");
+        img.src = src;
+        img.alt = "";
+        img.loading = "lazy";
+        img.addEventListener("error", () => img.replaceWith(el("span", "extra-icon blank")));
+        item.appendChild(img);
+      } else item.appendChild(el("span", "extra-icon blank"));
       const main = el("div", "extra-main");
       const top = el("div", "extra-top");
       top.appendChild(el("b", null, r.title));

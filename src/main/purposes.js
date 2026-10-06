@@ -98,8 +98,7 @@ const PERFORMANCE = {
   core: [
     mod("sodium-extra", "Sodium Extra", "More video options for Sodium: turn off animations and particles you don't need, FPS and coordinates overlays."),
     mod("reeses-sodium-options", "Reese's Sodium Options", "Tidier, easier to read video settings screen for Sodium."),
-    mod("moreculling", "More Culling", "Skips drawing more hidden things (leaves, signs, item frames) on top of Entity Culling."),
-    mod("cull-leaves", "Cull Leaves", "Draws only the outside of leaf blocks: forests cost far fewer frames."),
+    mod("moreculling", "More Culling", "Skips drawing hidden things (leaves, signs, item frames, inside of blocks) on top of Entity Culling."),
     mod("badoptimizations", "BadOptimizations", "Small speed-ups to lighting, sky and entity code. Nothing looks different."),
     mod("krypton", "Krypton", "A faster, lighter network stack: less work per packet on busy servers."),
     mod("debugify", "Debugify", "Fixes dozens of known Minecraft bugs, a few of them slowdowns."),
@@ -120,19 +119,26 @@ const PERFORMANCE = {
 /* ------------------------------------------------------------------ */
 /* the playstyles                                                      */
 /* ------------------------------------------------------------------ */
-// Researched again 6 Oct 2026 (Modrinth, builds for 26.2): what crystal/sword PvP players actually run (crystal and
-// anchor optimizers, totem counter and small pop, potion timers, low fire, armor HUD, small shield/totem/tools packs)
-// and the survival quality-of-life mods with the most players. Nothing that automates play or shows what vanilla hides.
+// Researched again 6-7 Oct 2026 (Modrinth, builds for 26.2). Rules the owner set:
+//  - what a player of that style really needs is RECOMMENDED (ticked), even when a few servers ban it (those carry a
+//    "check the server rules" warning): crystal and anchor optimizers, Client Side Crystals, Xaero's maps;
+//  - one mod or pack per job (no two small-totem packs, no two optimizers doing the same thing, no two sorters);
+//  - nothing that plays for you (no macros, auto-totem, auto-clicker, fullbright, x-ray, freecam, hitbox helpers).
+// Marlow's Crystal Optimizer (a crystal breaks the moment you hit it) and Client Side Crystals (a crystal shows the moment
+// you place it) do different jobs and are made to work together.
 const GOALS = {
   survival: {
     id: "survival",
     title: "Survival",
-    blurb: "Long worlds and servers like DonutSMP.",
+    blurb: "Long worlds, hardcore runs and survival servers like DonutSMP.",
     core: [
+      mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen, with waypoints.", { warning: MINIMAP }),
+      mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: MINIMAP }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
+      mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it."),
+      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out."),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
-      mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it."),
       mod("status-effect-bars", "Status Effect Bars", "A small bar under each potion effect shows how long it has left."),
       mod("enchantment-descriptions", "Enchantment Descriptions", "Says what every enchantment does, right in the tooltip."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
@@ -141,21 +147,17 @@ const GOALS = {
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
       mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
       mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
+      mod("controlling", "Controlling", "A search box in Controls, and a button that shows keys bound twice."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
     ],
     more: [
-      mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen.", { warning: MINIMAP }),
-      mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: MINIMAP }),
       mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Reminth starts it early, so the first inventory open doesn't freeze."),
-      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory, refill tools and blocks as they run out. Use this or Client Sort, not both."),
-      mod("clientsort", "Client Sort", "A simpler sort button for chests and your inventory. Use this or Inventory Profiles Next, not both."),
-      mod("mouse-wheelie", "Mouse Wheelie", "Scroll to move items, sort with a middle click, refill the slot you use up."),
       mod("continuity", "Continuity", "Connected glass and bookshelves, like in the trailers."),
       mod("ambientsounds", "AmbientSounds", "Wind, birds, water and caves sound alive."),
+      mod("sound-physics-remastered", "Sound Physics Remastered", "Sound gets muffled behind walls and echoes in caves."),
       mod("not-enough-animations", "Not Enough Animations", "Eating, maps and climbing look right in third person."),
       mod("simple-voice-chat", "Simple Voice Chat", "Talk to people near you. The server needs the mod too."),
-      mod("sound-physics-remastered", "Sound Physics Remastered", "Sound gets muffled behind walls and echoes in caves."),
       mod("chat-heads", "Chat Heads", "Shows the sender's head next to chat messages."),
       pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens. Easy on the eyes at night."),
       pack("no-block-break-particles", "No Block Break Particles", "Removes the particles when you break blocks - clearer view, smoother game."),
@@ -166,40 +168,33 @@ const GOALS = {
   crystal: {
     id: "crystal",
     title: "Crystal PvP",
-    blurb: "End crystals, anchors and totems.",
+    blurb: "End crystals, anchors and totems on crystal PvP servers.",
     core: [
-      mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "The most used crystal optimizer: crystals blow up the moment you hit them, without waiting for the server.", {
-        warning: `${RULES} ${ONE_OPTIMIZER}`,
-      }),
+      mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "The most used crystal optimizer: a crystal breaks the moment you hit it, without waiting for the server.", { warning: RULES }),
+      mod("clientsidecrystals", "Client Side Crystals", "A crystal shows the moment you place it. Made to work together with Marlow's optimizer.", { warning: RULES, configs: [CFG.clientCrystals] }),
       mod("anchoroptimizer", "Anchor Optimizer", "The most used anchor optimizer: respawn anchors explode right away on your screen.", { warning: RULES, configs: [CFG.anchors] }),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
-      mod("cpvp", "Totem Tweaks", "A smaller totem pop animation, so you can see during a fight.", { configs: [CFG.totemTweaks] }),
       mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
-      mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
+      mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
       mod("ukus-armor-hud", "uku's Armor HUD", "Shows your armor and its durability next to the hotbar.", { configs: [CFG.armorHud] }),
       mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster - restock between fights."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
-      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, and a small totem pop."),
-      pack("small-tools-", "Small Tools", "Smaller swords, axes and pickaxes in your hand: more of the screen to see."),
-      pack("crystal-vanilla-tweaks", "Crystal Vanilla Tweaks", "Crystal PvP look in the vanilla style: clear crystals, low fire and more."),
+      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, a small totem pop and small pop particles."),
+      pack("small-tools-", "Small Tools", "Smaller swords, axes, pickaxes and shovels in your hand: more of the screen to see."),
       pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during crystal fights."),
       pack("pvp-crosshair", "PvP Crosshair", "A small crosshair that doesn't get in the way."),
     ],
     more: [
-      mod("kinds-crystal-optimizer", "Kind's Crystal Optimizer", "Another popular crystal optimizer. Only if you don't use Marlow's.", { warning: `${RULES} ${ONE_OPTIMIZER}` }),
-      mod("clientsidecrystals", "Client Side Crystals", "Crystals show up instantly when you place them.", { warning: `${RULES} ${ONE_OPTIMIZER}`, configs: [CFG.clientCrystals] }),
-      mod("kinds-anker-optimizer", "Kind's Anchor Optimizer", "Another anchor optimizer. Only if you don't use Anchor Optimizer.", { warning: RULES }),
       mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
       mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
+      mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen."),
+      mod("cps-plus", "CPS+", "Shows your clicks per second."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it - handy for restocking kits."),
-      pack("small-totem-pop-animation", "Small Totem Pop Animation", "A pack-only small totem pop (if you don't use Totem Tweaks)."),
-      pack("mini-totem", "Mini Totem", "An even smaller totem in your offhand."),
-      pack("short-pvp-swords", "PvP Swords", "Shorter swords, so they block less of the screen."),
-      pack("low-shield-pack", "Low Shield", "Holds the shield lower so you can see over it."),
+      mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
     ],
   },
 
@@ -208,33 +203,29 @@ const GOALS = {
     title: "Sword & Axe PvP",
     blurb: "Sword, axe, shield and minecart fights.",
     core: [
-      mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
-      mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
-      mod("ukus-armor-hud", "uku's Armor HUD", "Shows your armor and its durability next to the hotbar.", { configs: [CFG.armorHud] }),
+      mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
+      mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
       mod("clean-keystrokes", "Clean Keystrokes", "Shows the keys and mouse buttons you press on screen."),
       mod("cps-plus", "CPS+", "Shows your clicks per second."),
-      mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
-      mod("cpvp", "Totem Tweaks", "A smaller totem pop animation, so you can see during a fight.", { configs: [CFG.totemTweaks] }),
       mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
+      mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
+      mod("betterhurtcam", "BetterHurtCam", "Calms the screen shake when you take damage.", { configs: [CFG.betterhurtcam] }),
+      mod("ukus-armor-hud", "uku's Armor HUD", "Shows your armor and its durability next to the hotbar.", { configs: [CFG.armorHud] }),
+      mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
       mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
-      mod("hitcolorx", "HitColor X", "Choose the colour of the red flash when something is hit."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
-      pack("short-pvp-swords", "PvP Swords", "Shorter swords, so they block less of the screen."),
-      pack("low-shield-pack", "Low Shield", "Holds the shield lower so you can see over it."),
-      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem models, and a small totem pop."),
-      pack("small-tools-", "Small Tools", "Smaller swords, axes and pickaxes in your hand."),
+      pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, a small totem pop and small pop particles."),
+      pack("small-tools-", "Small Tools", "Smaller swords, axes, pickaxes and shovels in your hand: more of the screen to see."),
       pack("pvp-crosshair", "PvP Crosshair", "A small crosshair that doesn't get in the way."),
     ],
     more: [
-      mod("crittweaks", "CritTweaks", "More and clearer critical-hit particles, so you see every crit land."),
+      pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during a fight."),
       mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
       mod("jade", "Jade", "Shows what block or mob you are looking at."),
-      pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during a fight."),
-      pack("short-swords-pack", "Short Swords", "A second short sword pack. Use one of the two, not both."),
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
       pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens."),
     ],
@@ -373,6 +364,21 @@ async function listFor(goalIds, instance, deps = {}) {
   for (const tab of tabs) {
     tab.core = await Promise.all(tab.core.map(check));
     tab.more = await Promise.all(tab.more.map(check));
+  }
+  // Each project's icon (one batch call; Modrinth takes slugs there too), shown next to its name like in Discover.
+  try {
+    const slugs = [...new Set(tabs.flatMap((t) => [...t.core, ...t.more]).map((r) => r.slug))];
+    const projects = typeof modrinth.getProjects === "function" ? await modrinth.getProjects(slugs) : [];
+    const icons = new Map();
+    for (const p of Array.isArray(projects) ? projects : []) {
+      if (p && p.icon_url) {
+        if (p.slug) icons.set(p.slug, p.icon_url);
+        if (p.id) icons.set(p.id, p.icon_url);
+      }
+    }
+    for (const t of tabs) for (const r of [...t.core, ...t.more]) r.iconUrl = icons.get(r.slug) || null;
+  } catch {
+    // no icons: the names still show
   }
   return tabs;
 }
