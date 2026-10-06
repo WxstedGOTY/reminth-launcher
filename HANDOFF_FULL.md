@@ -494,7 +494,7 @@ possible thing we said in that chat even the not important things".
   the owner's installed Reminth runs with the same user data (use a separate `--user-data-dir`). Kill leftovers
   with a separate `.ps1` file (`Get-Process -Name electron | Stop-Process -Force`); **never** with a command line
   that contains the text it searches for (the old window killed its own shell that way).
-- **Game harness** (`home-test.js`; a reference copy and `cdpx.js` are in `local-notes/`, the originals were in the old
+- **Game harness** (`home-test.js`; a reference copy (renamed `home-harness.js` so npm test skips it) and `cdpx.js` are in `local-notes/`, the originals were in the old
   chat's temp scratchpad, which may be gone, so paths inside need adjusting): uses
   `minecraft.ensureInstalled` + `minecraft.launch` with a fake offline account (`Bench`, token "0"), options
   `mods: "clean"|"user"`, `jar`, `exclude` (regex), `USER_GAME` env (copy mods/config/resourcepacks of any
