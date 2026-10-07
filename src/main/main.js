@@ -30,6 +30,7 @@ const migrate = require("./migrate");
 const runningGames = require("./runningGames");
 const perfProfiles = require("./perfProfiles");
 const purposes = require("./purposes");
+const serverRules = require("./serverRules");
 const gameOptions = require("./gameOptions");
 const modsSync = require("./modsSync");
 const atomic = require("./atomic");
@@ -883,6 +884,32 @@ const MODS_LOCKED = "Close the game first - that instance is running.";
 function refuseModChangeWhileRunning(id, kind) {
   if (running.has(id) && content.touchesMods(kind)) throw new Error(MODS_LOCKED);
 }
+// Mods a big server bans, switched on in this instance (serverRules.js). join: the address Play is about to join.
+ipcMain.handle("serverRules:check", async (_e, id, join) => serverRules.checkInstance(await instances.require(id), { join: typeof join === "string" ? join : null }));
+// Switches those mods off (never deletes them), with the reason. Works out the list again itself: no file names from the page.
+ipcMain.handle("serverRules:turnOff", async (_e, id, join) => {
+  refuseModChangeWhileRunning(id, "mod");
+  const inst = await instances.require(id);
+  const found = await serverRules.checkInstance(inst, { join: typeof join === "string" ? join : null });
+  const done = [];
+  const failed = [];
+  const seen = new Set();
+  for (const hit of found) {
+    for (const m of hit.mods) {
+      if (seen.has(m.file)) continue;
+      seen.add(m.file);
+      try {
+        const r = await content.setEnabled(inst.gameDir, { kind: "mod", world: null, file: m.file }, false);
+        await content.setOffReason(inst.gameDir, { kind: "mod", world: null, file: (r && r.file) || m.file + ".disabled" }, `Banned on ${hit.server.name} (${m.categories.join(", ")}). Switch it back on for other servers.`);
+        done.push(m.title);
+      } catch (err) {
+        failed.push(`${m.title}: ${err.message}`);
+      }
+    }
+  }
+  compat.invalidate(inst.id);
+  return { done, failed };
+});
 ipcMain.handle("content:setEnabled", async (_e, id, item, enabled) => {
   refuseModChangeWhileRunning(id, item && item.kind);
   return content.setEnabled((await instances.require(id)).gameDir, item, Boolean(enabled));

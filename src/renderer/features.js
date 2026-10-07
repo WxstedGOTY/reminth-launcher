@@ -4461,6 +4461,98 @@ const compatSignature = (issues) => issues.map((i) => `${i.file || ""}|${i.reaso
  * The full check carries on by itself and paints the panel when it's done;
  * the quick answer is used here only and never stored.
  */
+/**
+ * Before Play: mods switched on in this instance that a big server it joins (or lists, or played on) bans - DonutSMP,
+ * Hypixel, MCC Island (main/serverRules.js, with each server's source). Resolves true to go on, false to stop.
+ * "Turn them off and play" switches them off (never deletes them; the reason is kept on each). "Play anyway" is
+ * remembered for this instance until the list changes.
+ */
+const serverRulesUi = { playAnyway: localGet("serverRules.playAnyway", {}) };
+async function serverRulesBeforePlay(inst, join) {
+  if (!inst || inst.loader === "vanilla" || state.running.has(inst.id)) return true;
+  const after = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));
+  let found = null;
+  try {
+    found = await Promise.race([window.reminth.serverRulesCheck(inst.id, join || null), after(4000)]);
+  } catch {
+    return true;
+  }
+  if (!Array.isArray(found) || !found.length) return true;
+  const signature = found.map((f) => f.server.id + ":" + f.mods.map((m) => m.file).sort().join(",")).sort().join("|");
+  if (serverRulesUi.playAnyway[inst.id] === signature && !join) return true;
+
+  return new Promise((resolve) => {
+    let answer = false;
+    let busy = false;
+    const body = el("div", "rules-warn");
+    const whyText = { join: "You are joining", played: "You have played on", list: "Your server list has" };
+    for (const f of found) {
+      const box = el("div", "rules-server");
+      box.appendChild(el("p", "rules-head", `${whyText[f.why] || "This instance uses"} ${f.server.name}. Its rules ban ${f.mods.length === 1 ? "this mod" : "these mods"} - you can get banned for ${f.mods.length === 1 ? "it" : "them"}:`));
+      const list = el("ul", "rules-list");
+      for (const m of f.mods) {
+        const li = el("li");
+        li.appendChild(el("b", null, m.title));
+        li.appendChild(el("span", null, ` - ${m.categories.join(", ")}`));
+        list.appendChild(li);
+      }
+      box.appendChild(list);
+      box.appendChild(el("p", "set-note", `Source: ${f.server.source}.`));
+      body.appendChild(box);
+    }
+    body.appendChild(el("p", "set-note", "Turning them off doesn't delete anything: switch them back on in Content for singleplayer or other servers."));
+    openModal({
+      title: "These mods can get you banned",
+      body,
+      canClose: () => !busy,
+      onClose: () => resolve(answer),
+      buttons: [
+        { label: "Cancel", className: "outline" },
+        {
+          label: "Play anyway",
+          className: "outline",
+          onClick: () => {
+            if (busy) return false;
+            serverRulesUi.playAnyway[inst.id] = signature;
+            localSet("serverRules.playAnyway", serverRulesUi.playAnyway);
+            answer = true;
+            return true;
+          },
+        },
+        {
+          label: "Turn them off and play",
+          className: "primary",
+          icon: "#i-check",
+          onClick: async (handle) => {
+            if (busy) return false;
+            busy = true;
+            handle.buttons.forEach((b) => (b.disabled = true));
+            try {
+              const r = await window.reminth.serverRulesTurnOff(inst.id, join || null);
+              if (r && r.failed && r.failed.length) {
+                toast(`Couldn't turn off: ${r.failed.join("; ")}`);
+                busy = false;
+                handle.buttons.forEach((b) => (b.disabled = false));
+                return false;
+              }
+              toast(`Turned off: ${((r && r.done) || []).join(", ")}.`);
+              if (typeof loadContent === "function" && content.instanceId === inst.id) loadContent(inst.id).catch(() => {});
+              answer = true;
+              return true;
+            } catch (err) {
+              toast(friendlyError(err.message));
+              busy = false;
+              handle.buttons.forEach((b) => (b.disabled = false));
+              return false;
+            }
+          },
+        },
+      ],
+    });
+  });
+}
+window.serverRulesBeforePlay = serverRulesBeforePlay;
+
 async function compatBeforePlay(inst) {
   if (!inst || inst.loader === "vanilla" || state.running.has(inst.id)) return true;
   const after = (ms) => new Promise((resolve) => setTimeout(() => resolve(null), ms));

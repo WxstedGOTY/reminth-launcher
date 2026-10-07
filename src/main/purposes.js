@@ -29,7 +29,14 @@ const FABRIC_LIKE = ["fabric", "quilt"];
 const ALL_LOADERS = ["fabric", "quilt", "forge", "neoforge", "vanilla"];
 
 const RULES = "Most servers allow it, a few don't - check the rules of the server you play on.";
-const MINIMAP = "Allowed on most survival servers, banned on a few. Check the rules of your server.";
+const MINIMAP =
+  "Reminth switches its radar (dots for players and mobs) and cave view off - most servers only ban those. Hypixel and MCC Island ban every minimap.";
+const WORLD_MAP = "Hypixel and MCC Island ban map mods. Fine on most other servers.";
+// Server rules found 7 Oct 2026 (src/main/serverRules.js has the sources): these are banned on big servers, so they are
+// never ticked, and say so.
+const BANNED_INVENTORY = "Banned on DonutSMP and Hypixel (inventory mods) - you can get banned. Only for singleplayer or servers that allow it.";
+const BANNED_MOUSE = "Banned on DonutSMP (mouse tweaks) and Hypixel - you can get banned. Only for singleplayer or servers that allow it.";
+const BANNED_HEALTH = "Shows mobs' health: DonutSMP bans health indicators. Only for singleplayer or servers that allow it.";
 const ONE_OPTIMIZER = "Use one crystal optimizer, not two - two of them can fight each other.";
 
 // Ready-made settings (the mod's own file format, as the mods write it themselves).
@@ -72,6 +79,12 @@ const CFG = {
     file: "zoomify.json",
     content:
       '{\n  "initialZoom": 4,\n  "zoomInTime": 1.0,\n  "zoomOutTime": 0.5,\n  "zoomInTransition": "ease_out_exp",\n  "zoomOutTransition": "ease_out_exp",\n  "affectHandFov": true,\n  "retainZoomSteps": false,\n  "scrollZoom": true,\n  "scrollStepCount": 10,\n  "zoomPerStep": 150,\n  "scrollZoomSmoothness": 70,\n  "zoomKeyBehaviour": "hold",\n  "_keybindScrolling": false,\n  "relativeSensitivity": 100,\n  "relativeViewBobbing": true,\n  "cinematicCamera": 0,\n  "spyglassBehaviour": "combine",\n  "spyglassOverlayVisibility": "holding",\n  "spyglassSoundBehaviour": "with_overlay",\n  "secondaryZoomAmount": 4,\n  "secondaryZoomInTime": 10.0,\n  "secondaryZoomOutTime": 1.0,\n  "secondaryHideHUDOnZoom": true,\n  "_firstLaunch": false\n}\n',
+  },
+  // Xaero's Minimap without its entity radar and cave view (checked in the game, 7 Oct 2026: kept, the rest filled in).
+  // Same file on every Minecraft version (Xaero's 26.6.0 everywhere).
+  xaeroFair: {
+    file: "xaero/minimap/profiles/default.cfg",
+    content: "display_radar = false\nminimap_cave_mode_allowed = false\n",
   },
   // Inventory Profiles Next draws its auto-refill icon on every hotbar slot by default; this keeps it to the inventory
   // (auto refill itself stays on). Format checked in the game, 7 Oct 2026: the icons were gone.
@@ -130,7 +143,9 @@ const PERFORMANCE = {
 //  - what a player of that style really needs is RECOMMENDED (ticked), even when a few servers ban it (those carry a
 //    "check the server rules" warning): crystal and anchor optimizers, Client Side Crystals, Xaero's maps;
 //  - one mod or pack per job (no two small-totem packs, no two optimizers doing the same thing, no two sorters);
-//  - nothing that plays for you (no macros, auto-totem, auto-clicker, fullbright, x-ray, freecam, hitbox helpers).
+//  - nothing that plays for you (no macros, auto-totem, auto-clicker, fullbright, x-ray, freecam, hitbox helpers);
+//  - nothing ticked that a big server's rules ban (7 Oct 2026, after the owner nearly got banned on DonutSMP for
+//    Inventory Profiles Next): Mouse Tweaks, Inventory Profiles Next and Jade are only in "More", with the warning.
 // Marlow's Crystal Optimizer (a crystal breaks the moment you hit it) and Client Side Crystals (a crystal shows the moment
 // you place it) do different jobs and are made to work together.
 const GOALS = {
@@ -139,12 +154,9 @@ const GOALS = {
     title: "Survival",
     blurb: "Long worlds, hardcore runs and survival servers like DonutSMP.",
     core: [
-      mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen, with waypoints.", { warning: MINIMAP }),
-      mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: MINIMAP }),
+      mod("xaeros-minimap", "Xaero's Minimap", "A minimap in the corner of the screen, with waypoints.", { warning: MINIMAP, configs: [CFG.xaeroFair] }),
+      mod("xaeros-world-map", "Xaero's World Map", "A full-screen map of everything you have explored. Goes with the minimap.", { warning: WORLD_MAP }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives, right on the hunger bar.", { configs: [CFG.appleskin] }),
-      mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it."),
-      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out.", { configs: [CFG.ipn] }),
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
       mod("status-effect-bars", "Status Effect Bars", "A small bar under each potion effect shows how long it has left."),
       mod("enchantment-descriptions", "Enchantment Descriptions", "Says what every enchantment does, right in the tooltip."),
@@ -159,6 +171,9 @@ const GOALS = {
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
     ],
     more: [
+      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out.", { configs: [CFG.ipn], warning: BANNED_INVENTORY }),
+      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster.", { warning: BANNED_MOUSE }),
+      mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it.", { warning: BANNED_HEALTH }),
       mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Reminth starts it early, so the first inventory open doesn't freeze."),
       mod("continuity", "Continuity", "Connected glass and bookshelves, like in the trailers."),
       mod("ambientsounds", "AmbientSounds", "Wind, birds, water and caves sound alive."),
@@ -188,7 +203,6 @@ const GOALS = {
       mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster - restock between fights."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
       pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, a small totem pop and small pop particles."),
       pack("small-tools-", "Small Tools", "Smaller swords, axes, pickaxes and shovels in your hand: more of the screen to see."),
@@ -220,7 +234,6 @@ const GOALS = {
       mod("ping-view", "Ping View", "Shows everyone's ping in the player list."),
       mod("zoomify", "Zoomify", "Zoom key and scroll zoom with smooth movement.", { configs: [CFG.zoomify] }),
       mod("appleskin", "AppleSkin", "Shows how much hunger and saturation food gives.", { configs: [CFG.appleskin] }),
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster."),
       mod("modmenu", "Mod Menu", "A button in the game's menu to see and change every mod's settings."),
       pack("small-shield-totem", "Small Shield & Totem", "Smaller shield and totem in your hand, a small totem pop and small pop particles."),
       pack("small-tools-", "Small Tools", "Smaller swords, axes, pickaxes and shovels in your hand: more of the screen to see."),
@@ -230,7 +243,7 @@ const GOALS = {
       pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during a fight."),
       mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
-      mod("jade", "Jade", "Shows what block or mob you are looking at."),
+      mod("jade", "Jade", "Shows what block or mob you are looking at.", { warning: BANNED_HEALTH }),
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
       pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens."),
     ],

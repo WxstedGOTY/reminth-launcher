@@ -2334,6 +2334,20 @@ async function runPlay(options = {}) {
       return;
     }
   }
+  // Mods a big server bans (DonutSMP, Hypixel, MCC Island), when this instance joins or lists that server.
+  if (inst.loader !== "vanilla" && typeof serverRulesBeforePlay === "function") {
+    let go = true;
+    try {
+      go = await serverRulesBeforePlay(inst, options.join ? String(options.join.host || options.join.address || "") || null : null);
+    } catch {
+      go = true; // a courtesy, like the check above
+    }
+    if (!go) {
+      state.installing.delete(inst.id);
+      paintPlayButtons();
+      return;
+    }
+  }
   // The Home bar shows this run (Home's hero becomes this instance as soon as it starts).
   const onHome = true;
   state.logError = false;

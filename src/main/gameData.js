@@ -616,4 +616,4 @@ async function worldFolderToOpen(gameDir, name) {
   }
 }
 
-module.exports = { listWorlds, listServers, playerStats, readServerStats, estimatePlacedBlocks, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };
+module.exports = { listWorlds, listServers, readServerJoinTimes, playerStats, readServerStats, estimatePlacedBlocks, recentActivity, addServer, plainWorldFolderName, worldFolderToOpen, TICKS_PER_SECOND };

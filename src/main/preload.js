@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld("reminth", {
   purposes: () => ipcRenderer.invoke("purpose:list"),
   purposeItems: (id, goalId) => ipcRenderer.invoke("purpose:items", id, goalId),
   purposeFinish: (id, goalId, slugs, startedAt) => ipcRenderer.invoke("purpose:finish", id, goalId, slugs, startedAt),
+  serverRulesCheck: (id, join) => ipcRenderer.invoke("serverRules:check", id, join),
+  serverRulesTurnOff: (id, join) => ipcRenderer.invoke("serverRules:turnOff", id, join),
   perfProfiles: () => ipcRenderer.invoke("perf:profiles"),
   perfProfileExtras: (id) => ipcRenderer.invoke("perf:profileExtras", id),
   perfPackStatus: (id) => ipcRenderer.invoke("perf:packStatus", id),
