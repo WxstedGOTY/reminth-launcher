@@ -139,3 +139,11 @@ test("gameRules / writeGameFile: what the game checks before joining - mod ids p
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("the pretend test server: an address that can never exist, matched like a real one", () => {
+  const t = rules.serverFor("bantest.reminth.invalid");
+  assert.equal(t.id, "reminth-test");
+  assert.ok(t.hosts.every((h) => h.endsWith(".invalid")), ".invalid never resolves, so nothing can connect");
+  const hit = rules.findBanned([{ file: "mt.jar", title: "Mouse Tweaks", modId: "mousetweaks", enabled: true }], [{ address: "bantest.reminth.invalid", why: "list" }]);
+  assert.equal(hit[0].server.name, "Reminth ban-warning test");
+});

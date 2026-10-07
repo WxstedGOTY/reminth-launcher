@@ -57,6 +57,16 @@ const SERVERS = [
     source: "MCC's Approved Mods page",
     url: "https://mcchampionship.com/help/mods/",
   },
+  // A pretend server for trying both warnings safely (7 Oct 2026: the owner can't test on DonutSMP without risking a ban).
+  // ".invalid" addresses never exist (RFC 2606), so even "Join anyway" can't connect anywhere.
+  {
+    id: "reminth-test",
+    name: "Reminth ban-warning test",
+    hosts: ["bantest.reminth.invalid"],
+    banned: ["inventory", "mouse", "health", "radar", "minimap", "freecam", "freelook", "otherStatus", "noChatReports", "inventoryWalk", "movement"],
+    source: "Reminth's own test entry - not a real server, this address leads nowhere",
+    url: "https://github.com/WxstedGOTY/reminth-launcher",
+  },
 ];
 
 /** Mod id -> categories it falls in. "radarIfOn": Xaero's Minimap counts as radar only while its radar is switched on. */
