@@ -4,12 +4,63 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026, desktop window: newest section below is 000000000000000 (playstyle lists tested in the real game, and the fixes that needed). Before it 00000000000000 (card pictures, cloud window).
-- **`main` is at:** this file's commit; the last code commit is `171a6f3`. **`npm test`: 655 pass** (Windows, 7 Oct).
-- **Version:** `package.json` says **1.4.8**. Installer built in `release-1.4.8\` and installed on the owner's PC on 7 Oct;
-  **not published** (the owner publishes it himself after testing).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (afternoon), desktop window: newest section below is 0000000000000000 (ban safety, title screen fixes, home screen 1.0.4). Before it 000000000000000 (playstyle lists tested in the game).
+- **`main` is at:** this file's commit; the last code commit is `2f3fada`. **`npm test`: 661 pass** (Windows, 7 Oct).
+- **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
+  Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000. Ban safety, title screen fixes, home screen 1.0.4 (7 Oct 2026, afternoon) - desktop window
+
+**State:** `main` at `2f3fada` (+ this file); `npm test` **661 pass**. Installer rebuilt in `release-1.4.8\`, not installed
+(Reminth was open on the owner's PC), not published.
+
+**Why:** the owner nearly got banned on DonutSMP for Inventory Profiles Next (a ticked playstyle mod).
+
+**Research (7 Oct, sources in `src/main/serverRules.js`; official pages are behind Cloudflare, so search results quoting
+them and staff answers were used):**
+- DonutSMP (wiki copy of its terms, checked Sept 2026): bans inventory modifications, health indicators, radar/ESP/freecam,
+  movement mods, auto-place, macros, **mouse tweaks and scrollers**.
+- Hypixel: bans every minimap, Mouse Tweaks, inventory tweaks, player health indicators, automation.
+- MCC Island: bans minimaps, other players' statuses, freelook, No Chat Reports, inventory walk.
+- The two big DonutSMP modpacks on Modrinth (40k+ downloads) use Shulker Box Tooltip, AppleSkin, Zoomify, TotemCounter,
+  crystal optimizers, armor HUD - and no Mouse Tweaks, Inventory Profiles Next, Jade or minimap.
+
+**What changed**
+- Lists (`purposes.js`): Mouse Tweaks, Inventory Profiles Next and Jade are never ticked (in "More", with "banned on ...
+  you can get banned"). Xaero's Minimap stays ticked (owner's wish) but comes with its **radar and cave view off**
+  (`config/xaero/minimap/profiles/default.cfg`; checked in the game: kept, rest filled in; same file on every version).
+- `src/main/serverRules.js` (new): servers (DonutSMP, Hypixel, MCC Island: hosts, banned categories, source) and which mod
+  ids fall in each category; Xaero's minimap counts as radar unless its radar is off.
+- **Before Play** (`serverRulesBeforePlay` in `features.js`, `renderer.js` runPlay, IPC `serverRules:check/turnOff`): if the
+  instance joins, lists (servers.dat) or has played on (game logs) such a server and a banned mod is on: "These mods can
+  get you banned" with each mod, the reason and the source. **Turn them off and play** (switched off, never deleted, reason
+  kept), **Play anyway** (remembered until the list changes), Cancel. Seen working in the app.
+- **In the game** (home screen mod 1.0.4, `ServerRulesGuard` + `ConnectGuardMixin` per version family): every way of
+  joining goes through `ConnectScreen.startConnecting`; for such a server it asks first ("Join anyway" / "Back"). Reminth
+  writes the list at each launch (`config/reminth-server-rules.json`); "Play anyway" in Reminth is passed on so the game
+  doesn't ask twice. Seen working on 26.2, 1.21.11 and 1.20.1 (both buttons on 26.2).
+- Title screen (home 1.0.4): the icon row no longer sits on the copyright line (also when Mod Menu moves the line, 1.20-1.21);
+  Realms' news/invite icons no longer drawn on Connect Discord (they appear with a real account at the old Realms
+  button's corner); the Realms icon and the F11 pointer fix now also work on 1.20-1.21 (they were looked up by name,
+  which only works on 26.x - the pointer fix logged "switched off" there).
+
+**Not tested:** the Realms icons with a real account (the test account has no Realms); clicking the Realms icon (a test
+window was made full screen while the owner used the PC, so game tests were stopped); the Play button end-to-end with
+the rules file (the fake account is signed out at start-up; the same function was run on the instance folders instead).
+
+**Test plan (owner)**
+1. Close Reminth, run `release-1.4.8\Reminth-Setup.exe`. PASS/FAIL.
+2. Play the instance that has DonutSMP in its server list: the "These mods can get you banned" window lists Inventory
+   Profiles Next / Mouse Tweaks / Jade (whichever are on). "Turn them off and play" -> game starts; Content shows them off
+   with the reason. PASS/FAIL.
+3. In the game, switch one back on first (or use another instance with Mouse Tweaks on), then Multiplayer -> DonutSMP ->
+   Join: the game asks first; Back returns, Join anyway joins. PASS/FAIL.
+4. Title screen: nothing on Connect Discord; the icon row and the copyright line don't touch. PASS/FAIL.
+5. Fullscreen (F11) and back: the mouse pointer stays visible in menus. PASS/FAIL.
 
 ---
 
