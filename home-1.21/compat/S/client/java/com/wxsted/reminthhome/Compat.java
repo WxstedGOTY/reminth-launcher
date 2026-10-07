@@ -31,6 +31,11 @@ final class Compat {
 		return new LanguageSelectScreen(parent, mc.options, mc.getLanguageManager());
 	}
 
+	/** Whether the game is in full screen (the pointer fix). */
+	static boolean isFullscreen(Minecraft mc) {
+		return mc.getWindow().isFullscreen();
+	}
+
 	/** The GLFW window id (the pointer fix). */
 	static long windowHandle(Minecraft mc) {
 		return mc.getWindow().getWindow();

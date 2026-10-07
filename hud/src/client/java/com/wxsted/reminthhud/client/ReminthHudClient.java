@@ -117,7 +117,14 @@ public class ReminthHudClient implements ClientModInitializer {
 		if (config.jeiEarlyStart) {
 			JeiEarlyStart.init();
 		}
-		SystemLoad.start(config.cpu, config.gpu);
+		// The top-right bar's CPU/GPU readers only run when the bar is on (Reminth's HUD switch).
+		SystemLoad.start(config.bar && config.cpu, config.bar && config.gpu);
+		// The Reminth panel (G): Reminth's own features, part of this HUD.
+		try {
+			com.wxsted.reminthhud.client.panel.Panel.init(CATEGORY);
+		} catch (Throwable t) {
+			ReminthHud.LOGGER.warn("Reminth panel couldn't start ({})", t.toString());
+		}
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> SystemLoad.stop());
 
 		// Flip hudVisible once per key press, checked every client tick.
@@ -136,7 +143,7 @@ public class ReminthHudClient implements ClientModInitializer {
 	}
 
 	private static void render(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
-		if (!hudVisible) {
+		if (!hudVisible || !config.bar) {
 			return;
 		}
 

@@ -18,6 +18,9 @@ import net.fabricmc.loader.api.FabricLoader;
  * be read is left alone (it's the player's) and everything is shown.
  */
 final class HudConfig {
+	// The top-right bar as a whole. Reminth writes it from the instance's HUD switch at every launch (ReminthHUD is in
+	// every Fabric/Quilt instance since the panel lives in it); a missing value keeps the bar on, as before.
+	boolean bar = true;
 	boolean fps = true;
 	boolean gpu = true;
 	boolean cpu = true;
@@ -48,6 +51,7 @@ final class HudConfig {
 			JsonElement root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8));
 			if (!root.isJsonObject()) return c;
 			JsonObject o = root.getAsJsonObject();
+			c.bar = flag(o, "bar");
 			c.fps = flag(o, "fps");
 			c.gpu = flag(o, "gpu");
 			c.cpu = flag(o, "cpu");

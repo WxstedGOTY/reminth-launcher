@@ -3,7 +3,7 @@
 	"id": "reminthhud",
 	"version": "${version}",
 	"name": "ReminthHUD",
-	"description": "A lightweight HUD: a top-right bar with FPS, GPU and CPU load and your latency, plus coordinates and facing. Toggle with H; pick what shows in config/reminthhud.json.",
+	"description": "Part of the Reminth launcher: the Reminth panel (G) with Reminth's own features - FPS, keystrokes, armor status, potion effects, zoom and more - and the top-right FPS/GPU/CPU bar (H).",
 	"authors": [
 		"Wxsted"
 	],
@@ -18,6 +18,12 @@
 		"client": [
 			"com.wxsted.reminthhud.client.ReminthHudClient"
 		]
+	},
+	"mixins": [
+		{ "config": "reminthhud.mixins.json", "environment": "client" }
+	],
+	"custom": {
+		"modmenu": { "badges": ["library"] }
 	},
 	"depends": {
 		"fabricloader": "*",

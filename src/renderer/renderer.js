@@ -1643,7 +1643,7 @@ function openInstanceModal(existing) {
     hudSub.textContent = !pick.version
       ? "Pick a version to see if there's a HUD build for it."
       : available
-      ? "Reminth installs it (and Fabric API) and keeps it updated. H toggles it in game."
+      ? "A small bar at the top right. H shows or hides it in game. (The Reminth panel, G, is always there.)"
       : `No ReminthHUD build for ${pick.version} yet — it's built per version.`;
   }
   hudSwitch.onclick = () => {

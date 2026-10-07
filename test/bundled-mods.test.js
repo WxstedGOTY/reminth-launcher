@@ -72,12 +72,13 @@ test("bundled mods: the registry has exactly ReminthHUD and the home screen", ()
   );
 });
 
-test("bundled mods: who wants which (HUD opt-in, home screen on unless switched off, Fabric/Quilt only)", () => {
+test("bundled mods: who wants which (both are part of the launcher on Fabric/Quilt; the HUD switch is only its bar)", () => {
   const hud = config.bundledMod("reminthhud");
   const home = config.bundledMod("reminthhome");
+  // 7 Oct 2026: ReminthHUD carries the Reminth panel, so it is always there; `hud` shows/hides its bar (writeHudBar)
   assert.equal(config.bundledModWanted(hud, inst({ hud: true })), true);
-  assert.equal(config.bundledModWanted(hud, inst({ hud: false })), false);
-  assert.equal(config.bundledModWanted(hud, inst({ hud: undefined })), false);
+  assert.equal(config.bundledModWanted(hud, inst({ hud: false })), true);
+  assert.equal(config.bundledModWanted(hud, inst({ hud: undefined })), true);
   assert.equal(config.bundledModWanted(home, inst({})), true, "a missing value counts as on");
   assert.equal(config.bundledModWanted(home, inst({ homeScreen: true })), true);
   assert.equal(config.bundledModWanted(home, inst({ homeScreen: false })), true, "the home screen is forced: the old switch no longer turns it off");
@@ -111,14 +112,14 @@ test("bundled mods: the build is picked by its declared Minecraft range, for bot
   assert.deepEqual(await minecraft.bundledModBuilds("sodium"), [], "only Reminth's own mods are bundled");
 });
 
-test("bundled mods: no home-screen jar at all (today's assets/mods) is a quiet no-op", async () => {
+test("bundled mods: no home-screen jar at all is a quiet no-op for it; the HUD comes in whatever its switch says", async () => {
   const dir = await assetsDir();
   await fakeJar(dir, "reminthhud-1.2.2+26.2.jar", { id: "reminthhud", version: "1.2.2+26.2", depends: { minecraft: "~26.2" } });
   const { modsDir, list } = await gameFolder();
   const run = await playOnce(inst({ hud: false }), modsDir);
-  assert.deepEqual(run, { installed: [], removed: [] });
-  assert.deepEqual(await list(), []);
-  assert.deepEqual(await minecraft.bundledModsFor(inst({ hud: false }), "26.2"), []);
+  assert.deepEqual(run, { installed: ["reminthhud-1.2.2+26.2.jar"], removed: [] });
+  assert.deepEqual(await list(), ["reminthhud-1.2.2+26.2.jar"]);
+  assert.deepEqual((await minecraft.bundledModsFor(inst({ hud: false }), "26.2")).map((b) => b.entry.mod), ["reminthhud"]);
 });
 
 test("bundled mods: the home screen is copied in on Play, removed when switched off, untouched when no build fits", async () => {
@@ -149,17 +150,48 @@ test("bundled mods: the home screen is copied in on Play, removed when switched 
   assert.deepEqual(minecraft.bundledModsToDrop(inst()), []);
 });
 
-test("bundled mods: the home screen and the HUD are each switched on their own", async () => {
+test("bundled mods: the home screen and the HUD both stay whatever the old switches say", async () => {
   const dir = await assetsDir();
   await fakeJar(dir, "reminthhud-1.2.2+26.2.jar", { id: "reminthhud", version: "1.2.2+26.2", depends: { minecraft: "~26.2" } });
   await fakeJar(dir, "reminthhome-1.0.0+26.2.jar", { id: "reminthhome", version: "1.0.0+26.2", depends: { minecraft: "~26.2" } });
   const { modsDir, list } = await gameFolder();
-  await playOnce(inst({ hud: true }), modsDir);
-  assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar", "reminthhud-1.2.2+26.2.jar"]);
-  await playOnce(inst({ hud: false }), modsDir);
-  assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar"]);
-  await playOnce(inst({ hud: true, homeScreen: false }), modsDir);
-  assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar", "reminthhud-1.2.2+26.2.jar"], "the home screen stays whatever the old switch says");
+  for (const flags of [{ hud: true }, { hud: false }, { hud: true, homeScreen: false }]) {
+    await playOnce(inst(flags), modsDir);
+    assert.deepEqual(await list(), ["reminthhome-1.0.0+26.2.jar", "reminthhud-1.2.2+26.2.jar"], JSON.stringify(flags));
+  }
+});
+
+test("writeHudBar: the HUD switch shows/hides the bar; older HUD builds get their items switched off and back", async () => {
+  const fs = require("fs");
+  const os = require("os");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reminth-hudbar-"));
+  try {
+    const file = path.join(dir, "config", "reminthhud.json");
+    // no file yet, bar off: written with the items off and what they were kept
+    assert.equal(await minecraft.writeHudBar(dir, false), true);
+    let d = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(d.bar, false);
+    assert.deepEqual([d.fps, d.gpu, d.cpu, d.lat], [false, false, false, false]);
+    assert.deepEqual(d._barItems, { fps: true, gpu: true, cpu: true, lat: true });
+    // the player's own choice and other settings survive
+    fs.writeFileSync(file, JSON.stringify({ fps: true, gpu: false, cpu: true, lat: true, jeiEarlyStart: false }));
+    await minecraft.writeHudBar(dir, false);
+    d = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.equal(d.jeiEarlyStart, false);
+    assert.equal(d._barItems.gpu, false);
+    await minecraft.writeHudBar(dir, true);
+    d = JSON.parse(fs.readFileSync(file, "utf8"));
+    assert.deepEqual([d.bar, d.fps, d.gpu, d.cpu, d.lat], [true, true, false, true, true]);
+    assert.equal(d._barItems, undefined);
+    // nothing to change: not written
+    assert.equal(await minecraft.writeHudBar(dir, true), false);
+    // a file that isn't JSON is the player's: left alone
+    fs.writeFileSync(file, "not json");
+    assert.equal(await minecraft.writeHudBar(dir, false), false);
+    assert.equal(fs.readFileSync(file, "utf8"), "not json");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("bundled mods: the home screen is never a performance-pack mod and never steps aside for the player's copy", () => {

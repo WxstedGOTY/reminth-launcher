@@ -135,7 +135,7 @@ public class ReminthTitleScreen extends TitleScreen {
 		int ry = by + 2 * (bh + bgap);
 		if (ry + bh <= iconY - 6) {
 			int hw = (bw - 4) / 2;
-			out.add(Compat.button(bx, ry, hw, bh, Component.literal("Discover"), null, 5, () -> Links.open("reminth://discover")));
+			out.add(Compat.button(bx, ry, hw, bh, Component.literal("Discover"), null, 5, this::openPanel));
 			AbstractWidget[] discord = new AbstractWidget[1];
 			discord[0] = Compat.button(bx + hw + 4, ry, bw - hw - 4, bh, Component.literal("Connect Discord"), null, 5,
 					() -> discord[0].setMessage(Component.literal("Coming soon")));
@@ -202,6 +202,19 @@ public class ReminthTitleScreen extends TitleScreen {
 			Compat.setScreen(Minecraft.getInstance(), Compat.realms(this));
 		} catch (Throwable t) {
 			// Realms changed shape: do nothing rather than crash
+		}
+	}
+
+	/**
+	 * Discover opens the Reminth panel (part of ReminthHUD, which Reminth puts into every Fabric/Quilt instance). It is
+	 * found by name - our own class names are the same at runtime on every version. A HUD without the panel (older
+	 * builds) or none at all: Reminth's Discover page, as before.
+	 */
+	private void openPanel() {
+		try {
+			Class.forName("com.wxsted.reminthhud.client.panel.Panel").getMethod("openFrom", Screen.class).invoke(null, this);
+		} catch (Throwable t) {
+			Links.open("reminth://discover");
 		}
 	}
 

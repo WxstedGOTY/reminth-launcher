@@ -243,6 +243,8 @@ async function ensureInstalled(instance, onProgress) {
       }
     }
     for (const e of await installBundledMods(bundled, modsDir, report)) note(e.file, e.mod, true); // Reminth's own, whoever copied it in
+    // The HUD switch: the top-right bar on or off (the panel is always there). Never stops a launch.
+    if (bundled.some((b) => b.entry.mod === "reminthhud")) await writeHudBar(gameDir, instance.hud === true).catch(() => {});
     if (wantsPerfMods) {
       report("Installing performance mods", 0, 1);
       const detail = [];
@@ -3257,6 +3259,38 @@ function pickJarAsset(assets, mcVersion = null) {
   return pool.reduce((biggest, a) => (a.size > biggest.size ? a : biggest), pool[0]);
 }
 
+/**
+ * Writes the instance's HUD switch into ReminthHUD's own settings (config/reminthhud.json "bar"). HUD 1.4+ reads "bar";
+ * older builds (other Minecraft versions, until they get the panel) don't, so with the bar off its four items are
+ * switched off too - and what they were is kept in "_barItems" and put back when the bar is switched on again. The
+ * player's other settings in the file are kept; a file that isn't JSON is left alone.
+ */
+async function writeHudBar(gameDir, on) {
+  const file = path.join(gameDir, "config", "reminthhud.json");
+  let data = {};
+  try {
+    data = JSON.parse(await fsp.readFile(file, "utf8"));
+    if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  } catch (err) {
+    if (!err || err.code !== "ENOENT") return false; // the player's file, unreadable: leave it
+    data = {};
+  }
+  const items = ["fps", "gpu", "cpu", "lat"];
+  const before = JSON.stringify(data);
+  data.bar = on;
+  if (!on) {
+    if (!data._barItems) data._barItems = Object.fromEntries(items.map((k) => [k, data[k] !== false]));
+    for (const k of items) data[k] = false;
+  } else if (data._barItems && typeof data._barItems === "object") {
+    for (const k of items) data[k] = data._barItems[k] !== false;
+    delete data._barItems;
+  }
+  if (JSON.stringify(data) === before) return false;
+  await fsp.mkdir(path.dirname(file), { recursive: true });
+  await fsp.writeFile(file, JSON.stringify(data, null, 2) + "\n", "utf8");
+  return true;
+}
+
 function versionFromJarName(filename, prefix = "reminthhud-") {
   const lower = String(filename).toLowerCase();
   if (!lower.startsWith(prefix) || !lower.endsWith(".jar") || lower.length <= prefix.length + 4) return "unknown";
@@ -3264,6 +3298,7 @@ function versionFromJarName(filename, prefix = "reminthhud-") {
 }
 
 module.exports = {
+  writeHudBar,
   ensureInstalled,
   launch,
   latestFabricLoader,

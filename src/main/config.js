@@ -117,7 +117,9 @@ module.exports = {
   //              opt-in (hud === true); the home screen is on unless the
   //              player switched it off (homeScreen === false)
   BUNDLED_MODS: [
-    { mod: "reminthhud", filePrefix: "reminthhud-", flag: "hud", label: "ReminthHUD", defaultOn: false },
+    // ReminthHUD carries the Reminth panel (G) since 7 Oct 2026, so it is part of every Fabric/Quilt instance, like the
+    // home screen. The instance's `hud` switch now only shows/hides its top-right FPS/GPU/CPU bar (writeHudBar).
+    { mod: "reminthhud", filePrefix: "reminthhud-", flag: "hud", label: "ReminthHUD", defaultOn: false, forced: true },
     { mod: "reminthhome", filePrefix: "reminthhome-", flag: "homeScreen", label: "Reminth home screen", defaultOn: true, forced: true },
   ],
 

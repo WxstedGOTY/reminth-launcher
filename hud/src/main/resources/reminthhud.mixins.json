@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "com.wxsted.reminthhud.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"CameraFovMixin",
+		"MouseScrollMixin",
+		"FireOverlayMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

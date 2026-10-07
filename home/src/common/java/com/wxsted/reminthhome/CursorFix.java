@@ -45,7 +45,7 @@ final class CursorFix {
 			if (mc.getWindow() == null) return;
 			// Called directly so the build maps it: looked up by name it only existed at runtime on 26.x, and the fix
 			// switched itself off on 1.20-1.21 ("NoSuchMethodException ... isFullscreen", 7 Oct 2026).
-			boolean full = mc.getWindow().isFullscreen();
+			boolean full = Compat.isFullscreen(mc);
 			if (known && full != lastFull) settle = 60; // the window takes a moment to settle: fix at 3, 1.5, 0.5 s
 			known = true;
 			lastFull = full;
