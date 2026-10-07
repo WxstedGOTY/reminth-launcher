@@ -54,11 +54,13 @@ the rules file (the fake account is signed out at start-up; the same function wa
 
 **Test plan (owner)**
 1. Close Reminth, run `release-1.4.8\Reminth-Setup.exe`. PASS/FAIL.
-2. Play the instance that has DonutSMP in its server list: the "These mods can get you banned" window lists Inventory
-   Profiles Next / Mouse Tweaks / Jade (whichever are on). "Turn them off and play" -> game starts; Content shows them off
-   with the reason. PASS/FAIL.
-3. In the game, switch one back on first (or use another instance with Mouse Tweaks on), then Multiplayer -> DonutSMP ->
-   Join: the game asks first; Back returns, Join anyway joins. PASS/FAIL.
+2. **Never test on DonutSMP itself** (a second join with those mods can mean a ban). Use the pretend server instead
+   (added 7 Oct: `bantest.reminth.invalid`, an address that can never exist, so nothing can ever connect): in the game,
+   Multiplayer -> Add Server -> address `bantest.reminth.invalid` -> Join, with Mouse Tweaks / Inventory Profiles Next /
+   Jade switched on: the game asks first ("These mods can get you banned on Reminth ban-warning test"). Back returns;
+   Join anyway only gives "unknown host". PASS/FAIL.
+3. Close the game, press Play in Reminth: the "These mods can get you banned" window lists the test server (and DonutSMP,
+   since it is in the list) with the mods. "Turn them off and play" -> they show as off in Content, with the reason. PASS/FAIL.
 4. Title screen: nothing on Connect Discord; the icon row and the copyright line don't touch. PASS/FAIL.
 5. Fullscreen (F11) and back: the mouse pointer stays visible in menus. PASS/FAIL.
 
