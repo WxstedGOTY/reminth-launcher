@@ -351,7 +351,7 @@ public final class Features2 {
 		l.add(OptionFeature.bool("boldoutline", "Bold Block Outline", V, "outline", "A thicker, easier to see outline on the block you look at.", o -> o.highContrastBlockOutline(), true));
 		l.add(OptionFeature.choice("attackind", "Attack Indicator", V, "crosshair", "Where the attack cooldown shows: crosshair, hotbar or nowhere.", o -> o.attackIndicator(), "Show", AttackIndicatorStatus.values(), 1));
 		// Performance
-		l.add(OptionFeature.integer("fpslimit", "FPS Limit", P, "fpslimit", "The highest frame rate the game runs at (260 = unlimited).", o -> o.framerateLimit(), "Limit", 10, 260, 10, 144, " FPS"));
+		l.add(OptionFeature.integer("fpslimit", "FPS Limit", P, "fpslimit", "The highest frame rate the game runs at (260 = unlimited).", o -> o.framerateLimit(), "Limit", 10, 260, 10, 140, " FPS"));
 		l.add(OptionFeature.bool("novsync", "No VSync", P, "vsync", "Frames aren't held back to your monitor's refresh rate.", o -> o.enableVsync(), false));
 		l.add(OptionFeature.integer("renderdist", "Render Distance", P, "render", "How far the world is drawn.", o -> o.renderDistance(), "Distance", 2, 32, 1, 12, " chunks"));
 		l.add(OptionFeature.integer("simdist", "Simulation Distance", P, "simulation", "How far away things keep moving and growing (singleplayer).", o -> o.simulationDistance(), "Distance", 5, 32, 1, 8, " chunks"));

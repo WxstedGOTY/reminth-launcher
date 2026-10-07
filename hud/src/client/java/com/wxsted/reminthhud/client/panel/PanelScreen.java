@@ -34,7 +34,7 @@ public class PanelScreen extends Screen {
 	private double scroll = 0;
 	private int x0, y0, w, h;
 	private static final int TOP = 30, LEFT = 118;
-	private static final int TABS_X = 140; // after the "REMINTH MODS PANEL" title
+	private static final int TABS_X = 160; // after the "REMINTH MODS PANEL" title
 
 	public PanelScreen(Screen parent) {
 		super(Component.literal("Reminth"));
@@ -183,8 +183,8 @@ public class PanelScreen extends Screen {
 			String label = c == null ? "All" : c.label;
 			int count = 0;
 			for (Module m : Panel.MODULES) if (c == null || m.cat == c) count++;
-			g.text(font, label, lx + 22, ly + 5, sel ? Draw.TEXT : Draw.TEXT_DIM, false);
-			Draw.text(g, Integer.toString(count), lx + lw - 16 - font.width(Integer.toString(count)) * 0.75f, ly + 6, 0.75f, Draw.TEXT_FAINT, false);
+			Draw.text(g, label, lx + 21, ly + 5, label.length() > 9 ? 0.85f : 1f, sel ? Draw.TEXT : Draw.TEXT_DIM, false);
+			Draw.text(g, Integer.toString(count), lx + lw - 8 - font.width(Integer.toString(count)) * 0.75f, ly + 6, 0.75f, Draw.TEXT_FAINT, false);
 			ly += 19;
 		}
 		ly += 6;

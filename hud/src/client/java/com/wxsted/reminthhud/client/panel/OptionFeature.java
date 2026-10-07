@@ -111,7 +111,10 @@ public final class OptionFeature extends Module {
 		Object want = wanted();
 		Object cur = oi.get();
 		boolean same = cur instanceof Double d && want instanceof Double w ? Math.abs(d - w) < 1e-6 : cur.equals(want);
-		if (!same) oi.set(want);
+		if (!same) {
+			oi.set(want);
+			mc.options.save(); // written now, like the game's own settings screen does
+		}
 	}
 
 	@Override
@@ -140,7 +143,10 @@ public final class OptionFeature extends Module {
 			OptionInstance<Object> oi = inst(mc);
 			if (restore != null) {
 				Object back = decode(restore, oi.get());
-				if (back != null) oi.set(back);
+				if (back != null) {
+					oi.set(back);
+					mc.options.save();
+				}
 			}
 		} catch (Throwable t) {
 			ReminthHud.LOGGER.warn("Reminth panel: {} couldn't put its setting back ({})", id, t.toString());

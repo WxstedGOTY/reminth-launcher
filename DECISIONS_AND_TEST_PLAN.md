@@ -4,12 +4,41 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (night), desktop window: newest section below is 000000000000000000 (the Reminth panel, step 2: 26.2 with 15 features). Before it 00000000000000000 (no cheat-like mods, window scaling, panel list).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (late night), desktop window: newest section below is 0000000000000000000 (panel batch 2: 111 features, real ping, G tips). Before it 000000000000000000 (panel step 2).
 - **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 7 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
   Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000. Panel batch 2: 111 features, real ping, G tips (7 Oct 2026, late night) - desktop window
+
+**Owner's asks:** title "REMINTH MODS PANEL" without the R icon; ping always 0 - fix; tell players about G (title screen
+and loading screens); 50+ features per tab ("hundreds" for the big ones).
+
+**What changed (ReminthHUD 1.4.0+26.2)**
+- Header "REMINTH MODS PANEL"; categories now All, HUD, Visual, **Performance** (new), Mechanic, Chat, Utility.
+- **Ping:** `PingMeter` sends the game's own ping request every 2 s (the one F3's network chart sends) and times the
+  answer (`mixin/PongMixin`); the player list's number (0 on many proxied servers) only as a fallback.
+- **Tips** (`Tips.java`, Fabric screen events): title screen top line "Fun fact: press G in game to open the Reminth
+  Mods Panel - N features"; a rotating "Fun fact" at the bottom of the connecting / world-loading / saving screens. The
+  key shown is the player's real binding. Seen in the game (title and "Connecting to the server...").
+- **85 new features (111 total):** `Features2` - 26 HUD displays (biome, day, world time, health, food/saturation, armor
+  points, memory, server address, session time, speed, light, chunk, facing, block info, moon, weather, date, players
+  online, XP, death point, elytra, inventory full, low durability warning, item counter, packs, compass strip),
+  Snaplook (hold V), and 58 of the game's own settings as cards (`OptionFeature`: on = the value set in the card,
+  off = the value from before, remembered in the profile; written to options.txt at once). Left out on purpose:
+  the game's "toggle attack/use" (keeps attacking for you). Counts: HUD 36, Visual 20, Chat 16, Utility 15,
+  Performance 13, Mechanic 12 - short of the owner's 50+ per tab; more batches to come (real features only).
+- 89 new icons (`hud/tools/icons2.js`).
+- Test harness: the "owner is playing" check now only blocks while a Minecraft window is in a world or on a server
+  (the owner keeps Lunar open at its menu).
+
+**Tested in the game (26.2):** title tip; panel header and Performance tab; FPS Limit card switched on -> options.txt
+maxFps changed (restore value kept); loading-screen fun fact. **Not tested:** ping on a real server (needs the owner's
+account), most of the 85 new cards one by one (they share OptionFeature / TextHud, which were tested).
 
 ---
 
