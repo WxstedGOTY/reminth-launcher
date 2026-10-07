@@ -6,8 +6,8 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 000000000000000000000 (panel batch 3: 146 features, auto-stacking HUD). Before it 00000000000000000000 (pixel cursor; the night plan).
 - **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 8 Oct).
-- **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
-  Reminth open), **not published** (the owner publishes it himself after testing).
+- **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (8 Oct, 01:41, panel batch 3) - **installed** on this PC and
+  Reminth reopened, **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 
@@ -40,7 +40,7 @@ Mechanic 11, Chat 17, Utility 29); Chat category page; HUD layout editor with ev
 for real:** hit marker/combo on a real mob, bow/crossbow/shield, the low-health alert and its sound, break reminder,
 tooltips, the volume cards one by one, GUI scale.
 
-**Next:** installer (built after this commit); the owner tries 26.2; then the port to 26.3 (SDL), 26.1 and 1.21.
+**Next:** installer built and installed (8 Oct 01:41; the installed copy carries this HUD jar - checked byte for byte); the owner tries 26.2; then the port to 26.3 (SDL), 26.1 and 1.21.
 
 ### PASS/FAIL for the owner (26.2, 10 minutes, single player)
 1. Press G: the panel says 146 features. PASS/FAIL
