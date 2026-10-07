@@ -5,10 +5,9 @@ work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026, desktop window: newest section below is 000000000000000 (playstyle lists tested in the real game, and the fixes that needed). Before it 00000000000000 (card pictures, cloud window).
-  screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
-- **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
-- **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
-  release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
+- **`main` is at:** this file's commit; the last code commit is `171a6f3`. **`npm test`: 655 pass** (Windows, 7 Oct).
+- **Version:** `package.json` says **1.4.8**. Installer built in `release-1.4.8\` and installed on the owner's PC on 7 Oct;
+  **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 
