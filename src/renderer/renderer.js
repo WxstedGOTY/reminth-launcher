@@ -693,7 +693,9 @@ async function refreshUpdateState() {
 }
 
 function paintMaxButton(isMaximized) {
-  $("maxBtn").querySelector("span").className = isMaximized ? "wc-max restore" : "wc-max";
+  // Always one square (the owner's call, 7 Oct 2026: like most apps he uses), whether maximized or not; the
+  // tooltip still says what a click does.
+  $("maxBtn").querySelector("span").className = "wc-max";
   $("maxBtn").title = isMaximized ? "Restore" : "Maximize";
 }
 window.reminth.onMaximized(paintMaxButton);

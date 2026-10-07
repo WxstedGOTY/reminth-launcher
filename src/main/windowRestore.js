@@ -78,4 +78,19 @@ function windowSizes(workArea) {
   };
 }
 
-module.exports = { afterGame, fillsWorkArea, windowSizes };
+/**
+ * Pure: the page zoom that makes a smaller window show the very same layout as the maximized one, only smaller
+ * (the owner, 7 Oct 2026: "the UIs the same on any size of window"). The design size is the screen's work area, so a
+ * maximized window is 1. Never above 1 (a bigger screen keeps the normal size) and never below 0.5 (still readable).
+ */
+function uiZoom(content, workArea) {
+  const w = Number(content && content.width);
+  const h = Number(content && content.height);
+  const W = Number(workArea && workArea.width);
+  const H = Number(workArea && workArea.height);
+  if (!(w > 0 && h > 0 && W > 0 && H > 0)) return 1;
+  const z = Math.min(w / W, h / H);
+  return Math.round(Math.min(1, Math.max(0.5, z)) * 1000) / 1000;
+}
+
+module.exports = { afterGame, fillsWorkArea, windowSizes, uiZoom };

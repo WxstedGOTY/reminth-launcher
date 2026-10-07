@@ -198,6 +198,19 @@ function createWindow() {
   // the renderer draws its own and needs to know which icon to show.
   win.on("maximize", () => send("window:maximized", true));
   win.on("unmaximize", () => send("window:maximized", false));
+  // A smaller window shows the same layout as the maximized one, scaled down (windowRestore.uiZoom).
+  const fitZoom = () => {
+    try {
+      if (!win || win.isDestroyed()) return;
+      const [width, height] = win.getContentSize();
+      const z = windowRestore.uiZoom({ width, height }, screen.getDisplayMatching(win.getBounds()).workAreaSize);
+      if (Math.abs(win.webContents.getZoomFactor() - z) > 0.002) win.webContents.setZoomFactor(z);
+    } catch {
+      // cosmetic: the page stays at its normal size
+    }
+  };
+  win.on("resize", fitZoom);
+  win.webContents.on("did-finish-load", fitZoom);
   // After a game: put the window back as it was (see restoreWindowAfterGame).
   win.on("focus", () => restoreWindowAfterGame());
   win.on("restore", () => restoreWindowAfterGame());

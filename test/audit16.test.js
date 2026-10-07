@@ -156,3 +156,16 @@ test("Audit 16: on a screen smaller than 1000x660 (1080p at 175 % scaling) the w
   assert.deepEqual(windowSizes({ width: 1920, height: 1032 }), { width: 1320, height: 840, minWidth: 1000, minHeight: 660 });
   assert.deepEqual(windowSizes({ width: 1280, height: 680 }), { width: 1088, height: 660, minWidth: 1000, minHeight: 660 });
 });
+
+test("uiZoom: a smaller window shows the maximized layout scaled down; maximized is 1; never above 1 or below 0.5", () => {
+  const { uiZoom } = require("../src/main/windowRestore");
+  const wa = { width: 1920, height: 1032 };
+  assert.equal(uiZoom(wa, wa), 1);
+  assert.equal(uiZoom({ width: 1440, height: 774 }, wa), 0.75);
+  // the narrower side decides, so nothing is cut off
+  assert.equal(uiZoom({ width: 1920, height: 516 }, wa), 0.5);
+  assert.equal(uiZoom({ width: 1200, height: 1000 }, wa), 0.625);
+  assert.equal(uiZoom({ width: 3000, height: 2000 }, wa), 1);
+  assert.equal(uiZoom({ width: 300, height: 200 }, wa), 0.5);
+  assert.equal(uiZoom(null, wa), 1);
+});
