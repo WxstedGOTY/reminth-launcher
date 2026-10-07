@@ -4,13 +4,69 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 6 Oct 2026 (evening), desktop window: newest section below is 00000000000000 (playstyle card pictures, cloud window, 6 Oct night); before it 0000000000000 (playstyle cards). Earlier line: 5 Oct 2026 (night), desktop window: section 00000000 is newest. Older line: 4 Oct 2026 (late), by the **cloud window**: **prompt 17**, the launcher side of the Reminth home
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026, desktop window: newest section below is 000000000000000 (playstyle lists tested in the real game, and the fixes that needed). Before it 00000000000000 (card pictures, cloud window).
   screen (bundled `reminthhome` mod + `reminth://` links). See section 0. Audit 16 (earlier today) is section 0b.
 - **`main` is at:** this file's commit; the last code commit is `a1928f9`. **`npm test`: 621 pass** (Linux, cloud).
 - **Version:** `package.json` says **1.4.6** (not bumped; nothing built). Prompt 17 and the Audit 16 fixes need a
   release, and the home screen needs its first `reminthhome-*.jar` in `assets/mods` (desktop window, plan sections 3-5).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000. Playstyle lists: tested in the real game, and fixed (7 Oct 2026) - desktop window
+
+**State:** `main` at `171a6f3` (+ this file); `npm test` **655 pass** (Windows). Installer rebuilt in `release-1.4.8\` and
+installed on the owner's PC (7 Oct, 15:05). **Not published** - the owner publishes after testing.
+
+**What the owner asked (6 Oct night):** icons next to each mod/pack like Discover; everything important ticked (no
+explosion particles, crystal and anchor optimizers, Client Side Crystals, low fire, small shield/totem/tools, Xaero's maps
+in Survival); one mod per job; no cheats (macros, auto-totem); then test it myself until it works.
+
+**What changed**
+- Lists (`src/main/purposes.js`): Client Side Crystals, Marlow's Crystal Optimizer, Anchor Optimizer, Xaero's Minimap +
+  World Map ticked; second mods for the same job removed (Kind's optimizers, Totem Tweaks, Mini Totem, Small Totem Pop
+  Animation, short-sword packs, Low Shield pack, Crystal Vanilla Tweaks, Cull Leaves, ClientSort, Mouse Wheelie, **CPS+** -
+  Clean Keystrokes already counts clicks per second, and CPS+ sat on top of the minimap); Controlling added. 52 items, all
+  with 26.2 builds (`tools/overnight/check-purposes.js`).
+- Icons left of every name in the list (`features.js`, `.extra-icon`); seen in the app: 20 of 20 loaded.
+- Picking several cards: anything recommended in any picked card is never shown unticked under another card's "More".
+- Inventory Profiles Next gets ready-made settings: its auto-refill icon no longer sits on every hotbar slot (seen in the
+  game before/after). Ready-made settings can now be in a sub-folder of `config/`.
+- **Mod builds** (`content.js` `pickVersion`, `modsSync.js`, version dialog): when an author uploads one build per Minecraft
+  version in one go, the one named for the exact version is taken (CPS+ "+mc1.21" is tagged up to 1.21.11 but only runs on
+  1.21 - that broke 1.21.11 and 1.21.1).
+- **Compatibility check** (`compat.js`), each found by a real game failing or a false alarm:
+  - A multi-version bundle loads the copy for this version (proved: Client Side Crystals' 26.3 bundle started on 26.2);
+    packed copies nothing needs are skipped (BetterHurtCam on 1.20.1). No more false "won't load".
+  - A too-old Fabric API for a mod is now "won't start" (it was only a warning, because Fabric API's own packed modules
+    looked like maybe another copy).
+  - A library a jar requires that is missing altogether is "won't start" with an Install button (Status Effect Bars
+    needs Cloth Config; its Modrinth page doesn't say so).
+- **After a playstyle install** (`main.js` `turnOffWhatWontLoad`): missing libraries are added by themselves; anything
+  from that install that would still stop the game (and mods that need it) is switched off - never deleted - with the
+  reason; the message says what was added or switched off.
+
+**Tested for real (fake profile, the game started by Reminth's launch code, never while the owner played):**
+- All four cards together: 26.2 (137 mods), 1.21.11 (136), 1.21.1 (134), 1.20.1 (133) - all reach the title screen with
+  the packs on; 26.2 and 1.21.1 also **joined a survival world**: clean HUD (minimap left, keystrokes right, hearts, hunger).
+- Each card alone on 1.21.11, 26.2, 1.21.1 and 1.20.1 (16 runs): all reach the title screen.
+- 1.21.2 (an odd version where many mods are mis-tagged): the install switches off what can't run there (YACL, Zoomify,
+  Clean Keystrokes, CPS+), says so, and the game starts.
+- Not tested: the owner's own account and servers; Quilt; 26.3 snapshots.
+
+**Known weak spots**
+- 1.21.2 / 1.21.3 instances lose a few mods (Modrinth tags are wrong there); it says which.
+- Enchantment Descriptions shows a "needs Bookshelf" warning on 1.21.11 although it starts fine (Modrinth's list).
+
+**Test plan (owner)**
+1. New instance -> Fabric 26.2 (or 1.21.11) -> Continue -> pick Crystal PvP + Survival -> Finish: icons next to every
+   name; Client Side Crystals, both optimizers, Xaero's maps, Small Shield & Totem, Small Tools, No Explosion Particles,
+   Low Fire ticked. PASS/FAIL.
+2. Add selected -> message says how many were added (and anything added/turned off) -> Play -> the game starts, packs on.
+   PASS/FAIL.
+3. In a world: minimap top-left, keystrokes top-right, nothing on top of each other, no arrows on the hotbar slots. PASS/FAIL.
+4. Join a crystal server you play on: crystals and anchors feel instant. PASS/FAIL.
 
 ---
 
