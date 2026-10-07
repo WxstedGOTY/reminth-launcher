@@ -55,6 +55,13 @@ public abstract class Module {
 	public float scale = 1f;
 	// size drawn last frame (unscaled), for the layout editor and clamping
 	public int lastW = 40, lastH = 10;
+	// where it was drawn last frame (a feature still at its default place moves aside for others: Panel.drawHud)
+	public int drawX, drawY;
+
+	/** Still where it starts (never moved in the layout editor). */
+	public boolean atDefault() {
+		return anchor == defAnchor && dx == defDx && dy == defDy;
+	}
 
 	protected Module(String id, String name, Cat cat, String icon, String description, boolean isNew, boolean defaultOn, Anchor anchor, int dx, int dy) {
 		this.id = id;

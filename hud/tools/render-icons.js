@@ -4,7 +4,7 @@
 const { app, BrowserWindow } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const icons = { ...require("./icons"), ...require("./icons2") };
+const icons = { ...require("./icons"), ...require("./icons2"), ...require("./icons3") };
 
 const OUT = path.join(__dirname, "..", "src", "main", "resources", "assets", "reminthhud", "textures", "gui", "panel");
 const SIZE = 128;
@@ -29,7 +29,7 @@ app.whenReady().then(async () => {
     fs.writeFileSync(path.join(OUT, name + ".png.mcmeta"), '{ "texture": { "blur": true } }\n');
   }
   // contact sheet on Minecraft-grey tiles, to check the look
-  const sheetNames = process.env.SHEET === "2" ? Object.keys(require("./icons2")) : names;
+  const sheetNames = process.env.SHEET ? Object.keys(require("./icons" + process.env.SHEET)) : names;
   const cells = sheetNames.map((n) => `<div style="display:inline-block;width:150px;margin:6px;text-align:center;font:12px Arial;color:#ddd">
     <div style="background:#3a3a3a;border:2px solid #5a5a5a;border-radius:10px;padding:14px"><img width="64" height="64" src="data:image/png;base64,${fs.readFileSync(path.join(OUT, n + ".png")).toString("base64")}"></div>${n}</div>`);
   const sheet = new BrowserWindow({ show: false, width: 1300, height: 1900, webPreferences: { offscreen: true } });

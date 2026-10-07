@@ -45,6 +45,7 @@ public final class Features {
 		list.add(new ToggleSprint());
 		list.add(new ToggleSneak());
 		list.addAll(Features2.all());
+		list.addAll(Features3.all());
 		return list;
 	}
 

@@ -4,12 +4,53 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000 (pixel cursor; the night plan). Before it 0000000000000000000 (panel batch 2).
-- **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 7 Oct).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 000000000000000000000 (panel batch 3: 146 features, auto-stacking HUD). Before it 00000000000000000000 (pixel cursor; the night plan).
+- **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 8 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
   Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000. Panel batch 3: 146 features, HUD displays never pile up (8 Oct 2026, night) - desktop window
+
+**What changed (ReminthHUD 1.4.0+26.2, `hud/`):**
+- `panel/Features3.java` (new): 35 features picked from the owner's ChatGPT list - only ones that show your own state,
+  change looks, or are the game's own settings. **HUD:** Attack Cooldown bar (option: quiet click when ready), Bow Draw,
+  Crossbow Loaded, Shield Up, Offhand Item, Fall Distance, Held Food, Right Tool, Lowest Health, Low Health / Hunger
+  Alert (flashing, sound), Food Stock, Day / Night Timer, Sleep Cue, Nether Coordinates, Frame Time + 1% low, Damage
+  Taken, Combo Counter. **Visual:** Hit Marker (cross/dot/ring; other colours for a critical hit and a kill; optional
+  sound), Brightness, GUI Scale. **Utility:** Hide HUD Key (F7, ON), Break Reminder, Durability in Tooltips (ON), Food
+  Values in Tooltips, ten sound volume cards (master, music, jukebox, weather, blocks, hostile, friendly, players,
+  ambient, voice). **Chat:** Chat Timestamps.
+- `mixin/AttackMixin.java` (notices your own attacks for the hit marker and combo - changes nothing about them) and
+  `mixin/ChatTimestampMixin.java`; both in `reminthhud.mixins.json`. Tooltips through Fabric's `ItemTooltipCallback`.
+- **Bug fixed - displays piled on top of each other** (seen in the game: Nether Coordinates over Lowest Health, Frame
+  Time over Xaero's minimap): `Panel.drawHud` now moves a display that is still at its default place down (or up) to
+  the nearest free space; Xaero's minimap corner and the hotbar/hearts/hunger area are kept free. A display the player
+  moved stays where they put it. The layout editor uses the drawn place (`Module.drawX/drawY`).
+- Left out on purpose: Comfort preset (the separate No View Bobbing / FOV / Distortion / Darkness / Hurt Cam cards
+  already do it - two switches for one setting would fight); ping jitter/min-max (not done yet).
+- 36 new icons (`hud/tools/icons3.js`, 153 in all; the Sleep Cue one is `bedcue` - `sleep` is Background FPS's).
+
+**Tested in the game (26.2, screenshots):** world with 22 displays on - all stacked, nothing overlapping; chat message
+got `[01:27]` in front; F7 hid every Reminth display; panel shows **146** features (HUD 53, Visual 23, Performance 13,
+Mechanic 11, Chat 17, Utility 29); Chat category page; HUD layout editor with every new display's sample. **Not tested
+for real:** hit marker/combo on a real mob, bow/crossbow/shield, the low-health alert and its sound, break reminder,
+tooltips, the volume cards one by one, GUI scale.
+
+**Next:** installer (built after this commit); the owner tries 26.2; then the port to 26.3 (SDL), 26.1 and 1.21.
+
+### PASS/FAIL for the owner (26.2, 10 minutes, single player)
+1. Press G: the panel says 146 features. PASS/FAIL
+2. HUD tab: switch on Attack Cooldown, Combo Counter and Damage Taken; in Visual switch on Hit Marker. Hit a mob: a
+   white cross at the crosshair (orange when you crit by falling onto it, red when it dies); combo counts up. PASS/FAIL
+3. Switch on 10 or more HUD displays: none of them overlap each other, the minimap or the hearts. PASS/FAIL
+4. Press F7: all Reminth displays go away; F7 again: back. PASS/FAIL
+5. Chat category: switch on Chat Timestamps; new chat messages start with the time. PASS/FAIL
+6. Hover a damaged sword in your inventory: "Durability: 1000 / 1561" under the name. PASS/FAIL
+7. Utility: move Music Volume to 0; it stays 0 after a restart; switching the card off puts it back. PASS/FAIL
 
 ---
 

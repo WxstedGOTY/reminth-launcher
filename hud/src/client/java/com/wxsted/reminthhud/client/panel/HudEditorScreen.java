@@ -40,7 +40,7 @@ public class HudEditorScreen extends Screen {
 		for (int i = Panel.MODULES.size() - 1; i >= 0; i--) {
 			Module m = Panel.MODULES.get(i);
 			if (!m.enabled || !m.isHud()) continue;
-			int x = m.screenX(width), y = m.screenY(height);
+			int x = m.drawX, y = m.drawY;
 			if (Draw.in(mx, my, x - 2, y - 2, Math.round(m.lastW * m.scale) + 4, Math.round(m.lastH * m.scale) + 4)) return m;
 		}
 		return null;
@@ -55,7 +55,7 @@ public class HudEditorScreen extends Screen {
 		Module hot = dragging != null ? dragging : at(mx, my);
 		for (Module m : Panel.MODULES) {
 			if (!m.enabled || !m.isHud()) continue;
-			int x = m.screenX(width), y = m.screenY(height);
+			int x = m.drawX, y = m.drawY;
 			int bw = Math.round(m.lastW * m.scale), bh = Math.round(m.lastH * m.scale);
 			g.outline(x - 2, y - 2, bw + 4, bh + 4, m == hot ? 0xFFFFFFFF : 0x80FFFFFF);
 			if (m == hot) {
@@ -99,8 +99,8 @@ public class HudEditorScreen extends Screen {
 		}
 		if (m != null && e.button() == 0) {
 			dragging = m;
-			grabX = e.x() - m.screenX(width);
-			grabY = e.y() - m.screenY(height);
+			grabX = e.x() - m.drawX;
+			grabY = e.y() - m.drawY;
 			return true;
 		}
 		return super.mouseClicked(e, doubleClick);
@@ -136,7 +136,7 @@ public class HudEditorScreen extends Screen {
 	public boolean mouseScrolled(double mx, double my, double sx, double sy) {
 		Module m = at(mx, my);
 		if (m != null) {
-			int x = m.screenX(width), y = m.screenY(height);
+			int x = m.drawX, y = m.drawY;
 			m.scale = Math.max(0.5f, Math.min(3f, Math.round((m.scale + (sy > 0 ? 0.1f : -0.1f)) * 10f) / 10f));
 			m.placeAt(x, y, width, height);
 			Panel.save();

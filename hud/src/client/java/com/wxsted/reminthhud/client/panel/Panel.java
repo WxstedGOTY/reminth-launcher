@@ -49,6 +49,13 @@ public final class Panel {
 	private static KeyMapping openKey;
 	private static KeyMapping zoomKey;
 	private static KeyMapping snapKey;
+	private static KeyMapping hideKey;
+	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
+	public static boolean hudHidden;
+
+	public static KeyMapping hideKey() {
+		return hideKey;
+	}
 
 	public static KeyMapping snapKey() {
 		return snapKey;
@@ -77,6 +84,8 @@ public final class Panel {
 		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.panel", keyboard(), InputConstants.KEY_G, category));
 		zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.zoom", keyboard(), InputConstants.KEY_C, category));
 		snapKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.snaplook", keyboard(), InputConstants.KEY_V, category));
+		hideKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.hidehud", keyboard(), InputConstants.KEY_F7, category));
+		Features3.initTooltips();
 		Tips.init();
 		load();
 		ClientTickEvents.END_CLIENT_TICK.register(Panel::tick);
@@ -106,6 +115,7 @@ public final class Panel {
 				if (mc.gui.screen() == null) open(null);
 			}
 			Features2.tick(mc);
+			Features3.tick(mc);
 			for (Module m : MODULES) if (m.enabled) m.tick(mc);
 		} catch (Throwable t) {
 			ReminthHud.LOGGER.warn("Reminth panel: tick failed ({})", t.toString());
@@ -128,17 +138,37 @@ public final class Panel {
 		if (mc.player == null) return;
 		if (mc.debugEntries.isOverlayVisible()) return;
 		if (mc.gui.screen() instanceof HudEditorScreen) return; // it draws them itself
+		if (hudHidden) return;
 		drawHud(g, mc, false);
 	}
 
-	/** Every switched-on HUD feature at its place. */
+	/**
+	 * Every switched-on HUD feature at its place. One still at its default place moves down (or up) to the next free
+	 * space when an earlier one, or Xaero's minimap or the hotbar with hearts and hunger, is already there - so turning on many never
+	 * piles them on top of each other. One the player moved stays exactly where they put it.
+	 */
 	static void drawHud(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
 		int sw = g.guiWidth(), sh = g.guiHeight();
+		List<int[]> taken = new ArrayList<>();
+		if (MINIMAP) taken.add(new int[] {0, 0, 72, 72});
+		taken.add(new int[] {sw / 2 - 92, sh - 52, sw / 2 + 92, sh}); // the game's hotbar, hearts, hunger and armor
+		for (Module m : MODULES) if (m.enabled && m.isHud() && !m.atDefault()) taken.add(rect(m, m.screenX(sw), m.screenY(sh)));
 		for (Module m : MODULES) {
 			if (!m.enabled || !m.isHud()) continue;
+			int x = m.screenX(sw), y = m.screenY(sh);
+			if (m.atDefault()) {
+				int h = Math.round(m.lastH * m.scale);
+				int down = free(taken, x, y, m, sh, 1), up = free(taken, x, y, m, sh, -1);
+				if (down >= 0 && (up < 0 || down - y <= y - up)) y = down;
+				else if (up >= 0) y = up;
+				taken.add(rect(m, x, y));
+				if (h <= 0) taken.remove(taken.size() - 1);
+			}
+			m.drawX = x;
+			m.drawY = y;
 			try {
 				g.pose().pushMatrix();
-				g.pose().translate(m.screenX(sw), m.screenY(sh));
+				g.pose().translate(x, y);
 				g.pose().scale(m.scale, m.scale);
 				m.render(g, mc, preview);
 			} catch (Throwable t) {
@@ -147,6 +177,25 @@ public final class Panel {
 				g.pose().popMatrix();
 			}
 		}
+	}
+
+	private static final boolean MINIMAP = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("xaerominimap");
+
+	private static int[] rect(Module m, int x, int y) {
+		return new int[] {x, y, x + Math.round(m.lastW * m.scale), y + Math.round(m.lastH * m.scale)};
+	}
+
+	/** The nearest free top edge going down (dir 1) or up (dir -1) from y, or -1 when there is none on screen. */
+	private static int free(List<int[]> taken, int x, int y, Module m, int sh, int dir) {
+		int w = Math.round(m.lastW * m.scale), h = Math.round(m.lastH * m.scale);
+		for (int tries = 0; tries < 64; tries++) {
+			if (y < 0 || y + h > sh) return -1;
+			int[] hit = null;
+			for (int[] r : taken) if (x < r[2] && x + w > r[0] && y < r[3] + 2 && y + h + 2 > r[1]) hit = r;
+			if (hit == null) return y;
+			y = dir > 0 ? hit[3] + 3 : hit[1] - h - 3;
+		}
+		return -1;
 	}
 
 	/* ------------------------------ on/off ------------------------------ */

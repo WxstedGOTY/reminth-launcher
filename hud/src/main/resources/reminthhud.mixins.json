@@ -6,7 +6,9 @@
 		"CameraFovMixin",
 		"MouseScrollMixin",
 		"FireOverlayMixin",
-		"PongMixin"
+		"PongMixin",
+		"AttackMixin",
+		"ChatTimestampMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0
