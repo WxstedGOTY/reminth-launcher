@@ -4,12 +4,46 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (afternoon), desktop window: newest section below is 0000000000000000 (ban safety, title screen fixes, home screen 1.0.4). Before it 000000000000000 (playstyle lists tested in the game).
-- **`main` is at:** this file's commit; the last code commit is `2f3fada`. **`npm test`: 661 pass** (Windows, 7 Oct).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (evening), desktop window: newest section below is 00000000000000000 (no cheat-like mods, window scaling, panel feature list waiting for the OK). Before it 0000000000000000 (ban safety, home screen 1.0.4).
+- **`main` is at:** this file's commit; the last code commit is `7573d67`. **`npm test`: 663 pass** (Windows, 7 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
   Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000. No cheat-like mods, window scaling, panel feature list (7 Oct 2026, evening) - desktop window
+
+**State:** `main` at `0fbb818` (+ this file); `npm test` **663 pass**. Installer being rebuilt into `release-1.4.8\`.
+
+**Found in the owner's logs (read-only):** DonutSMP kicked him at 15:12 on 7 Oct ("cheat mod ... Inventory Profile! ...
+join with this again you will be banned") - before the ban warning was installed. MCPVP (mcpvp.com) banned him at 20:26
+on 6 Oct for "Impossible Actions"; that instance had Marlow's + Kind's crystal optimizers, Anchor Optimizer + Kind's anchor
+optimizer and Client Side Crystals on.
+
+**What changed**
+- Lists (`purposes.js`): nothing that can be seen as a cheat, ticked or not - crystal/anchor optimizers, Client Side
+  Crystals, Mouse Tweaks, Inventory Profiles Next and Jade are gone (players can still add them from Discover). Owner:
+  "no hacks ... only optimization mods".
+- Ban warnings (`serverRules.js`): MCPVP added (crystal and anchor optimizers); a pretend server
+  `bantest.reminth.invalid` (can never exist) for testing; checked in the game: warning, Back, Join anyway -> "Unknown host".
+- Window: the maximize button is always one square; a smaller window shows the same layout scaled down (page zoom =
+  window size / screen work area, 0.5-1; `windowRestore.uiZoom`). Checked in the app at maximized and 1320x839.
+- Panel: `docs/PANEL_FEATURES.md` - 101 researched features (HUD / Visual / Mechanic / Chat / Utility) with difficulty and
+  server-rule risk, a "left out on purpose" list and the first 15 for 26.2. **Waiting for the owner's OK before building.**
+
+**Decisions for the owner**
+1. The panel feature list (`docs/PANEL_FEATURES.md`) - OK, or what to change. Recommendation: OK as is; the first batch is
+   the 15 listed at the end.
+2. The title screen "Discover" button will open the new panel (as asked) - Reminth's Discover page then stays reachable
+   from the launcher only. Recommendation: yes.
+
+**Test plan (owner)**
+1. Install the new `release-1.4.8\Reminth-Setup.exe` (close Reminth first). PASS/FAIL.
+2. Restore Reminth to a smaller window: same layout, just smaller; the window button is one square. PASS/FAIL.
+3. New instance -> Fabric -> Crystal PvP: no crystal/anchor optimizers, no Client Side Crystals; Survival: no Mouse
+   Tweaks, Inventory Profiles Next or Jade. PASS/FAIL.
 
 ---
 
