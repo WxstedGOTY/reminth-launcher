@@ -28,16 +28,9 @@ const path = require("path");
 const FABRIC_LIKE = ["fabric", "quilt"];
 const ALL_LOADERS = ["fabric", "quilt", "forge", "neoforge", "vanilla"];
 
-const RULES = "Most servers allow it, a few don't - check the rules of the server you play on.";
 const MINIMAP =
   "Reminth switches its radar (dots for players and mobs) and cave view off - most servers only ban those. Hypixel and MCC Island ban every minimap.";
-const WORLD_MAP = "Hypixel and MCC Island ban map mods. Fine on most other servers.";
-// Server rules found 7 Oct 2026 (src/main/serverRules.js has the sources): these are banned on big servers, so they are
-// never ticked, and say so.
-const BANNED_INVENTORY = "Banned on DonutSMP and Hypixel (inventory mods) - you can get banned. Only for singleplayer or servers that allow it.";
-const BANNED_MOUSE = "Banned on DonutSMP (mouse tweaks) and Hypixel - you can get banned. Only for singleplayer or servers that allow it.";
-const BANNED_HEALTH = "Shows mobs' health: DonutSMP bans health indicators. Only for singleplayer or servers that allow it.";
-const ONE_OPTIMIZER = "Use one crystal optimizer, not two - two of them can fight each other.";
+const WORLD_MAP = "A map of where you have been - no radar. Fine on most servers; check the rules of the server you play on.";
 
 // Ready-made settings (the mod's own file format, as the mods write it themselves).
 const CFG = {
@@ -60,21 +53,6 @@ const CFG = {
     content:
       "displayEnabled = true\nx = -1\ny = -1\nuseDefaultTotem = false\ndisplayColors = true\ncoloredXpBar = false\nalwaysShowBar = false\nshowPopCounter = true\ncounterEnabled = true\nseparator = true\ncounterColors = true\nshowInTab = false\n",
   },
-  totemTweaks: {
-    file: "totemtweaks.json",
-    content:
-      '{\n  "totemSize": 1.0,\n  "popSize": 0.3,\n  "disableEquipAnimation": false,\n  "TotemPopAnimation": true,\n  "animationSpeed": 40,\n  "lockRotationPosition": false,\n  "disableRotations": false,\n  "staticSize": false,\n  "enableTotemSizeChange": false,\n  "totemSizeChangeSpeed": 1.0,\n  "minTotemSize": 0.5,\n  "maxTotemSize": 1.0\n}\n',
-  },
-  clientCrystals: {
-    file: "clientsidecrystals.json",
-    content:
-      '{\n  "instantEnabled": true,\n  "seamlessEnabled": true,\n  "instantArmSwing": false,\n  "predictionTimeoutTicks": 12,\n  "colorFakeCrystal": false,\n  "fakeCrystalColor": -43521\n}\n',
-  },
-  anchors: {
-    file: "client_side_anchors.json",
-    content:
-      '{\n  "enabled": true,\n  "instantExplosion": true,\n  "removeOutline": false,\n  "introShown": true,\n  "autoUpdate": false,\n  "autoUpdateFirstRunComplete": true,\n  "autoUpdateTouched": false\n}\n',
-  },
   zoomify: {
     file: "zoomify.json",
     content:
@@ -85,13 +63,6 @@ const CFG = {
   xaeroFair: {
     file: "xaero/minimap/profiles/default.cfg",
     content: "display_radar = false\nminimap_cave_mode_allowed = false\n",
-  },
-  // Inventory Profiles Next draws its auto-refill icon on every hotbar slot by default; this keeps it to the inventory
-  // (auto refill itself stays on). Format checked in the game, 7 Oct 2026: the icons were gone.
-  ipn: {
-    file: "inventoryprofilesnext/inventoryprofiles.json",
-    content:
-      '{\n    "ModSettings": {\n        "first_run": false\n    },\n    "AutoRefillSettings": {\n        "auto_refill_enable_horbar_indicator_icons": false\n    }\n}\n',
   },
   appleskin: {
     file: "appleskin.json5",
@@ -144,8 +115,10 @@ const PERFORMANCE = {
 //    "check the server rules" warning): crystal and anchor optimizers, Client Side Crystals, Xaero's maps;
 //  - one mod or pack per job (no two small-totem packs, no two optimizers doing the same thing, no two sorters);
 //  - nothing that plays for you (no macros, auto-totem, auto-clicker, fullbright, x-ray, freecam, hitbox helpers);
-//  - nothing ticked that a big server's rules ban (7 Oct 2026, after the owner nearly got banned on DonutSMP for
-//    Inventory Profiles Next): Mouse Tweaks, Inventory Profiles Next and Jade are only in "More", with the warning.
+//  - NOTHING that can be seen as a cheat, ticked or not (7 Oct 2026: the owner was kicked from DonutSMP for Inventory
+//    Profiles Next and banned on mcpvp.com for "Impossible Actions" with crystal and anchor optimizers on): no crystal
+//    or anchor optimizers, no Client Side Crystals, no Mouse Tweaks, no Inventory Profiles Next, no Jade. Visual, HUD
+//    and performance mods only. Players who want those can still add them from Discover.
 // Marlow's Crystal Optimizer (a crystal breaks the moment you hit it) and Client Side Crystals (a crystal shows the moment
 // you place it) do different jobs and are made to work together.
 const GOALS = {
@@ -171,9 +144,6 @@ const GOALS = {
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
     ],
     more: [
-      mod("inventory-profiles-next", "Inventory Profiles Next", "Sort chests and your inventory with one key, refill tools and blocks as they run out.", { configs: [CFG.ipn], warning: BANNED_INVENTORY }),
-      mod("mouse-tweaks", "Mouse Tweaks", "Drag and scroll items around your inventory much faster.", { warning: BANNED_MOUSE }),
-      mod("jade", "Jade", "Shows what block or mob you are looking at, and what is in it.", { warning: BANNED_HEALTH }),
       mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Reminth starts it early, so the first inventory open doesn't freeze."),
       mod("continuity", "Continuity", "Connected glass and bookshelves, like in the trailers."),
       mod("ambientsounds", "AmbientSounds", "Wind, birds, water and caves sound alive."),
@@ -192,9 +162,6 @@ const GOALS = {
     title: "Crystal PvP",
     blurb: "End crystals, anchors and totems on crystal PvP servers.",
     core: [
-      mod("marlow-crystal-optimizer", "Marlow's Crystal Optimizer", "The most used crystal optimizer: a crystal breaks the moment you hit it, without waiting for the server.", { warning: RULES }),
-      mod("clientsidecrystals", "Client Side Crystals", "A crystal shows the moment you place it. Made to work together with Marlow's optimizer.", { warning: RULES, configs: [CFG.clientCrystals] }),
-      mod("anchoroptimizer", "Anchor Optimizer", "The most used anchor optimizer: respawn anchors explode right away on your screen.", { warning: RULES, configs: [CFG.anchors] }),
       mod("totemcounter", "TotemCounter", "Shows how many totems you have left and how many each player has popped.", { configs: [CFG.totemCounter] }),
       mod("status-effect-bars", "Status Effect Bars", "See how long strength, speed and fire resistance have left at a glance."),
       mod("low-fire-reborn", "Low Fire Reborn", "Lowers the fire on your screen so you can still see.", { configs: [CFG.lowFire] }),
@@ -243,7 +210,6 @@ const GOALS = {
       pack("no-explosion-particles", "No Explosion Particles", "Removes the explosion smoke so you can see during a fight."),
       mod("betterf3", "BetterF3", "A cleaner, colour-coded F3 debug screen."),
       mod("shulkerboxtooltip", "Shulker Box Tooltip", "See what is inside a shulker box without opening it."),
-      mod("jade", "Jade", "Shows what block or mob you are looking at.", { warning: BANNED_HEALTH }),
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
       pack("default-dark-mode", "Default Dark Mode", "Dark menus and inventory screens."),
     ],

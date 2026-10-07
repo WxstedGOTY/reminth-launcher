@@ -93,19 +93,12 @@ test("checkInstance: reads the join address, the server list and the joined serv
   }
 });
 
-test("playstyle lists: nothing a big server bans is ticked; those that are listed say so", () => {
+test("playstyle lists: none of the mods big servers ban are offered at all; Xaero's radar and cave view off", () => {
   for (const id of ["crystal", "sword", "survival", "performance"]) {
-    const tabs = purposes.tabsFor([id], { loader: "fabric" });
-    for (const t of tabs) {
-      for (const item of t.core) {
-        assert.ok(!["mouse-tweaks", "inventory-profiles-next", "jade"].includes(item.slug), `${id}: ${item.slug} is ticked`);
-      }
-      for (const item of t.more) {
-        if (["mouse-tweaks", "inventory-profiles-next", "jade"].includes(item.slug)) assert.match(item.warning || "", /ban/i, `${id}: ${item.slug}`);
-      }
+    for (const t of purposes.tabsFor([id], { loader: "fabric" })) {
+      for (const item of [...t.core, ...t.more]) assert.ok(!["mouse-tweaks", "inventory-profiles-next", "jade"].includes(item.slug), `${id}: ${item.slug}`);
     }
   }
-  // Xaero's Minimap comes with its radar and cave view off
   const xm = purposes.itemBySlug(["survival"]).get("xaeros-minimap");
   assert.ok(xm.configs.some((c) => /display_radar = false/.test(c.content) && /minimap_cave_mode_allowed = false/.test(c.content)));
 });

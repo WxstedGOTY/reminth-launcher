@@ -53,25 +53,24 @@ test("a Forge instance is offered resource packs only; a vanilla instance too; Q
   assert.equal(purposes.tabsFor("nope", { loader: "fabric" }), null);
 });
 
-test("the owner's rules: important ones ticked even when a few servers ban them, one mod per job, no automation", () => {
+test("the owner's rules: nothing that can be seen as a cheat, one mod per job, the important visual ones ticked", () => {
   const core = (id) => purposes.tabsFor(id, { loader: "fabric" })[0].core.map((i) => i.slug);
-  const all = (id) => purposes.tabsFor(id, { loader: "fabric" }).flatMap((t) => [...t.core, ...t.more]).map((i) => i.slug);
-  // crystal: both crystal mods (they do different jobs and work together) and the anchor optimizer are ticked
-  for (const s of ["marlow-crystal-optimizer", "clientsidecrystals", "anchoroptimizer", "small-shield-totem", "small-tools-", "no-explosion-particles", "low-fire-reborn"]) {
-    assert.ok(core("crystal").includes(s), `crystal: ${s}`);
-  }
+  const all = (id) => (purposes.tabsFor(id, { loader: "fabric" }) || purposes.tabsFor([id], { loader: "fabric" }) || []).flatMap((t) => [...t.core, ...t.more]).map((i) => i.slug);
+  for (const s of ["small-shield-totem", "small-tools-", "no-explosion-particles", "low-fire-reborn"]) assert.ok(core("crystal").includes(s), `crystal: ${s}`);
   for (const s of ["small-shield-totem", "small-tools-", "low-fire-reborn", "crittweaks"]) assert.ok(core("sword").includes(s), `sword: ${s}`);
-  // survival: Xaero's maps are ticked
+  // survival: Xaero's maps are ticked (radar and cave view off)
   for (const s of ["xaeros-minimap", "xaeros-world-map"]) assert.ok(core("survival").includes(s), `survival: ${s}`);
-  // one per job: these doubles are gone everywhere
-  for (const id of ["crystal", "sword", "survival", "pvp"]) {
-    for (const s of ["kinds-crystal-optimizer", "kinds-anker-optimizer", "mini-totem", "small-totem-pop-animation", "small-low-totem", "short-pvp-swords", "short-swords-pack", "low-shield-pack", "crystal-vanilla-tweaks", "cull-leaves", "clientsort", "mouse-wheelie", "cpvp", "cps-plus"]) {
+  for (const id of ["crystal", "sword", "survival", "performance", "pvp"]) {
+    // 7 Oct 2026: kicked from DonutSMP (Inventory Profiles Next), banned on mcpvp.com ("Impossible Actions", crystal and
+    // anchor optimizers on): none of these anywhere, ticked or not
+    for (const s of ["marlow-crystal-optimizer", "clientsidecrystals", "anchoroptimizer", "kinds-crystal-optimizer", "kinds-anker-optimizer", "mouse-tweaks", "inventory-profiles-next", "jade", "mouse-wheelie", "cpvp"]) {
+      assert.ok(!all(id).includes(s), `${id}: ${s} can be seen as a cheat`);
+    }
+    // one per job
+    for (const s of ["mini-totem", "small-totem-pop-animation", "small-low-totem", "short-pvp-swords", "short-swords-pack", "low-shield-pack", "crystal-vanilla-tweaks", "cull-leaves", "clientsort", "cps-plus"]) {
       assert.ok(!all(id).includes(s), `${id}: ${s} is a second mod for the same job`);
     }
   }
-  // the server-rules warning stays on the ones some servers ban
-  const crystalItems = purposes.tabsFor("crystal", { loader: "fabric" })[0].core;
-  for (const s of ["marlow-crystal-optimizer", "clientsidecrystals", "anchoroptimizer"]) assert.match(crystalItems.find((i) => i.slug === s).warning, /check the rules/i);
 });
 
 test("listFor marks availability, channel and installed from Modrinth and the manifest; a 404 is 'not available', other failures 'unknown'", async () => {
@@ -109,10 +108,9 @@ test("ready-made settings are written only when the file is missing", async () =
     assert.match(fs.readFileSync(path.join(dir, "config", "betterhurtcam.toml"), "utf8"), /enabled = true/);
     // a second run changes nothing
     assert.deepEqual(await purposes.writeConfigs(dir, "crystal", ["betterhurtcam"]), []);
-    // one in a sub-folder (Inventory Profiles Next): the folder is made; the hotbar icons are off
-    assert.deepEqual(await purposes.writeConfigs(dir, "survival", ["inventory-profiles-next"]), ["inventoryprofilesnext/inventoryprofiles.json"]);
-    const ipn = JSON.parse(fs.readFileSync(path.join(dir, "config", "inventoryprofilesnext", "inventoryprofiles.json"), "utf8"));
-    assert.equal(ipn.AutoRefillSettings.auto_refill_enable_horbar_indicator_icons, false);
+    // one in a sub-folder (Xaero's Minimap): the folder is made; radar and cave view off
+    assert.deepEqual(await purposes.writeConfigs(dir, "survival", ["xaeros-minimap"]), ["xaero/minimap/profiles/default.cfg"]);
+    assert.match(fs.readFileSync(path.join(dir, "config", "xaero", "minimap", "profiles", "default.cfg"), "utf8"), /display_radar = false/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -174,10 +172,7 @@ test("the player is offered PvP and Survival only; PvP holds the crystal and the
   assert.ok(!purposes.GOAL_IDS.includes("creative"));
   const [goal] = purposes.tabsFor("pvp", { loader: "fabric" });
   const slugs = new Set([...goal.core, ...goal.more].map((i) => i.slug));
-  for (const id of ["marlow-crystal-optimizer", "anchoroptimizer", "small-tools-", "hitcolorx", "totemcounter"]) assert.ok(slugs.has(id), id);
-  // both crystal mods are recommended (they do different jobs)
-  assert.ok(goal.core.some((i) => i.slug === "marlow-crystal-optimizer"));
-  assert.ok(goal.core.some((i) => i.slug === "clientsidecrystals"));
+  for (const id of ["small-tools-", "hitcolorx", "totemcounter"]) assert.ok(slugs.has(id), id);
 });
 
 test("several playstyles at once: one tab each, Performance only when it was ticked, every item once", () => {
@@ -188,9 +183,9 @@ test("several playstyles at once: one tab each, Performance only when it was tic
   assert.deepEqual(purposes.tabsFor(["survival"], { loader: "fabric" }).map((t) => t.id), ["survival"]);
   assert.deepEqual(purposes.tabsFor(["performance"], { loader: "fabric" }).map((t) => t.id), ["performance"]);
   assert.equal(purposes.tabsFor([], { loader: "fabric" }), null);
-  // PvP recommends the small shield/totem and small tools packs and the crystal and anchor optimizers
+  // PvP recommends the small shield/totem and small tools packs
   const pvp = tabs[0].core.map((i) => i.slug);
-  for (const s of ["small-shield-totem", "small-tools-", "marlow-crystal-optimizer", "anchoroptimizer"]) assert.ok(pvp.includes(s), s);
+  for (const s of ["small-shield-totem", "small-tools-"]) assert.ok(pvp.includes(s), s);
 });
 
 test("crystal and sword picked together: everything sword recommends is still recommended (not hidden under crystal's More)", () => {

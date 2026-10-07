@@ -26,6 +26,7 @@ const CATEGORIES = {
   noChatReports: "turning off chat reporting",
   inventoryWalk: "walking with an inventory open",
   movement: "movement mods",
+  crystalOptimizer: "crystal and anchor optimizers (crystals and anchors react before the server says so)",
 };
 
 /**
@@ -57,13 +58,22 @@ const SERVERS = [
     source: "MCC's Approved Mods page",
     url: "https://mcchampionship.com/help/mods/",
   },
+  {
+    id: "mcpvp",
+    name: "MCPVP",
+    hosts: ["mcpvp.com", "mcpvp.club"],
+    banned: ["crystalOptimizer"],
+    source:
+      "MCPVP's disallowed modifications list (crystal optimisers); with them on, accounts get banned there for \"Impossible Actions\" (seen 6 Oct 2026)",
+    url: "https://mcpvp.com",
+  },
   // A pretend server for trying both warnings safely (7 Oct 2026: the owner can't test on DonutSMP without risking a ban).
   // ".invalid" addresses never exist (RFC 2606), so even "Join anyway" can't connect anywhere.
   {
     id: "reminth-test",
     name: "Reminth ban-warning test",
     hosts: ["bantest.reminth.invalid"],
-    banned: ["inventory", "mouse", "health", "radar", "minimap", "freecam", "freelook", "otherStatus", "noChatReports", "inventoryWalk", "movement"],
+    banned: ["inventory", "mouse", "health", "radar", "minimap", "freecam", "freelook", "otherStatus", "noChatReports", "inventoryWalk", "movement", "crystalOptimizer"],
     source: "Reminth's own test entry - not a real server, this address leads nowhere",
     url: "https://github.com/WxstedGOTY/reminth-launcher",
   },
@@ -92,6 +102,15 @@ const MOD_CATEGORIES = {
   totemcounter: ["otherStatus"],
   nochatreports: ["noChatReports"],
   invmove: ["inventoryWalk", "movement"],
+  // mod ids as their jars say (Client Side Crystals and Anchor Optimizer are bundles: the outer id counts)
+  marlowcrystal: ["crystalOptimizer"],
+  kindscrystaloptimizer: ["crystalOptimizer"],
+  clientsidecrystals: ["crystalOptimizer"],
+  clientsidecrystals_bundle: ["crystalOptimizer"],
+  client_side_anchors: ["crystalOptimizer"],
+  client_side_anchors_bundle: ["crystalOptimizer"],
+  kinds_anchor_optimizer: ["crystalOptimizer"],
+  crystaloptimizer: ["crystalOptimizer"],
 };
 
 /** Pure: the listed server an address belongs to, or null. "Play.DonutSMP.net:25565" -> DonutSMP. */
