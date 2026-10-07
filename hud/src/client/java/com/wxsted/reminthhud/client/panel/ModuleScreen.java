@@ -14,6 +14,7 @@ public class ModuleScreen extends Screen {
 	private int x0, y0, w, h;
 	private Opt.Num dragging;
 	private static final int ROW = 24;
+	private float sc = 1f; // drawn on a virtual screen of at least 460x300, scaled to fit (like the panel)
 
 	public ModuleScreen(Screen back, Module m) {
 		super(Component.literal(m.name));
@@ -23,10 +24,13 @@ public class ModuleScreen extends Screen {
 
 	@Override
 	protected void init() {
-		w = Math.min(width - 24, 420);
-		h = Math.min(height - 20, 70 + Math.max(1, m.opts.size()) * ROW + 36);
-		x0 = (width - w) / 2;
-		y0 = (height - h) / 2;
+		int need = 70 + Math.max(1, m.opts.size()) * ROW + 36;
+		sc = Math.min(1f, Math.min(width / 460f, height / (float) (need + 20)));
+		int vw = Math.round(width / sc), vh = Math.round(height / sc);
+		w = Math.min(vw - 24, 440);
+		h = Math.min(vh - 20, need);
+		x0 = (vw - w) / 2;
+		y0 = (vh - h) / 2;
 	}
 
 	@Override
@@ -49,7 +53,17 @@ public class ModuleScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+	public void extractRenderState(GuiGraphicsExtractor g, int rmx, int rmy, float pt) {
+		g.pose().pushMatrix();
+		g.pose().scale(sc, sc);
+		try {
+			drawAll(g, Math.round(rmx / sc), Math.round(rmy / sc));
+		} finally {
+			g.pose().popMatrix();
+		}
+	}
+
+	private void drawAll(GuiGraphicsExtractor g, int mx, int my) {
 		Draw.tile(g, x0 - 1, y0 - 1, w + 2, h + 2, 9, Draw.WINDOW_EDGE, Draw.WINDOW);
 		// header
 		boolean backHot = Draw.in(mx, my, x0 + 8, y0 + 8, 46, 16);
@@ -84,7 +98,11 @@ public class ModuleScreen extends Screen {
 			} else if (o instanceof Opt.Color c) {
 				for (int k = 0; k < Opt.Color.SWATCHES.length; k++) {
 					int sx = cx + k * 15, col = Opt.Color.SWATCHES[k];
-					if (col == c.value) Draw.round(g, sx - 1, y + 3, 14, 14, 3, 0xFFFFFFFF);
+					if (col == c.value) {
+						// a white ring with a dark gap, visible around every colour (white included)
+						Draw.round(g, sx - 2, y + 2, 16, 16, 4, 0xFFFFFFFF);
+						Draw.round(g, sx - 1, y + 3, 14, 14, 3, 0xFF141416);
+					}
 					Draw.round(g, sx + 1, y + 5, 10, 10, 2, col);
 				}
 			} else if (o instanceof Opt.Choice ch) {
@@ -103,12 +121,11 @@ public class ModuleScreen extends Screen {
 			Draw.round(g, x0 + 106, by, 100, 18, 3, lh ? Draw.BUTTON_HOT : Draw.BUTTON);
 			Draw.centered(g, "EDIT HUD LAYOUT", x0 + 156, by + 6, 0.75f, Draw.TEXT);
 		}
-		super.extractRenderState(g, mx, my, pt);
 	}
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
-		double mx = e.x(), my = e.y();
+		double mx = e.x() / sc, my = e.y() / sc;
 		if (e.button() != 0) return super.mouseClicked(e, doubleClick);
 		if (Draw.in(mx, my, x0 + 8, y0 + 8, 46, 16)) {
 			onClose();
@@ -162,7 +179,7 @@ public class ModuleScreen extends Screen {
 	@Override
 	public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) {
 		if (dragging != null) {
-			dragging.set(dragging.min + (dragging.max - dragging.min) * Math.max(0, Math.min(1, (e.x() - ctrlX()) / 100.0)));
+			dragging.set(dragging.min + (dragging.max - dragging.min) * Math.max(0, Math.min(1, (e.x() / sc - ctrlX()) / 100.0)));
 			return true;
 		}
 		return super.mouseDragged(e, dx, dy);

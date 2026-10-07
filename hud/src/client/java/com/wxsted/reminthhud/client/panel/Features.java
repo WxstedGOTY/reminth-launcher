@@ -51,7 +51,7 @@ public final class Features {
 
 	static final class Fps extends TextHud {
 		Fps() {
-			super("fps", "FPS", "fps", "Frames per second.", true, Anchor.TOP_LEFT, 4, 4);
+			super("fps", "FPS", "fps", "Frames per second.", true, Anchor.LEFT, 4, -40);
 		}
 
 		@Override
@@ -67,7 +67,7 @@ public final class Features {
 
 	static final class Ping extends TextHud {
 		Ping() {
-			super("ping", "Ping", "ping", "Your ping to the server, coloured by how good it is.", false, Anchor.TOP_LEFT, 4, 22);
+			super("ping", "Ping", "ping", "Your ping to the server, coloured by how good it is.", false, Anchor.LEFT, 4, -22);
 		}
 
 		@Override
@@ -98,7 +98,7 @@ public final class Features {
 		private final Opt.Bool showRight = opt(new Opt.Bool("right", "Show right clicks too", true));
 
 		Cps() {
-			super("cps", "CPS", "cps", "Your clicks per second (left and right).", false, Anchor.TOP_LEFT, 4, 40);
+			super("cps", "CPS", "cps", "Your clicks per second (left and right).", false, Anchor.LEFT, 4, -4);
 		}
 
 		/** Counted every frame from the game's own attack/use keys (works for mouse and rebound keys). */
@@ -129,7 +129,7 @@ public final class Features {
 		private final Opt.Bool facing = opt(new Opt.Bool("facing", "Show facing", true));
 
 		Coords() {
-			super("coords", "Coordinates", "coordinates", "Your X Y Z position and which way you face.", false, Anchor.TOP_LEFT, 4, 58);
+			super("coords", "Coordinates", "coordinates", "Your X Y Z position and which way you face.", false, Anchor.LEFT, 4, 14);
 		}
 
 		@Override

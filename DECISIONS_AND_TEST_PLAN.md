@@ -4,12 +4,51 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (evening), desktop window: newest section below is 00000000000000000 (no cheat-like mods, window scaling, panel feature list waiting for the OK). Before it 0000000000000000 (ban safety, home screen 1.0.4).
-- **`main` is at:** this file's commit; the last code commit is `7573d67`. **`npm test`: 663 pass** (Windows, 7 Oct).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (night), desktop window: newest section below is 000000000000000000 (the Reminth panel, step 2: 26.2 with 15 features). Before it 00000000000000000 (no cheat-like mods, window scaling, panel list).
+- **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 7 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
   Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000. The Reminth panel, step 2 (7 Oct 2026, night) - desktop window
+
+**State:** `npm test` **664 pass**; ReminthHUD 1.4.0+26.2 and home screen 1.0.5 (all 10) in `assets/mods`. Installer
+rebuilt and installed after this (see the chat). Not published.
+
+**Owner's decisions (7 Oct):** the 101-feature list is OK; Discover becomes the panel; the panel is not a separate,
+visible mod but part of Reminth's HUD system that can't be turned off; default key G (changeable in Controls, e.g. F6);
+Minecraft-grey / white look; icons that show what each feature does; category tabs on the left; a search box.
+
+**What changed**
+- `hud/` (ReminthHUD 1.4.0, 26.2 only so far): `client/panel/` - `Panel` (keys G and C, profiles in
+  `config/reminthhud-panel.json`, HUD drawing), `PanelScreen` (window, MODS/SETTINGS, search, categories, profiles,
+  cards with OPTIONS + gear and ENABLED/DISABLED, laid out on a virtual 640x370 screen and scaled so it looks the same at
+  any GUI scale), `ModuleScreen` (switches, sliders, colour swatches, choices), `HudEditorScreen` (drag, scroll to
+  resize, right-click to reset, centre snapping, sample values), `Features` (the 15), `TextHud`, `Opt`, `Draw`.
+  Mixins: `CameraFovMixin` (zoom), `MouseScrollMixin` (scroll to zoom), `FireOverlayMixin` (low fire). Icons: our own
+  vectors in `hud/tools/icons.js`, rendered by `hud/tools/render-icons.js` (29 icons, 128 px).
+- ReminthHUD is now `forced` (config.BUNDLED_MODS): in every Fabric/Quilt instance, Mod Menu shows it as a library. The
+  instance's HUD switch only shows/hides the top-right FPS/GPU/CPU bar: `minecraft.writeHudBar` writes `"bar"` into
+  `config/reminthhud.json` at every launch (older HUD builds get their four items switched off and back).
+- Home screen 1.0.5: Discover opens the panel (found by name; falls back to Reminth's Discover page). Also fixed: the
+  26.3 home jar had silently not been rebuilt since 1.0.4 (26.3 has no public `Window.isFullscreen`; now per version).
+
+**Tested in the game (26.2, fake profile, never while the owner played):** G opens the panel; three cards a row at GUI
+scale 3; ENABLED/DISABLED saves; FPS options (switches, slider, swatches); Edit HUD layout with sample potion effects
+(level + time, icons), armor and held-item durability; Zoom (hold C) zooms; Hurt Cam set Damage Tilt to 25%; title
+screen Discover opens the panel. Screenshots: `local-notes/panel-screens/` (not in git).
+**Not tested yet:** Low Fire (needs being on fire), typing in the search box, rename/delete profile, Toggle Sprint/Sneak
+in play, the panel on 26.1/26.3 and 1.21 (not built there yet - step 3).
+
+**Test plan (owner)**
+1. Play a Fabric 26.2 instance, press G: the panel opens; switch Keystrokes on - it shows top-right. PASS/FAIL.
+2. OPTIONS on FPS: change the colour; EDIT HUD LAYOUT: drag FPS somewhere, scroll on it to resize, DONE. PASS/FAIL.
+3. Hold C: zoom; scroll while holding: more zoom. PASS/FAIL.
+4. Title screen Discover: the panel opens. PASS/FAIL.
+5. Type in Search ("arm"): only Armor Status left. PASS/FAIL.
 
 ---
 

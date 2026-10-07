@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -21,7 +22,13 @@ import net.minecraft.network.chat.Component;
  */
 public class PanelScreen extends Screen {
 	private final Screen parent;
-	private EditBox search;
+	private String query = "";
+	private boolean searchFocus = false;
+	// The panel is laid out on a virtual screen of at least 640x370 and drawn scaled down to fit, so it looks the same
+	// (three cards a row, everything in view) at any window size and GUI scale.
+	private float s = 1f;
+	private int vw, vh;
+	private int realMx, realMy;
 	private int tab = 0; // 0 mods, 1 settings
 	private Module.Cat cat = null; // null = all
 	private double scroll = 0;
@@ -35,18 +42,13 @@ public class PanelScreen extends Screen {
 
 	@Override
 	protected void init() {
-		w = Math.min(width - 24, 600);
-		h = Math.min(height - 20, 340);
-		x0 = (width - w) / 2;
-		y0 = (height - h) / 2;
-		String keep = search == null ? "" : search.getValue();
-		search = new EditBox(font, x0 + w - 166 + 18, y0 + 9, 120, 12, Component.literal("Search"));
-		search.setBordered(false);
-		search.setMaxLength(40);
-		search.setHint(Component.literal("Search...").withStyle(ChatFormatting.GRAY));
-		search.setValue(keep);
-		search.setResponder(s -> scroll = 0);
-		addRenderableWidget(search);
+		s = Math.min(1f, Math.min(width / 640f, height / 370f));
+		vw = Math.round(width / s);
+		vh = Math.round(height / s);
+		w = Math.min(vw - 24, 620);
+		h = Math.min(vh - 20, 360);
+		x0 = (vw - w) / 2;
+		y0 = (vh - h) / 2;
 	}
 
 	@Override
@@ -63,7 +65,7 @@ public class PanelScreen extends Screen {
 	/* ------------------------------ what is shown ------------------------------ */
 
 	private List<Module> shown() {
-		String q = search == null ? "" : search.getValue().trim().toLowerCase(Locale.ROOT);
+		String q = query.trim().toLowerCase(Locale.ROOT);
 		List<Module> out = new ArrayList<>();
 		for (Module m : Panel.MODULES) {
 			if (cat != null && m.cat != cat) continue;
@@ -112,7 +114,20 @@ public class PanelScreen extends Screen {
 	/* ------------------------------ drawing ------------------------------ */
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+	public void extractRenderState(GuiGraphicsExtractor g, int rmx, int rmy, float pt) {
+		realMx = rmx;
+		realMy = rmy;
+		int mx = Math.round(rmx / s), my = Math.round(rmy / s);
+		g.pose().pushMatrix();
+		g.pose().scale(s, s);
+		try {
+			drawAll(g, mx, my);
+		} finally {
+			g.pose().popMatrix();
+		}
+	}
+
+	private void drawAll(GuiGraphicsExtractor g, int mx, int my) {
 		// window
 		Draw.tile(g, x0 - 1, y0 - 1, w + 2, h + 2, 9, Draw.WINDOW_EDGE, Draw.WINDOW);
 		// top bar
@@ -132,8 +147,15 @@ public class PanelScreen extends Screen {
 		}
 		// search box
 		int sx = x0 + w - 166, sy = y0 + 6;
-		Draw.tile(g, sx, sy, 136, 18, 4, search.isFocused() ? 0xFFB9B9BE : 0xFF4A4A4E, 0xFF232326);
+		Draw.tile(g, sx, sy, 136, 18, 4, searchFocus ? 0xFFB9B9BE : 0xFF4A4A4E, 0xFF232326);
 		Draw.icon(g, "search", sx + 5, sy + 5, 9, 0xFFB4B4B8);
+		if (query.isEmpty() && !searchFocus) g.text(font, "Search...", sx + 18, sy + 5, Draw.TEXT_FAINT, false);
+		else {
+			String shownQ = query;
+			while (font.width(shownQ) > 110 && shownQ.length() > 1) shownQ = shownQ.substring(1);
+			g.text(font, shownQ, sx + 18, sy + 5, Draw.TEXT, false);
+			if (searchFocus && (System.currentTimeMillis() / 500) % 2 == 0) g.fill(sx + 18 + font.width(shownQ) + 1, sy + 4, sx + 19 + font.width(shownQ) + 1, sy + 14, 0xFFFFFFFF);
+		}
 		// close
 		int cx = x0 + w - 24;
 		boolean closeHot = Draw.in(mx, my, cx, y0 + 6, 18, 18);
@@ -143,7 +165,6 @@ public class PanelScreen extends Screen {
 		drawLeft(g, mx, my);
 		if (tab == 0) drawCards(g, mx, my);
 		else drawSettings(g, mx, my);
-		super.extractRenderState(g, mx, my, pt); // the search box
 	}
 
 	private void drawLeft(GuiGraphicsExtractor g, int mx, int my) {
@@ -171,7 +192,7 @@ public class PanelScreen extends Screen {
 		ly += 10;
 		int bottom = y0 + h - 34;
 		for (String p : Panel.profileNames()) {
-			if (ly + 16 > bottom - 18) break;
+			if (ly + 16 > bottom - 18 && !p.equals(Panel.active)) continue;
 			boolean sel = p.equals(Panel.active);
 			boolean hot = Draw.in(mx, my, lx, ly, lw - 4, 16);
 			if (sel || hot) Draw.round(g, lx, ly, lw - 4, 16, 4, sel ? 0xFF3A3A3D : 0xFF26262A);
@@ -196,7 +217,7 @@ public class PanelScreen extends Screen {
 		List<Module> list = shown();
 		int mxx = mainX(), myy = mainY(), mw = mainW(), mh = mainH();
 		if (list.isEmpty()) {
-			Draw.centered(g, "Nothing matches \"" + search.getValue() + "\"", mxx + mw / 2f, myy + 40, 1f, Draw.TEXT_DIM);
+			Draw.centered(g, "Nothing matches \"" + query + "\"", mxx + mw / 2f, myy + 40, 1f, Draw.TEXT_DIM);
 			return;
 		}
 		g.enableScissor(mxx, myy, mxx + mw, myy + mh);
@@ -242,7 +263,8 @@ public class PanelScreen extends Screen {
 		int fill = m.enabled ? (th ? Draw.ON_HOT : Draw.ON) : (th ? Draw.OFF_HOT : Draw.OFF);
 		Draw.round(g, bx, ty, cw - 12, 15, 3, fill);
 		Draw.centered(g, Component.literal(m.enabled ? "ENABLED" : "DISABLED").withStyle(ChatFormatting.BOLD), x + cw / 2f, ty + 5, 0.75f, 0xFFFFFFFF);
-		if (hot) g.setTooltipForNextFrame(font, Component.literal(m.description), mx, my);
+		// the description over the icon and name only (not over the buttons)
+		if (hot && my < y + 56) g.setTooltipForNextFrame(font, Component.literal(m.description), realMx, realMy);
 	}
 
 	private int settingsRowY(int i) {
@@ -275,8 +297,10 @@ public class PanelScreen extends Screen {
 
 	@Override
 	public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
-		double mx = e.x(), my = e.y();
+		double mx = e.x() / s, my = e.y() / s;
 		if (e.button() == 0) {
+			searchFocus = Draw.in(mx, my, x0 + w - 166, y0 + 6, 136, 18);
+			if (searchFocus) return true;
 			// close
 			if (Draw.in(mx, my, x0 + w - 24, y0 + 6, 18, 18)) {
 				onClose();
@@ -316,7 +340,7 @@ public class PanelScreen extends Screen {
 		ly += 16;
 		int bottom = y0 + h - 34;
 		for (String p : Panel.profileNames()) {
-			if (ly + 16 > bottom - 18) break;
+			if (ly + 16 > bottom - 18 && !p.equals(Panel.active)) continue;
 			if (Draw.in(mx, my, lx + lw - 21, ly, 14, 16) && (p.equals(Panel.active) || Draw.in(mx, my, lx, ly, lw - 4, 16))) {
 				minecraft.gui.setScreen(new RenameScreen(this, p));
 				return true;
@@ -379,19 +403,44 @@ public class PanelScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseScrolled(double mx, double my, double sx, double sy) {
+	public boolean mouseScrolled(double rmx, double rmy, double sx, double sy) {
+		double mx = rmx / s, my = rmy / s;
 		if (tab == 0 && Draw.in(mx, my, mainX(), mainY(), mainW(), mainH())) {
 			scroll -= sy * 24;
 			clampScroll();
 			return true;
 		}
-		return super.mouseScrolled(mx, my, sx, sy);
+		return super.mouseScrolled(rmx, rmy, sx, sy);
+	}
+
+	@Override
+	public boolean charTyped(CharacterEvent e) {
+		if (searchFocus && e.isAllowedChatCharacter() && query.length() < 40) {
+			query += e.codepointAsString();
+			scroll = 0;
+			tab = 0;
+			return true;
+		}
+		return super.charTyped(e);
 	}
 
 	@Override
 	public boolean keyPressed(KeyEvent e) {
-		// the panel key closes it again (unless typing in the search box)
-		if (!search.isFocused() && Panel.openKey().matches(e)) {
+		if (searchFocus) {
+			int k = e.key();
+			if (k == 259 && !query.isEmpty()) { // Backspace
+				query = query.substring(0, query.length() - 1);
+				scroll = 0;
+				return true;
+			}
+			if (k == 256 || k == 257 || k == 335) { // Esc / Enter: leave the box
+				searchFocus = false;
+				return true;
+			}
+			return true; // typing never triggers the panel's or the game's keys
+		}
+		// the panel key closes it again
+		if (Panel.openKey().matches(e)) {
 			onClose();
 			return true;
 		}

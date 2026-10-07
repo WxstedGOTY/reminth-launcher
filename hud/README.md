@@ -3,6 +3,23 @@
 The small in-game overlay Reminth puts into Fabric instances (Minecraft 26.2 and 26.3).
 Client-side only, CC0.
 
+## The Reminth panel (since 1.4.0, Minecraft 26.2)
+
+ReminthHUD carries the **Reminth panel**: Reminth's own client features in a Lunar-style window. Reminth puts
+ReminthHUD into every Fabric/Quilt instance (it is part of the launcher, hidden in Mod Menu as a library).
+
+- Opened with **G** (Controls -> Reminth -> "Open the Reminth panel") or the title screen's **Discover** button.
+- Top: MODS / SETTINGS, search, close. Left: categories (All, HUD, Visual, Mechanic, Chat, Utility), profiles
+  (click to switch, pencil to rename or delete, "Save as new profile"), **Edit HUD layout** (drag to move, scroll to
+  resize, right-click to reset). Cards: icon, name, OPTIONS + gear (the feature's own settings), ENABLED / DISABLED.
+- The window is laid out on a virtual 640x370 screen and scaled to fit, so it looks the same at any GUI scale.
+- Features (`client/panel/Features.java`): FPS, Ping, CPS, Keystrokes, Coordinates, Clock, Armor Status, Held Item
+  Durability, Potion Effects (exact level and time left), Totem Counter, Zoom (hold C, scroll for more), Hurt Cam
+  (the game's Damage Tilt), Low Fire, Toggle Sprint / Toggle Sneak (the game's own toggles). The full list is
+  `docs/PANEL_FEATURES.md`.
+- Settings: `config/reminthhud-panel.json` (profiles; per feature: on, place, size, options).
+- Icons: `tools/icons.js` (our own vector drawings), rendered with `node_modules/.bin/electron hud/tools/render-icons.js`.
+
 ## What it shows
 
 - **Top-right bar** (plain text, no background and no shadow, 75 % size, grey labels, bold light-grey values): `FPS 240 | GPU 16% | CPU 53% | LAT 0 ms`
