@@ -54,17 +54,30 @@ final class CursorFix {
 			if (settle > 0) {
 				settle--;
 				due = settle == 57 || settle == 30 || settle == 10 || settle == 0;
-			} else if (ticks % 100 == 0) {
-				due = true;
+			} else if (ticks % 100 == 0 || ticks == 2) {
+				due = true; // also right at the start: the pixel cursor from the first menu on
 			}
 			if (!due || mc.mouseHandler.isMouseGrabbed()) return;
+			if (Compat.sdl()) {
+				// 26.3+: SDL, not GLFW - show the pointer and put Reminth's cursor back through the game's own switch
+				PixelCursor.showSdl();
+				Compat.resetCursor(mc);
+				if (!logged) {
+					logged = true;
+					ReminthHomeClient.LOG.info("Reminth pointer fix: pointer reset (SDL; once per run is logged)");
+				}
+				return;
+			}
 			long handle = Compat.windowHandle(mc);
 			if (handle == 0L) return;
 			// GLFW is called by name too: it is not on the compile path of every build.
 			Class<?> glfw = Class.forName("org.lwjgl.glfw.GLFW");
 			glfw.getMethod("glfwSetInputMode", long.class, int.class, int.class).invoke(null, handle, 0x33001, 0x34001); // GLFW_CURSOR, GLFW_CURSOR_NORMAL
-			if (arrow == 0L) arrow = (Long) glfw.getMethod("glfwCreateStandardCursor", int.class).invoke(null, 0x36001); // GLFW_ARROW_CURSOR
-			if (arrow != 0L) glfw.getMethod("glfwSetCursor", long.class, long.class).invoke(null, handle, arrow);
+			// Reminth's pixel cursor (PixelCursor) where it can be; otherwise the system arrow
+			if (!Compat.resetCursor(mc)) {
+				if (arrow == 0L) arrow = (Long) glfw.getMethod("glfwCreateStandardCursor", int.class).invoke(null, 0x36001); // GLFW_ARROW_CURSOR
+				if (arrow != 0L) glfw.getMethod("glfwSetCursor", long.class, long.class).invoke(null, handle, arrow);
+			}
 			if (!logged) {
 				logged = true;
 				ReminthHomeClient.LOG.info("Reminth pointer fix: pointer reset to the normal arrow (once per run is logged)");

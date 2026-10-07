@@ -31,6 +31,28 @@ final class Compat {
 		return new LanguageSelectScreen(parent, mc.options, mc.getLanguageManager());
 	}
 
+	/**
+	 * Puts the pointer back (the pointer fix): the game's own cursor switch is told "nothing selected", so its next
+	 * pick (arrow, hand or text beam) is applied again - as Reminth's pixel cursor when that is on. True when done.
+	 */
+	static boolean resetCursor(Minecraft mc) {
+		com.mojang.blaze3d.platform.Window w = mc.getWindow();
+		try {
+			java.lang.reflect.Field f = com.mojang.blaze3d.platform.Window.class.getDeclaredField("currentCursor");
+			f.setAccessible(true);
+			f.set(w, com.mojang.blaze3d.platform.cursor.CursorType.DEFAULT);
+		} catch (Throwable ignored) {
+			// a different shape: the select below still puts a cursor back
+		}
+		com.mojang.blaze3d.platform.cursor.CursorType.DEFAULT.select();
+		return true;
+	}
+
+	/** Whether this Minecraft runs its window on SDL3 (26.3+) instead of GLFW. */
+	static boolean sdl() {
+		return true;
+	}
+
 	/** Whether the game is in full screen (the pointer fix). */
 	static boolean isFullscreen(Minecraft mc) {
 		return mc.options.fullscreen().get();

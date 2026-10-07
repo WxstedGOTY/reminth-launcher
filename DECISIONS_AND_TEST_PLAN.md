@@ -4,12 +4,37 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 7 Oct 2026 (late night), desktop window: newest section below is 0000000000000000000 (panel batch 2: 111 features, real ping, G tips). Before it 000000000000000000 (panel step 2).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000 (pixel cursor; the night plan). Before it 0000000000000000000 (panel batch 2).
 - **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 7 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (7 Oct, 16:29) - **not installed yet** (the owner had
   Reminth open), **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000. Pixel cursor + the night plan (8 Oct 2026, night) - desktop window
+
+**Owner (asleep, 7-8 Oct night):** a pixel cursor in Minecraft (not the launcher) first, tested; then the features from
+his ChatGPT list (`local-notes/chatgpt-features.txt`, 270 lines, git-ignored) - only the best ones that really work;
+make 26.2 perfect before porting the panel to the other versions. Defaults: a few useful features on; anything some
+servers ban is OFF with a warning. Then (owner) UI changes and publish **2.0.0** (agreed).
+
+**Done: pixel cursor (home screen mod 1.0.6, all 10 jars):** `PixelCursor` - pixel arrow, pointing hand and text beam
+(black outline, white, grey shade; 2-4 screen px per pixel by screen height). 26.x and 1.21.10+ switch cursors
+themselves: `CursorTypeMixin` (compat A, B, C, T, U) gives the game's switch our pixel ones; 1.20-1.21.8 have no switch
+(empty stand-in mixin in P-S), CursorFix sets the arrow at start and after every window-mode change. **Minecraft 26.3 runs
+on SDL3, not GLFW**: there the cursor is made with SDL (`SDL_CreateSurfaceFrom` + `SDL_CreateColorCursor`), the switch is
+`select()` without a window, and the vanishing-pointer fix uses `SDL_ShowCursor` (the old GLFW calls did nothing on 26.3).
+`config/reminthhome.json` `"pixelCursor": false` turns it off. **Tested in the game** (screenshots with the real pointer):
+26.2 hand over a button, arrow on 1.21.11, 1.20.1, 26.3 (SDL), and after F11 to fullscreen on 26.2.
+
+**Next (in this order):** batch 3 of panel features from the ChatGPT list (attack cooldown, bow draw, crossbow loaded,
+shield up, offhand, fall distance, held food, right tool, lowest health, low health/hunger alert, food stock, day/night
+timer, sleep cue, nether coordinates, frame time / 1% low, damage taken, combo counter, hit + crit + kill marker with
+sound, hide-HUD key, break reminder, durability and food tooltips, chat timestamps, sound volume cards, brightness, GUI
+scale, comfort preset; ping jitter/min-max as Ping options) on 26.2, tested; installer; then the port to 26.3/26.1/1.21
+only after the owner says 26.2 is right.
 
 ---
 

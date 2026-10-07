@@ -31,6 +31,19 @@ final class Compat {
 		return new LanguageSelectScreen(parent, mc.options, mc.getLanguageManager());
 	}
 
+	/** Puts the pointer back (the pointer fix) as Reminth's pixel arrow; false when that is off (the caller uses the system arrow). */
+	static boolean resetCursor(Minecraft mc) {
+		long c = PixelCursor.arrow(mc.getWindow().getScreenHeight());
+		if (c == 0L) return false;
+		PixelCursor.set(windowHandle(mc), c);
+		return true;
+	}
+
+	/** Whether this Minecraft runs its window on SDL3 (26.3+) instead of GLFW. */
+	static boolean sdl() {
+		return false;
+	}
+
 	/** Whether the game is in full screen (the pointer fix). */
 	static boolean isFullscreen(Minecraft mc) {
 		return mc.getWindow().isFullscreen();

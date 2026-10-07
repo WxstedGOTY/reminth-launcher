@@ -23,6 +23,8 @@ public class ReminthHomeClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		enabled = readEnabled();
+		PixelCursor.setEnabled(readFlag("pixelCursor"));
+		PixelCursor.setSdl(Compat.sdl());
 		CursorFix.init();
 	}
 
@@ -35,6 +37,16 @@ public class ReminthHomeClient implements ClientModInitializer {
 				return true;
 			}
 			return !Files.readString(p).replaceAll("\s", "").contains("\"enabled\":false");
+		} catch (Throwable t) {
+			return true;
+		}
+	}
+
+	/** config/reminthhome.json {"<key>": false} turns that part off; anything else (or unreadable) keeps it on. */
+	static boolean readFlag(String key) {
+		try {
+			Path p = FabricLoader.getInstance().getConfigDir().resolve("reminthhome.json");
+			return !Files.exists(p) || !Files.readString(p).replaceAll("\s", "").contains("\"" + key + "\":false");
 		} catch (Throwable t) {
 			return true;
 		}
