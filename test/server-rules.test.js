@@ -109,3 +109,33 @@ test("playstyle lists: nothing a big server bans is ticked; those that are liste
   const xm = purposes.itemBySlug(["survival"]).get("xaeros-minimap");
   assert.ok(xm.configs.some((c) => /display_radar = false/.test(c.content) && /minimap_cave_mode_allowed = false/.test(c.content)));
 });
+
+test("gameRules / writeGameFile: what the game checks before joining - mod ids per server, Play anyway passed on", async () => {
+  const mods = [
+    { file: "mt.jar", title: "Mouse Tweaks", modId: "MouseTweaks", enabled: true },
+    { file: "xm.jar", title: "Xaero's Minimap", modId: "xaerominimap", enabled: true },
+    { file: "s.jar", title: "Sodium", modId: "sodium", enabled: true },
+  ];
+  const r = rules.gameRules(mods, { radarOn: false, accepted: ["hypixel"] });
+  const by = Object.fromEntries(r.servers.map((s) => [s.id, s]));
+  assert.deepEqual(by.donutsmp.mods.map((m) => m.id), ["mousetweaks"], "ids lower case; the minimap without radar is fine there");
+  assert.deepEqual(by.hypixel.mods.map((m) => m.id).sort(), ["mousetweaks", "xaerominimap"]);
+  assert.equal(by.hypixel.accepted, true);
+  assert.equal(by.donutsmp.accepted, false);
+  assert.deepEqual(by.donutsmp.hosts, ["donutsmp.net"]);
+  assert.ok(by.donutsmp.mods[0].why && by.donutsmp.source);
+  // nothing banned anywhere: an empty list
+  assert.deepEqual(rules.gameRules([mods[2]]), { servers: [] });
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "reminth-rules-file-"));
+  try {
+    const content = { listAll: async () => ({ mod: mods }) };
+    await rules.writeGameFile({ loader: "fabric", gameDir: dir }, {}, { content });
+    const written = JSON.parse(fs.readFileSync(path.join(dir, "config", "reminth-server-rules.json"), "utf8"));
+    assert.ok(written.servers.some((s) => s.id === "donutsmp"));
+    // Forge/NeoForge/vanilla: the home-screen mod isn't there, nothing written
+    assert.equal(await rules.writeGameFile({ loader: "neoforge", gameDir: dir }, {}, { content }), null);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

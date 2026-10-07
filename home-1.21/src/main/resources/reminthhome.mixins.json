@@ -4,7 +4,8 @@
 	"compatibilityLevel": "JAVA_17",
 	"client": [
 		"ScreenSwapMixin",
-		"PanoramaPitchMixin"
+		"PanoramaPitchMixin",
+		"ConnectGuardMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

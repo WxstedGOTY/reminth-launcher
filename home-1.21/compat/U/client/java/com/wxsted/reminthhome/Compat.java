@@ -31,6 +31,16 @@ final class Compat {
 		return new LanguageSelectScreen(parent, mc.options, mc.getLanguageManager());
 	}
 
+	/** The GLFW window id (the pointer fix). */
+	static long windowHandle(Minecraft mc) {
+		return mc.getWindow().handle();
+	}
+
+	/** Realms' own screen (its class name only maps on this version's build). */
+	static Screen realms(Screen parent) {
+		return new com.mojang.realmsclient.RealmsMainScreen(parent);
+	}
+
 	static Screen singleplayer(Screen parent) {
 		return new SelectWorldScreen(parent);
 	}

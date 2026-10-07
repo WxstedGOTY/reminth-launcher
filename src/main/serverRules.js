@@ -164,4 +164,43 @@ async function checkInstance(inst, { join = null } = {}, deps = {}) {
   return findBanned(mods, addresses, { radarOn: await xaeroRadarOn(inst.gameDir) });
 }
 
-module.exports = { CATEGORIES, SERVERS, MOD_CATEGORIES, serverFor, categoriesOf, findBanned, checkInstance, xaeroRadarOn };
+/**
+ * Pure: what the home-screen mod reads (config/reminth-server-rules.json): for every listed server, the mods switched
+ * on here that it bans, by mod id. The game asks before joining one of them. `accepted`: server ids the player already
+ * said "Play anyway" for in Reminth - not asked again in the game.
+ */
+function gameRules(mods, { radarOn = true, accepted = [] } = {}) {
+  const servers = [];
+  for (const server of SERVERS) {
+    const found = findBanned(mods, [{ address: server.hosts[0], why: "list" }], { radarOn });
+    const hit = found[0];
+    if (!hit) continue;
+    const byFile = new Map((mods || []).map((m) => [m.file, m]));
+    servers.push({
+      id: server.id,
+      name: server.name,
+      hosts: server.hosts,
+      source: server.source,
+      accepted: accepted.includes(server.id),
+      mods: hit.mods.map((m) => ({ id: String(byFile.get(m.file).modId).toLowerCase(), title: m.title, why: m.categories.join(", ") })),
+    });
+  }
+  return { servers };
+}
+
+/** Writes that file for a Fabric/Quilt instance (an empty list when nothing applies, so an old one never lingers). */
+async function writeGameFile(inst, { accepted = [] } = {}, deps = {}) {
+  if (!inst || (inst.loader !== "fabric" && inst.loader !== "quilt")) return null;
+  const content = deps.content || require("./content");
+  const all = await content.listAll(inst.gameDir);
+  const mods = ((all && all.mod) || []).map((m) => ({ file: m.file, title: m.title || m.name || null, modId: m.modId, enabled: m.enabled }));
+  const data = gameRules(mods, { radarOn: await xaeroRadarOn(inst.gameDir), accepted });
+  const dir = path.join(inst.gameDir, "config");
+  await fsp.mkdir(dir, { recursive: true });
+  await fsp.writeFile(path.join(dir, "reminth-server-rules.json"), JSON.stringify(data, null, 2) + "\n", "utf8");
+  return data;
+}
+
+module.exports = {
+  gameRules,
+  writeGameFile, CATEGORIES, SERVERS, MOD_CATEGORIES, serverFor, categoriesOf, findBanned, checkInstance, xaeroRadarOn };

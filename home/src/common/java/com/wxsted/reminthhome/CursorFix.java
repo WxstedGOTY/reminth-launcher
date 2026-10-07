@@ -1,7 +1,5 @@
 package com.wxsted.reminthhome;
 
-import java.lang.reflect.Method;
-
 import net.minecraft.client.Minecraft;
 
 /**
@@ -9,7 +7,7 @@ import net.minecraft.client.Minecraft;
  * switching to or from full screen with F11. The game leaves the window's pointer hidden or without a shape.
  * Whenever the window mode changes, and now and then while no mouse is grabbed (a menu is open), the pointer is
  * put back to the normal arrow. Nothing is done while you play (the game itself hides the pointer then).
- * Everything is looked up by name so one copy works on every Minecraft version; any failure turns it off.
+ * GLFW and Fabric API are looked up by name (not on every build's compile path); any failure turns it off.
  */
 final class CursorFix {
 	private static boolean off = false;
@@ -44,9 +42,10 @@ final class CursorFix {
 	private static void tick(Minecraft mc) {
 		if (off) return;
 		try {
-			Object window = mc.getWindow();
-			if (window == null) return;
-			boolean full = (Boolean) window.getClass().getMethod("isFullscreen").invoke(window);
+			if (mc.getWindow() == null) return;
+			// Called directly so the build maps it: looked up by name it only existed at runtime on 26.x, and the fix
+			// switched itself off on 1.20-1.21 ("NoSuchMethodException ... isFullscreen", 7 Oct 2026).
+			boolean full = mc.getWindow().isFullscreen();
 			if (known && full != lastFull) settle = 60; // the window takes a moment to settle: fix at 3, 1.5, 0.5 s
 			known = true;
 			lastFull = full;
@@ -59,7 +58,7 @@ final class CursorFix {
 				due = true;
 			}
 			if (!due || mc.mouseHandler.isMouseGrabbed()) return;
-			long handle = handleOf(window);
+			long handle = Compat.windowHandle(mc);
 			if (handle == 0L) return;
 			// GLFW is called by name too: it is not on the compile path of every build.
 			Class<?> glfw = Class.forName("org.lwjgl.glfw.GLFW");
@@ -74,18 +73,5 @@ final class CursorFix {
 			off = true;
 			ReminthHomeClient.LOG.warn("Reminth pointer fix switched off ({})", t.toString());
 		}
-	}
-
-	/** The GLFW window id: the method is called handle() or getWindow() depending on the Minecraft version. */
-	private static long handleOf(Object window) throws Exception {
-		for (String name : new String[] {"handle", "getWindow"}) {
-			try {
-				Method m = window.getClass().getMethod(name);
-				if (m.getReturnType() == long.class) return (Long) m.invoke(window);
-			} catch (NoSuchMethodException ignored) {
-				// try the next name
-			}
-		}
-		return 0L;
 	}
 }

@@ -22,6 +22,36 @@ public class ReminthTitleScreen extends TitleScreen {
 		super(fading);
 	}
 
+	/** Mojang's copyright line and our icon row: kept apart in tick() (Mod Menu moves the line after init). */
+	private AbstractWidget copyright;
+	private final List<AbstractWidget> iconRow = new ArrayList<>();
+	private int iconRowY;
+
+	@Override
+	public void tick() {
+		super.tick();
+		try {
+			keepIconsClear();
+		} catch (Throwable ignored) {
+			// cosmetic
+		}
+	}
+
+	/**
+	 * When the copyright line sits at the height of the icon row and they overlap sideways (Mod Menu moves the line up
+	 * a row on 1.20-1.21), the icon row moves up just above it; otherwise it stays where build() put it.
+	 */
+	private void keepIconsClear() {
+		if (copyright == null || iconRow.isEmpty()) return;
+		AbstractWidget first = iconRow.get(0);
+		AbstractWidget last = iconRow.get(iconRow.size() - 1);
+		int size = first.getHeight();
+		boolean sideways = copyright.getX() < last.getX() + last.getWidth() && copyright.getX() + copyright.getWidth() > first.getX();
+		int want = iconRowY;
+		if (sideways && copyright.getY() < iconRowY + size + 2) want = Math.min(iconRowY, copyright.getY() - size - 4);
+		if (first.getY() != want) for (AbstractWidget b : iconRow) b.setY(want);
+	}
+
 	@Override
 	protected void init() {
 		super.init();
@@ -29,11 +59,15 @@ public class ReminthTitleScreen extends TitleScreen {
 			List<AbstractWidget> mine = build();
 			// Mojang's copyright line is one of the vanilla widgets: it stays.
 			for (var child : new ArrayList<>(children())) {
-				if (child instanceof AbstractWidget w && w.getMessage().getString().startsWith("Copyright")) mine.add(w);
+				if (child instanceof AbstractWidget w && w.getMessage().getString().startsWith("Copyright")) {
+					copyright = w;
+					mine.add(w);
+				}
 			}
 			clearWidgets();
 			for (AbstractWidget w : mine) addRenderableWidget(w);
 			hideForeignCornerButtons();
+			hideRealmsNotifications();
 		} catch (Throwable t) {
 			ReminthHomeClient.fail(t);
 		}
@@ -69,8 +103,12 @@ public class ReminthTitleScreen extends TitleScreen {
 			if (b != skins) b.setTooltip(Tooltip.create(b.getMessage()));
 		}
 		int rowW = icons.size() * iconSize + (icons.size() - 1) * gap;
-		int iconY = height - iconSize - 8;
+		// 14 from the bottom: Mojang's copyright line and the version text sit in the last 10 (they ran under the icons).
+		int iconY = height - iconSize - 14;
 		int ix = (width - rowW) / 2;
+		iconRow.clear();
+		iconRow.addAll(icons);
+		iconRowY = iconY;
 		for (AbstractWidget b : icons) {
 			b.setX(ix);
 			b.setY(iconY);
@@ -129,11 +167,30 @@ public class ReminthTitleScreen extends TitleScreen {
 		}
 	}
 
-	private static final String REALMS_SCREEN = "com.mojang.realmsclient.RealmsMainScreen";
+	/**
+	 * The vanilla title screen draws Realms' news and invite icons at the corner of its Realms button - where our
+	 * Connect Discord button is, so they sat on top of it (seen by the owner with a real account, 7 Oct 2026). Realms is
+	 * still one click away in the icon row. The field is found by its type (its name differs at runtime on older
+	 * versions); with it cleared the game skips drawing, ticking and clicking them.
+	 */
+	private void hideRealmsNotifications() {
+		try {
+			for (java.lang.reflect.Field f : TitleScreen.class.getDeclaredFields()) {
+				if (java.lang.reflect.Modifier.isStatic(f.getModifiers()) || !Screen.class.isAssignableFrom(f.getType())) continue;
+				f.setAccessible(true);
+				Object notifications = f.get(this);
+				if (notifications instanceof Screen s) s.removed();
+				f.set(this, null);
+			}
+		} catch (Throwable ignored) {
+			// a different shape: leave them as they are
+		}
+	}
 
+	// Realms is part of every client; only the demo has none. (It used to be looked up by its class name, which only
+	// matches at runtime on 26.x - on 1.20-1.21 the icon was missing.)
 	private static boolean realmsAvailable() {
 		try {
-			Class.forName(REALMS_SCREEN);
 			return !Minecraft.getInstance().isDemo();
 		} catch (Throwable t) {
 			return false;
@@ -142,8 +199,7 @@ public class ReminthTitleScreen extends TitleScreen {
 
 	private void openRealms() {
 		try {
-			Screen s = (Screen) Class.forName(REALMS_SCREEN).getConstructor(Screen.class).newInstance(this);
-			Compat.setScreen(Minecraft.getInstance(), s);
+			Compat.setScreen(Minecraft.getInstance(), Compat.realms(this));
 		} catch (Throwable t) {
 			// Realms changed shape: do nothing rather than crash
 		}

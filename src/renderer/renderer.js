@@ -2335,10 +2335,13 @@ async function runPlay(options = {}) {
     }
   }
   // Mods a big server bans (DonutSMP, Hypixel, MCC Island), when this instance joins or lists that server.
+  let rulesAccepted = [];
   if (inst.loader !== "vanilla" && typeof serverRulesBeforePlay === "function") {
     let go = true;
     try {
-      go = await serverRulesBeforePlay(inst, options.join ? String(options.join.host || options.join.address || "") || null : null);
+      const r = await serverRulesBeforePlay(inst, options.join ? String(options.join.host || options.join.address || "") || null : null);
+      go = r !== false;
+      if (r && Array.isArray(r.accepted)) rulesAccepted = r.accepted;
     } catch {
       go = true; // a courtesy, like the check above
     }
@@ -2363,7 +2366,12 @@ async function runPlay(options = {}) {
   }
   paintPlayButtons();
   try {
-    const result = await window.reminth.play({ instanceId: inst.id, join: options.join || null, ...(options.world ? { world: options.world } : {}) });
+    const result = await window.reminth.play({
+      instanceId: inst.id,
+      join: options.join || null,
+      ...(options.world ? { world: options.world } : {}),
+      ...(rulesAccepted.length ? { serverRulesAccepted: rulesAccepted } : {}),
+    });
     if (result && result.cancelled) {
       // The player backed out of something the backend asked: not a failure.
       if (onHome && !state.logError) {

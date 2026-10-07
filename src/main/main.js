@@ -1345,7 +1345,8 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
     if (current && current !== claim && current.adopted) {
       throw new Error("Minecraft is already running for this instance - Reminth found it and is keeping track of it again.");
     }
-    return await startGame(inst, options.join, claim, options.world);
+    const accepted = Array.isArray(options.serverRulesAccepted) ? options.serverRulesAccepted.filter((x) => typeof x === "string").slice(0, 20) : [];
+    return await startGame(inst, options.join, claim, options.world, accepted);
   } catch (err) {
     // Never leave Play wedged behind a failed launch - but only this
     // launch's own claim: after a Stop, the entry may be a newer Play's.
@@ -1400,7 +1401,7 @@ ipcMain.handle("play:stop", async (_e, options = {}) => {
  * installing must not start the game anyway, least of all next to a second
  * launch on the same worlds.
  */
-async function startGame(inst, join, claim, worldRequest) {
+async function startGame(inst, join, claim, worldRequest, rulesAccepted = []) {
   const stopped = () => running.get(inst.id) !== claim;
   const cancelled = { launched: false, cancelled: true };
   // Make sure the Minecraft token is usable before launching. If Microsoft
@@ -1421,6 +1422,8 @@ async function startGame(inst, join, claim, worldRequest) {
 
   cachedSettings = await store.loadSettings();
   if (stopped()) return cancelled;
+  // The list the home-screen mod checks before joining a server (serverRules.js); a failure never stops the launch.
+  await serverRules.writeGameFile(inst, { accepted: rulesAccepted }).catch(() => {});
   // The player's own RAM setting wins; without one, the automatic amount
   // depends on the instance (a modpack gets more).
   const defaultMb = cachedSettings.maxMemoryMb ? 0 : await defaultMemoryFor(inst);

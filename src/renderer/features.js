@@ -4465,7 +4465,8 @@ const compatSignature = (issues) => issues.map((i) => `${i.file || ""}|${i.reaso
  * Before Play: mods switched on in this instance that a big server it joins (or lists, or played on) bans - DonutSMP,
  * Hypixel, MCC Island (main/serverRules.js, with each server's source). Resolves true to go on, false to stop.
  * "Turn them off and play" switches them off (never deletes them; the reason is kept on each). "Play anyway" is
- * remembered for this instance until the list changes.
+ * remembered for this instance until the list changes. Resolves false (stop), true, or { go: true, accepted: [server ids] }
+ * after "Play anyway" (the game then doesn't ask again for those servers).
  */
 const serverRulesUi = { playAnyway: localGet("serverRules.playAnyway", {}) };
 async function serverRulesBeforePlay(inst, join) {
@@ -4479,7 +4480,9 @@ async function serverRulesBeforePlay(inst, join) {
   }
   if (!Array.isArray(found) || !found.length) return true;
   const signature = found.map((f) => f.server.id + ":" + f.mods.map((m) => m.file).sort().join(",")).sort().join("|");
-  if (serverRulesUi.playAnyway[inst.id] === signature && !join) return true;
+  const ids = found.map((f) => f.server.id);
+  // "Play anyway" before: not asked again here, and the game is told so it doesn't ask either
+  if (serverRulesUi.playAnyway[inst.id] === signature && !join) return { go: true, accepted: ids };
 
   return new Promise((resolve) => {
     let answer = false;
@@ -4515,7 +4518,7 @@ async function serverRulesBeforePlay(inst, join) {
             if (busy) return false;
             serverRulesUi.playAnyway[inst.id] = signature;
             localSet("serverRules.playAnyway", serverRulesUi.playAnyway);
-            answer = true;
+            answer = { go: true, accepted: ids };
             return true;
           },
         },
