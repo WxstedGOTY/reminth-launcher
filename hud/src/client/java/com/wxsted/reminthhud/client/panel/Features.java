@@ -44,6 +44,7 @@ public final class Features {
 		list.add(new LowFire());
 		list.add(new ToggleSprint());
 		list.add(new ToggleSneak());
+		list.addAll(Features2.all());
 		return list;
 	}
 
@@ -77,9 +78,14 @@ public final class Features {
 
 		@Override
 		protected String value(Minecraft mc, boolean preview) {
-			int p = latency(mc);
+			int p = PingMeter.ms(mc);
 			if (p < 0) return preview ? "42 ms" : null;
 			return p + " ms";
+		}
+
+		@Override
+		public void tick(Minecraft mc) {
+			PingMeter.tick(mc);
 		}
 
 		static int latency(Minecraft mc) {

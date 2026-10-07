@@ -5,7 +5,8 @@
 	"client": [
 		"CameraFovMixin",
 		"MouseScrollMixin",
-		"FireOverlayMixin"
+		"FireOverlayMixin",
+		"PongMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

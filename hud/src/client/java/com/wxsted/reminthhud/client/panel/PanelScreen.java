@@ -34,6 +34,7 @@ public class PanelScreen extends Screen {
 	private double scroll = 0;
 	private int x0, y0, w, h;
 	private static final int TOP = 30, LEFT = 118;
+	private static final int TABS_X = 140; // after the "REMINTH MODS PANEL" title
 
 	public PanelScreen(Screen parent) {
 		super(Component.literal("Reminth"));
@@ -134,10 +135,9 @@ public class PanelScreen extends Screen {
 		Draw.round(g, x0, y0, w, TOP, 8, Draw.BAR);
 		g.fill(x0, y0 + TOP - 8, x0 + w, y0 + TOP, Draw.BAR);
 		g.fill(x0, y0 + TOP, x0 + w, y0 + TOP + 1, 0x33FFFFFF);
-		Draw.icon(g, "logo", x0 + 9, y0 + 7, 16);
-		Draw.text(g, Component.literal("REMINTH").withStyle(ChatFormatting.BOLD), x0 + 30, y0 + 11, 1f, Draw.TEXT, false);
+		Draw.text(g, Component.literal("REMINTH MODS PANEL").withStyle(ChatFormatting.BOLD), x0 + 12, y0 + 11, 1f, Draw.TEXT, false);
 		String[] tabs = {"MODS", "SETTINGS"};
-		int tx = x0 + 100;
+		int tx = x0 + TABS_X;
 		for (int i = 0; i < tabs.length; i++) {
 			int tw = font.width(tabs[i]);
 			boolean hot = Draw.in(mx, my, tx - 4, y0 + 4, tw + 8, TOP - 8);
@@ -308,7 +308,7 @@ public class PanelScreen extends Screen {
 			}
 			// tabs
 			String[] tabs = {"MODS", "SETTINGS"};
-			int tx = x0 + 100;
+			int tx = x0 + TABS_X;
 			for (int i = 0; i < tabs.length; i++) {
 				int tw = font.width(tabs[i]);
 				if (Draw.in(mx, my, tx - 4, y0 + 4, tw + 8, TOP - 8)) {

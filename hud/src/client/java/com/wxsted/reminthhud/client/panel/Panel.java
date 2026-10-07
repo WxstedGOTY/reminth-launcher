@@ -48,6 +48,11 @@ public final class Panel {
 
 	private static KeyMapping openKey;
 	private static KeyMapping zoomKey;
+	private static KeyMapping snapKey;
+
+	public static KeyMapping snapKey() {
+		return snapKey;
+	}
 
 	public static KeyMapping zoomKey() {
 		return zoomKey;
@@ -71,6 +76,8 @@ public final class Panel {
 	public static void init(KeyMapping.Category category) {
 		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.panel", keyboard(), InputConstants.KEY_G, category));
 		zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.zoom", keyboard(), InputConstants.KEY_C, category));
+		snapKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.snaplook", keyboard(), InputConstants.KEY_V, category));
+		Tips.init();
 		load();
 		ClientTickEvents.END_CLIENT_TICK.register(Panel::tick);
 		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, ReminthHud.id("panel_hud"), Panel::renderHud);
@@ -98,6 +105,7 @@ public final class Panel {
 			while (openKey.consumeClick()) {
 				if (mc.gui.screen() == null) open(null);
 			}
+			Features2.tick(mc);
 			for (Module m : MODULES) if (m.enabled) m.tick(mc);
 		} catch (Throwable t) {
 			ReminthHud.LOGGER.warn("Reminth panel: tick failed ({})", t.toString());
@@ -167,6 +175,7 @@ public final class Panel {
 		for (Module m : MODULES) {
 			JsonObject o = new JsonObject();
 			o.addProperty("on", m.enabled);
+			if (m.restore != null) o.addProperty("restore", m.restore);
 			if (m.isHud()) {
 				o.addProperty("anchor", m.anchor.name());
 				o.addProperty("dx", m.dx);
@@ -199,6 +208,9 @@ public final class Panel {
 				}
 			}
 			Opt.loadAll(m.opts, o != null && o.get("opts") instanceof JsonObject oo ? oo : null);
+			// a setting changed by the running profile is still put back when switching to one where it is off
+			if (o != null && o.get("restore") != null && o.get("restore").isJsonPrimitive()) m.restore = o.get("restore").getAsString();
+			else if (!callHooks) m.restore = null;
 			if (callHooks && m.enabled != on) {
 				m.enabled = on;
 				try {

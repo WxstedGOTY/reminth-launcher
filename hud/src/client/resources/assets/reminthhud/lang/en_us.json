@@ -2,5 +2,6 @@
   "key.reminthhud.toggle": "Toggle ReminthHUD Overlay",
   "key.category.reminthhud.reminthhud_category": "Reminth",
   "key.reminthhud.panel": "Open the Reminth panel",
-  "key.reminthhud.zoom": "Zoom"
+  "key.reminthhud.zoom": "Zoom",
+  "key.reminthhud.snaplook": "Snaplook (look behind you)"
 }

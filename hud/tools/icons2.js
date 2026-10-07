@@ -1,0 +1,110 @@
+// Reminth panel icons, batch 2 (7 Oct 2026): one per new feature, each showing what it does. Same look as icons.js:
+// white, rounded 7 px strokes on a 96x96 grid. Merged into the render by render-icons.js.
+"use strict";
+
+const SW = (w) => `fill="none" stroke="#fff" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"`;
+const S = SW(7);
+const F = 'fill="#fff"';
+const T = (x, y, size, text, color = "#fff") =>
+  `<text x="${x}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-weight="900" font-size="${size}" text-anchor="middle" fill="${color}">${text}</text>`;
+const bubble = `<path ${S} d="M14 14h68a6 6 0 0 1 6 6v38a6 6 0 0 1-6 6H44L24 82V64H14a6 6 0 0 1-6-6V20a6 6 0 0 1 6-6z"/>`;
+
+module.exports = {
+  // ---- HUD ----
+  biome: `<path ${F} d="M48 8L20 50h14L16 76h64L62 50h14z"/><rect x="42" y="76" width="12" height="14" ${F}/>`,
+  day: `<rect x="10" y="16" width="76" height="70" rx="8" ${S}/><path ${S} d="M10 36h76M30 8v16M66 8v16"/>${T(48, 76, 30, "12")}`,
+  sun: `<circle cx="48" cy="48" r="16" ${F}/><path ${S} d="M48 8v12M48 76v12M8 48h12M76 48h12M20 20l8 8M68 68l8 8M20 76l8-8M68 28l8-8"/>`,
+  heart: `<path ${F} d="M48 84L14 50a20 20 0 0 1 34-28 20 20 0 0 1 34 28z"/>${T(48, 58, 24, "20", "#111")}`,
+  food: `<path ${F} d="M62 12c14 0 22 10 22 22 0 16-16 24-30 26L36 78a10 10 0 1 1-12-6 10 10 0 1 1 6-12l18-18C50 26 52 12 62 12z"/>`,
+  shield: `<path ${S} d="M48 8l34 12v24c0 22-15 36-34 44C29 80 14 66 14 44V20z"/>${T(48, 60, 26, "20")}`,
+  memory: `<rect x="18" y="18" width="60" height="60" rx="8" ${S}/><rect x="34" y="34" width="28" height="28" rx="4" ${F}/>
+    <path ${SW(5)} d="M30 6v10M48 6v10M66 6v10M30 80v10M48 80v10M66 80v10M6 30h10M6 48h10M6 66h10M80 30h10M80 48h10M80 66h10"/>`,
+  server: `<rect x="12" y="12" width="72" height="30" rx="7" ${S}/><rect x="12" y="54" width="72" height="30" rx="7" ${S}/>
+    <circle cx="28" cy="27" r="5" ${F}/><circle cx="28" cy="69" r="5" ${F}/><path ${SW(5)} d="M48 27h24M48 69h24"/>`,
+  hourglass: `<path ${S} d="M22 8h52M22 88h52M28 8c0 22 40 26 40 40S28 66 28 88M68 8c0 22-40 26-40 40s40 18 40 40"/><path ${F} d="M36 80h24l-12-14z"/>`,
+  speed: `<path ${S} d="M14 62a34 34 0 0 1 68 0"/><path ${S} d="M48 62l22-26"/><circle cx="48" cy="62" r="6" ${F}/><path ${SW(5)} d="M10 80h20M38 80h20M66 80h20"/>`,
+  bulb: `<path ${S} d="M34 66c0-10-14-16-14-34a28 28 0 0 1 56 0c0 18-14 24-14 34z"/><path ${S} d="M36 78h24M40 90h16"/>`,
+  arrows: `<path ${SW(6)} d="M18 78L74 22M74 22H54M74 22v20M18 78l-6 6M24 84l-12-12"/><path ${SW(6)} d="M34 86L82 38"/>${T(30, 40, 22, "x16")}`,
+  packs: `<rect x="28" y="8" width="56" height="56" rx="8" ${S}/><path ${S} d="M18 22v52a8 8 0 0 0 8 8h52"/><path ${SW(5)} d="M40 48l12-14 8 10 8-8 8 12"/>`,
+  warning: `<path ${S} d="M48 10l40 72H8z"/><path ${S} d="M48 36v20"/><circle cx="48" cy="68" r="5" ${F}/>`,
+  chest: `<rect x="10" y="22" width="76" height="62" rx="6" ${S}/><path ${S} d="M10 44h76"/><rect x="40" y="38" width="16" height="16" rx="3" ${F}/>`,
+  skull: `<path ${S} d="M48 8c-22 0-36 15-36 34 0 12 6 20 14 25v15h44V67c8-5 14-13 14-25C84 23 70 8 48 8z"/><circle cx="34" cy="44" r="8" ${F}/><circle cx="62" cy="44" r="8" ${F}/><path ${SW(5)} d="M40 82v-8M56 82v-8"/>`,
+  elytra: `<path ${S} d="M44 12C30 14 16 26 10 46l10 4-6 14 12 2-4 16c12-4 20-14 24-26 2-12 0-28-2-44zM52 12c14 2 28 14 34 34l-10 4 6 14-12 2 4 16c-12-4-20-14-24-26-2-12 0-28 2-44z"/>`,
+  xp: `<circle cx="48" cy="48" r="34" ${S}/><path ${F} d="M48 24l7 16 17 2-13 11 4 17-15-9-15 9 4-17-13-11 17-2z"/>`,
+  chunk: `<rect x="10" y="10" width="76" height="76" rx="4" ${S}/><path ${SW(4)} d="M29 10v76M48 10v76M67 10v76M10 29h76M10 48h76M10 67h76"/><rect x="48" y="29" width="19" height="19" ${F}/>`,
+  facing: `<circle cx="48" cy="48" r="38" ${S}/><path ${F} d="M48 14l12 34H36z"/><path fill="#fff" opacity=".4" d="M48 82L36 48h24z"/>`,
+  blockinfo: `<path ${S} d="M48 8l36 20v40L48 88 12 68V28z"/><path ${S} d="M12 28l36 20 36-20M48 48v40"/>`,
+  moon: `<path ${F} d="M62 10a38 38 0 1 0 24 58A32 32 0 0 1 62 10z"/>`,
+  weather: `<path ${S} d="M28 56a16 16 0 0 1 2-32 22 22 0 0 1 42 6 14 14 0 0 1-2 26z"/><path ${SW(6)} d="M32 70l-6 14M50 70l-6 14M68 70l-6 14"/>`,
+  date: `<rect x="10" y="16" width="76" height="70" rx="8" ${S}/><path ${S} d="M10 36h76M30 8v16M66 8v16"/><path ${F} d="M24 46h12v12H24zM42 46h12v12H42zM60 46h12v12H60zM24 64h12v12H24zM42 64h12v12H42z"/>`,
+  players: `<circle cx="34" cy="30" r="14" ${S}/><path ${S} d="M8 86c2-16 12-26 26-26s24 10 26 26"/><circle cx="68" cy="34" r="11" ${F}/><path ${F} d="M58 86c0-12-2-18-6-22 4-3 10-5 16-5 12 0 20 9 22 27z"/>`,
+  compass: `<rect x="6" y="30" width="84" height="36" rx="8" ${S}/>${T(28, 56, 18, "W")}${T(48, 56, 20, "N")}${T(68, 56, 18, "E")}<path ${F} d="M48 20l6 8H42z"/>`,
+  // ---- Visual ----
+  bob: `<circle cx="48" cy="20" r="9" ${F}/><path ${S} d="M48 32v26M36 44h24M48 58l-12 24M48 58l12 24"/><path ${SW(5)} d="M10 38c6-6 6-14 0-20M86 38c-6-6-6-14 0-20"/>`,
+  fov: `<path ${S} d="M48 76L12 24M48 76l36-52"/><path ${SW(5)} d="M20 36a40 40 0 0 1 56 0"/><circle cx="48" cy="76" r="7" ${F}/>`,
+  swirl: `<path ${SW(6)} d="M48 48a4 4 0 1 1 8 0a10 10 0 1 1-20 0a16 16 0 1 1 32 0a22 22 0 1 1-44 0a28 28 0 1 1 56 0a34 34 0 1 1-68 0"/>`,
+  dark: `<circle cx="48" cy="48" r="36" ${S}/><path ${F} d="M48 12a36 36 0 0 1 0 72z"/>`,
+  sparkle: `<path ${F} d="M48 6l9 30 30 12-30 12-9 30-9-30L9 48l30-12z"/><path ${F} d="M78 8l3 9 9 3-9 3-3 9-3-9-9-3 9-3z"/>`,
+  sparkle_speed: `<path ${F} d="M56 10l8 26 26 12-26 12-8 26-8-26-26-12 26-12z"/><path ${SW(5)} d="M6 34h14M2 48h16M6 62h14"/>`,
+  cloud: `<path ${S} d="M26 70a18 18 0 0 1 2-36 24 24 0 0 1 46 6 16 16 0 0 1-2 30z"/>`,
+  particles: `<circle cx="22" cy="24" r="7" ${F}/><circle cx="64" cy="18" r="5" ${F}/><circle cx="46" cy="44" r="9" ${F}/><circle cx="78" cy="52" r="6" ${F}/><circle cx="24" cy="70" r="6" ${F}/><circle cx="58" cy="78" r="8" ${F}/>`,
+  shadow: `<circle cx="48" cy="30" r="20" ${F}/><ellipse cx="48" cy="80" rx="34" ry="8" fill="#fff" opacity=".45"/>`,
+  bolt: `<path ${F} d="M56 6L18 54h24l-8 36 40-50H48z"/>`,
+  vignette: `<rect x="8" y="14" width="80" height="68" rx="8" ${S}/><ellipse cx="48" cy="48" rx="24" ry="18" ${F} opacity=".85"/>`,
+  blur: `<circle cx="48" cy="48" r="30" fill="#fff" opacity=".25"/><circle cx="48" cy="48" r="22" fill="#fff" opacity=".45"/><circle cx="48" cy="48" r="14" ${F}/>`,
+  textbg: `<rect x="8" y="26" width="80" height="44" rx="6" fill="#fff" opacity=".35"/>${T(48, 58, 26, "Aa")}`,
+  outline: `<path ${SW(8)} d="M48 8l36 20v40L48 88 12 68V28z"/>`,
+  crosshair: `<circle cx="48" cy="48" r="10" ${F}/><path ${S} d="M48 6v20M48 70v20M6 48h20M70 48h20"/><rect x="18" y="80" width="60" height="8" rx="4" fill="#fff" opacity=".45"/>`,
+  // ---- Performance ----
+  fpslimit: `<path ${S} d="M14 62a34 34 0 0 1 68 0"/><path ${S} d="M48 62L34 40"/><circle cx="48" cy="62" r="6" ${F}/><path ${SW(8)} d="M70 26v20"/><path ${SW(5)} d="M60 26h20"/>`,
+  vsync: `<rect x="8" y="14" width="80" height="52" rx="6" ${S}/><path ${S} d="M36 84h24M48 66v18"/><path ${SW(5)} d="M24 40h48M24 40l8-8M72 40l-8 8"/>`,
+  render: `<path ${S} d="M48 76L12 24h72z"/><path ${SW(5)} d="M24 42h48M34 58h28"/>`,
+  simulation: `<circle cx="48" cy="48" r="36" ${S}/><circle cx="48" cy="48" r="20" ${SW(5)}/><circle cx="48" cy="48" r="6" ${F}/>`,
+  entitydist: `<circle cx="20" cy="30" r="9" ${F}/><path ${S} d="M20 44v26"/><circle cx="76" cy="30" r="9" ${F}/><path ${S} d="M76 44v26"/><path ${SW(5)} d="M34 54h28M34 54l7-6M34 54l7 6M62 54l-7-6M62 54l-7 6"/>`,
+  blend: `<rect x="10" y="20" width="76" height="56" rx="6" ${S}/><path ${F} d="M14 24h34v48H14z" opacity=".95"/><path fill="#fff" opacity=".5" d="M48 24h18v48H48z"/><path fill="#fff" opacity=".2" d="M66 24h16v48H66z"/>`,
+  sleep: `<rect x="8" y="14" width="80" height="52" rx="6" ${S}/><path ${S} d="M36 84h24M48 66v18"/>${T(48, 52, 26, "zz")}`,
+  chunkupdate: `<rect x="10" y="10" width="76" height="76" rx="4" ${S}/><path ${SW(4)} d="M48 10v76M10 48h76"/><path ${SW(6)} d="M60 22a18 18 0 1 1-24 2M36 14v12h12"/>`,
+  graphics: `<rect x="8" y="14" width="80" height="52" rx="6" ${S}/><path ${S} d="M36 84h24M48 66v18"/><path ${F} d="M18 58l18-22 12 14 10-10 20 18z"/>`,
+  glass: `<rect x="16" y="10" width="64" height="76" rx="6" ${S}/><path ${SW(5)} d="M30 30l14-14M30 50l30-30M44 64l22-22"/>`,
+  mipmap: `<rect x="8" y="8" width="44" height="44" rx="4" ${S}/><rect x="58" y="30" width="26" height="26" rx="3" ${S}/><rect x="70" y="66" width="14" height="14" rx="2" ${F}/>`,
+  leaf: `<path ${S} d="M16 80C16 40 40 16 84 12 80 56 56 80 16 80zM16 80l40-40"/>`,
+  // ---- Chat ----
+  chat_opacity: `${bubble}<rect x="22" y="28" width="52" height="22" rx="4" fill="#fff" opacity=".5"/>`,
+  chat_size: `${bubble}${T(46, 50, 26, "A")}<path ${SW(4)} d="M62 30v18M56 36l6-6 6 6"/>`,
+  chat_width: `${bubble}<path ${SW(5)} d="M22 38h52M22 38l8-7M22 38l8 7M74 38l-8-7M74 38l-8 7"/>`,
+  chat_height: `${bubble}<path ${SW(5)} d="M48 24v28M48 24l-7 8M48 24l7 8M48 52l-7-8M48 52l7-8"/>`,
+  chat_lines: `${bubble}<path ${SW(5)} d="M24 28h48M24 40h48M24 52h30"/>`,
+  chat_delay: `${bubble}<circle cx="48" cy="39" r="14" ${SW(5)}/><path ${SW(5)} d="M48 30v10l6 4"/>`,
+  chat_color: `${bubble}<circle cx="32" cy="39" r="6" ${F}/><circle cx="48" cy="39" r="6" ${F} opacity=".6"/><circle cx="64" cy="39" r="6" ${F} opacity=".3"/>`,
+  chat_link: `<path ${S} d="M40 56l16-16M34 46l-8 8a14 14 0 0 0 20 20l8-8M62 50l8-8a14 14 0 0 0-20-20l-8 8"/>`,
+  chat_warn: `<path ${S} d="M36 60l12-12M30 52l-6 6a10 10 0 0 0 14 14l6-6M54 44l6-6a10 10 0 0 0-14-14l-6 6"/><path ${S} d="M74 52l18 32H56z"/><path ${SW(5)} d="M74 64v8"/>`,
+  chat_hide: `${bubble}<path ${SW(6)} d="M24 26l48 26"/>`,
+  chat_secure: `${bubble}<rect x="34" y="34" width="28" height="20" rx="4" ${F}/><path ${SW(5)} d="M40 34v-6a8 8 0 0 1 16 0v6"/>`,
+  chat_suggest: `<rect x="8" y="58" width="80" height="24" rx="5" ${S}/>${T(28, 76, 18, "/")}<path ${SW(5)} d="M20 16h56M20 30h44M20 44h50"/>`,
+  chat_draft: `${bubble}<path ${SW(5)} d="M56 26l10 10-22 22H34V48z"/>`,
+  chat_visible: `${bubble}<path ${SW(5)} d="M22 39s10-14 26-14 26 14 26 14-10 14-26 14-26-14-26-14z"/><circle cx="48" cy="39" r="6" ${F}/>`,
+  // ---- Mechanic ----
+  jump: `<path ${S} d="M48 88V40M30 58l18-18 18 18"/><path ${S} d="M20 14h56"/>`,
+  mouse: `<rect x="28" y="12" width="40" height="72" rx="20" ${S}/><path ${S} d="M48 12v26"/><path ${SW(5)} d="M8 48h12M76 48h12"/>`,
+  invert: `<path ${S} d="M30 14v68M14 30l16-16 16 16M66 82V14M50 66l16 16 16-16"/>`,
+  sensitivity: `<rect x="28" y="20" width="40" height="64" rx="20" ${S}/><path ${S} d="M48 20v24"/><path ${SW(5)} d="M10 20c6 4 6 10 0 14M86 20c-6 4-6 10 0 14"/>`,
+  wheel: `<rect x="28" y="12" width="40" height="72" rx="20" ${S}/><rect x="42" y="24" width="12" height="20" rx="6" ${F}/><path ${SW(5)} d="M48 54v18M42 64l6 8 6-8"/>`,
+  minecart: `<path ${S} d="M10 30h76l-8 34H18z"/><circle cx="28" cy="78" r="8" ${F}/><circle cx="68" cy="78" r="8" ${F}/>`,
+  hand: `<path ${S} d="M30 86V44c0-6 10-6 10 0V18c0-6 10-6 10 0v24-28c0-6 10-6 10 0v28-20c0-6 10-6 10 0v40c0 18-10 28-26 28-8 0-14-4-18-10L14 56c-3-5 4-10 8-6l8 8"/>`,
+  snaplook: `<circle cx="48" cy="48" r="34" ${S}/><path ${S} d="M48 24a24 24 0 1 1-24 24"/><path ${S} d="M24 36v12h12"/>`,
+  // ---- Utility ----
+  subtitles: `<rect x="8" y="16" width="80" height="64" rx="8" ${S}/><path ${SW(6)} d="M20 60h22M50 60h26M20 46h38"/>`,
+  save: `<path ${S} d="M14 10h54l18 18v58H14z"/><rect x="28" y="10" width="34" height="22" ${SW(5)}/><rect x="26" y="54" width="44" height="32" rx="3" ${F}/>`,
+  bell: `<path ${S} d="M48 10c-16 0-26 12-26 28v22l-8 12h68l-8-12V38c0-16-10-28-26-28z"/><path ${S} d="M40 84a8 8 0 0 0 16 0"/>`,
+  splash: `<path ${F} d="M48 6l10 26 28 2-22 18 8 28-24-16-24 16 8-28-22-18 28-2z"/>`,
+  music: `<path ${S} d="M36 74V18l46-10v56"/><circle cx="26" cy="74" r="12" ${F}/><circle cx="72" cy="64" r="12" ${F}/>`,
+  musictoast: `<rect x="8" y="16" width="80" height="40" rx="8" ${S}/><path ${SW(5)} d="M36 46V26l20-4v18"/><circle cx="32" cy="46" r="5" ${F}/><circle cx="52" cy="40" r="5" ${F}/><path ${SW(5)} d="M20 76h56"/>`,
+  headphones: `<path ${S} d="M14 62V48a34 34 0 0 1 68 0v14"/><rect x="10" y="56" width="18" height="30" rx="6" ${F}/><rect x="68" y="56" width="18" height="30" rx="6" ${F}/>`,
+  speaker_off: `<path ${F} d="M10 36h18l24-20v64L28 60H10z"/><path ${SW(6)} d="M64 34l24 28M88 34L64 62"/>`,
+  list: `<circle cx="16" cy="22" r="6" ${F}/><circle cx="16" cy="48" r="6" ${F}/><circle cx="16" cy="74" r="6" ${F}/><path ${S} d="M34 22h50M34 48h50M34 74h50"/>`,
+  contrast: `<circle cx="48" cy="48" r="36" ${S}/><path ${F} d="M48 12a36 36 0 0 1 0 72z"/><path ${SW(4)} d="M30 30h0"/>`,
+  font: `${T(48, 76, 64, "A")}<path ${SW(5)} d="M10 88h76"/>`,
+  bug: `<ellipse cx="48" cy="54" rx="20" ry="28" ${S}/><path ${S} d="M48 26v56M28 46H10M28 62H10M68 46h18M68 62h18M34 18l6 8M62 18l-6 8"/>`,
+  loading: `<rect x="8" y="38" width="80" height="20" rx="10" ${S}/><rect x="14" y="44" width="44" height="8" rx="4" ${F}/>`,
+  antenna: `<path ${S} d="M48 48v40M36 88h24"/><circle cx="48" cy="40" r="7" ${F}/><path ${S} d="M30 22a24 24 0 0 0 0 36M66 22a24 24 0 0 1 0 36M18 10a42 42 0 0 0 0 60M78 10a42 42 0 0 1 0 60"/><path ${SW(6)} d="M12 84L84 12"/>`,
+};
