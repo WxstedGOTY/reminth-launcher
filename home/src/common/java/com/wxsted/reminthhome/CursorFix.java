@@ -40,6 +40,7 @@ final class CursorFix {
 	}
 
 	private static void tick(Minecraft mc) {
+		ServerRulesGuard.tick(mc);
 		if (off) return;
 		try {
 			if (mc.getWindow() == null) return;

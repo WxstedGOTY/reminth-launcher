@@ -14,14 +14,15 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * Before the game connects to a server whose rules ban a mod that is switched on, it asks first ("Join anyway" /
- * "Back"). Reminth writes the list at every launch (config/reminth-server-rules.json, from the launcher's
+ * When the game connects to a server whose rules ban a mod that is switched on, one small grey chat line says so
+ * after joining - nothing stops the join and nothing is turned off (owner, 8 Oct 2026: "just add a small warning";
+ * it used to be a "Join anyway / Back" screen). Reminth writes the list at every launch (config/reminth-server-rules.json, from the launcher's
  * serverRules.js: DonutSMP, Hypixel, MCC Island, each with its source). Every way of joining goes through
  * ConnectScreen.startConnecting, which the per-version ConnectGuardMixin hands to {@link #shouldStop}.
  * Anything unreadable or unexpected lets the connection go ahead - this never stands in the way of playing.
@@ -37,8 +38,10 @@ public final class ServerRulesGuard {
 	}
 
 	private static List<Server> servers;
-	/** Servers the player said "Join anyway" for (this run), or in the launcher's own warning. */
+	/** Servers already warned about (this run), or in the launcher's own warning. */
 	private static final Set<String> allowed = new HashSet<>();
+	/** The chat line to show once the player is in the server. */
+	private static volatile Component pending;
 
 	private static synchronized List<Server> load() {
 		if (servers != null) return servers;
@@ -82,36 +85,34 @@ public final class ServerRulesGuard {
 	}
 
 	/**
-	 * True when the connection must wait: the question is on screen, and {@code proceed} connects if the player says
-	 * "Join anyway". {@code parent} is where "Back" goes.
+	 * Never stops the connection any more (always false): notes a small warning to show in chat once joined, the
+	 * first time this run that this server is joined with one of its banned mods on. {@code proceed} and {@code parent}
+	 * are kept so the per-version ConnectGuardMixin doesn't change.
 	 */
 	public static boolean shouldStop(String host, Runnable proceed, Screen parent) {
 		try {
 			Server s = serverFor(host);
 			if (s == null || allowed.contains(s.id())) return false;
-			List<Mod> on = new ArrayList<>();
-			for (Mod m : s.mods()) if (FabricLoader.getInstance().isModLoaded(m.id())) on.add(m);
+			List<String> on = new ArrayList<>();
+			for (Mod m : s.mods()) if (FabricLoader.getInstance().isModLoaded(m.id())) on.add(m.title());
 			if (on.isEmpty()) return false;
-			StringBuilder text = new StringBuilder();
-			text.append(s.name()).append("'s rules ban ").append(on.size() == 1 ? "this mod" : "these mods").append(" - you can get banned:\n\n");
-			for (Mod m : on) text.append(m.title()).append(" (").append(m.why()).append(")\n");
-			text.append("\nTurn ").append(on.size() == 1 ? "it" : "them").append(" off in Reminth before you join (it doesn't delete anything).");
-			if (!s.source().isEmpty()) text.append("\nSource: ").append(s.source()).append('.');
-			Minecraft mc = Minecraft.getInstance();
-			Screen ask = new ConfirmScreen(yes -> {
-				if (yes) {
-					allowed.add(s.id());
-					proceed.run();
-				} else {
-					Compat.setScreen(mc, parent);
-				}
-			}, Component.literal("These mods can get you banned on " + s.name()), Component.literal(text.toString()),
-					Component.literal("Join anyway"), Component.literal("Back"));
-			mc.execute(() -> Compat.setScreen(mc, ask));
-			return true;
+			allowed.add(s.id());
+			pending = Component.literal("[Reminth] Heads-up: " + s.name() + "'s rules ban " + String.join(", ", on) + ".").withStyle(ChatFormatting.GRAY);
 		} catch (Throwable t) {
-			ReminthHomeClient.LOG.warn("Reminth: the server rules check failed, joining anyway ({})", t.toString());
-			return false;
+			ReminthHomeClient.LOG.warn("Reminth: the server rules check failed ({})", t.toString());
+		}
+		return false;
+	}
+
+	/** Every tick (CursorFix): shows the waiting warning once the player is in the server. */
+	static void tick(Minecraft mc) {
+		Component c = pending;
+		if (c == null || mc.player == null) return;
+		pending = null;
+		try {
+			Compat.say(mc, c);
+		} catch (Throwable ignored) {
+			// a warning is never worth an error
 		}
 	}
 }

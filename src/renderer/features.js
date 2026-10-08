@@ -4484,75 +4484,15 @@ async function serverRulesBeforePlay(inst, join) {
   // "Play anyway" before: not asked again here, and the game is told so it doesn't ask either
   if (serverRulesUi.playAnyway[inst.id] === signature && !join) return { go: true, accepted: ids };
 
-  return new Promise((resolve) => {
-    let answer = false;
-    let busy = false;
-    const body = el("div", "rules-warn");
-    const whyText = { join: "You are joining", played: "You have played on", list: "Your server list has" };
-    for (const f of found) {
-      const box = el("div", "rules-server");
-      box.appendChild(el("p", "rules-head", `${whyText[f.why] || "This instance uses"} ${f.server.name}. Its rules ban ${f.mods.length === 1 ? "this mod" : "these mods"} - you can get banned for ${f.mods.length === 1 ? "it" : "them"}:`));
-      const list = el("ul", "rules-list");
-      for (const m of f.mods) {
-        const li = el("li");
-        li.appendChild(el("b", null, m.title));
-        li.appendChild(el("span", null, ` - ${m.categories.join(", ")}`));
-        list.appendChild(li);
-      }
-      box.appendChild(list);
-      box.appendChild(el("p", "set-note", `Source: ${f.server.source}.`));
-      body.appendChild(box);
-    }
-    body.appendChild(el("p", "set-note", "Turning them off doesn't delete anything: switch them back on in Content for singleplayer or other servers."));
-    openModal({
-      title: "These mods can get you banned",
-      body,
-      canClose: () => !busy,
-      onClose: () => resolve(answer),
-      buttons: [
-        { label: "Cancel", className: "outline" },
-        {
-          label: "Play anyway",
-          className: "outline",
-          onClick: () => {
-            if (busy) return false;
-            serverRulesUi.playAnyway[inst.id] = signature;
-            localSet("serverRules.playAnyway", serverRulesUi.playAnyway);
-            answer = { go: true, accepted: ids };
-            return true;
-          },
-        },
-        {
-          label: "Turn them off and play",
-          className: "primary",
-          icon: "#i-check",
-          onClick: async (handle) => {
-            if (busy) return false;
-            busy = true;
-            handle.buttons.forEach((b) => (b.disabled = true));
-            try {
-              const r = await window.reminth.serverRulesTurnOff(inst.id, join || null);
-              if (r && r.failed && r.failed.length) {
-                toast(`Couldn't turn off: ${r.failed.join("; ")}`);
-                busy = false;
-                handle.buttons.forEach((b) => (b.disabled = false));
-                return false;
-              }
-              toast(`Turned off: ${((r && r.done) || []).join(", ")}.`);
-              if (typeof loadContent === "function" && content.instanceId === inst.id) loadContent(inst.id).catch(() => {});
-              answer = true;
-              return true;
-            } catch (err) {
-              toast(friendlyError(err.message));
-              busy = false;
-              handle.buttons.forEach((b) => (b.disabled = false));
-              return false;
-            }
-          },
-        },
-      ],
-    });
-  });
+  // A small heads-up, never a stop (owner, 8 Oct 2026: "dont turn them off for players, just add a small warning"):
+  // the game starts as asked and is told not to ask either. Shown once per set of mods, not at every Play.
+  if (serverRulesUi.playAnyway[inst.id] !== signature) {
+    serverRulesUi.playAnyway[inst.id] = signature;
+    localSet("serverRules.playAnyway", serverRulesUi.playAnyway);
+    const parts = found.map((f) => `${f.server.name} bans ${f.mods.map((m) => m.title).join(", ")}`);
+    toast(`Heads-up: ${parts.join("; ")}.`);
+  }
+  return { go: true, accepted: ids };
 }
 window.serverRulesBeforePlay = serverRulesBeforePlay;
 

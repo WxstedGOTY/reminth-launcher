@@ -89,4 +89,9 @@ final class Compat {
 	static AbstractWidget shade(int width, int height) {
 		return new Shade(width, height);
 	}
+
+	/** One chat line only this player sees (the server-rules heads-up). */
+	static void say(Minecraft mc, net.minecraft.network.chat.Component c) {
+		mc.gui.getChat().addMessage(c);
+	}
 }

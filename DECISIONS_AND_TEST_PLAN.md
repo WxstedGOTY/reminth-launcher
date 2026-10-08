@@ -39,6 +39,16 @@ the launcher read the real data and its replay buffer recorded ~15 s of the scre
 
 **Installed** on this PC (8 Oct, 19:0x; installed jars checked byte for byte).
 
+**Then (owner: "I don't care about MCPVP's rules, don't turn them off for players, just a small warning"):**
+- His crystal/anchor optimizers were already back on (all five on in his PvP instance) - nothing changed there.
+- **Ban warnings are now a heads-up only.** Launcher (`features.js` serverRulesBeforePlay): no popup, no "Turn them off"
+  - one small toast naming the server and its banned mods (once per set of mods), and Play goes on. In game (home screen
+  **1.0.9**, `ServerRulesGuard`): never stops a join any more; one grey "[Reminth] Heads-up: <server>'s rules ban ..."
+  chat line after joining (first join per run; not again when the launcher already warned). `Compat.say` per family
+  (26.x `sendSystemMessage`, 1.20/1.21 the chat box). Nothing is ever turned off for the player. The `serverRules:turnOff`
+  IPC still exists but nothing calls it. Smoke-tested: 1.0.9 loads on 26.2 and 1.21.11; the chat line itself not seen
+  in a game (needs a real server).
+
 ### PASS/FAIL for the owner
 1. 26.2: F11 to full screen, open a menu (Esc or inventory): the pixel pointer is visible. PASS/FAIL
 2. 1.21 instance: G opens the panel; hold C to zoom. PASS/FAIL
