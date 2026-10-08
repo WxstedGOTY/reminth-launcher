@@ -2,10 +2,7 @@ package com.wxsted.reminthhud.client.panel;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 
 /** Small drawing helpers for the panel: rounded tiles, icons, scaled text. Colours are ARGB. */
 public final class Draw {
@@ -40,7 +37,7 @@ public final class Draw {
 	}
 
 	/** A filled rounded rectangle. */
-	public static void round(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int fill) {
+	public static void round(Gfx g, int x, int y, int w, int h, int r, int fill) {
 		if (w <= 0 || h <= 0) return;
 		r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
 		for (int i = 0; i < r; i++) {
@@ -52,24 +49,20 @@ public final class Draw {
 	}
 
 	/** A rounded rectangle with a 1 px border; border and fill never overlap. */
-	public static void tile(GuiGraphicsExtractor g, int x, int y, int w, int h, int r, int border, int fill) {
+	public static void tile(Gfx g, int x, int y, int w, int h, int r, int border, int fill) {
 		if (w <= 2 || h <= 2) return;
 		round(g, x, y, w, h, r, border);
 		round(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, r - 1), fill);
 	}
 
-	public static Identifier icon(String name) {
-		return Identifier.fromNamespaceAndPath("reminthhud", "textures/gui/panel/" + name + ".png");
-	}
-
 	/** One of our 128x128 icons drawn at size s. */
-	public static void icon(GuiGraphicsExtractor g, String name, int x, int y, int s) {
-		g.blit(RenderPipelines.GUI_TEXTURED, icon(name), x, y, 0f, 0f, s, s, 128, 128, 128, 128);
+	public static void icon(Gfx g, String name, int x, int y, int s) {
+		g.icon(name, x, y, s, 0xFFFFFFFF);
 	}
 
 	/** Same, tinted (ARGB; the icons are white). */
-	public static void icon(GuiGraphicsExtractor g, String name, int x, int y, int s, int color) {
-		g.blit(RenderPipelines.GUI_TEXTURED, icon(name), x, y, 0f, 0f, s, s, 128, 128, 128, 128, color);
+	public static void icon(Gfx g, String name, int x, int y, int s, int color) {
+		g.icon(name, x, y, s, color);
 	}
 
 	public static Font font() {
@@ -77,29 +70,29 @@ public final class Draw {
 	}
 
 	/** Text at a scale (1 = normal), left-aligned. */
-	public static void text(GuiGraphicsExtractor g, String s, float x, float y, float scale, int color, boolean shadow) {
-		g.pose().pushMatrix();
-		g.pose().translate(x, y);
-		g.pose().scale(scale, scale);
+	public static void text(Gfx g, String s, float x, float y, float scale, int color, boolean shadow) {
+		g.push();
+		g.translate(x, y);
+		g.scale(scale, scale);
 		g.text(font(), s, 0, 0, color, shadow);
-		g.pose().popMatrix();
+		g.pop();
 	}
 
-	public static void text(GuiGraphicsExtractor g, Component s, float x, float y, float scale, int color, boolean shadow) {
-		g.pose().pushMatrix();
-		g.pose().translate(x, y);
-		g.pose().scale(scale, scale);
+	public static void text(Gfx g, Component s, float x, float y, float scale, int color, boolean shadow) {
+		g.push();
+		g.translate(x, y);
+		g.scale(scale, scale);
 		g.text(font(), s, 0, 0, color, shadow);
-		g.pose().popMatrix();
+		g.pop();
 	}
 
 	/** Centered text at a scale. */
-	public static void centered(GuiGraphicsExtractor g, String s, float cx, float y, float scale, int color) {
+	public static void centered(Gfx g, String s, float cx, float y, float scale, int color) {
 		float w = font().width(s) * scale;
 		text(g, s, cx - w / 2f, y, scale, color, false);
 	}
 
-	public static void centered(GuiGraphicsExtractor g, Component s, float cx, float y, float scale, int color) {
+	public static void centered(Gfx g, Component s, float cx, float y, float scale, int color) {
 		float w = font().width(s) * scale;
 		text(g, s, cx - w / 2f, y, scale, color, false);
 	}

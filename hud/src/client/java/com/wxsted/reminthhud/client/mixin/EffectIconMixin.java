@@ -16,7 +16,7 @@ public abstract class EffectIconMixin {
 	@Inject(method = "extractEffects", at = @At("TAIL"), require = 0)
 	private void reminthhud$effectText(GuiGraphicsExtractor g, DeltaTracker delta, CallbackInfo ci) {
 		try {
-			if (Panel.byId("effects") instanceof Features.PotionEffects p) p.drawOnIcons(g, Minecraft.getInstance());
+			if (Panel.byId("effects") instanceof Features.PotionEffects p) p.drawOnIcons(new com.wxsted.reminthhud.client.panel.Gfx(g), Minecraft.getInstance());
 		} catch (Throwable ignored) {
 			// the icons stay as the game drew them
 		}

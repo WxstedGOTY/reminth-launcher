@@ -1,7 +1,6 @@
 package com.wxsted.reminthhud.client.panel;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /** A HUD feature that is one line of text ("FPS 240"), with a background, colours and shadow as options. */
 public abstract class TextHud extends Module {
@@ -22,7 +21,7 @@ public abstract class TextHud extends Module {
 	protected abstract String value(Minecraft mc, boolean preview);
 
 	@Override
-	public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+	public void render(Gfx g, Minecraft mc, boolean preview) {
 		String v = value(mc, preview);
 		if (v == null) return;
 		String l = label(mc);

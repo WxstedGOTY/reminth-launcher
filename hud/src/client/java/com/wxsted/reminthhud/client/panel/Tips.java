@@ -3,7 +3,6 @@ package com.wxsted.reminthhud.client.panel;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.GenericMessageScreen;
 import net.minecraft.client.gui.screens.LevelLoadingScreen;
@@ -24,8 +23,8 @@ final class Tips {
 
 	static void init() {
 		ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-			if (screen instanceof TitleScreen) ScreenEvents.afterExtract(screen).register(Tips::title);
-			else if (isLoading(screen)) ScreenEvents.afterExtract(screen).register(Tips::loading);
+			if (screen instanceof TitleScreen) V.afterDraw(screen, g -> title(screen, g));
+			else if (isLoading(screen)) V.afterDraw(screen, g -> loading(screen, g));
 		});
 	}
 
@@ -41,7 +40,7 @@ final class Tips {
 		return Component.literal(s).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
 	}
 
-	private static void title(Screen screen, GuiGraphicsExtractor g, int mx, int my, float d) {
+	private static void title(Screen screen, Gfx g) {
 		try {
 			Component line = Component.empty().append(Component.literal("Fun fact: press ")).append(gold(key(Panel.openKey())))
 					.append(Component.literal(" in game to open the "))
@@ -54,17 +53,17 @@ final class Tips {
 	}
 
 	/** One line on a dark pill, centred at row y, made smaller when the screen is too narrow for it. */
-	private static void drawFitted(GuiGraphicsExtractor g, Screen screen, Component line, int y) {
+	private static void drawFitted(Gfx g, Screen screen, Component line, int y) {
 		int tw = Draw.font().width(line);
 		float sc = Math.min(1f, (screen.width - 24f) / (tw + 14f));
 		int w = Math.round((tw + 14) * sc), h = Math.round(14 * sc);
 		int x = (screen.width - w) / 2;
 		Draw.round(g, x, y, w, Math.max(h, 10), 4, 0x99000000);
-		g.pose().pushMatrix();
-		g.pose().translate(x + 7 * sc, y + 3 * sc);
-		g.pose().scale(sc, sc);
+		g.push();
+		g.translate(x + 7 * sc, y + 3 * sc);
+		g.scale(sc, sc);
 		g.text(Draw.font(), line, 0, 0, 0xFFFFFFFF, true);
-		g.pose().popMatrix();
+		g.pop();
 	}
 
 	private static Component fact() {
@@ -82,7 +81,7 @@ final class Tips {
 		return facts[(int) ((System.currentTimeMillis() / 6000) % facts.length)];
 	}
 
-	private static void loading(Screen screen, GuiGraphicsExtractor g, int mx, int my, float d) {
+	private static void loading(Screen screen, Gfx g) {
 		try {
 			// only the label gold (a style on the first part would carry into everything appended to it)
 			Component line = Component.empty().append(gold("Fun fact: ")).append(fact());

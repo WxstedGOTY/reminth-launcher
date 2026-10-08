@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * One feature of the panel ("module"): a card in the grid with an on/off button and its own options. HUD features
@@ -135,6 +134,6 @@ public abstract class Module {
 	 * Draws the HUD element with its top-left at 0,0 (the caller has moved and scaled), and sets lastW/lastH. `preview`:
 	 * drawn in the layout editor - show sample values when there is nothing to show yet.
 	 */
-	public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+	public void render(Gfx g, Minecraft mc, boolean preview) {
 	}
 }

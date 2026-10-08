@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -180,7 +179,7 @@ public final class Features {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			int n = 0;
 			if (mc.player != null) {
 				var inv = mc.player.getInventory();
@@ -212,14 +211,14 @@ public final class Features {
 			super("keystrokes", "Keystrokes", Cat.HUD, "keystrokes", "W A S D, space and mouse buttons light up as you press them.", false, false, Anchor.TOP_RIGHT, -70, 20);
 		}
 
-		private void key(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, boolean down) {
+		private void key(Gfx g, int x, int y, int w, int h, String label, boolean down) {
 			Draw.round(g, x, y, w, h, 3, down ? (pressed.value & 0x00FFFFFF) | 0xD0000000 : 0x8C000000);
 			int c = down ? 0xFF000000 : 0xFFFFFFFF;
 			g.text(Draw.font(), label, x + (w - Draw.font().width(label)) / 2, y + (h - 8) / 2, c, false);
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			var o = mc.options;
 			int k = 20, gap = 2;
 			key(g, k + gap, 0, k, k, "W", o.keyUp.isDown());
@@ -252,7 +251,7 @@ public final class Features {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			List<ItemStack> items = new ArrayList<>();
 			if (mc.player != null) {
 				for (EquipmentSlot s : new EquipmentSlot[] {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
@@ -304,7 +303,7 @@ public final class Features {
 			super("durability", "Held Item Durability", Cat.HUD, "durability", "How much durability the item in your hand has left, left of the hotbar.", false, true, Anchor.BOTTOM, -91 - 6 - 72, -40);
 		}
 
-		private int line(GuiGraphicsExtractor g, ItemStack st, int y) {
+		private int line(Gfx g, ItemStack st, int y) {
 			g.item(st, 0, y);
 			int left = st.getMaxDamage() - st.getDamageValue();
 			String t = percent.value ? Math.round(100f * left / Math.max(1, st.getMaxDamage())) + "%" : Integer.toString(left);
@@ -315,7 +314,7 @@ public final class Features {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			List<ItemStack> items = new ArrayList<>();
 			if (mc.player != null) {
 				if (mc.player.getMainHandItem().isDamageableItem()) items.add(mc.player.getMainHandItem());
@@ -354,7 +353,7 @@ public final class Features {
 		}
 
 		/** Called after the game drew its effect icons. */
-		public void drawOnIcons(GuiGraphicsExtractor g, Minecraft mc) {
+		public void drawOnIcons(Gfx g, Minecraft mc) {
 			if (!enabled || mc.player == null || Panel.hudHidden) return;
 			if (V.screen(mc) != null && V.screen(mc).showsActiveEffects()) return; // the game draws none then either
 			var effects = mc.player.getActiveEffects();

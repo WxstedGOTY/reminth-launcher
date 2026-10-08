@@ -1,15 +1,13 @@
 package com.wxsted.reminthhud.client.panel;
 
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
  * "Edit HUD layout": every switched-on HUD feature with a box around it. Drag to move, scroll over one to make it
  * bigger or smaller, right-click to put it back where it came. Positions are saved per profile.
  */
-public class HudEditorScreen extends Screen {
+public class HudEditorScreen extends BaseScreen {
 	private final Screen back;
 	private Module dragging;
 	private double grabX, grabY;
@@ -31,8 +29,8 @@ public class HudEditorScreen extends Screen {
 	}
 
 	@Override
-	public void extractBackground(GuiGraphicsExtractor g, int mx, int my, float pt) {
-		if (minecraft.level == null) super.extractBackground(g, mx, my, pt);
+	protected void drawBackground(Gfx g, int mx, int my, float pt) {
+		if (minecraft.level == null) super.drawBackground(g, mx, my, pt);
 		else g.fill(0, 0, width, height, 0x40000000);
 	}
 
@@ -47,7 +45,7 @@ public class HudEditorScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+	protected void draw(Gfx g, int mx, int my, float pt) {
 		// centre lines to line things up
 		g.fill(width / 2, 0, width / 2 + 1, height, 0x22FFFFFF);
 		g.fill(0, height / 2, width, height / 2 + 1, 0x22FFFFFF);
@@ -75,7 +73,7 @@ public class HudEditorScreen extends Screen {
 		boolean dh = Draw.in(mx, my, bx, by, 64, 16);
 		Draw.round(g, bx, by, 64, 16, 3, dh ? Draw.ON_HOT : Draw.ON);
 		Draw.centered(g, "DONE", bx + 32, by + 5, 0.75f, 0xFFFFFFFF);
-		super.extractRenderState(g, mx, my, pt);
+		drawWidgets(g, mx, my, pt);
 	}
 
 	private boolean onDone(double mx, double my) {
@@ -86,31 +84,31 @@ public class HudEditorScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
-		if (e.button() == 0 && onDone(e.x(), e.y())) {
+	protected boolean click(double ex, double ey, int button) {
+		if (button == 0 && onDone(ex, ey)) {
 			onClose();
 			return true;
 		}
-		Module m = at(e.x(), e.y());
-		if (m != null && e.button() == 1) {
+		Module m = at(ex, ey);
+		if (m != null && button == 1) {
 			m.resetPlacement();
 			Panel.save();
 			return true;
 		}
-		if (m != null && e.button() == 0) {
+		if (m != null && button == 0) {
 			dragging = m;
-			grabX = e.x() - m.drawX;
-			grabY = e.y() - m.drawY;
+			grabX = ex - m.drawX;
+			grabY = ey - m.drawY;
 			return true;
 		}
-		return super.mouseClicked(e, doubleClick);
+		return false;
 	}
 
 	@Override
-	public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) {
+	protected boolean drag(double ex, double ey, int button, double dx, double dy) {
 		if (dragging != null) {
 			int bw = Math.round(dragging.lastW * dragging.scale), bh = Math.round(dragging.lastH * dragging.scale);
-			int x = (int) Math.round(e.x() - grabX), y = (int) Math.round(e.y() - grabY);
+			int x = (int) Math.round(ex - grabX), y = (int) Math.round(ey - grabY);
 			x = Math.max(0, Math.min(width - bw, x));
 			y = Math.max(0, Math.min(height - bh, y));
 			// snap to the centre lines
@@ -119,21 +117,21 @@ public class HudEditorScreen extends Screen {
 			dragging.placeAt(x, y, width, height);
 			return true;
 		}
-		return super.mouseDragged(e, dx, dy);
+		return false;
 	}
 
 	@Override
-	public boolean mouseReleased(MouseButtonEvent e) {
+	protected boolean release(double ex, double ey, int button) {
 		if (dragging != null) {
 			dragging = null;
 			Panel.save();
 			return true;
 		}
-		return super.mouseReleased(e);
+		return false;
 	}
 
 	@Override
-	public boolean mouseScrolled(double mx, double my, double sx, double sy) {
+	protected boolean scroll(double mx, double my, double sx, double sy) {
 		Module m = at(mx, my);
 		if (m != null) {
 			int x = m.drawX, y = m.drawY;
@@ -142,6 +140,6 @@ public class HudEditorScreen extends Screen {
 			Panel.save();
 			return true;
 		}
-		return super.mouseScrolled(mx, my, sx, sy);
+		return false;
 	}
 }

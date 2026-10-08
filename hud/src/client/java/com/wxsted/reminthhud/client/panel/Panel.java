@@ -17,14 +17,9 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.wxsted.reminthhud.ReminthHud;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 
 /**
@@ -51,6 +46,7 @@ public final class Panel {
 	private static KeyMapping snapKey;
 	private static KeyMapping hideKey;
 	private static int testOpenIn = Integer.getInteger("reminthhud.testOpenPanel", 0);
+	private static final boolean testWatch = testOpenIn > 0;
 	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
 	public static boolean hudHidden;
 
@@ -70,27 +66,17 @@ public final class Panel {
 		return openKey;
 	}
 
-	private static InputConstants.Type keyboard() {
-		for (String name : new String[] {"KEYBOARD", "KEYSYM"}) {
-			try {
-				return Enum.valueOf(InputConstants.Type.class, name);
-			} catch (IllegalArgumentException ignored) {
-				// try the other name
-			}
-		}
-		throw new IllegalStateException("No keyboard input type");
-	}
-
-	public static void init(KeyMapping.Category category) {
-		openKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.panel", keyboard(), InputConstants.KEY_G, category));
-		zoomKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.zoom", keyboard(), InputConstants.KEY_C, category));
-		snapKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.snaplook", keyboard(), InputConstants.KEY_V, category));
-		hideKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.reminthhud.hidehud", keyboard(), InputConstants.KEY_F7, category));
+	/** `category`: the Controls category of ReminthHUD's keys (its type differs between Minecraft versions). */
+	public static void init(Object category) {
+		openKey = V.registerKey("key.reminthhud.panel", InputConstants.KEY_G, category);
+		zoomKey = V.registerKey("key.reminthhud.zoom", InputConstants.KEY_C, category);
+		snapKey = V.registerKey("key.reminthhud.snaplook", InputConstants.KEY_V, category);
+		hideKey = V.registerKey("key.reminthhud.hidehud", InputConstants.KEY_F7, category);
 		Features3.initTooltips();
 		Tips.init();
 		load();
 		ClientTickEvents.END_CLIENT_TICK.register(Panel::tick);
-		HudElementRegistry.attachElementBefore(VanillaHudElements.CHAT, ReminthHud.id("panel_hud"), Panel::renderHud);
+		V.registerHud(Panel::renderHud);
 	}
 
 	public static Module byId(String id) {
@@ -112,8 +98,14 @@ public final class Panel {
 				ready = true;
 				for (Module m : MODULES) if (m.enabled) m.onEnable(mc);
 			}
-			// for Reminth's own game tests only (-Dreminthhud.testOpenPanel=40): opens the panel that many ticks after start
-			if (testOpenIn > 0 && --testOpenIn == 0) open(V.screen(mc));
+			// for Reminth's own game tests only (-Dreminthhud.testOpenPanel=90): opens the panel once, that many seconds
+			// after the game started (the test tool can't press keys in every version)
+			if (testOpenIn > 0 && java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() >= testOpenIn * 1000L) {
+				testOpenIn = 0;
+				if (!(V.screen(mc) instanceof PanelScreen)) open(V.screen(mc));
+				ReminthHud.LOGGER.info("Reminth panel: test open -> {}", V.screen(mc));
+			}
+			if (testWatch && mc.level != null && mc.level.getGameTime() % 200 == 0) ReminthHud.LOGGER.info("Reminth panel: test screen {}", V.screen(mc));
 			while (openKey.consumeClick()) {
 				if (V.screen(mc) == null) open(null);
 			}
@@ -136,10 +128,10 @@ public final class Panel {
 		open(parent);
 	}
 
-	private static void renderHud(GuiGraphicsExtractor g, DeltaTracker delta) {
+	private static void renderHud(Gfx g) {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player == null) return;
-		if (mc.debugEntries.isOverlayVisible()) return;
+		if (V.debugShown(mc)) return;
 		if (V.screen(mc) instanceof HudEditorScreen) return; // it draws them itself
 		if (hudHidden) return;
 		drawHud(g, mc, false);
@@ -150,7 +142,7 @@ public final class Panel {
 	 * space when an earlier one, or Xaero's minimap or the hotbar with hearts and hunger, is already there - so turning on many never
 	 * piles them on top of each other. One the player moved stays exactly where they put it.
 	 */
-	static void drawHud(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+	static void drawHud(Gfx g, Minecraft mc, boolean preview) {
 		int sw = g.guiWidth(), sh = g.guiHeight();
 		List<int[]> taken = new ArrayList<>();
 		if (MINIMAP) taken.add(new int[] {0, 0, 72, 72});
@@ -170,14 +162,14 @@ public final class Panel {
 			m.drawX = x;
 			m.drawY = y;
 			try {
-				g.pose().pushMatrix();
-				g.pose().translate(x, y);
-				g.pose().scale(m.scale, m.scale);
+				g.push();
+				g.translate(x, y);
+				g.scale(m.scale, m.scale);
 				m.render(g, mc, preview);
 			} catch (Throwable t) {
 				ReminthHud.LOGGER.warn("Reminth panel: {} failed to draw ({})", m.id, t.toString());
 			} finally {
-				g.pose().popMatrix();
+				g.pop();
 			}
 		}
 	}

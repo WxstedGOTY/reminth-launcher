@@ -11,7 +11,6 @@ import java.util.Locale;
 import net.fabricmc.fabric.api.client.item.v1.ItemTooltipCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -242,7 +241,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			float f = mc.player == null ? 0.6f : mc.player.getAttackStrengthScale(0f);
 			lastW = 40;
 			lastH = 4;
@@ -260,7 +259,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			lastW = 40;
 			lastH = 4;
 			float f = -1;
@@ -279,7 +278,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			ItemStack st = mc.player == null ? ItemStack.EMPTY : mc.player.getOffhandItem();
 			if (st.isEmpty() && preview) st = new ItemStack(Items.TOTEM_OF_UNDYING);
 			lastW = 20;
@@ -298,7 +297,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			String t = null;
 			int c = 0xFF55FF55;
 			if (mc.player != null && mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK) {
@@ -342,7 +341,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			String t = text(mc);
 			if (t == null && preview) t = "Low health!";
 			lastW = 100;
@@ -363,7 +362,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			int n = 0;
 			if (mc.player != null) {
 				var inv = mc.player.getInventory();
@@ -392,7 +391,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			long now = System.nanoTime();
 			if (last != 0) {
 				frames[at] = now - last;
@@ -435,7 +434,7 @@ public final class Features3 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			int s = (int) size.value;
 			lastW = s * 2 + 4;
 			lastH = s * 2 + 4;

@@ -4,15 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.options.controls.KeyBindsScreen;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
@@ -20,7 +17,7 @@ import net.minecraft.network.chat.Component;
  * and close. Left: category tabs (All, HUD, Visual, Mechanic, Chat, Utility), the profiles and EDIT HUD LAYOUT. Right:
  * the features as cards, three per row - icon, name, OPTIONS and a gear, and a green ENABLED / red DISABLED button.
  */
-public class PanelScreen extends Screen {
+public class PanelScreen extends BaseScreen {
 	private final Screen parent;
 	private String query = "";
 	private boolean searchFocus = false;
@@ -115,20 +112,20 @@ public class PanelScreen extends Screen {
 	/* ------------------------------ drawing ------------------------------ */
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int rmx, int rmy, float pt) {
+	protected void draw(Gfx g, int rmx, int rmy, float pt) {
 		realMx = rmx;
 		realMy = rmy;
 		int mx = Math.round(rmx / s), my = Math.round(rmy / s);
-		g.pose().pushMatrix();
-		g.pose().scale(s, s);
+		g.push();
+		g.scale(s, s);
 		try {
 			drawAll(g, mx, my);
 		} finally {
-			g.pose().popMatrix();
+			g.pop();
 		}
 	}
 
-	private void drawAll(GuiGraphicsExtractor g, int mx, int my) {
+	private void drawAll(Gfx g, int mx, int my) {
 		// window
 		Draw.tile(g, x0 - 1, y0 - 1, w + 2, h + 2, 9, Draw.WINDOW_EDGE, Draw.WINDOW);
 		// top bar
@@ -167,7 +164,7 @@ public class PanelScreen extends Screen {
 		else drawSettings(g, mx, my);
 	}
 
-	private void drawLeft(GuiGraphicsExtractor g, int mx, int my) {
+	private void drawLeft(Gfx g, int mx, int my) {
 		int lx = x0 + 6, ly = y0 + TOP + 8, lw = LEFT - 6;
 		g.fill(x0 + LEFT, y0 + TOP + 1, x0 + LEFT + 1, y0 + h - 6, 0x22FFFFFF);
 		Draw.text(g, "CATEGORIES", lx + 4, ly, 0.75f, Draw.TEXT_FAINT, false);
@@ -212,7 +209,7 @@ public class PanelScreen extends Screen {
 		Draw.text(g, "EDIT HUD LAYOUT", lx + 22, by + 8, 0.75f, Draw.TEXT, true);
 	}
 
-	private void drawCards(GuiGraphicsExtractor g, int mx, int my) {
+	private void drawCards(Gfx g, int mx, int my) {
 		clampScroll();
 		List<Module> list = shown();
 		int mxx = mainX(), myy = mainY(), mw = mainW(), mh = mainH();
@@ -239,7 +236,7 @@ public class PanelScreen extends Screen {
 		}
 	}
 
-	private void drawCard(GuiGraphicsExtractor g, Module m, int x, int y, int cw, int mx, int my, boolean inside) {
+	private void drawCard(Gfx g, Module m, int x, int y, int cw, int mx, int my, boolean inside) {
 		boolean hot = inside && Draw.in(mx, my, x, y, cw, CARD_H);
 		Draw.tile(g, x, y, cw, CARD_H, 6, hot ? Draw.TILE_EDGE_HOT : Draw.TILE_EDGE, hot ? Draw.TILE_HOT : Draw.TILE);
 		Draw.icon(g, m.icon, x + (cw - 30) / 2, y + 9, 30, m.enabled ? 0xFFFFFFFF : 0xFFC8C8CC);
@@ -271,7 +268,7 @@ public class PanelScreen extends Screen {
 		return mainY() + 4 + i * 30;
 	}
 
-	private void drawSettings(GuiGraphicsExtractor g, int mx, int my) {
+	private void drawSettings(Gfx g, int mx, int my) {
 		int x = mainX(), mw = mainW();
 		String[][] rows = {
 			{"Open this panel", "Key: " + Panel.openKey().getTranslatedKeyMessage().getString(), "CHANGE KEY"},
@@ -296,9 +293,9 @@ public class PanelScreen extends Screen {
 	/* ------------------------------ input ------------------------------ */
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
-		double mx = e.x() / s, my = e.y() / s;
-		if (e.button() == 0) {
+	protected boolean click(double ex, double ey, int button) {
+		double mx = ex / s, my = ey / s;
+		if (button == 0) {
 			searchFocus = Draw.in(mx, my, x0 + w - 166, y0 + 6, 136, 18);
 			if (searchFocus) return true;
 			// close
@@ -322,7 +319,7 @@ public class PanelScreen extends Screen {
 			if (tab == 0 && clickCards(mx, my)) return true;
 			if (tab == 1 && clickSettings(mx, my)) return true;
 		}
-		return super.mouseClicked(e, doubleClick);
+		return false;
 	}
 
 	private boolean clickLeft(double mx, double my) {
@@ -403,52 +400,52 @@ public class PanelScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseScrolled(double rmx, double rmy, double sx, double sy) {
+	protected boolean scroll(double rmx, double rmy, double sx, double sy) {
 		double mx = rmx / s, my = rmy / s;
 		if (tab == 0 && Draw.in(mx, my, mainX(), mainY(), mainW(), mainH())) {
 			scroll -= sy * 24;
 			clampScroll();
 			return true;
 		}
-		return super.mouseScrolled(rmx, rmy, sx, sy);
+		return false;
 	}
 
 	@Override
-	public boolean charTyped(CharacterEvent e) {
-		if (searchFocus && e.isAllowedChatCharacter() && query.length() < 40) {
-			query += e.codepointAsString();
+	protected boolean typed(String text) {
+		if (searchFocus && query.length() < 40) {
+			query += text;
 			scroll = 0;
 			tab = 0;
 			return true;
 		}
-		return super.charTyped(e);
+		return false;
 	}
 
 	@Override
-	public boolean keyPressed(KeyEvent e) {
+	protected boolean key(int key, int scancode, int mods) {
 		if (searchFocus) {
-			int k = e.key();
-			if (k == 259 && !query.isEmpty()) { // Backspace
+			int k = key;
+			if (k == InputConstants.KEY_BACKSPACE && !query.isEmpty()) { // Backspace
 				query = query.substring(0, query.length() - 1);
 				scroll = 0;
 				return true;
 			}
-			if (k == 256 || k == 257 || k == 335) { // Esc / Enter: leave the box
+			if (k == InputConstants.KEY_ESCAPE || k == InputConstants.KEY_RETURN || k == InputConstants.KEY_NUMPADENTER) { // Esc / Enter: leave the box
 				searchFocus = false;
 				return true;
 			}
 			return true; // typing never triggers the panel's or the game's keys
 		}
 		// the panel key closes it again
-		if (Panel.openKey().matches(e)) {
+		if (V.matches(Panel.openKey(), key, scancode, mods)) {
 			onClose();
 			return true;
 		}
-		return super.keyPressed(e);
+		return false;
 	}
 
 	/** Small window to rename or delete a profile. */
-	static final class RenameScreen extends Screen {
+	static final class RenameScreen extends BaseScreen {
 		private final PanelScreen back;
 		private final String name;
 		private EditBox box;
@@ -480,7 +477,7 @@ public class PanelScreen extends Screen {
 		}
 
 		@Override
-		public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float pt) {
+		protected void draw(Gfx g, int mx, int my, float pt) {
 			int x = width / 2 - 110, y = height / 2 - 46;
 			Draw.tile(g, x, y, 220, 96, 8, Draw.WINDOW_EDGE, Draw.WINDOW);
 			Draw.centered(g, "Profile name", width / 2f, y + 10, 1f, Draw.TEXT);
@@ -493,15 +490,15 @@ public class PanelScreen extends Screen {
 				Draw.round(g, bx, by, 64, 18, 3, fill);
 				Draw.centered(g, labels[i], bx + 32, by + 6, 0.75f, Draw.TEXT);
 			}
-			super.extractRenderState(g, mx, my, pt);
+			drawWidgets(g, mx, my, pt);
 		}
 
 		@Override
-		public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
+		protected boolean click(double ex, double ey, int button) {
 			int x = width / 2 - 110, y = height / 2 - 46;
 			for (int i = 0; i < 3; i++) {
 				int bx = x + 10 + i * 68, by = y + 68;
-				if (!Draw.in(e.x(), e.y(), bx, by, 64, 18)) continue;
+				if (!Draw.in(ex, ey, bx, by, 64, 18)) continue;
 				if (i == 0) {
 					if (box.getValue().trim().equals(name) || Panel.rename(name, box.getValue())) onClose();
 					else error = "That name is empty, too long or taken.";
@@ -513,17 +510,17 @@ public class PanelScreen extends Screen {
 				}
 				return true;
 			}
-			return super.mouseClicked(e, doubleClick);
+			return false;
 		}
 
 		@Override
-		public boolean keyPressed(KeyEvent e) {
-			if (e.key() == 257 || e.key() == 335) { // Enter
+		protected boolean key(int key, int scancode, int mods) {
+			if (key == InputConstants.KEY_RETURN || key == InputConstants.KEY_NUMPADENTER) { // Enter
 				if (box.getValue().trim().equals(name) || Panel.rename(name, box.getValue())) onClose();
 				else error = "That name is empty, too long or taken.";
 				return true;
 			}
-			return super.keyPressed(e);
+			return false;
 		}
 	}
 }

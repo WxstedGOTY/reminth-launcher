@@ -16,7 +16,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.effect.MobEffect;
 
-/** The few calls that differ between Minecraft versions (compat family A: 26.2). */
+/** The few calls that differ between Minecraft versions (compat family B: 26.3). */
 public final class V {
 	private V() {
 	}

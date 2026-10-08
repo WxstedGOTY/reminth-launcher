@@ -15,7 +15,6 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MusicToastDisplayState;
 import net.minecraft.client.PrioritizeChunkUpdates;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.sounds.MusicManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ParticleStatus;
@@ -201,7 +200,7 @@ public final class Features2 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			String worst = null;
 			if (mc.player != null) {
 				for (EquipmentSlot s : EquipmentSlot.values()) {
@@ -249,7 +248,7 @@ public final class Features2 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			Object[][] rows = {
 				{arrows, Items.ARROW}, {pearls, Items.ENDER_PEARL}, {gapples, Items.GOLDEN_APPLE}, {crystals, Items.END_CRYSTAL}, {potions, Items.SPLASH_POTION}, {xpBottles, Items.EXPERIENCE_BOTTLE},
 			};
@@ -277,7 +276,7 @@ public final class Features2 {
 		}
 
 		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
+		public void render(Gfx g, Minecraft mc, boolean preview) {
 			int w = 120, h = 14;
 			float yaw = mc.player == null ? 180 : ((mc.player.getYRot() % 360) + 360) % 360;
 			Draw.round(g, 0, 0, w, h, 3, 0x73000000);

@@ -1,14 +1,11 @@
 package com.wxsted.reminthhud.client.panel;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /** One feature's own settings: switches, sliders, colour swatches and choices, saved to the active profile. */
-public class ModuleScreen extends Screen {
+public class ModuleScreen extends BaseScreen {
 	private final Screen back;
 	private final Module m;
 	private int x0, y0, w, h;
@@ -53,17 +50,17 @@ public class ModuleScreen extends Screen {
 	}
 
 	@Override
-	public void extractRenderState(GuiGraphicsExtractor g, int rmx, int rmy, float pt) {
-		g.pose().pushMatrix();
-		g.pose().scale(sc, sc);
+	protected void draw(Gfx g, int rmx, int rmy, float pt) {
+		g.push();
+		g.scale(sc, sc);
 		try {
 			drawAll(g, Math.round(rmx / sc), Math.round(rmy / sc));
 		} finally {
-			g.pose().popMatrix();
+			g.pop();
 		}
 	}
 
-	private void drawAll(GuiGraphicsExtractor g, int mx, int my) {
+	private void drawAll(Gfx g, int mx, int my) {
 		Draw.tile(g, x0 - 1, y0 - 1, w + 2, h + 2, 9, Draw.WINDOW_EDGE, Draw.WINDOW);
 		// header
 		boolean backHot = Draw.in(mx, my, x0 + 8, y0 + 8, 46, 16);
@@ -124,9 +121,9 @@ public class ModuleScreen extends Screen {
 	}
 
 	@Override
-	public boolean mouseClicked(MouseButtonEvent e, boolean doubleClick) {
-		double mx = e.x() / sc, my = e.y() / sc;
-		if (e.button() != 0) return super.mouseClicked(e, doubleClick);
+	protected boolean click(double ex, double ey, int button) {
+		double mx = ex / sc, my = ey / sc;
+		if (button != 0) return false;
 		if (Draw.in(mx, my, x0 + 8, y0 + 8, 46, 16)) {
 			onClose();
 			return true;
@@ -173,30 +170,30 @@ public class ModuleScreen extends Screen {
 				return true;
 			}
 		}
-		return super.mouseClicked(e, doubleClick);
+		return false;
 	}
 
 	@Override
-	public boolean mouseDragged(MouseButtonEvent e, double dx, double dy) {
+	protected boolean drag(double ex, double ey, int button, double dx, double dy) {
 		if (dragging != null) {
-			dragging.set(dragging.min + (dragging.max - dragging.min) * Math.max(0, Math.min(1, (e.x() / sc - ctrlX()) / 100.0)));
+			dragging.set(dragging.min + (dragging.max - dragging.min) * Math.max(0, Math.min(1, (ex / sc - ctrlX()) / 100.0)));
 			return true;
 		}
-		return super.mouseDragged(e, dx, dy);
+		return false;
 	}
 
 	@Override
-	public boolean mouseReleased(MouseButtonEvent e) {
+	protected boolean release(double ex, double ey, int button) {
 		if (dragging != null) {
 			dragging = null;
 			Panel.save();
 			return true;
 		}
-		return super.mouseReleased(e);
+		return false;
 	}
 
 	@Override
-	public boolean keyPressed(KeyEvent e) {
-		return super.keyPressed(e);
+	protected boolean key(int key, int scancode, int mods) {
+		return false;
 	}
 }

@@ -22,7 +22,7 @@ loom {
 	}
 }
 
-// The few calls that differ between 26.x versions live in compat/<family>/ (A: 26.2 and 26.3, C: 26.1);
+// The few calls that differ between 26.x versions live in compat/<family>/ (A: 26.2, B: 26.3, C: 26.1);
 // -Pcompat=C picks one.
 def compatFamily = project.findProperty("compat") ?: "A"
 sourceSets {
