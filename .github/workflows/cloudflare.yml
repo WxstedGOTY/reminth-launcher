@@ -5,6 +5,7 @@
 #   CLOUDFLARE_API_TOKEN  - a Cloudflare API token with "Cloudflare Pages: Edit" (should be a SECRET)
 #   CLOUDFLARE_ACCOUNT_ID - the Cloudflare account id (a secret or a variable)
 # Each is read as a secret first, then as a variable. The log says which exist, never their values.
+# The token must have no IP filter (GitHub uploads from changing addresses - Cloudflare error 9109 otherwise).
 name: Website to Cloudflare
 
 on:
