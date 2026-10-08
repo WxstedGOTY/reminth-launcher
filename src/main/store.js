@@ -187,7 +187,11 @@ const DEFAULT_SETTINGS = {
   processPriority: "above-normal",
   launchMinimized: true, // most launchers get out of the way once the game starts
   hardwareAcceleration: true, // only takes effect on next app start - see main.js
-  accent: "cyan", // UI accent colour (renderer only)
+  accent: "ember", // UI accent colour (renderer only). "ember" = the Reminth brand orange of the app icon.
+  // false until the player picks an accent themselves. Settings saved before the brand colour existed hold the old
+  // default, "cyan"; while this is false, "cyan" is read as "ember" (see settingsFrom), so everyone gets the brand
+  // colour once and a later deliberate pick of cyan sticks.
+  accentChosen: false,
   // Game window. null width/height = let Minecraft use its own last-used size.
   gameWidth: null,
   gameHeight: null,
@@ -309,7 +313,7 @@ function sanitizeSettings(partial, { strict = false, counters = false } = {}) {
     if (value !== undefined) clean[key] = value;
   }
 
-  for (const key of ["launchMinimized", "hardwareAcceleration", "fullscreen", "streamerMode"]) {
+  for (const key of ["launchMinimized", "hardwareAcceleration", "fullscreen", "streamerMode", "accentChosen"]) {
     if (typeof partial[key] === "boolean") clean[key] = partial[key];
   }
 
@@ -395,6 +399,8 @@ async function readSettingsFile() {
 function settingsFrom(parsed) {
   if (!parsed) return { ...DEFAULT_SETTINGS };
   const clean = sanitizeSettings(parsed, { counters: true });
+  // Old files carry the old default accent: show the brand orange until the player picks one themselves.
+  if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan")) clean.accent = DEFAULT_SETTINGS.accent;
   return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed.streamer) };
 }
 

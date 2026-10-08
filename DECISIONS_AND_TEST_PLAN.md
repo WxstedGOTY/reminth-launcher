@@ -447,6 +447,46 @@ in Survival); one mod per job; no cheats (macros, auto-totem); then test it myse
 
 ---
 
+## 000000000000000. New app icon and brand colour (8 Oct 2026) - cloud window
+
+**State:** this commit on branch `claude/stoic-lovelace-y9p76z` (on top of `main` `93925bd`); `npm test` **667 pass** (Linux).
+Not built, not in any installer. **Desktop window: `git fetch origin claude/stoic-lovelace-y9p76z`, merge into `main`, build, and do the
+tests below.** Version number untouched.
+
+**Delivered files:** only `reminth.ico`, `reminth.icns` and the master SVG arrived (no `assets/icons/` folder, no `linux/hicolor`,
+no transparent mark, no 1024 master file; the 1024 PNG is the picture the owner pasted, saved losslessly). Used exactly as given, nothing resampled.
+
+**What changed**
+- `assets/icons/` (new): `reminth.ico`, `reminth.icns`, `source/reminth-icon-master.svg`, `source/reminth-icon-master-1024.png`, README.
+  Old `assets/icon.ico` and `assets/icon.png` removed (nothing references them any more).
+- Windows window/taskbar icon: `main.js` uses `reminth.ico` (was a PNG). `app.setAppUserModelId("com.reminth.launcher")` added (same id
+  electron-builder puts on the installed shortcuts) so a dev run groups and shows our icon too.
+- Installer: `package.json` `build.win.icon` -> the new .ico; `build.nsis.installerIcon`, `uninstallerIcon`, `installerHeaderIcon` set. The
+  one-click installer has no sidebar picture, so there is nothing to add there. `.icns` and the 1024 PNG are excluded from the package.
+- In-app logo (loading screen, left rail, sign-in card, ReminthHUD card in the mod list): the SVG (sharp at any size).
+- Website: `site/favicon.png` (128), `logo.png` (64), new `apple-touch-icon.png` (180) and `favicon.svg`, all rendered from the SVG; the three
+  data-URI pictures in `site/index.html` replaced; `privacy.html` / `terms.html` link them. **The site needs re-uploading to Cloudflare.**
+- Brand colour (`styles.css`): `--brand-*` palette from the SVG at the top of `:root`; default accent is now the crack orange `#ff4a1c`
+  (new "Ember" swatch first in Settings; Cyan stays a choice via `[data-accent="cyan"]`). Hero/selection glows that were hard-coded cyan follow the
+  accent; the background glows use the brand colours. **Errors are a cool pink-red** (`--rose` #fb7185 -> #ff5c8a, and the orange "error" log chip is
+  now rose), clearly apart from the orange. Loader/release tags keep their own colours.
+- `store.js`: default accent "ember"; new setting `accentChosen`. Settings saved before this (accent "cyan" = the old default) show Ember once; a pick
+  made in Settings afterwards (even cyan) sticks. Test in `test/fixes-content.test.js`.
+
+**Seen in headless Chromium only** (loading screen + main window with the real CSS): logo and orange accent render. **Not seen** in Electron or Windows.
+
+**Test (desktop window):**
+1. `npm run dist`, install: the .exe in Explorer, the Desktop and Start Menu shortcuts, the taskbar button and the window all show the new cube. PASS/FAIL.
+   (Windows may keep the old picture: delete `%LOCALAPPDATA%\IconCache.db`, restart Explorer; or unpin and pin again.)
+2. `npm start` (dev run): the taskbar shows the Reminth cube, not Electron's atom. PASS/FAIL.
+3. The installer window and the uninstaller entry (Settings > Apps) show the new icon. PASS/FAIL.
+4. Start Reminth: loading screen, left rail and sign-in card show the new logo; buttons/tabs/progress bars are orange; Settings > accent: Ember is
+   selected, picking Cyan then restarting keeps Cyan. PASS/FAIL.
+5. Make an error happen (a failed install, delete menu item): it is pink-red, never orange. PASS/FAIL.
+6. Owner: is the orange everywhere too strong? Tell me which screens to tone down (it is one variable, `--accent`).
+
+---
+
 ## 00000000000000. Playstyle card pictures (6 Oct 2026, night) - cloud window
 
 **State:** this commit (on branch `claude/stoic-lovelace-y9p76z`, on top of `main` `1bf6e81`); `npm test` **650 pass** (Linux).

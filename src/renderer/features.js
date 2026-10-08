@@ -647,7 +647,7 @@ function managedModCard(mod) {
   if (mod.name === "ReminthHUD") {
     mark.textContent = "";
     const img = el("img", "mcard-ico");
-    img.src = "../../assets/icon.png";
+    img.src = "../../assets/icons/source/reminth-icon-master.svg";
     img.alt = "";
     head.appendChild(img);
   } else head.appendChild(mark);

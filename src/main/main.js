@@ -160,7 +160,9 @@ function createWindow() {
     show: false, // shown maximized on ready-to-show, so it never flashes windowed first
     backgroundColor: "#07090f",
     frame: false, // custom title bar drawn in renderer, matches the brand's borderless look
-    icon: path.join(__dirname, "..", "..", "assets", "icon.png"), // taskbar/alt-tab icon
+    // Taskbar / alt-tab icon: the .ico carries the hand-tuned 16/24/32 px pictures, so Windows picks the right size
+    // itself (a single big PNG would be scaled down by Windows and look soft).
+    icon: path.join(__dirname, "..", "..", "assets", "icons", "reminth.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -226,6 +228,11 @@ function createWindow() {
     send("window:maximized", win.isMaximized());
   });
 }
+
+// Windows groups taskbar buttons and picks the taskbar icon by this id. The installer's shortcuts carry the same
+// id (electron-builder uses appId), so setting it here makes a dev run (npm start) show the Reminth icon too,
+// not Electron's. Must be set before the first window.
+if (process.platform === "win32") app.setAppUserModelId("com.reminth.launcher");
 
 app.whenReady().then(async () => {
   // The copy that lost the lock is already quitting - no window, no hotkeys,

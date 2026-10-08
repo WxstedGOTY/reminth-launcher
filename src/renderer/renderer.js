@@ -3156,10 +3156,11 @@ $("saveJvmArgs").onclick = () => saveSetting({ extraJvmArgs: $("extraJvmArgs").v
 
 document.querySelectorAll(".accent").forEach((btn) => {
   btn.onclick = async () => {
-    const previous = document.documentElement.dataset.accent || "cyan";
+    const previous = document.documentElement.dataset.accent || "ember";
     const accent = btn.dataset.accent;
     applyAccent(accent);
-    if (!(await saveSetting({ accent }))) applyAccent(previous);
+    // accentChosen: from now on this is the player's own pick, so the one-time move to the brand orange (store.js) leaves it alone.
+    if (!(await saveSetting({ accent, accentChosen: true }))) applyAccent(previous);
   };
 });
 function applyAccent(accent) {
@@ -3206,7 +3207,7 @@ async function boot() {
     state.settings = await window.reminth.getSettings();
     const s = state.settings;
     state.activeId = s.activeInstance || "reminth";
-    applyAccent(s.accent || "cyan");
+    applyAccent(s.accent || "ember");
     setSwitch("toggleLaunchMinimized", s.launchMinimized);
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
     paintHwNote();

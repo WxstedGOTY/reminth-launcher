@@ -28,11 +28,13 @@
     "files": [
       "src/**/*",
       "assets/**/*",
+      "!assets/icons/reminth.icns",
+      "!assets/icons/source/reminth-icon-master-1024.png",
       "package.json"
     ],
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icons/reminth.ico"
     },
     "artifactName": "Reminth-Setup.exe",
     "protocols": [
@@ -56,6 +58,9 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Reminth",
+      "installerIcon": "assets/icons/reminth.ico",
+      "uninstallerIcon": "assets/icons/reminth.ico",
+      "installerHeaderIcon": "assets/icons/reminth.ico",
       "runAfterFinish": true
     }
   }
