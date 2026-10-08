@@ -2861,6 +2861,7 @@ paintFocus();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
+  "A new look: the new Reminth icon and the orange brand colour across the launcher.",
   "The Reminth Mods Panel: press G in game for about 145 of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more - with profiles and a HUD layout editor. On every version from 1.20.1 to 26.3.",
   "A new title screen: Discover opens the panel, and tips show on the title and loading screens.",
   "A Minecraft-style pixel pointer at your Windows pointer's size - and in full screen Reminth draws it itself, so it never vanishes.",
