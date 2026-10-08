@@ -1,9 +1,9 @@
 # ReminthHUD
 
-The small in-game overlay Reminth puts into Fabric instances (Minecraft 26.2 and 26.3).
+The small in-game overlay Reminth puts into Fabric instances (Minecraft 26.1, 26.2, 26.3; ../hud-1.21 builds the same for 1.20.1 - 1.21.11).
 Client-side only, CC0.
 
-## The Reminth panel (since 1.4.0, Minecraft 26.2)
+## The Reminth panel (since 1.4.0, every version: code in panel/, shared with ../hud-1.21)
 
 ReminthHUD carries the **Reminth panel**: Reminth's own client features in a Lunar-style window. Reminth puts
 ReminthHUD into every Fabric/Quilt instance (it is part of the launcher, hidden in Mod Menu as a library).

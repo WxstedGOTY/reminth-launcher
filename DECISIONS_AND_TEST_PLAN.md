@@ -4,12 +4,61 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 0000000000000000000000 (owner's batch-3 results; cursor at the Windows size; combo and hearts fixes). Before it 000000000000000000000 (panel batch 3).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000 (the panel on every version: 1.20.1 to 26.3). Before it 0000000000000000000000 (cursor size, combo, hearts, potion icons, crystal answer).
 - **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 8 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (8 Oct, 01:41, panel batch 3) - **installed** on this PC and
   Reminth reopened, **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000. The Reminth panel on every version (8 Oct 2026, evening) - desktop window
+
+**ReminthHUD 1.4.0 (with the panel, G) now for every version Reminth supports:** 1.20.1, 1.21-1.21.1, 1.21.4, 1.21.5,
+1.21.6-1.21.8, 1.21.9-1.21.10, 1.21.11, 26.1, 26.2, 26.3 (all 1.3.1 jars gone from `assets/mods`).
+
+**How it is built (for the next session):**
+- The panel's code and icons live ONCE in `hud/panel/java` and `hud/panel/resources` (moved there from `hud/src`);
+  both `hud` (26.x) and `hud-1.21` (1.20/1.21, remapping Loom) build from them.
+- Everything that differs between versions goes through four per-version classes in `compat/<family>/.../panel/`:
+  `Gfx` (drawing: text, fills, icons, scissor, tooltips), `BaseScreen` (screen drawing + mouse/keys -> plain
+  `draw/click/drag/release/scroll/key/typed`), `V` (open screen, keys, HUD hook, F3, day time, chat line, ids, clock,
+  food values, ping packet, effect rows, tooltips, Controls screen) and `Settings` (the game-setting cards).
+  Families: `hud` A=26.2, B=26.3, C=26.1; `hud-1.21` E=1.20.1, A=1.21-1.21.1, **F=1.21.4-1.21.5 (new)**, B=1.21.6-1.21.8,
+  C=1.21.9-1.21.10, D=1.21.11.
+- `hud-1.21/tools/gen-compat.py` writes Gfx/BaseScreen/V for the 1.20/1.21 families, `hud-1.21/tools/gen-mixins.py`
+  their hooks (zoom FOV, zoom scroll, low fire, ping answer, attack, chat timestamps, effect icons), and
+  `hud/tools/gensettings.py` writes every family's `Settings.java` from `hud/panel/settings.txt` - a card is kept only
+  where that version's own `Options` has the setting with the right type (checked with javap): 69 cards on 26.2/26.1/
+  1.21.11, 68 on 26.3 (no Raw Mouse Input), 64 on 1.21.10, 63 on 1.21.8, 61 on 1.21.4/1.21.5, 57 on 1.21.1, 54 on 1.20.1.
+  So the panel shows 146 features on 26.2, 145 on 26.3, 134 on 1.21.1, 131 on 1.20.1.
+- On 1.20/1.21 the game is renamed at runtime: no reflection by name there (Loom rewrites the hooks' targets at build
+  time - checked in the jar).
+- `hud-1.21/build-all.ps1` builds all seven 1.20/1.21 jars (use it: passing `>=`/`<=` ranges through `Start-Process`
+  makes cmd treat them as file redirection).
+
+**Bugs found and fixed on the way:** on 26.3 Backspace/Enter/Esc in the panel's search and rename boxes did nothing (26.3's
+key numbers are different - now the game's own constants, per build); 1.20.1/1.21.1 cut off part of the card list (their
+clip box ignores the panel's scaling - applied by hand); the rename box is now drawn by the panel itself (same on every
+version); the 1.21.10 outline call has another name (outlines are four lines now).
+
+**Tested in the game (screenshots):** the panel open on 1.20.1, 1.21.1, 1.21.11, 26.1, 26.2, 26.3; HUD displays in a
+world on 1.21.1, 1.21.11, 26.2, 26.3; potion level/time on the effect icons and chat timestamps on 1.21.1 and 26.2;
+G opens the panel on 26.2. **Not tested:** 1.21.4, 1.21.5, 1.21.6-1.21.8, 1.21.9-1.21.10 in the game (built only);
+zoom/low fire/ping/hit marker on the 1.20/1.21 versions; worlds on 1.20.1 and 26.1.
+
+**Test tool notes:** test games are now pushed behind every window without being activated (`offwin.ps1`, harness option
+`offscreen`), so they never cover the owner's game and still draw (a minimized or off-screen window gives old frames);
+`-Dreminthhud.testOpenPanel=<seconds of game uptime>` opens the panel by itself (26.3's SDL window ignores posted keys).
+
+**Not installed yet:** the owner is playing (MCPVP) through Reminth; installing closes Reminth. Installer gets built;
+install it when he's done.
+
+### PASS/FAIL for the owner
+1. Any 1.21.x Fabric instance (e.g. 1.21.11): press G - the panel opens; it looks like on 26.2. PASS/FAIL
+2. In that instance: switch on Coordinates and FPS; they show; press F7 - hidden; F7 again - back. PASS/FAIL
+3. Hold C (Zoom) in that instance - the view zooms; scroll while holding - more zoom. PASS/FAIL
 
 ---
 
@@ -51,8 +100,7 @@ Side Crystals and both anchor optimizers turned off (`.jar.disabled`) - the ban 
 for "Impossible Actions" with them on 6 Oct). Those mods are what made crystals break instantly on his screen; without
 them every crystal waits for the server, which is the normal speed. Nothing in Reminth's panel slows crystals.
 
-**Next:** port the panel to the 1.21/1.20 versions (`hud-1.21`, older game code: different drawing, input and HUD
-calls - more work than 26.x), test each.
+**Next:** done - see section 00000000000000000000000 (the panel on every version).
 
 ---
 
