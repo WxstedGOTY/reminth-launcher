@@ -43,17 +43,18 @@ key numbers are different - now the game's own constants, per build); 1.20.1/1.2
 clip box ignores the panel's scaling - applied by hand); the rename box is now drawn by the panel itself (same on every
 version); the 1.21.10 outline call has another name (outlines are four lines now).
 
-**Tested in the game (screenshots):** the panel open on 1.20.1, 1.21.1, 1.21.11, 26.1, 26.2, 26.3; HUD displays in a
+**Tested in the game (screenshots):** the panel open on 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1, 26.2,
+26.3 (every jar); HUD displays in a
 world on 1.21.1, 1.21.11, 26.2, 26.3; potion level/time on the effect icons and chat timestamps on 1.21.1 and 26.2;
-G opens the panel on 26.2. **Not tested:** 1.21.4, 1.21.5, 1.21.6-1.21.8, 1.21.9-1.21.10 in the game (built only);
-zoom/low fire/ping/hit marker on the 1.20/1.21 versions; worlds on 1.20.1 and 26.1.
+G opens the panel on 26.2. **Not tested:** in a world on 1.20.1, 1.21.4-1.21.10 and 26.1 (panel only); zoom/low fire/ping/hit marker
+on the 1.20/1.21 versions.
 
 **Test tool notes:** test games are now pushed behind every window without being activated (`offwin.ps1`, harness option
 `offscreen`), so they never cover the owner's game and still draw (a minimized or off-screen window gives old frames);
 `-Dreminthhud.testOpenPanel=<seconds of game uptime>` opens the panel by itself (26.3's SDL window ignores posted keys).
 
 **Not installed yet:** the owner is playing (MCPVP) through Reminth; installing closes Reminth. Installer gets built;
-install it when he's done.
+install it when he's done (built 8 Oct 17:13, `release-1.4.8\`).
 
 ### PASS/FAIL for the owner
 1. Any 1.21.x Fabric instance (e.g. 1.21.11): press G - the panel opens; it looks like on 26.2. PASS/FAIL
