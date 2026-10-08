@@ -1,0 +1,35 @@
+# Uploads site/ to the Cloudflare Pages project "reminth" (https://reminth.pages.dev) whenever it changes on main.
+# That project is a Direct Upload project (Cloudflare can't connect those to Git later), so GitHub uploads it with
+# Wrangler, Cloudflare's own tool - the same as dragging the site folder into the dashboard.
+# Needs two repository secrets (Settings -> Secrets and variables -> Actions), added by the owner:
+#   CLOUDFLARE_API_TOKEN  - a Cloudflare API token with "Cloudflare Pages: Edit"
+#   CLOUDFLARE_ACCOUNT_ID - the Cloudflare account id
+# Without them the job does nothing (it says so in its log).
+name: Website to Cloudflare
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Secrets missing
+        if: env.HAS_TOKEN != 'true'
+        run: echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set - nothing uploaded."
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - name: Upload site/ to Cloudflare Pages
+        if: env.HAS_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=reminth --branch=main --commit-dirty=true

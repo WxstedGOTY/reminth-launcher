@@ -77,7 +77,7 @@ Sign-in uses the Azure app registration in `src/main/config.js`
   release. Installed launchers update themselves from the latest release,
   and the website's download button points at
   `releases/latest/download/Reminth-Setup.exe`.
-- **Website**: the `site/` folder, uploaded by hand to Cloudflare Pages
+- **Website**: the `site/` folder, uploaded to Cloudflare Pages by GitHub (`.github/workflows/cloudflare.yml`, needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets)
   (https://reminth.pages.dev). It is static and must not load anything from
   a third party. `site/privacy.html` and `site/terms.html` are the legal
   texts; the in-app summaries (Settings) must say the same thing. When the
