@@ -4,6 +4,9 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **NEXT (owner, 9 Oct 2026): marketing.** 1.6.1 is published; the website is live at https://reminth.pages.dev (auto-deployed to
+  Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
+  changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
 - **`main` is at:** this file's commit. **`npm test`: 667 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
 - **Version:** `package.json` says **1.6.1**. **1.6.0 is published** (GitHub release tag `1.6.0`, 8 Oct). 1.6.1 installer in
