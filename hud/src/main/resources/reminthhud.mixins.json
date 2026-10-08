@@ -8,7 +8,8 @@
 		"FireOverlayMixin",
 		"PongMixin",
 		"AttackMixin",
-		"ChatTimestampMixin"
+		"ChatTimestampMixin",
+		"EffectIconMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

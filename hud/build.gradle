@@ -22,6 +22,15 @@ loom {
 	}
 }
 
+// The few calls that differ between 26.x versions live in compat/<family>/ (A: 26.2 and 26.3, C: 26.1);
+// -Pcompat=C picks one.
+def compatFamily = project.findProperty("compat") ?: "A"
+sourceSets {
+	client {
+		java.srcDir "compat/${compatFamily}/client/java"
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"

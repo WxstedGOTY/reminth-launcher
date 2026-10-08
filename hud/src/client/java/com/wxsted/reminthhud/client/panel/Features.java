@@ -9,7 +9,6 @@ import java.util.Locale;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.Hud;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -334,13 +333,19 @@ public final class Features {
 		}
 	}
 
-	static final class PotionEffects extends Module {
-		private final Opt.Bool icons = opt(new Opt.Bool("icons", "Icons", true));
-		private final Opt.Bool blink = opt(new Opt.Bool("blink", "Blink when ending", true));
-		private final Opt.Bool hideVanilla = opt(new Opt.Bool("names", "Show effect names", true));
+	/**
+	 * Potion Effects: the level (II, IV...) and the time left drawn ON the game's own effect icons in the top-right corner
+	 * (owner, 8 Oct: no second list). Drawn right after the game draws its icons (mixin/EffectIconMixin), at the same
+	 * places the game uses: 25 px apart from the right edge, good effects on the top row, bad ones 26 px lower.
+	 */
+	public static final class PotionEffects extends Module {
+		private final Opt.Bool level = opt(new Opt.Bool("level", "Level (II, IV...)", true));
+		private final Opt.Bool levelOne = opt(new Opt.Bool("levelOne", "Show level I too", false));
+		private final Opt.Bool time = opt(new Opt.Bool("time", "Time left", true));
+		private final Opt.Bool blink = opt(new Opt.Bool("blink", "Red when ending", true));
 
 		PotionEffects() {
-			super("effects", "Potion Effects", Cat.HUD, "potion", "Each effect with its exact level (II, IV...) and the time left.", false, true, Anchor.RIGHT, -110, -20);
+			super("effects", "Potion Effects", Cat.HUD, "potion", "The exact level and the time left, right on the game's own effect icons.", false, true, null, 0, 0);
 		}
 
 		private static String roman(int n) {
@@ -348,40 +353,46 @@ public final class Features {
 			return n >= 1 && n <= 10 ? r[n] : Integer.toString(n);
 		}
 
-		@Override
-		public void render(GuiGraphicsExtractor g, Minecraft mc, boolean preview) {
-			List<MobEffectInstance> list = new ArrayList<>();
-			if (mc.player != null) list.addAll(mc.player.getActiveEffects());
-			if (list.isEmpty() && preview) {
-				list.add(new MobEffectInstance(net.minecraft.world.effect.MobEffects.STRENGTH, 20 * 95, 1));
-				list.add(new MobEffectInstance(net.minecraft.world.effect.MobEffects.SPEED, 20 * 8, 2));
-				list.add(new MobEffectInstance(net.minecraft.world.effect.MobEffects.FIRE_RESISTANCE, 20 * 300, 0));
-			}
-			if (list.isEmpty()) return;
-			int y = 0, w = 0;
-			for (MobEffectInstance e : list) {
-				int x = 0;
-				if (icons.value) {
-					g.blitSprite(RenderPipelines.GUI_TEXTURED, Hud.getMobEffectSprite(e.getEffect()), 0, y, 18, 18);
-					x = 21;
+		/** Called after the game drew its effect icons. */
+		public void drawOnIcons(GuiGraphicsExtractor g, Minecraft mc) {
+			if (!enabled || mc.player == null || Panel.hudHidden) return;
+			if (V.screen(mc) != null && V.screen(mc).showsActiveEffects()) return; // the game draws none then either
+			var effects = mc.player.getActiveEffects();
+			if (effects.isEmpty()) return;
+			// text in whole screen pixels: about 0.6 of the normal size, rounded to the GUI scale
+			double gs = Math.max(1, mc.getWindow().getGuiScale());
+			float sc = (float) (Math.max(1, Math.round(0.6 * gs)) / gs);
+			var font = Draw.font();
+			int good = 0, bad = 0;
+			for (MobEffectInstance e : com.google.common.collect.Ordering.natural().reverse().sortedCopy(effects)) {
+				if (!e.showIcon()) continue;
+				int x = g.guiWidth(), y = 1;
+				if (mc.isDemo()) y += 15;
+				if (e.getEffect().value().isBeneficial()) {
+					good++;
+					x -= 25 * good;
+				} else {
+					bad++;
+					x -= 25 * bad;
+					y += 26;
 				}
-				String lvl = roman(e.getAmplifier() + 1);
-				String name = hideVanilla.value ? e.getEffect().value().getDisplayName().getString() + " " + lvl : lvl;
-				String time;
-				if (e.isInfiniteDuration()) time = "**:**";
-				else {
-					int s = e.getDuration() / 20;
-					time = String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60);
+				int amp = e.getAmplifier() + 1;
+				if (level.value && (amp > 1 || levelOne.value)) {
+					String l = roman(amp);
+					Draw.text(g, l, x + 23 - font.width(l) * sc, y + 1, sc, 0xFFFFFFFF, true);
 				}
-				boolean ending = !e.isInfiniteDuration() && e.getDuration() < 200;
-				boolean hidden = blink.value && ending && (System.currentTimeMillis() / 300) % 2 == 0;
-				g.text(Draw.font(), name, x, y + 1, 0xFFFFFFFF, true);
-				if (!hidden) g.text(Draw.font(), time, x, y + 10, ending ? 0xFFFF5555 : 0xFFB4B4B8, true);
-				w = Math.max(w, x + Math.max(Draw.font().width(name), Draw.font().width(time)));
-				y += 21;
+				if (time.value) {
+					String t;
+					if (e.isInfiniteDuration()) t = "\u221E";
+					else {
+						int sec = e.getDuration() / 20;
+						t = sec >= 6000 ? (sec / 3600) + "h" : String.format(Locale.ROOT, "%d:%02d", sec / 60, sec % 60);
+					}
+					boolean ending = !e.isInfiniteDuration() && e.getDuration() < 200;
+					int c = ending && blink.value ? 0xFFFF5555 : 0xFFFFFFFF;
+					Draw.text(g, t, x + 12 - font.width(t) * sc / 2f, y + 23 - 8 * sc, sc, c, true);
+				}
 			}
-			lastW = w;
-			lastH = y - 3;
 		}
 	}
 
@@ -401,7 +412,7 @@ public final class Features {
 		}
 
 		public boolean zooming(Minecraft mc) {
-			return enabled && mc.gui.screen() == null && Panel.zoomKey() != null && Panel.zoomKey().isDown();
+			return enabled && V.screen(mc) == null && Panel.zoomKey() != null && Panel.zoomKey().isDown();
 		}
 
 		public double factor() {

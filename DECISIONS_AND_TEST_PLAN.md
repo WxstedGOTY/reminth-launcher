@@ -32,7 +32,27 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   hearts, like `Gui`): no more "-0.0", nothing shown when your hearts didn't go down; quick drops add up; shown as
   "-1.5 ❤". Seen in the game (layout editor samples).
 
-**Next:** port the panel (ReminthHUD 1.4.0 with batches 1-3) to 26.3, 26.1 and the 1.21/1.20 versions, test each.
+**Potion Effects now draws on the game's own effect icons** (owner: "replace the old potion system"): the level
+(II, IV... - level I only with an option) top-right on the icon and the time left at its bottom (m:ss up to 99:59, then
+hours; red in the last 10 s), no separate list any more. `Features.PotionEffects.drawOnIcons` +
+`mixin/EffectIconMixin` (after `extractEffects`, on `Hud` in 26.2+ and `Gui` in 26.1), same places the game uses.
+Tested on 26.2 with real effects (Speed III infinite, Strength II, Fire Resistance; screenshots).
+
+**Panel on all 26.x (ReminthHUD 1.4.0+26.1, +26.2, +26.3 in `assets/mods`, the 1.3.1 26.1/26.3 jars removed):**
+`hud/compat/<family>/.../panel/V.java` holds the few calls that differ (A: 26.2 and 26.3 - `mc.gui.screen()`,
+`Hud.getMobEffectSprite`; C: 26.1 - `mc.screen`, `Gui.getMobEffectSprite`); `-Pcompat=C` for the 26.1 build.
+26.3 has no Raw Mouse Input setting (SDL3): that card only exists where the game has it (145 features on 26.3, 146
+elsewhere). **Tested in the game:** 26.3 world with HUD displays + the panel open; 26.1 panel open on the title screen
+(world not tested on 26.1). My test tool can't press keys or click on 26.3 (SDL ignores posted window messages) and
+couldn't click on 26.1 this time, so the panel was opened by a test-only switch: `-Dreminthhud.testOpenPanel=<ticks>`.
+
+**Owner's crystal question (answered in chat):** his PvP instance has Marlow's and Kinds' Crystal Optimizer, Client
+Side Crystals and both anchor optimizers turned off (`.jar.disabled`) - the ban warnings for MCPVP (which banned him
+for "Impossible Actions" with them on 6 Oct). Those mods are what made crystals break instantly on his screen; without
+them every crystal waits for the server, which is the normal speed. Nothing in Reminth's panel slows crystals.
+
+**Next:** port the panel to the 1.21/1.20 versions (`hud-1.21`, older game code: different drawing, input and HUD
+calls - more work than 26.x), test each.
 
 ---
 

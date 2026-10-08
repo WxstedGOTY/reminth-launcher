@@ -310,7 +310,7 @@ public final class Features2 {
 		@Override
 		public void tick(Minecraft mc) {
 			KeyMapping k = Panel.snapKey();
-			boolean down = k != null && k.isDown() && mc.gui.screen() == null;
+			boolean down = k != null && k.isDown() && V.screen(mc) == null;
 			if (down && !held) {
 				before = mc.options.getCameraType();
 				mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -383,7 +383,8 @@ public final class Features2 {
 		l.add(OptionFeature.bool("chatbgonly", "Background Only for Chat", C, "textbg", "The dark text box only behind chat.", o -> o.backgroundForChatOnly(), true));
 		// Mechanic
 		l.add(OptionFeature.bool("noautojump", "No Auto-Jump", M, "jump", "You don't jump up blocks by yourself.", o -> o.autoJump(), false));
-		l.add(OptionFeature.bool("rawinput", "Raw Mouse Input", M, "mouse", "Your mouse exactly as Windows reads it, no acceleration.", o -> o.rawMouseInput(), true));
+		// 26.3 (SDL3) has no Raw Mouse Input setting: the card only exists where the game has it
+		if (has("rawMouseInput")) l.add(OptionFeature.bool("rawinput", "Raw Mouse Input", M, "mouse", "Your mouse exactly as Windows reads it, no acceleration.", o -> option(o, "rawMouseInput"), true));
 		l.add(OptionFeature.bool("inverty", "Invert Mouse", M, "invert", "Moving the mouse up looks down.", o -> o.invertMouseY(), true));
 		l.add(OptionFeature.percent("sensitivity", "Mouse Sensitivity", M, "sensitivity", "How fast the camera turns (100% is the game's middle).", o -> o.sensitivity(), "Sensitivity", 0, 100, 1, 50));
 		l.add(OptionFeature.number("scrollsens", "Scroll Sensitivity", M, "wheel", "How far one scroll moves.", o -> o.mouseWheelSensitivity(), "Speed", 1, 10, 0.5, 1, "x"));
@@ -407,5 +408,25 @@ public final class Features2 {
 		l.add(OptionFeature.bool("darkloading", "Dark Loading Screen", U, "loading", "A black loading screen instead of red.", o -> o.darkMojangStudiosBackground(), true));
 		l.add(OptionFeature.bool("notelemetry", "Less Telemetry", U, "antenna", "Don't send optional usage data to Mojang.", o -> o.telemetryOptInExtra(), false));
 		return l;
+	}
+
+	/** Whether this Minecraft has the game setting `name` (Options.name()). */
+	static boolean has(String name) {
+		try {
+			net.minecraft.client.Options.class.getMethod(name);
+			return true;
+		} catch (NoSuchMethodException e) {
+			return false;
+		}
+	}
+
+	/** The game setting `name`, found by name (it doesn't exist in every Minecraft version). */
+	@SuppressWarnings("unchecked")
+	static <T> net.minecraft.client.OptionInstance<T> option(net.minecraft.client.Options o, String name) {
+		try {
+			return (net.minecraft.client.OptionInstance<T>) net.minecraft.client.Options.class.getMethod(name).invoke(o);
+		} catch (ReflectiveOperationException e) {
+			throw new IllegalStateException(e);
+		}
 	}
 }

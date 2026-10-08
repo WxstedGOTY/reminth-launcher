@@ -50,6 +50,7 @@ public final class Panel {
 	private static KeyMapping zoomKey;
 	private static KeyMapping snapKey;
 	private static KeyMapping hideKey;
+	private static int testOpenIn = Integer.getInteger("reminthhud.testOpenPanel", 0);
 	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
 	public static boolean hudHidden;
 
@@ -111,8 +112,10 @@ public final class Panel {
 				ready = true;
 				for (Module m : MODULES) if (m.enabled) m.onEnable(mc);
 			}
+			// for Reminth's own game tests only (-Dreminthhud.testOpenPanel=40): opens the panel that many ticks after start
+			if (testOpenIn > 0 && --testOpenIn == 0) open(V.screen(mc));
 			while (openKey.consumeClick()) {
-				if (mc.gui.screen() == null) open(null);
+				if (V.screen(mc) == null) open(null);
 			}
 			Features2.tick(mc);
 			Features3.tick(mc);
@@ -125,7 +128,7 @@ public final class Panel {
 	/** Opens the panel; `parent` is where closing it goes back to (null: back to the game). */
 	public static void open(Screen parent) {
 		Minecraft mc = Minecraft.getInstance();
-		mc.gui.setScreen(new PanelScreen(parent));
+		V.setScreen(mc, new PanelScreen(parent));
 	}
 
 	/** For the home screen's Discover button (found by name: the home mod doesn't depend on this one). */
@@ -137,7 +140,7 @@ public final class Panel {
 		Minecraft mc = Minecraft.getInstance();
 		if (mc.player == null) return;
 		if (mc.debugEntries.isOverlayVisible()) return;
-		if (mc.gui.screen() instanceof HudEditorScreen) return; // it draws them itself
+		if (V.screen(mc) instanceof HudEditorScreen) return; // it draws them itself
 		if (hudHidden) return;
 		drawHud(g, mc, false);
 	}

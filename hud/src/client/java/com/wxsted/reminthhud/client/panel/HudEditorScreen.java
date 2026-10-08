@@ -27,7 +27,7 @@ public class HudEditorScreen extends Screen {
 	@Override
 	public void onClose() {
 		Panel.save();
-		minecraft.gui.setScreen(back);
+		V.setScreen(minecraft, back);
 	}
 
 	@Override

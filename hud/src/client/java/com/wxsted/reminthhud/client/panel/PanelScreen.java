@@ -60,7 +60,7 @@ public class PanelScreen extends Screen {
 	@Override
 	public void onClose() {
 		Panel.save();
-		minecraft.gui.setScreen(parent);
+		V.setScreen(minecraft, parent);
 	}
 
 	/* ------------------------------ what is shown ------------------------------ */
@@ -342,7 +342,7 @@ public class PanelScreen extends Screen {
 		for (String p : Panel.profileNames()) {
 			if (ly + 16 > bottom - 18 && !p.equals(Panel.active)) continue;
 			if (Draw.in(mx, my, lx + lw - 21, ly, 14, 16) && (p.equals(Panel.active) || Draw.in(mx, my, lx, ly, lw - 4, 16))) {
-				minecraft.gui.setScreen(new RenameScreen(this, p));
+				V.setScreen(minecraft, new RenameScreen(this, p));
 				return true;
 			}
 			if (Draw.in(mx, my, lx, ly, lw - 4, 16)) {
@@ -356,7 +356,7 @@ public class PanelScreen extends Screen {
 			return true;
 		}
 		if (Draw.in(mx, my, lx, y0 + h - 30, lw - 4, 22)) {
-			minecraft.gui.setScreen(new HudEditorScreen(this));
+			V.setScreen(minecraft, new HudEditorScreen(this));
 			return true;
 		}
 		return false;
@@ -373,7 +373,7 @@ public class PanelScreen extends Screen {
 			int y = myy + (i / cols()) * (CARD_H + GAP) - (int) scroll;
 			int bx = x + 6, bw = cw - 12 - 20;
 			if (Draw.in(mx, my, bx, y + 59, bw + 24, 16)) {
-				minecraft.gui.setScreen(new ModuleScreen(this, m));
+				V.setScreen(minecraft, new ModuleScreen(this, m));
 				return true;
 			}
 			if (Draw.in(mx, my, bx, y + 79, cw - 12, 15)) {
@@ -391,8 +391,8 @@ public class PanelScreen extends Screen {
 			int bw = 64, bx = x + mw - 6 - bw - 6, by = y + 5;
 			if (!Draw.in(mx, my, bx, by, bw, 16)) continue;
 			switch (i) {
-				case 0, 1 -> minecraft.gui.setScreen(new KeyBindsScreen(this, minecraft.options));
-				case 2 -> minecraft.gui.setScreen(new HudEditorScreen(this));
+				case 0, 1 -> V.setScreen(minecraft, new KeyBindsScreen(this, minecraft.options));
+				case 2 -> V.setScreen(minecraft, new HudEditorScreen(this));
 				case 3 -> Panel.resetProfile();
 				default -> {
 				}
@@ -476,7 +476,7 @@ public class PanelScreen extends Screen {
 
 		@Override
 		public void onClose() {
-			minecraft.gui.setScreen(back);
+			V.setScreen(minecraft, back);
 		}
 
 		@Override

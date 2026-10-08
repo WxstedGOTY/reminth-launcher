@@ -41,7 +41,7 @@ public class ModuleScreen extends Screen {
 	@Override
 	public void onClose() {
 		Panel.save();
-		minecraft.gui.setScreen(back);
+		V.setScreen(minecraft, back);
 	}
 
 	private int rowY(int i) {
@@ -142,7 +142,7 @@ public class ModuleScreen extends Screen {
 			return true;
 		}
 		if (m.isHud() && Draw.in(mx, my, x0 + 106, by, 100, 18)) {
-			minecraft.gui.setScreen(new HudEditorScreen(this));
+			V.setScreen(minecraft, new HudEditorScreen(this));
 			return true;
 		}
 		for (int i = 0; i < m.opts.size(); i++) {
