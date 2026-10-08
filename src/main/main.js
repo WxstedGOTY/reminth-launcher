@@ -232,7 +232,8 @@ function createWindow() {
 // Windows groups taskbar buttons and picks the taskbar icon by this id. The installer's shortcuts carry the same
 // id (electron-builder uses appId), so setting it here makes a dev run (npm start) show the Reminth icon too,
 // not Electron's. Must be set before the first window.
-if (process.platform === "win32") app.setAppUserModelId("com.reminth.launcher");
+// (Skipped where it doesn't exist: the tests load this file with a stand-in for Electron's app.)
+if (process.platform === "win32" && typeof app.setAppUserModelId === "function") app.setAppUserModelId("com.reminth.launcher");
 
 app.whenReady().then(async () => {
   // The copy that lost the lock is already quitting - no window, no hotkeys,
