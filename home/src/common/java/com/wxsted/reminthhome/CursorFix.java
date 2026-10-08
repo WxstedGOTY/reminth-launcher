@@ -58,6 +58,8 @@ final class CursorFix {
 				due = true; // also right at the start: the pixel cursor from the first menu on
 			}
 			if (!due || mc.mouseHandler.isMouseGrabbed()) return;
+			// ReminthHUD draws the pointer itself in full screen (its Fullscreen Pointer) and hides Windows' one: keep out
+			if ("1".equals(System.getProperty("reminth.softCursor"))) return;
 			if (Compat.sdl()) {
 				// 26.3+: SDL, not GLFW - show the pointer and put Reminth's cursor back through the game's own switch
 				PixelCursor.showSdl();

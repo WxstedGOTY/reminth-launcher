@@ -45,4 +45,5 @@ module.exports = {
   vol_voice: `${speaker}<rect x="62" y="20" width="18" height="34" rx="9" ${F}/><path ${SW(5)} d="M54 46a17 17 0 0 0 34 0M71 64v12M62 78h18"/>`,
   brightness: `<circle cx="48" cy="48" r="16" ${S}/><path ${S} d="M48 8v10M48 78v10M8 48h10M78 48h10M20 20l7 7M69 69l7 7M20 76l7-7M69 27l7-7"/><path ${F} d="M48 32a16 16 0 0 1 0 32z"/>`,
   guiscale: `<rect x="8" y="16" width="80" height="64" rx="8" ${S}/><path ${SW(5)} d="M28 64l40-32M28 64h14M28 64V50M68 32H54M68 32v14"/>`,
+  cursor: `<path ${F} d="M18 6v72l18-17 12 27 13-6-12-26 25-1z"/><path fill="none" stroke="#111" stroke-width="5" stroke-linejoin="round" d="M24 20v44l12-11 11 24 4-2-11-24 17-1z" opacity=".35"/>`,
 };

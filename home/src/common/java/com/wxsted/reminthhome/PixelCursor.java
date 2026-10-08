@@ -179,6 +179,7 @@ public final class PixelCursor {
 		if (arrow != 0L || failed) return;
 		try {
 			float f = pixelSize();
+			System.setProperty("reminth.cursorPixel", Float.toString(f)); // ReminthHUD's full-screen pointer uses the same size
 			arrow = make(ARROW, 0, 0, f);
 			hand = make(HAND, 4, 0, f);
 			beam = make(BEAM, 3, 7, f);

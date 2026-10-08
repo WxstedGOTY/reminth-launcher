@@ -101,4 +101,14 @@ public final class V {
 	public static net.minecraft.client.gui.screens.Screen controlsScreen(net.minecraft.client.gui.screens.Screen parent, net.minecraft.client.Options options) {
 		return new net.minecraft.client.gui.screens.options.controls.KeyBindsScreen(parent, options);
 	}
+
+	/** The game is in full screen. */
+	public static boolean isFullscreen(Minecraft mc) {
+		return mc.getWindow().isFullscreen();
+	}
+
+	/** Shows or hides the Windows mouse pointer over the game (SoftCursor draws its own in full screen). */
+	public static void osPointer(Minecraft mc, boolean visible) {
+		org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(), org.lwjgl.glfw.GLFW.GLFW_CURSOR, visible ? org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL : org.lwjgl.glfw.GLFW.GLFW_CURSOR_HIDDEN);
+	}
 }

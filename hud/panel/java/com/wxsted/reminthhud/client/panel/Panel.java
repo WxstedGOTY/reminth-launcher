@@ -73,6 +73,8 @@ public final class Panel {
 		snapKey = V.registerKey("key.reminthhud.snaplook", InputConstants.KEY_V, category);
 		hideKey = V.registerKey("key.reminthhud.hidehud", InputConstants.KEY_F7, category);
 		Features3.initTooltips();
+		// Fullscreen Pointer: drawn on top of every menu
+		net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> V.afterDraw(screen, g -> SoftCursor.draw(g, client)));
 		Tips.init();
 		load();
 		ClientTickEvents.END_CLIENT_TICK.register(Panel::tick);

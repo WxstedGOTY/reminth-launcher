@@ -93,6 +93,7 @@ public final class Features3 {
 		}));
 		l.add(new HitMarker());
 		l.add(new HideHud());
+		l.add(new SoftCursor());
 		l.add(new BreakReminder());
 		l.add(new TooltipDurability());
 		l.add(new TooltipFood());

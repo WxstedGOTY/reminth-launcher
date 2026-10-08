@@ -117,4 +117,15 @@ public final class V {
 	public static net.minecraft.client.gui.screens.Screen controlsScreen(net.minecraft.client.gui.screens.Screen parent, net.minecraft.client.Options options) {
 		return new net.minecraft.client.gui.screens.options.controls.KeyBindsScreen(parent, options);
 	}
+
+	/** The game is in full screen. */
+	public static boolean isFullscreen(Minecraft mc) {
+		return mc.options.fullscreen().get(); // 26.3 (SDL3): the window has no public full-screen getter
+	}
+
+	/** Shows or hides the Windows mouse pointer over the game (SoftCursor draws its own in full screen). */
+	public static void osPointer(Minecraft mc, boolean visible) {
+		if (visible) org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+		else org.lwjgl.sdl.SDLMouse.SDL_HideCursor();
+	}
 }
