@@ -8,19 +8,19 @@
  * fallback, so it still reads as the same site.
  */
 :root {
-  --bg: #07080c;
-  --bg-2: #0a0c12;
-  --surface: #0f1219;
+  --bg: #0c0909;
+  --bg-2: #120d0d;
+  --surface: #181213;
   --border: rgba(255, 255, 255, 0.08);
   --border-2: rgba(255, 255, 255, 0.14);
-  --text: #eef4f6;
-  --text-dim: #9aa7ad;
-  /* Lightened from the main site's #67747a, which fails AA on this
+  --text: #fbf3ef;
+  --text-dim: #b9a9a3;
+  /* Lightened from the main site's #86756f, which fails AA on this
      background - the least readable text on a page should not be the
      legal text. */
   --text-mute: #8a969c;
-  --accent: #00f0ff;
-  --accent-2: #8b7bff;
+  --accent: #ff4a1c;
+  --accent-2: #ffb38a;
   --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
   --font-body: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -42,7 +42,7 @@ a:hover { text-decoration: underline; }
 
 .site-header {
   position: sticky; top: 0; z-index: 10;
-  background: rgba(7, 8, 12, 0.82);
+  background: rgba(14, 9, 9, 0.82);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
 }
@@ -56,7 +56,7 @@ a:hover { text-decoration: underline; }
   color: var(--text); letter-spacing: -0.01em;
 }
 .brand:hover { text-decoration: none; }
-.brand-logo { width: 32px; height: 32px; display: block; filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.5)); }
+.brand-logo { width: 32px; height: 32px; display: block; filter: drop-shadow(0 0 10px rgba(255, 74, 28, 0.5)); }
 .brand-mark {
   width: 28px; height: 28px; border-radius: 8px;
   display: grid; place-items: center;
@@ -108,7 +108,7 @@ code {
 .note {
   margin: 20px 0; padding: 15px 18px;
   border-left: 2px solid var(--accent); border-radius: 0 10px 10px 0;
-  background: rgba(0, 240, 255, 0.05); color: var(--text-dim); font-size: 15px;
+  background: rgba(255, 74, 28, 0.05); color: var(--text-dim); font-size: 15px;
 }
 
 .site-footer { border-top: 1px solid var(--border); padding: 30px 0 48px; }

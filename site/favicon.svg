@@ -14,9 +14,7 @@
 <filter id="b8" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="8"/></filter>
 <filter id="b3" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="3"/></filter>
 </defs>
-<rect width="512" height="512" rx="116" fill="url(#bg)"/>
-<g clip-path="url(#tc)">
-<ellipse cx="256.0" cy="262.0" rx="250" ry="120" transform="rotate(53.1 256.0 262.0)" fill="#FF4A1C" opacity="0.40" filter="url(#b44)"/>
+<g>
 <polygon points="192.4,212.2 242.0,245.0 241.2,300.6 295.2,322.6 338.4,389.0 373.4,368.8 314.4,278.2 260.4,256.2 261.2,200.6 211.6,167.8 182.9,129.6 146.3,150.7" fill="#FF4A1C" opacity="0.9" filter="url(#b20)"/>
 
 <polygon points="192.4,212.2 242.0,245.0 241.2,300.6 295.2,322.6 338.4,389.0 373.4,368.8 314.4,278.2 260.4,256.2 261.2,200.6 211.6,167.8 182.9,129.6 146.3,150.7" fill="url(#cg)"/>
@@ -66,5 +64,4 @@
 <ellipse cx="256.0" cy="262.0" rx="58" ry="16" transform="rotate(53.1 256.0 262.0)" fill="#FFFFFF" filter="url(#b8)"/>
 <ellipse cx="256.0" cy="262.0" rx="26" ry="6" transform="rotate(53.1 256.0 262.0)" fill="#FFFFFF"/>
 </g>
-<rect x="1.5" y="1.5" width="509" height="509" rx="114.5" fill="none" stroke="#8A86A0" stroke-opacity="0.16" stroke-width="3"/>
 </svg>
