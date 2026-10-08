@@ -31,8 +31,14 @@ jobs:
         if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
       - name: Upload site/ to Cloudflare Pages
         if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ env.CF_TOKEN }}
-          accountId: ${{ env.CF_ACCOUNT }}
-          command: pages deploy site --project-name=reminth --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ env.CF_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ env.CF_ACCOUNT }}
+        run: |
+          echo "::add-mask::$CF_ACCOUNT"
+          set -o pipefail
+          if ! npx --yes wrangler@4 pages deploy site --project-name=reminth --branch=main --commit-dirty=true 2>&1 | tee out.txt; then
+            # Cloudflare's own error, shown as an error note on the run (the account id is masked)
+            grep -iE "error|authentication|permission|not found|code" out.txt | tail -5 | while read -r l; do echo "::error::$l"; done
+            exit 1
+          fi
