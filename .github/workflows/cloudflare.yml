@@ -1,16 +1,16 @@
 # Uploads site/ to the Cloudflare Pages project "reminth" (https://reminth.pages.dev) whenever it changes on main.
 # That project is a Direct Upload project (Cloudflare can't connect those to Git later), so GitHub uploads it with
 # Wrangler, Cloudflare's own tool - the same as dragging the site folder into the dashboard.
-# Needs two repository secrets (Settings -> Secrets and variables -> Actions), added by the owner:
-#   CLOUDFLARE_API_TOKEN  - a Cloudflare API token with "Cloudflare Pages: Edit"
-#   CLOUDFLARE_ACCOUNT_ID - the Cloudflare account id
-# Without them the job does nothing (it says so in its log).
+# Needs (Settings -> Secrets and variables -> Actions), added by the owner:
+#   CLOUDFLARE_API_TOKEN  - a Cloudflare API token with "Cloudflare Pages: Edit" (should be a SECRET)
+#   CLOUDFLARE_ACCOUNT_ID - the Cloudflare account id (a secret or a variable)
+# Each is read as a secret first, then as a variable. The log says which exist, never their values.
 name: Website to Cloudflare
 
 on:
   push:
     branches: [main]
-    paths: ['site/**']
+    paths: ['site/**', '.github/workflows/cloudflare.yml']
   workflow_dispatch:
 
 jobs:
@@ -19,17 +19,20 @@ jobs:
     permissions:
       contents: read
     env:
-      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || vars.CLOUDFLARE_API_TOKEN }}
+      CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || vars.CLOUDFLARE_ACCOUNT_ID }}
     steps:
-      - name: Secrets missing
-        if: env.HAS_TOKEN != 'true'
-        run: echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID are not set - nothing uploaded."
+      - name: Which settings exist (never their values)
+        run: |
+          echo "token as secret: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}, as variable: ${{ vars.CLOUDFLARE_API_TOKEN != '' }}"
+          echo "account id as secret: ${{ secrets.CLOUDFLARE_ACCOUNT_ID != '' }}, as variable: ${{ vars.CLOUDFLARE_ACCOUNT_ID != '' }}"
+          if [ -z "$CF_TOKEN" ] || [ -z "$CF_ACCOUNT" ]; then echo "Missing - nothing uploaded."; fi
       - uses: actions/checkout@v4
-        if: env.HAS_TOKEN == 'true'
+        if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
       - name: Upload site/ to Cloudflare Pages
-        if: env.HAS_TOKEN == 'true'
+        if: env.CF_TOKEN != '' && env.CF_ACCOUNT != ''
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CF_TOKEN }}
+          accountId: ${{ env.CF_ACCOUNT }}
           command: pages deploy site --project-name=reminth --branch=main --commit-dirty=true
