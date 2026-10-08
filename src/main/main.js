@@ -158,7 +158,7 @@ function createWindow() {
     minHeight: size.minHeight,
     center: true,
     show: false, // shown maximized on ready-to-show, so it never flashes windowed first
-    backgroundColor: "#07090f",
+    backgroundColor: "#0c0909",
     frame: false, // custom title bar drawn in renderer, matches the brand's borderless look
     // Taskbar / alt-tab icon: the .ico carries the hand-tuned 16/24/32 px pictures, so Windows picks the right size
     // itself (a single big PNG would be scaled down by Windows and look soft).

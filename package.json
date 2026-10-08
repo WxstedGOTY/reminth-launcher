@@ -1,6 +1,6 @@
 {
   "name": "reminth-launcher",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Reminth - a custom Minecraft launcher",
   "main": "src/main/main.js",
   "author": "Reminth",
@@ -30,6 +30,7 @@
       "assets/**/*",
       "!assets/icons/reminth.icns",
       "!assets/icons/source/reminth-icon-master-1024.png",
+      "!assets/icons/source/reminth-mark-1024.png",
       "package.json"
     ],
     "win": {

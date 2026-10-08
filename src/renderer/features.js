@@ -269,12 +269,12 @@ const CONTENT_GROUPS = [
   { id: "problem", label: "Safe to delete", color: "var(--amber)" },
   { id: "perf", label: "Performance", color: "var(--emerald)" },
   { id: "pvp", label: "PvP & HUD", color: "var(--rose)" },
-  { id: "visual", label: "Visual", color: "#a78bfa" },
+  { id: "visual", label: "Visual", color: "var(--violet)" },
   { id: "utility", label: "Utility", color: "var(--cyan)" },
   { id: "gameplay", label: "Gameplay", color: "var(--amber)" },
-  { id: "lib", label: "Libraries", color: "#94a3b8" },
-  { id: "other", label: "Other", color: "#64748b" },
-  { id: "off", label: "Off", color: "#475569" },
+  { id: "lib", label: "Libraries", color: "#b8a8a2" },
+  { id: "other", label: "Other", color: "#8a7872" },
+  { id: "off", label: "Off", color: "#5e4f4b" },
 ];
 const PVP_WORDS = /hud|pvp|crystal|totem|combat|hurt ?cam|keystroke|\bcps\b|hit ?box|hit ?colou?r|\bzoom|armou?r ?status|potion ?timer|low ?fire|shield ?status/i;
 const PERF_WORDS = /sodium|lithium|ferrite|entity ?culling|modernfix|c2me|scalablelux|immediatelyfast|more ?culling|krypton|lazydfu|starlight|nvidium|optimi[sz]|fps|performance|anchor ?optimizer/i;
@@ -647,7 +647,7 @@ function managedModCard(mod) {
   if (mod.name === "ReminthHUD") {
     mark.textContent = "";
     const img = el("img", "mcard-ico");
-    img.src = "../../assets/icons/source/reminth-icon-master.svg";
+    img.src = "../../assets/icons/source/reminth-mark.svg";
     img.alt = "";
     head.appendChild(img);
   } else head.appendChild(mark);
