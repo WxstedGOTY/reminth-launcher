@@ -2861,13 +2861,13 @@ paintFocus();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "Before Play, Reminth checks your mods and says which ones won't load — and fixes them in one click.",
-  "\"Pick a Minecraft version for my mods\" shows what happens to each mod first, then switches your instance or makes a new one.",
-  "Servers show which versions they take. Play finds, or makes, an instance that fits.",
-  "Safer saves: settings, instances and downloads are written so a crash or power cut can't leave a half-written file.",
-  "Performance: Java settings chosen for your Java version, a bigger performance pack (stable builds only, now on Forge and NeoForge too), and optional Max FPS and Far view profiles for new instances.",
-  "Any Minecraft version, on Fabric, Quilt, Forge or NeoForge. Modpacks install in one click, and one button updates everything in an instance.",
-  "Logs kept per instance, 3D skins and capes, and streamer mode with clips and screenshots.",
+  "The Reminth Mods Panel: press G in game for about 145 of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more - with profiles and a HUD layout editor. On every version from 1.20.1 to 26.3.",
+  "A new title screen: Discover opens the panel, and tips show on the title and loading screens.",
+  "A Minecraft-style pixel pointer at your Windows pointer's size - and in full screen Reminth draws it itself, so it never vanishes.",
+  "Pick what an instance is for (PvP, survival and more) and get a matching set of mods and packs.",
+  "A heads-up when a server's rules ban one of your mods. Nothing is ever turned off for you.",
+  "Player Statistics include your numbers from servers; the Library keeps your clips and screenshots.",
+  "Every Minecraft version Mojang lists launches, snapshots too.",
 ];
 
 function renderChangelog() {

@@ -4,12 +4,34 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 0000000000000000000000000 (2.0.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
 - **`main` is at:** this file's commit. **`npm test`: 666 pass** (Windows, 8 Oct).
-- **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (8 Oct, 01:41, panel batch 3) - **installed** on this PC and
-  Reminth reopened, **not published** (the owner publishes it himself after testing).
+- **Version:** `package.json` says **2.0.0** (8 Oct 2026, owner: all tests PASS). Installer in `release-2.0.0\` (19:57), installed on
+  this PC, **not published** - the owner publishes it himself (last published: v1.4.6). Description: section 0000000000000000000000000.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000000. Reminth 2.0.0 (8 Oct 2026, evening) - desktop window
+
+The owner tested section 000000000000000000000000 (all PASS: fullscreen pointer, 1.21 panel and zoom, window size,
+quiet Play, ban heads-up). Version bumped to **2.0.0** (`package.json`, `package-lock.json`); the What's new list
+(`renderer.js` CHANGELOG) rewritten for everything since the last published release (v1.4.6). Installer:
+`release-2.0.0\` (Reminth-Setup.exe, .blockmap, latest.yml version 2.0.0). Installed here. `npm test` 666 pass.
+
+**For the owner to publish** (GitHub release v2.0.0, upload the three files in `release-2.0.0\`), description:
+
+> ## Reminth 2.0.0
+> - **Reminth Mods Panel** - press **G** in game: about 145 of Reminth's own features (FPS, keystrokes, armor,
+>   potion timers, zoom, hit marker, chat timestamps and more), profiles, and a HUD layout editor. On every version
+>   from 1.20.1 to 26.3.
+> - **New title screen** - Discover opens the panel; tips on the title and loading screens.
+> - **Pixel pointer** at your Windows pointer's size; in full screen Reminth draws it itself so it never vanishes.
+> - **Pick what an instance is for** (PvP, survival and more) and get a matching set of mods and packs.
+> - **Server rules heads-up** when a server bans one of your mods - nothing is turned off for you.
+> - Player Statistics include your numbers from servers; the Library keeps your clips and screenshots.
+> - Every Minecraft version Mojang lists launches, snapshots too.
 
 ---
 
