@@ -4,12 +4,42 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 0000000000000000000000000 (2.0.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
 - **`main` is at:** this file's commit. **`npm test`: 667 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
-- **Version:** `package.json` says **1.6.0** (owner, 8 Oct 2026: "2.0.0 is a huge step" - so 1.6.0, still newer than the last
-  published v1.4.6). Installer in `release-1.6.0\`, **not published** - the owner publishes it himself (tag `v1.6.0`).
+- **Version:** `package.json` says **1.6.1**. **1.6.0 is published** (GitHub release tag `1.6.0`, 8 Oct). 1.6.1 installer in
+  `release-1.6.1\` (23:19), installed on this PC, **not published** - the owner publishes it (tag `1.6.1`).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000000. 1.6.1: brand colours everywhere, see-through icon, website (8 Oct 2026, night) - desktop window
+
+**Owner after 1.6.0 went live:** buttons were orange but backgrounds and everything else still blue ("so ugly"); the icon
+has a dark background instead of only the cube; and update the website's icon and style ("generally everything").
+
+**Done:**
+- **Launcher colours** (`styles.css`, via a mapping script): navy surfaces/lines -> warm charcoal, cyan/sky/violet/purple
+  glows, tags and badges -> the brand oranges; status colours (emerald, amber, rose) kept; lines with `data-accent` (the
+  accent picker and per-accent variables) left alone. Window background `#0c0909`; content-group colours warmed.
+  Checked in pictures: Home, Discover, Settings, sign-in.
+- **See-through icon**: `tools/make-icon-mark.js` makes `assets/icons/source/reminth-mark.svg` (the master without its
+  dark tile, frame and big haze) and from it `reminth.ico` (16-256 px), the site icons. The app shows the mark with no box
+  round it (rail, sign-in). Note: the .ico's small sizes are now rendered from the SVG (the delivered hand-tuned ones had
+  the tile); they looked fine at 16/24/32 in a preview.
+- **Website** (`site/`): same palette, the mark instead of the old embedded logo pictures (page 200 KB -> 68 KB),
+  `favicon.svg`/png/apple-touch, a "New in Reminth 1.6.0" section of six cards, nav link "What's new". **On branch
+  `site-update` only** - `pages.yml` deploys `site/**` from main, so it goes live when the owner says (merge
+  `site-update` into main).
+- Version **1.6.1**; `npm test` 667. A stray `assets/mods/reminthhome-1.0.7+26.2.jar` (untracked, appeared 22:13 while
+  this session waited for the usage limit) was moved to the scratchpad - the new jar-range test caught it.
+- Dev runs of the launcher are now isolated with `USERPROFILE=<fake home>` + `--user-data-dir` (paths.js uses
+  os.homedir()), so they never read or record the owner's data.
+
+**Publish 1.6.1** (owner): tag `1.6.1`, the three files in `release-1.6.1\`. Description:
+> ## Reminth 1.6.1
+> - The whole launcher in the new Reminth colours - no more blue backgrounds.
+> - The Reminth icon is just the cube now (no dark box), on the taskbar, desktop and in the app.
 
 ---
 
