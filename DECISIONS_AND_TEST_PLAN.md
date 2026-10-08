@@ -4,12 +4,35 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 000000000000000000000 (panel batch 3: 146 features, auto-stacking HUD). Before it 00000000000000000000 (pixel cursor; the night plan).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 0000000000000000000000 (owner's batch-3 results; cursor at the Windows size; combo and hearts fixes). Before it 000000000000000000000 (panel batch 3).
 - **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 8 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (8 Oct, 01:41, panel batch 3) - **installed** on this PC and
   Reminth reopened, **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000. Owner tested batch 3; cursor size, combo and hearts fixes (8 Oct 2026, afternoon) - desktop window
+
+**Owner's results (section 000000000000000000000's list):** 1 PASS (146 features), 2 PASS, 3 PASS (nothing overlaps),
+4 PASS (F7), 5 PASS (timestamps), 6 PASS (durability tooltip), 7 unclear (he has music off in the game; he said move on).
+
+**Fixed after his notes:**
+- **Pixel cursor was twice the Windows size** (home screen mod **1.0.7**, all 10 jars): Windows draws its pointer in a
+  32x32 box at 100% display scaling, 48 at 150%, 64 at 200%, 96 at 300%, 128 at 400% (Raymond Chen, The Old New Thing,
+  19 Aug 2021), times the pointer size chosen in Windows (`HKCU\Control Panel\Cursors` `CursorBaseSize`, 32 = normal).
+  Measured on the owner's PC: 1920x1080, 96 DPI, CursorBaseSize 32, `SM_CXCURSOR` 32, the Windows arrow drawn 11x19 px.
+  `PixelCursor.pixelSize()` = that box / 32 (display scale from GLFW `glfwGetMonitorContentScale` or SDL
+  `SDL_GetDisplayContentScale`; the base size by `reg query`); our arrow is now 12x19 there (it was 24x38). Log line
+  "Reminth pixel cursor: 1.0 screen px per pixel" seen in the game on 26.2.
+- **Combo Counter** only counts a critical hit or a fully charged hit (charge above 0.9 - the game's own "strong
+  attack" rule); spam clicks don't count. A hit counts only when the mob gets newly hurt (its hurt time jumps back up).
+- **Damage Taken / Lowest Health** count hearts the way the game draws them (health and absorption rounded up to half
+  hearts, like `Gui`): no more "-0.0", nothing shown when your hearts didn't go down; quick drops add up; shown as
+  "-1.5 ❤". Seen in the game (layout editor samples).
+
+**Next:** port the panel (ReminthHUD 1.4.0 with batches 1-3) to 26.3, 26.1 and the 1.21/1.20 versions, test each.
 
 ---
 

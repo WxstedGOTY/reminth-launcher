@@ -62,7 +62,7 @@ public final class Features3 {
 			return "+" + f.nutrition() + "  sat +" + String.format(Locale.ROOT, "%.1f", f.saturation());
 		}));
 		l.add(new RightTool());
-		l.add(line("lowesthp", "Lowest Health", "lowesthp", "The lowest your health got since you joined.", "Lowest", L, 4, 248, (mc, p) -> mc == null || lowest > 1000 ? "6.0 HP" : String.format(Locale.ROOT, "%.1f HP", lowest)));
+		l.add(line("lowesthp", "Lowest Health", "lowesthp", "The fewest hearts you had since you joined.", "Lowest", L, 4, 248, (mc, p) -> mc == null || lowest > 1000 ? hearts(6) : hearts(lowest)));
 		l.add(new LowAlert());
 		l.add(new FoodStock());
 		l.add(line("daynight", "Day / Night Timer", "daynight", "Real time left until night or until morning.", "", Module.Anchor.TOP_RIGHT, -110, 148, (mc, p) -> {
@@ -87,11 +87,11 @@ public final class Features3 {
 			return null;
 		}));
 		l.add(new FrameTime());
-		l.add(line("damagetaken", "Damage Taken", "damagetaken", "How much health you just lost (only your own).", "", C, 12, 56, (mc, p) -> {
-			if (mc != null && System.currentTimeMillis() - lastDamageAt < 4000) return String.format(Locale.ROOT, "-%.1f HP", lastDamage);
-			return p || mc == null ? "-3.5 HP" : null;
+		l.add(line("damagetaken", "Damage Taken", "damagetaken", "How many hearts you just lost - counted like the game draws your hearts.", "", C, 12, 56, (mc, p) -> {
+			if (mc != null && System.currentTimeMillis() - lastDamageAt < 4000) return "-" + hearts(lastDamage);
+			return p || mc == null ? "-" + hearts(3) : null;
 		}));
-		l.add(line("combo", "Combo Counter", "combo", "Your hits in a row (resets after 2 seconds without one).", "Combo", C, -60, 44, (mc, p) -> {
+		l.add(line("combo", "Combo Counter", "combo", "Your good hits in a row: a critical hit or a fully charged one (spam clicks don't count; resets after 2 seconds).", "Combo", C, -60, 44, (mc, p) -> {
 			if (mc != null && HitTracker.combo() > 0) return Integer.toString(HitTracker.combo());
 			return p || mc == null ? "4" : null;
 		}));
@@ -125,9 +125,15 @@ public final class Features3 {
 
 	/* ------------------------------ tracking ------------------------------ */
 
-	static float lowest = Float.MAX_VALUE;
-	static float lastHealth = -1, lastDamage;
+	// in half hearts, as the game draws them: Gui rounds health and absorption up (Mth.ceil) to whole half hearts
+	static int lowest = Integer.MAX_VALUE;
+	static int lastShown = -1, lastDamage;
 	static long lastDamageAt;
+
+	/** Half hearts as text: 7 -> "3.5 ❤", 6 -> "3 ❤". */
+	static String hearts(int halfHearts) {
+		return (halfHearts % 2 == 0 ? Integer.toString(halfHearts / 2) : (halfHearts / 2) + ".5") + " \u2764";
+	}
 	private static String lastSession = "";
 
 	static void tick(Minecraft mc) {
@@ -138,16 +144,24 @@ public final class Features3 {
 		String session = mc.getCurrentServer() == null ? "sp" : mc.getCurrentServer().ip;
 		if (!session.equals(lastSession)) {
 			lastSession = session;
-			lowest = Float.MAX_VALUE;
-			lastHealth = -1;
+			lowest = Integer.MAX_VALUE;
+			lastShown = -1;
 		}
 		float h = mc.player.getHealth();
-		if (h > 0) lowest = Math.min(lowest, h);
-		if (lastHealth >= 0 && h < lastHealth - 0.01f) {
-			lastDamage = lastHealth - h;
-			lastDamageAt = System.currentTimeMillis();
+		int health = (int) Math.ceil(h);
+		int shown = health + (int) Math.ceil(mc.player.getAbsorptionAmount());
+		if (h > 0) lowest = Math.min(lowest, health);
+		if (h <= 0) {
+			lastShown = -1; // dead: the next life starts fresh
+		} else {
+			if (lastShown >= 0 && shown < lastShown) {
+				long now = System.currentTimeMillis();
+				// drops close together (fire, poison, a combo) add up into one number
+				lastDamage = (now - lastDamageAt < 700 ? lastDamage : 0) + (lastShown - shown);
+				lastDamageAt = now;
+			}
+			lastShown = shown;
 		}
-		lastHealth = h;
 		HitTracker.tick(mc);
 	}
 
@@ -157,8 +171,8 @@ public final class Features3 {
 		}
 
 		private static Entity target;
-		private static boolean crit;
-		private static int wait;
+		private static boolean crit, strong;
+		private static int wait, hurtBefore;
 		private static long lastHitAt;
 		private static int combo;
 		static long markAt;
@@ -168,7 +182,11 @@ public final class Features3 {
 		public static void onAttack(Minecraft mc, Entity e) {
 			if (mc.player == null) return;
 			var p = mc.player;
-			crit = p.fallDistance > 0 && !p.onGround() && !p.onClimbable() && !p.isInWater() && !p.isPassenger() && !p.isSprinting() && p.getAttackStrengthScale(0.5f) > 0.9f;
+			// the game's own rules (Player.attack): a "strong" hit needs the charge above 0.9, a crit also needs falling
+			float charge = p.getAttackStrengthScale(0.5f);
+			strong = charge > 0.9f;
+			crit = strong && p.fallDistance > 0 && !p.onGround() && !p.onClimbable() && !p.isInWater() && !p.isPassenger() && !p.isSprinting();
+			hurtBefore = e instanceof LivingEntity le ? le.hurtTime : 0;
 			target = e;
 			wait = 8;
 		}
@@ -176,13 +194,16 @@ public final class Features3 {
 		static void tick(Minecraft mc) {
 			if (combo > 0 && System.currentTimeMillis() - lastHitAt > 2000) combo = 0;
 			if (target == null) return;
-			boolean landed = target instanceof LivingEntity le && le.hurtTime > 0;
+			// a new hurt (hurtTime jumps back up) - hitting a mob that is still red from the last hit doesn't count
+			boolean landed = target instanceof LivingEntity le && le.hurtTime > hurtBefore;
 			boolean dead = target instanceof LivingEntity le2 && (le2.isDeadOrDying() || !le2.isAlive());
 			if (landed || dead) {
 				markKind = dead ? 2 : crit ? 1 : 0;
 				markAt = System.currentTimeMillis();
-				lastHitAt = markAt;
-				combo++;
+				if (strong || crit) {
+					lastHitAt = markAt;
+					combo++;
+				}
 				Module hm = Panel.byId("hitmarker");
 				if (hm instanceof HitMarker h && h.enabled && h.sound.value) {
 					float pitch = markKind == 2 ? 0.8f : markKind == 1 ? 1.8f : 1.4f;
