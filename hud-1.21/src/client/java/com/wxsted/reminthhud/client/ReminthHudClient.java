@@ -100,6 +100,12 @@ public class ReminthHudClient implements ClientModInitializer {
 
 		// (older versions pass a float here, newer ones a DeltaTracker: unused either way)
 		HudRenderCallback.EVENT.register((graphics, ignored) -> render(graphics));
+		// The Reminth panel (G): Reminth's own features, the same code as on 26.x (../hud/panel).
+		try {
+			com.wxsted.reminthhud.client.panel.Panel.init(Compat.category());
+		} catch (Throwable t) {
+			ReminthHud.LOGGER.warn("Reminth panel not started ({})", t.toString());
+		}
 	}
 
 	private static void render(GuiGraphics graphics) {

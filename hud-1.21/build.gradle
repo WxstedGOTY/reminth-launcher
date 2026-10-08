@@ -21,12 +21,15 @@ loom {
 
 // The few version-specific calls live in compat/<family>/ (A, B, C, D...); -Pcompat=B picks one.
 def compatFamily = project.findProperty("compat") ?: "A"
+// The Reminth panel's code and icons are shared with the 26.x project (../hud/panel).
 sourceSets {
 	client {
 		java.srcDir "compat/${compatFamily}/client/java"
+		java.srcDir "../hud/panel/java"
 	}
 	main {
 		java.srcDir "compat/${compatFamily}/main/java"
+		resources.srcDir "../hud/panel/resources"
 	}
 }
 

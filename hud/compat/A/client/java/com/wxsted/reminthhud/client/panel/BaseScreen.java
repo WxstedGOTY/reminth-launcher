@@ -24,11 +24,6 @@ public abstract class BaseScreen extends Screen {
 		super.extractBackground(g.raw(), mx, my, pt);
 	}
 
-	/** The screen's widgets (text boxes). */
-	protected void drawWidgets(Gfx g, int mx, int my, float pt) {
-		super.extractRenderState(g.raw(), mx, my, pt);
-	}
-
 	protected boolean click(double x, double y, int button) {
 		return false;
 	}

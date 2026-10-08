@@ -13,7 +13,7 @@ import net.minecraft.world.effect.MobEffectInstance;
 
 /**
  * The few calls that differ between Minecraft versions. This is the version for
- * Minecraft 1.21 - 1.21.5: a PoseStack for drawing, and a text key category.
+ * Minecraft 1.21 - 1.21.1 (1.21.4 - 1.21.5 is compat/F, same calls here): a PoseStack for drawing, and a text key category.
  * (compat/B, C, D and E hold the others; the build picks one with -Pcompat=...)
  */
 final class Compat {
@@ -45,5 +45,10 @@ final class Compat {
 	/** Is this potion effect a good one (the game draws good and bad ones in two rows)? */
 	static boolean isBeneficial(MobEffectInstance effect) {
 		return effect.getEffect().value().isBeneficial();
+	}
+
+	/** The Controls category for the Reminth panel's keys too (a translation key on this version). */
+	static Object category() {
+		return "key.categories.reminthhud";
 	}
 }

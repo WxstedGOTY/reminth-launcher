@@ -1,0 +1,17 @@
+{
+	"required": true,
+	"package": "com.wxsted.reminthhud.client.mixin",
+	"compatibilityLevel": "JAVA_17",
+	"client": [
+		"CameraFovMixin",
+		"MouseScrollMixin",
+		"FireOverlayMixin",
+		"PongMixin",
+		"AttackMixin",
+		"ChatTimestampMixin",
+		"EffectIconMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

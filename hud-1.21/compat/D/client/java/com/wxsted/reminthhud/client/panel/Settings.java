@@ -1,0 +1,100 @@
+package com.wxsted.reminthhud.client.panel;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import net.minecraft.client.AttackIndicatorStatus;
+import net.minecraft.client.CloudStatus;
+import net.minecraft.client.GraphicsPreset;
+import net.minecraft.client.InactivityFpsLimit;
+import net.minecraft.client.MusicToastDisplayState;
+import net.minecraft.client.PrioritizeChunkUpdates;
+import net.minecraft.client.sounds.MusicManager;
+import net.minecraft.server.level.ParticleStatus;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.player.ChatVisiblity;
+
+/**
+ * The game's own settings as panel cards, for this Minecraft version (compat family D: 1.21.11). MADE BY
+ * hud/tools/gensettings.py from hud/panel/settings.txt - edit that file, not this one: a card is left out where this
+ * version has no such setting (69 of 69 here).
+ */
+final class Settings {
+	private Settings() {
+	}
+
+	static List<Module> all() {
+		List<Module> l = new ArrayList<>();
+		Module.Cat V = Module.Cat.VISUAL, P = Module.Cat.PERFORMANCE, C = Module.Cat.CHAT, M = Module.Cat.MECHANIC, U = Module.Cat.UTILITY;
+		l.add(OptionFeature.bool("nobob", "No View Bobbing", V, "bob", "The camera doesn't bob up and down as you walk.", o -> o.bobView(), false));
+		l.add(OptionFeature.percent("fovfx", "Speed FOV Effect", V, "fov", "How much sprinting and speed change your field of view.", o -> o.fovEffectScale(), "Strength", 0, 100, 5, 0));
+		l.add(OptionFeature.percent("distortion", "Screen Distortion", V, "swirl", "How much nausea and portals wobble the screen.", o -> o.screenEffectScale(), "Strength", 0, 100, 5, 0));
+		l.add(OptionFeature.percent("darkness", "Darkness Pulse", V, "dark", "How much the Darkness effect pulses.", o -> o.darknessEffectScale(), "Strength", 0, 100, 5, 0));
+		l.add(OptionFeature.percent("glintstr", "Enchant Glint Strength", V, "sparkle", "How bright the enchantment shine is.", o -> o.glintStrength(), "Strength", 0, 100, 5, 50));
+		l.add(OptionFeature.percent("glintspd", "Enchant Glint Speed", V, "sparkle_speed", "How fast the enchantment shine moves.", o -> o.glintSpeed(), "Speed", 0, 100, 5, 50));
+		l.add(OptionFeature.choice("clouds", "Clouds", V, "cloud", "Fancy, fast or no clouds.", o -> o.cloudStatus(), "Clouds", CloudStatus.values(), 0));
+		l.add(OptionFeature.integer("cloudrange", "Cloud Distance", V, "cloud", "How far away clouds are drawn.", o -> o.cloudRange(), "Distance", 2, 128, 2, 64, " chunks"));
+		l.add(OptionFeature.choice("particles", "Particles", V, "particles", "All, fewer or the fewest particles.", o -> o.particles(), "Amount", ParticleStatus.values(), 1));
+		l.add(OptionFeature.bool("noshadows", "No Entity Shadows", V, "shadow", "No round shadows under mobs and players.", o -> o.entityShadows(), false));
+		l.add(OptionFeature.bool("nolightning", "No Lightning Flash", V, "bolt", "The sky doesn't flash white when lightning strikes.", o -> o.hideLightningFlash(), true));
+		l.add(OptionFeature.bool("novignette", "No Vignette", V, "vignette", "No dark edges around the screen.", o -> o.vignette(), false));
+		l.add(OptionFeature.integer("menublur", "Menu Blur", V, "blur", "How blurry the world is behind menus.", o -> o.menuBackgroundBlurriness(), "Blur", 0, 10, 1, 2, ""));
+		l.add(OptionFeature.percent("textbg", "Text Background", V, "textbg", "How dark the box behind name tags and chat is.", o -> o.textBackgroundOpacity(), "Opacity", 0, 100, 5, 50));
+		l.add(OptionFeature.integer("fovset", "Field of View", V, "fov", "Your field of view.", o -> o.fov(), "FOV", 30, 110, 1, 90, ""));
+		l.add(OptionFeature.bool("boldoutline", "Bold Block Outline", V, "outline", "A thicker, easier to see outline on the block you look at.", o -> o.highContrastBlockOutline(), true));
+		l.add(OptionFeature.choice("attackind", "Attack Indicator", V, "crosshair", "Where the attack cooldown shows: crosshair, hotbar or nowhere.", o -> o.attackIndicator(), "Show", AttackIndicatorStatus.values(), 1));
+		l.add(OptionFeature.integer("fpslimit", "FPS Limit", P, "fpslimit", "The highest frame rate the game runs at (260 = unlimited).", o -> o.framerateLimit(), "Limit", 10, 260, 10, 140, " FPS"));
+		l.add(OptionFeature.bool("novsync", "No VSync", P, "vsync", "Frames aren't held back to your monitor's refresh rate.", o -> o.enableVsync(), false));
+		l.add(OptionFeature.integer("renderdist", "Render Distance", P, "render", "How far the world is drawn.", o -> o.renderDistance(), "Distance", 2, 32, 1, 12, " chunks"));
+		l.add(OptionFeature.integer("simdist", "Simulation Distance", P, "simulation", "How far away things keep moving and growing (singleplayer).", o -> o.simulationDistance(), "Distance", 5, 32, 1, 8, " chunks"));
+		l.add(OptionFeature.percent("entitydist", "Entity Distance", P, "entitydist", "How far away mobs and players are drawn.", o -> o.entityDistanceScaling(), "Distance", 50, 500, 25, 100));
+		l.add(OptionFeature.integer("biomeblend", "Biome Blend", P, "blend", "How smoothly colours blend between biomes (0 is fastest).", o -> o.biomeBlendRadius(), "Blend", 0, 7, 1, 1, ""));
+		l.add(OptionFeature.choice("bgfps", "Background FPS", P, "sleep", "How fast the game runs when you're not playing it.", o -> o.inactivityFpsLimit(), "When", InactivityFpsLimit.values(), 1));
+		l.add(OptionFeature.choice("chunkupd", "Chunk Updates", P, "chunkupdate", "Which chunk changes are drawn first.", o -> o.prioritizeChunkUpdates(), "Priority", PrioritizeChunkUpdates.values(), 0));
+		l.add(OptionFeature.choice("graphics", "Graphics Preset", P, "graphics", "The game's graphics preset.", o -> o.graphicsPreset(), "Preset", GraphicsPreset.values(), 0));
+		l.add(OptionFeature.bool("transparency", "Improved Transparency", P, "glass", "Better looking glass and water (costs some FPS).", o -> o.improvedTransparency(), true));
+		l.add(OptionFeature.bool("smoothlight", "Smooth Lighting", P, "bulb", "Soft shadows between blocks.", o -> o.ambientOcclusion(), true));
+		l.add(OptionFeature.integer("mipmap", "Mipmap Levels", P, "mipmap", "Smoother far-away textures (0 is fastest).", o -> o.mipmapLevels(), "Levels", 0, 4, 1, 4, ""));
+		l.add(OptionFeature.bool("leaves", "Solid Leaves", P, "leaf", "Leaves without see-through holes: faster.", o -> o.cutoutLeaves(), false));
+		l.add(OptionFeature.percent("chatopacity", "Chat Opacity", C, "chat_opacity", "How see-through the chat is.", o -> o.chatOpacity(), "Opacity", 10, 100, 5, 100));
+		l.add(OptionFeature.percent("chatscale", "Chat Size", C, "chat_size", "How big the chat text is.", o -> o.chatScale(), "Size", 0, 100, 5, 100));
+		l.add(OptionFeature.percent("chatwidth", "Chat Width", C, "chat_width", "How wide the chat is.", o -> o.chatWidth(), "Width", 0, 100, 5, 100));
+		l.add(OptionFeature.percent("chatheightf", "Chat Height (Open)", C, "chat_height", "How tall the chat is while open.", o -> o.chatHeightFocused(), "Height", 0, 100, 5, 100));
+		l.add(OptionFeature.percent("chatheightu", "Chat Height (Closed)", C, "chat_height", "How tall the chat is while playing.", o -> o.chatHeightUnfocused(), "Height", 0, 100, 5, 44));
+		l.add(OptionFeature.percent("chatspacing", "Chat Line Spacing", C, "chat_lines", "Space between chat lines.", o -> o.chatLineSpacing(), "Spacing", 0, 100, 5, 0));
+		l.add(OptionFeature.number("chatdelay", "Chat Delay", C, "chat_delay", "Wait before new messages show.", o -> o.chatDelay(), "Delay", 0, 6, 0.5, 0, " s"));
+		l.add(OptionFeature.bool("chatnocolors", "No Chat Colours", C, "chat_color", "Chat in plain white.", o -> o.chatColors(), false));
+		l.add(OptionFeature.bool("chatnolinks", "No Clickable Links", C, "chat_link", "Links in chat can't be clicked.", o -> o.chatLinks(), false));
+		l.add(OptionFeature.bool("chatlinkwarn", "Link Warning", C, "chat_warn", "Ask before opening a link from chat.", o -> o.chatLinksPrompt(), true));
+		l.add(OptionFeature.bool("hidematched", "Hide Matched Names", C, "chat_hide", "Hide names the server marks as matched.", o -> o.hideMatchedNames(), true));
+		l.add(OptionFeature.bool("securechat", "Only Secure Chat", C, "chat_secure", "Only show chat that is signed by its sender.", o -> o.onlyShowSecureChat(), true));
+		l.add(OptionFeature.bool("nosuggest", "No Command Suggestions", C, "chat_suggest", "No pop-up while typing commands.", o -> o.autoSuggestions(), false));
+		l.add(OptionFeature.bool("drafts", "Keep Chat Drafts", C, "chat_draft", "What you typed stays when you close the chat.", o -> o.saveChatDrafts(), true));
+		l.add(OptionFeature.choice("chatvis", "Chat Visibility", C, "chat_visible", "Show all chat, only commands, or none.", o -> o.chatVisibility(), "Show", ChatVisiblity.values(), 0));
+		l.add(OptionFeature.bool("chatbgonly", "Background Only for Chat", C, "textbg", "The dark text box only behind chat.", o -> o.backgroundForChatOnly(), true));
+		l.add(OptionFeature.bool("noautojump", "No Auto-Jump", M, "jump", "You don't jump up blocks by yourself.", o -> o.autoJump(), false));
+		l.add(OptionFeature.bool("rawinput", "Raw Mouse Input", M, "mouse", "Your mouse exactly as Windows reads it, no acceleration.", o -> o.rawMouseInput(), true));
+		l.add(OptionFeature.bool("inverty", "Invert Mouse", M, "invert", "Moving the mouse up looks down.", o -> o.invertMouseY(), true));
+		l.add(OptionFeature.percent("sensitivity", "Mouse Sensitivity", M, "sensitivity", "How fast the camera turns (100% is the game's middle).", o -> o.sensitivity(), "Sensitivity", 0, 100, 1, 50));
+		l.add(OptionFeature.number("scrollsens", "Scroll Sensitivity", M, "wheel", "How far one scroll moves.", o -> o.mouseWheelSensitivity(), "Speed", 1, 10, 0.5, 1, "x"));
+		l.add(OptionFeature.bool("discrete", "Discrete Scrolling", M, "wheel", "One scroll moves exactly one hotbar slot.", o -> o.discreteMouseScroll(), true));
+		l.add(OptionFeature.bool("minecartturn", "No Minecart Turning", M, "minecart", "Your camera doesn't turn with the minecart.", o -> o.rotateWithMinecart(), false));
+		l.add(OptionFeature.choice("mainhand", "Main Hand", M, "hand", "Which hand you hold items in.", o -> o.mainHand(), "Hand", HumanoidArm.values(), 1));
+		l.add(OptionFeature.bool("subtitles", "Subtitles", U, "subtitles", "Words on screen for the sounds around you.", o -> o.showSubtitles(), true));
+		l.add(OptionFeature.bool("noautosave", "No Autosave Icon", U, "save", "Hide the saving icon in the corner.", o -> o.showAutosaveIndicator(), false));
+		l.add(OptionFeature.number("notifytime", "Notification Time", U, "bell", "How long pop-ups (advancements, toasts) stay.", o -> o.notificationDisplayTime(), "Time", 0.5, 10, 0.5, 2, "x"));
+		l.add(OptionFeature.bool("nosplash", "No Splash Text", U, "splash", "No yellow joke text on the title screen.", o -> o.hideSplashTexts(), true));
+		l.add(OptionFeature.choice("musicfreq", "Music Frequency", U, "music", "How often the game's music plays.", o -> o.musicFrequency(), "How often", MusicManager.MusicFrequency.values(), 0));
+		l.add(OptionFeature.choice("musictoast", "Now Playing Pop-up", U, "musictoast", "Show what music is playing.", o -> o.musicToast(), "Show", MusicToastDisplayState.values(), 0));
+		l.add(OptionFeature.bool("directional", "Directional Audio", U, "headphones", "3D sound for headphones.", o -> o.directionalAudio(), true));
+		l.add(OptionFeature.bool("nonarrator", "No Narrator Shortcut", U, "speaker_off", "Ctrl+B no longer turns the narrator on by accident.", o -> o.narratorHotkey(), false));
+		l.add(OptionFeature.bool("norealms", "No Realms Notifications", U, "bell", "No Realms news and invites on the title screen.", o -> o.realmsNotifications(), false));
+		l.add(OptionFeature.bool("noserverlist", "Hide From Server Lists", U, "list", "Your name isn't shown in servers' player lists outside the game.", o -> o.allowServerListing(), false));
+		l.add(OptionFeature.bool("highcontrast", "High Contrast", U, "contrast", "Higher contrast menus and buttons.", o -> o.highContrast(), true));
+		l.add(OptionFeature.bool("unicode", "Unicode Font", U, "font", "A smoother font for all text.", o -> o.forceUnicodeFont(), true));
+		l.add(OptionFeature.bool("reduceddebug", "Reduced Debug Info", U, "bug", "F3 shows less (handy when streaming).", o -> o.reducedDebugInfo(), true));
+		l.add(OptionFeature.bool("darkloading", "Dark Loading Screen", U, "loading", "A black loading screen instead of red.", o -> o.darkMojangStudiosBackground(), true));
+		l.add(OptionFeature.bool("notelemetry", "Less Telemetry", U, "antenna", "Don't send optional usage data to Mojang.", o -> o.telemetryOptInExtra(), false));
+		return l;
+	}
+}

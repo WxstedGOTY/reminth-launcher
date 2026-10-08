@@ -51,4 +51,9 @@ final class Compat {
 	static boolean isBeneficial(MobEffectInstance effect) {
 		return effect.getEffect().value().isBeneficial();
 	}
+
+	/** The Controls category for the Reminth panel's keys too. */
+	static Object category() {
+		return CATEGORY;
+	}
 }

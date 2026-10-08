@@ -1,4 +1,4 @@
-// Renders tools/icons.js to src/main/resources/assets/reminthhud/textures/gui/panel/<name>.png (128x128) plus a
+// Renders tools/icons.js to panel/resources/assets/reminthhud/textures/gui/panel/<name>.png (128x128) plus a
 // contact sheet (build/icons-sheet.png) to look at. Run: node_modules/.bin/electron hud/tools/render-icons.js
 "use strict";
 const { app, BrowserWindow } = require("electron");
@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const icons = { ...require("./icons"), ...require("./icons2"), ...require("./icons3") };
 
-const OUT = path.join(__dirname, "..", "src", "main", "resources", "assets", "reminthhud", "textures", "gui", "panel");
+const OUT = path.join(__dirname, "..", "panel", "resources", "assets", "reminthhud", "textures", "gui", "panel");
 const SIZE = 128;
 
 app.disableHardwareAcceleration();
