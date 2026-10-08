@@ -5,7 +5,7 @@ work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 0000000000000000000000000 (2.0.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 666 pass** (Windows, 8 Oct).
+- **`main` is at:** this file's commit. **`npm test`: 667 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-2.0.0-new-icon\` (20:43, not installed, not published; supersedes `release-2.0.0\`).
 - **Version:** `package.json` says **2.0.0** (8 Oct 2026, owner: all tests PASS). Installer in `release-2.0.0\` (19:57), installed on
   this PC, **not published** - the owner publishes it himself (last published: v1.4.6). Description: section 0000000000000000000000000.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
