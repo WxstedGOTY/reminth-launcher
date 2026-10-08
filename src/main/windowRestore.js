@@ -78,19 +78,22 @@ function windowSizes(workArea) {
   };
 }
 
+/** The window size the launcher's layout is made for: at this size and bigger it is shown at its normal size. */
+const UI_DESIGN = { width: 1280, height: 760 };
+
 /**
- * Pure: the page zoom that makes a smaller window show the very same layout as the maximized one, only smaller
- * (the owner, 7 Oct 2026: "the UIs the same on any size of window"). The design size is the screen's work area, so a
- * maximized window is 1. Never above 1 (a bigger screen keeps the normal size) and never below 0.5 (still readable).
+ * Pure: the page zoom for a window. Normal size (1) whenever the window is at least UI_DESIGN - the default window
+ * (1320x840 on a 1080p screen) and anything bigger, maximized too. Only a smaller window is scaled down, just enough
+ * for the layout to fit (the owner, 7 Oct: "the UIs the same on any size of window"), and never below 0.75. It used to
+ * scale by the whole screen, so the default window was drawn at 69 % ("everything just so small", 8 Oct 2026).
+ * `workArea` is no longer used (kept so callers don't change).
  */
-function uiZoom(content, workArea) {
+function uiZoom(content, workArea) { // eslint-disable-line no-unused-vars
   const w = Number(content && content.width);
   const h = Number(content && content.height);
-  const W = Number(workArea && workArea.width);
-  const H = Number(workArea && workArea.height);
-  if (!(w > 0 && h > 0 && W > 0 && H > 0)) return 1;
-  const z = Math.min(w / W, h / H);
-  return Math.round(Math.min(1, Math.max(0.5, z)) * 1000) / 1000;
+  if (!(w > 0 && h > 0)) return 1;
+  const z = Math.min(w / UI_DESIGN.width, h / UI_DESIGN.height);
+  return Math.round(Math.min(1, Math.max(0.75, z)) * 1000) / 1000;
 }
 
-module.exports = { afterGame, fillsWorkArea, windowSizes, uiZoom };
+module.exports = { afterGame, fillsWorkArea, windowSizes, uiZoom, UI_DESIGN };

@@ -2361,10 +2361,23 @@ async function runPlay(options = {}) {
   state.lastStage = null;
   if (onHome) {
     state.progressShown = inst.id;
-    $("progressWrap").hidden = false;
-    $("log").hidden = false;
+    // Quiet start (owner, 8 Oct 2026: the strip that flashed up for a moment on Play "becomes ugly"): the bar and log
+    // stay hidden; only a launch still busy after QUIET_START_MS (downloading a version, Java...) shows them. Errors
+    // always show at once (appendLog).
+    state.quietUntil = Date.now() + QUIET_START_MS;
+    $("progressWrap").hidden = true;
+    $("log").hidden = true;
     $("log").textContent = "";
     $("progressDismiss").hidden = true;
+    clearTimeout(window._quietReveal);
+    window._quietReveal = setTimeout(() => {
+      state.quietUntil = 0;
+      if (state.installing.has(inst.id) && state.progressShown === inst.id) {
+        $("progressWrap").hidden = false;
+        $("log").hidden = !$("log").textContent;
+        paintProgress(inst.id);
+      }
+    }, QUIET_START_MS);
   }
   paintPlayButtons();
   try {
@@ -2412,6 +2425,14 @@ async function runPlay(options = {}) {
     paintPlayButtons();
     loadRecent();
   }
+}
+
+/** How long a Play stays quiet before its progress bar shows (a normal launch is done by then). */
+const QUIET_START_MS = 3000;
+
+/** A Play started less than QUIET_START_MS ago: its bar and log stay hidden (errors still show). */
+function quiet() {
+  return state.quietUntil && Date.now() < state.quietUntil;
 }
 
 /** Puts the progress bars away a little after a run ends - both, since signing in or out mid-run moves it from one to the other. */
@@ -2523,8 +2544,11 @@ $("repairBtn2").onclick = () => {
 function appendLog(line, isError, suffix) {
   if (isError) state.logError = true;
   const node = $("log" + (suffix || ""));
-  $("progressWrap" + (suffix || "")).hidden = false;
-  node.hidden = false;
+  if (isError) state.quietUntil = 0;
+  if (!quiet()) {
+    $("progressWrap" + (suffix || "")).hidden = false;
+    node.hidden = false;
+  }
   node.textContent += (isError ? "! " : "") + line.replace(/\n$/, "") + "\n";
   node.scrollTop = node.scrollHeight;
   const dismiss = $("progressDismiss" + (suffix || ""));
@@ -2565,7 +2589,7 @@ function paintProgress(instanceId) {
   const suffix = progressSuffix();
   const determinate = p.pct !== null;
   state.progressShown = instanceId;
-  $("progressWrap" + suffix).hidden = false;
+  if (!quiet()) $("progressWrap" + suffix).hidden = false;
   $("progressStage" + suffix).textContent = p.stage;
   $("progressPct" + suffix).textContent = determinate ? p.pct + "%" : "";
   $("progressFill" + suffix).style.width = determinate ? p.pct + "%" : "100%";
