@@ -4,12 +4,45 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000 (the panel on every version: 1.20.1 to 26.3). Before it 0000000000000000000000 (cursor size, combo, hearts, potion icons, crystal answer).
-- **`main` is at:** this file's commit. **`npm test`: 664 pass** (Windows, 8 Oct).
+- **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
+- **`main` is at:** this file's commit. **`npm test`: 666 pass** (Windows, 8 Oct).
 - **Version:** `package.json` says **1.4.8**. Installer rebuilt in `release-1.4.8\` (8 Oct, 01:41, panel batch 3) - **installed** on this PC and
   Reminth reopened, **not published** (the owner publishes it himself after testing).
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000000. Fullscreen pointer, 1.21 HUD fix, window size, quiet Play (8 Oct 2026, evening) - desktop window
+
+**Owner's results:** cursor shape right (PASS) but it vanishes in full screen; on 1.21 neither G nor C did anything;
+the launcher in a window looked "hella ugly", everything tiny; the strip that flashes under "Welcome back" on Play is ugly.
+
+**Fixed:**
+- **Fullscreen Pointer** (new panel card, Utility, ON): in full screen, while a menu is open, ReminthHUD hides Windows'
+  pointer and draws the pixel arrow itself at the mouse (`panel/SoftCursor.java`, `V.isFullscreen`, `V.osPointer`: GLFW
+  input mode HIDDEN/NORMAL, SDL_HideCursor/ShowCursor on 26.3). Size = the home mod's Windows pointer size
+  (`reminth.cursorPixel` system property). Home screen **1.0.8**: its pointer reset stays away while the property
+  `reminth.softCursor` is set. On this PC Windows kept showing its pointer in full screen (GetCursorInfo flags 1), so
+  the cause on the owner's PC is unknown - this works whatever it is. Tested: log "Reminth fullscreen pointer: drawn by
+  Reminth" after F11 on 26.2; the arrow drawn in a window-only picture (test switch `-Dreminthhud.testSoftCursor=true`).
+- **1.21 got no ReminthHUD at all**: a quick test build that only accepted "1.21.1" had been copied over the
+  1.21-1.21.1 jar. All seven 1.20/1.21 jars rebuilt with `build-all.ps1`; new test `test/bundled-jar-ranges.test.js`:
+  every bundled jar must be picked for both ends of the versions in its file name.
+- **Window size**: `windowRestore.uiZoom` zoomed by the whole screen (default 1320x840 window = 69 %). Now 1 from
+  1280x760 up, smaller windows only as needed, never below 0.75. Checked in a picture: default window at normal size.
+- **Quiet Play** (`renderer.js` runPlay, QUIET_START_MS 3000): the progress strip/log in the hero stay hidden for 3 s;
+  only a launch still busy then (downloads) shows them; errors show at once.
+
+**Mistakes made (cleaned up):** one cursor test captured part of the desktop (deleted; window-only rule); a dev run of
+the launcher read the real data and its replay buffer recorded ~15 s of the screen (3 segments deleted). Notes in memory.
+
+**Installed** on this PC (8 Oct, 19:0x; installed jars checked byte for byte).
+
+### PASS/FAIL for the owner
+1. 26.2: F11 to full screen, open a menu (Esc or inventory): the pixel pointer is visible. PASS/FAIL
+2. 1.21 instance: G opens the panel; hold C to zoom. PASS/FAIL
+3. Launcher in a normal window: normal size. Press Play: nothing flashes under "Welcome back". PASS/FAIL
 
 ---
 
