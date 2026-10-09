@@ -1,4 +1,4 @@
-# Uploads site/ to the Cloudflare Pages project "reminth" (https://reminth.pages.dev) whenever it changes on main.
+# Uploads site/ (and the account server in functions/, which Wrangler finds next to it) to the Cloudflare Pages project "reminth" (https://reminth.pages.dev) whenever it changes on main.
 # That project is a Direct Upload project (Cloudflare can't connect those to Git later), so GitHub uploads it with
 # Wrangler, Cloudflare's own tool - the same as dragging the site folder into the dashboard.
 # Needs (Settings -> Secrets and variables -> Actions), added by the owner:
@@ -11,7 +11,7 @@ name: Website to Cloudflare
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/cloudflare.yml']
+    paths: ['site/**', 'functions/**', '.github/workflows/cloudflare.yml']
   workflow_dispatch:
 
 jobs:

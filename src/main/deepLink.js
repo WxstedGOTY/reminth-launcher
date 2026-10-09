@@ -12,6 +12,8 @@
  *   reminth://home              -> { page: "home" }
  *   reminth://discover          -> { page: "discover" }
  *   reminth://instance/<id>     -> { page: "instance", id }   (an instance that exists)
+ *   reminth://auth/<32 hex>     -> { page: "auth", code }     (the end of a Reminth account sign-in; main.js only
+ *                                  uses it when a sign-in was started in this app - see reminthAccount.js)
  *
  * (one trailing "/" is allowed: Windows and browsers often add one). Any
  * other scheme or case, another host, an extra path, a query or fragment,
@@ -36,6 +38,8 @@ function parseLink(text, knownIds) {
   if (rest === "skins") return { page: "skins" };
   if (rest === "home") return { page: "home" };
   if (rest === "discover") return { page: "discover" };
+  const auth = /^auth\/([a-f0-9]{32})$/.exec(rest);
+  if (auth) return { page: "auth", code: auth[1] };
   const m = /^instance\/([a-z0-9-]+)$/.exec(rest);
   if (m && INSTANCE_ID.test(m[1]) && !/^-|-$/.test(m[1])) {
     const ids = knownIds instanceof Set ? knownIds : new Set(Array.isArray(knownIds) ? knownIds : []);

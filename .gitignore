@@ -170,3 +170,6 @@ tools/overnight/*.jsonl
 
 # Local notes: chat logs and personal context, never committed (public repo)
 local-notes/
+
+# Local Cloudflare test server state (npx wrangler pages dev)
+.wrangler/

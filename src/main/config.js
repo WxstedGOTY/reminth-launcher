@@ -8,6 +8,8 @@ module.exports = {
   // exchange 403s with "Invalid app registration" (a Microsoft-side
   // allowlist, not a bug in this code - see msAuth.js header).
   MS_CLIENT_ID: process.env.REMINTH_MS_CLIENT_ID || "910bc25c-9dbb-4f3e-a249-481f2977efa2",
+  // Reminth accounts (functions/ on the website). REMINTH_API_URL points a test run at a local server.
+  REMINTH_API_URL: process.env.REMINTH_API_URL || "https://reminth.pages.dev",
 
   MINECRAFT_VERSION: "26.2",
   FABRIC_LOADER_VERSION: "0.19.5",

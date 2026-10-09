@@ -39,6 +39,7 @@ const windowRestore = require("./windowRestore");
 const crashReport = require("./crashReport");
 const versionSwitch = require("./versionSwitch");
 const deepLink = require("./deepLink");
+const reminthAccount = require("./reminthAccount");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -58,6 +59,17 @@ let pageReady = false;
 let pendingLink = null; // a link that came before the page could listen
 const linkIds = async () => (await instances.list()).map((i) => i.id);
 const showLinkPage = (link) => {
+  // the end of a Reminth account sign-in, not a page (reminthAccount.js ignores it unless this app started one)
+  if (link && link.page === "auth") {
+    reminthAccount
+      .completeSignIn(link.code)
+      .then((r) => {
+        if (r.error === "not_started") return;
+        send("reminthAccount:changed", r);
+      })
+      .catch(() => {});
+    return;
+  }
   if (pageReady) send("deeplink:open", link);
   else pendingLink = link;
 };
@@ -702,6 +714,19 @@ ipcMain.handle("perf:restorePack", async (_e, id) => {
   compat.invalidate(id);
   return { reset, status: await minecraft.performancePackStatus(inst) };
 });
+
+// ---- Reminth accounts (reminthAccount.js) ----
+ipcMain.handle("reminthAccount:get", (_e, opts) => reminthAccount.get(opts || {}));
+ipcMain.handle("reminthAccount:status", () => reminthAccount.status());
+ipcMain.handle("reminthAccount:signIn", async () => {
+  const url = reminthAccount.startSignIn();
+  // Reminth's own tests only: hand the address back instead of opening a browser
+  if (process.env.REMINTH_TEST_NO_BROWSER === "1" && !app.isPackaged) return { opened: false, url };
+  await shell.openExternal(url);
+  return { opened: true };
+});
+ipcMain.handle("reminthAccount:signOut", () => reminthAccount.signOut());
+ipcMain.handle("reminthAccount:openWebsite", () => shell.openExternal(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
 
 ipcMain.handle("settings:get", async () => {
   cachedSettings = await store.loadSettings();

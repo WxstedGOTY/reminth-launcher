@@ -935,6 +935,67 @@ function applyAccountUI() {
   refreshSkin();
 }
 
+/* ---- Reminth account (Discord) - main/reminthAccount.js ---- */
+function paintReminthAccount(r) {
+  const user = r && r.user;
+  const av = $("rmAvatar");
+  av.textContent = "";
+  if (user && user.avatarUrl && !user.offline) {
+    const img = new Image();
+    img.alt = "";
+    img.referrerPolicy = "no-referrer";
+    img.src = user.avatarUrl;
+    img.onerror = () => {
+      av.textContent = "";
+      av.appendChild(el("span", "avatar-letter", (user.name || "R").slice(0, 1).toUpperCase()));
+    };
+    av.appendChild(img);
+  } else {
+    av.appendChild(el("span", "avatar-letter", user ? (user.name || "R").slice(0, 1).toUpperCase() : "R"));
+  }
+  $("rmName").textContent = user ? user.name : "Reminth account";
+  $("rmSignInBtn").hidden = Boolean(user) || r.accounts === false;
+  $("rmSignOutBtn").hidden = !user;
+  $("rmManageBtn").hidden = !user;
+  if (user) $("rmState").textContent = r.offline ? "Signed in with Discord - offline right now" : "Signed in with Discord";
+  else if (r.accounts === false) $("rmState").textContent = r.offline ? "Can't reach Reminth right now" : "Reminth accounts are coming soon";
+  else if (r.waiting) $("rmState").textContent = "Finish signing in in your browser\u2026";
+  else $("rmState").textContent = "One account for the launcher and the website. Optional.";
+}
+async function loadReminthAccount(fresh) {
+  try {
+    const r = await window.reminth.reminthAccount.get({ fresh });
+    if (r.user) return paintReminthAccount(r);
+    paintReminthAccount({ user: null, ...(await window.reminth.reminthAccount.status()) });
+  } catch {
+    paintReminthAccount({ user: null, accounts: false, offline: true });
+  }
+}
+$("rmSignInBtn").onclick = async () => {
+  paintReminthAccount({ user: null, waiting: true });
+  try {
+    await window.reminth.reminthAccount.signIn();
+  } catch {
+    toast("Couldn't open your browser.");
+    loadReminthAccount();
+  }
+};
+$("rmSignOutBtn").onclick = async () => {
+  paintReminthAccount(await window.reminth.reminthAccount.signOut().catch(() => ({ user: null })));
+  toast("Signed out of your Reminth account.");
+};
+$("rmManageBtn").onclick = () => window.reminth.reminthAccount.openWebsite().catch(() => {});
+window.reminth.reminthAccount.onChanged((r) => {
+  if (r && r.user) {
+    paintReminthAccount(r);
+    toast(`Signed in to Reminth as ${r.user.name}.`);
+  } else {
+    toast((r && r.message) || "That sign-in didn't work. Try again from Settings.");
+    loadReminthAccount();
+  }
+});
+loadReminthAccount();
+
 let signInSeq = 0;
 let signInCode = null; // { userCode, verificationUri } of the sign-in waiting right now
 async function doSignIn(btn, restart) {

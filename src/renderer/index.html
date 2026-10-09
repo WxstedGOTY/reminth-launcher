@@ -11,7 +11,7 @@
        (connect-src stays 'none'). media-src file: is for the player's own
        clips and screenshots in the Captures tab. -->
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com https://avatars.githubusercontent.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com https://avatars.githubusercontent.com https://cdn.discordapp.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
   <link rel="stylesheet" href="styles.css" id="themeCss" />
 </head>
 <body>
@@ -685,6 +685,17 @@
                 </div>
                 <button class="btn outline" id="settingsAuthBtn">Sign in</button>
               </div>
+              <!-- Reminth account (Discord) - Reminth's own account, shared with the website; not needed to play -->
+              <div class="account-row rm-account" id="rmAccountRow">
+                <span class="avatar lg" id="rmAvatar"><span class="avatar-letter">R</span></span>
+                <div class="account-meta">
+                  <b id="rmName">Reminth account</b>
+                  <span id="rmState">Checking&hellip;</span>
+                </div>
+                <button class="btn outline rm-discord" id="rmSignInBtn" hidden>Continue with Discord</button>
+                <button class="btn outline" id="rmManageBtn" hidden>Manage</button>
+                <button class="btn outline" id="rmSignOutBtn" hidden>Sign out</button>
+              </div>
             </div>
 
             <div class="card set">
@@ -800,7 +811,7 @@
                  has to change with it. -->
             <div class="card set">
               <div class="set-head"><h2>Privacy &amp; terms</h2></div>
-              <p class="set-note">The short version: Reminth has no servers of its own, collects no analytics and
+              <p class="set-note">The short version: Reminth collects no analytics, the Reminth account (Discord) is optional and only keeps your Discord name, id and picture, and Reminth
                 shows no third-party ads. Reminth is just a launcher — it is not responsible for any ban from Mojang,
                 Microsoft, Minecraft or any server. Paid features (when they launch) are not refundable, except where
                 the law gives you a right we can't take away.</p>

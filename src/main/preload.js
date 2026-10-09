@@ -7,6 +7,14 @@ contextBridge.exposeInMainWorld("reminth", {
   // window chrome
   minimize: () => ipcRenderer.send("window:minimize"),
   maximizeToggle: () => ipcRenderer.send("window:maximizeToggle"),
+  reminthAccount: {
+    get: (opts) => ipcRenderer.invoke("reminthAccount:get", opts),
+    status: () => ipcRenderer.invoke("reminthAccount:status"),
+    signIn: () => ipcRenderer.invoke("reminthAccount:signIn"),
+    signOut: () => ipcRenderer.invoke("reminthAccount:signOut"),
+    openWebsite: () => ipcRenderer.invoke("reminthAccount:openWebsite"),
+    onChanged: (fn) => ipcRenderer.on("reminthAccount:changed", (_e, data) => fn(data)),
+  },
   close: () => ipcRenderer.send("window:close"),
   onMaximized: on("window:maximized"),
   // A reminth:// link: which page to show (main.js only sends allow-listed pages).

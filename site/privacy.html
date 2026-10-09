@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy — Reminth</title>
-<meta name="description" content="Who runs Reminth, what the launcher and website store and send, the legal basis for it, how long it is kept, and your rights under the GDPR. Reminth has no servers of its own and collects no analytics." />
+<meta name="description" content="Who runs Reminth, what the launcher and website store and send, the legal basis for it, how long it is kept, and your rights under the GDPR. Reminth collects no analytics; the Reminth account is optional." />
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://reminth.pages.dev/privacy.html" />
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -25,11 +25,13 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 5 October 2026 · Version 8</p>
+    <p class="updated">Last updated: 9 October 2026 · Version 9</p>
 
     <div class="summary">
-      <b>The short version.</b> Reminth has no servers, no accounts of its own, no analytics, no crash
-      reporting and no advertising. What the launcher stores stays on your computer, and we never receive it.
+      <b>The short version.</b> Reminth has no analytics, no crash reporting and no advertising. What the
+      launcher stores stays on your computer, and we never receive it. The one exception is the optional
+      <b>Reminth account</b> (sign in with Discord): if you make one, we keep your Discord user id, name and
+      picture, and when you signed in - nothing else, and you can delete it yourself at any time.
       The launcher talks directly to the services it needs (Microsoft, Mojang, Modrinth, GitHub and so on),
       listed below. The only personal data that ever reaches us is what you choose to send us, such as an
       email. You have full rights over that data under the GDPR, and you can complain to a data protection
@@ -54,8 +56,8 @@
     <h2>2. The principle this policy follows</h2>
     <p>
       This page describes what the code actually does. Reminth is built so that we don't need your data:
-      there is no Reminth server for the launcher to report to, no user account to create, no tracking, and
-      no selling or sharing of personal data with anyone. We do not use your data for profiling or automated
+      the launcher reports nothing to us, you never need an account to use it (the Reminth account is optional),
+      there is no tracking, and no selling or sharing of personal data with anyone. We do not use your data for profiling or automated
       decision-making.
     </p>
 
@@ -63,8 +65,9 @@
 
     <h3>a) Visiting this website</h3>
     <p>
-      The site is a static page. It sets no cookies, uses no local storage, runs no analytics, trackers or
-      advertising, and has no forms. It loads no third-party fonts, scripts or images.
+      The site runs no analytics, trackers or advertising, uses no local storage and loads no third-party fonts
+      or scripts. It sets no cookies unless you sign in to a Reminth account (section 3c); those cookies are
+      strictly necessary for signing in and are never used for anything else.
     </p>
     <ul>
       <li>
@@ -80,6 +83,44 @@
         <b>Downloading Reminth (GitHub).</b> The download button points at a GitHub release. Downloading is a
         request to GitHub, Inc., under GitHub's own privacy statement. We can only see total download counts,
         not who downloaded.
+      </li>
+    </ul>
+
+    <h3>c) The Reminth account (optional)</h3>
+    <p>
+      You can sign in to Reminth, in the launcher or on this website, with your <b>Discord</b> account. The first
+      sign-in makes your Reminth account. Nothing in Reminth requires one.
+    </p>
+    <ul>
+      <li>
+        <b>What we get from Discord:</b> only what Discord's <code>identify</code> permission gives - your Discord
+        user id, username and display name, and your profile picture's id. <b>Not</b> your email address, your
+        servers, friends or messages. Discord's access token is used once to read this and then thrown away.
+      </li>
+      <li>
+        <b>What we store:</b> your Discord user id, name and picture id, when the account was made and when you
+        last signed in; and for each signed-in device or browser a session record (a one-way fingerprint of a
+        random key - not the key itself) with when it was made and when it expires (after 90 days). While you
+        sign in from the launcher, a 2-minute one-time code is stored too.
+      </li>
+      <li>
+        <b>Cookies (website, only when you sign in):</b> <code>rm_state</code> (10 minutes, protects the sign-in
+        from forgery) and <code>rm_session</code> (keeps you signed in, up to 90 days). In the launcher the
+        session key is kept on your computer, encrypted with Windows' own key store.
+      </li>
+      <li>
+        <b>Your profile picture</b> is shown from Discord's image server (<code>cdn.discordapp.com</code>), so
+        Discord receives a normal web request from you when it is shown.
+      </li>
+      <li>
+        <b>Purpose:</b> letting you sign in and showing who is signed in. <b>Legal basis:</b> performing the
+        service you asked for (GDPR Art. 6(1)(b)). <b>Retention:</b> until you delete the account; sessions end
+        after 90 days or when you sign out. <b>Deleting:</b> "Delete my account" on the account page removes the
+        account and every session at once; we keep no copy.
+      </li>
+      <li>
+        <b>Where it is stored:</b> in a Cloudflare D1 database run by Cloudflare, Inc. (USA) as our processor, under
+        the same safeguards as the website hosting above. Discord is a separate company with its own privacy policy.
       </li>
     </ul>
 
@@ -240,8 +281,9 @@
     <h2>7. Children</h2>
     <p>
       Playing Minecraft requires a Microsoft account, and Microsoft applies its own age rules and parental
-      controls. Reminth does not create its own account, does not ask your age, and does not knowingly collect
-      personal data from children. If you are under 15, please ask a parent or guardian before emailing us.
+      controls. The optional Reminth account uses Discord, which requires its users to be at least 13 (or older
+      where local law says so). Reminth does not ask your age and does not knowingly collect personal data from
+      children below Discord's minimum age; if that happened, we delete the account. If you are under 15, please ask a parent or guardian before emailing us.
       A parent or guardian who believes their child has sent us personal data can ask us to delete it.
     </p>
 
@@ -321,6 +363,8 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 9, 9 October 2026</b>: added the optional Reminth account (sign in with Discord): what it
+        stores, the two sign-in cookies on the website, Discord profile pictures, and how to delete it.</li>
       <li><b>Version 8, 5 October 2026</b>: described that ReminthHUD asks the server you play on for your own
         statistics and saves them on your PC (Player Statistics), and the Reminth home screen.</li>
       <li><b>Version 7, 4 October 2026</b>: described how Reminth finds games it started earlier (the list of
