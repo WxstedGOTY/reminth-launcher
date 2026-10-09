@@ -58,8 +58,8 @@ Blue/Orange pick on that first screen, blue by default; a better-looking step tr
   win32_x64 build is packed - before every browser open, so a running Firefox comes to the front instead of blinking);
   callback page "Sign-in complete - you can close this tab"; website `?welcome=1` green message; the Discord-server
   checkbox and `/api/account/settings` removed (consent = Discord's Authorize page; leave the server / deauthorize in
-  Discord); "Open the browser again" on the app's waiting view. Not tested for real yet: the browser coming forward
-  (owner's C2 retest).
+  Discord); "Open the browser again" on the app's waiting view. Owner retest: browser comes forward PASS,
+  sign-in complete PASS. Next: owner publishes 1.7.0.
 
 ### Decisions for the owner
 1. (Recommended: keep) Account required when accounts are on. Fallback: none blocks if the server is down.
