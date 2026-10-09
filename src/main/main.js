@@ -162,7 +162,7 @@ function createWindow() {
     frame: false, // custom title bar drawn in renderer, matches the brand's borderless look
     // Taskbar / alt-tab icon: the .ico carries the hand-tuned 16/24/32 px pictures, so Windows picks the right size
     // itself (a single big PNG would be scaled down by Windows and look soft).
-    icon: path.join(__dirname, "..", "..", "assets", "icons", "reminth.ico"),
+    icon: themeIcon(cachedSettings && cachedSettings.theme),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -708,9 +708,22 @@ ipcMain.handle("settings:get", async () => {
   return cachedSettings;
 });
 
+/** The window's (taskbar) icon for a theme: the orange or the blue cube. */
+function themeIcon(theme) {
+  return path.join(__dirname, "..", "..", "assets", "icons", theme === "frost" ? "reminth-frost.ico" : "reminth.ico");
+}
+function applyThemeIcon() {
+  try {
+    if (win && !win.isDestroyed()) win.setIcon(themeIcon(cachedSettings && cachedSettings.theme));
+  } catch {
+    // cosmetic
+  }
+}
+
 ipcMain.handle("settings:set", async (_e, partial) => {
   const before = cachedSettings;
   cachedSettings = await store.saveSettings(partial);
+  if (before.theme !== cachedSettings.theme) applyThemeIcon();
   const { hotkeyProblems } = streamer.configure(cachedSettings);
   if (before.activeInstance !== cachedSettings.activeInstance) await watchActiveInstance();
   return { ...cachedSettings, _hotkeyProblems: hotkeyProblems };

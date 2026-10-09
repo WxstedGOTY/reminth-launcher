@@ -56,14 +56,14 @@ app.whenReady().then(async () => {
     fs.writeFileSync(MARK, svg);
     const win = new BrowserWindow({ show: false, width: 300, height: 300, webPreferences: { offscreen: true } });
     await win.loadURL("about:blank");
-    const render = async (size) => {
+    const render = async (size, svgText = svg) => {
       const b64 = await win.webContents.executeJavaScript(`new Promise((res, rej) => {
         const img = new Image();
         img.onload = () => { const c = document.createElement('canvas'); c.width = ${size}; c.height = ${size};
           const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, 0, 0, ${size}, ${size});
           res(c.toDataURL('image/png').split(',')[1]); };
         img.onerror = () => rej(new Error('bad svg'));
-        img.src = 'data:image/svg+xml;base64,' + ${JSON.stringify(Buffer.from(svg).toString("base64"))};
+        img.src = 'data:image/svg+xml;base64,' + ${JSON.stringify(Buffer.from(svgText).toString("base64"))};
       })`);
       return Buffer.from(b64, "base64");
     };
@@ -75,6 +75,13 @@ app.whenReady().then(async () => {
     fs.writeFileSync(path.join(ROOT, "site", "favicon.png"), await render(256));
     fs.writeFileSync(path.join(ROOT, "site", "apple-touch-icon.png"), await render(180));
     fs.writeFileSync(path.join(ROOT, "site", "logo.png"), await render(128));
+    // the blue (Frost) theme's cube: tools/frost.js makes its SVG (and the blue stylesheet) from the orange one
+    const { build } = require("./frost");
+    build();
+    const frostSvg = fs.readFileSync(path.join(ROOT, "assets", "icons", "source", "reminth-mark-frost.svg"), "utf8");
+    const frostPngs = [];
+    for (const size of ICO_SIZES) frostPngs.push({ size, data: await render(size, frostSvg) });
+    fs.writeFileSync(path.join(ROOT, "assets", "icons", "reminth-frost.ico"), ico(frostPngs));
     console.log("made mark, ico with", ICO_SIZES.join("/"), "and the site icons");
   } catch (e) {
     console.error(e);

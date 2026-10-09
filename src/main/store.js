@@ -192,6 +192,8 @@ const DEFAULT_SETTINGS = {
   // default, "cyan"; while this is false, "cyan" is read as "ember" (see settingsFrom), so everyone gets the brand
   // colour once and a later deliberate pick of cyan sticks.
   accentChosen: false,
+  // The whole launcher's look: "ember" (orange, styles.css) or "frost" (blue, styles-frost.css made by tools/frost.js).
+  theme: "ember",
   // Game window. null width/height = let Minecraft use its own last-used size.
   gameWidth: null,
   gameHeight: null,
@@ -320,7 +322,7 @@ function sanitizeSettings(partial, { strict = false, counters = false } = {}) {
   // One of a fixed list each. Anything else (a typo in settings.json, a
   // value from a newer Reminth) falls back to the default instead of
   // reaching the launch code as something it doesn't know.
-  const choices = { gc: ["auto", "g1", "zgc"], processPriority: ["above-normal", "normal"] };
+  const choices = { gc: ["auto", "g1", "zgc"], processPriority: ["above-normal", "normal"], theme: ["ember", "frost"] };
   for (const [key, allowed] of Object.entries(choices)) {
     if (!(key in partial)) continue;
     clean[key] = allowed.includes(partial[key]) ? partial[key] : DEFAULT_SETTINGS[key];

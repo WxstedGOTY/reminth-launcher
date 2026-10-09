@@ -647,7 +647,7 @@ function managedModCard(mod) {
   if (mod.name === "ReminthHUD") {
     mark.textContent = "";
     const img = el("img", "mcard-ico");
-    img.src = "../../assets/icons/source/reminth-mark.svg";
+    img.src = "../../assets/icons/source/" + (document.documentElement.dataset.theme === "frost" ? "reminth-mark-frost.svg" : "reminth-mark.svg");
     img.alt = "";
     head.appendChild(img);
   } else head.appendChild(mark);

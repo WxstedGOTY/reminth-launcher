@@ -12,7 +12,7 @@
        clips and screenshots in the Captures tab. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com https://avatars.githubusercontent.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css" id="themeCss" />
 </head>
 <body>
 
@@ -753,7 +753,14 @@
                 <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Accent colour</b><span>Pick the colour used across the launcher.</span></div>
+                <div><b>Theme</b><span>The whole launcher in orange or in blue - icon included.</span></div>
+                <div class="theme-picks">
+                  <button class="theme-pick" data-theme="ember"><i class="tp-swatch ember"></i>Orange</button>
+                  <button class="theme-pick" data-theme="frost"><i class="tp-swatch frost"></i>Blue</button>
+                </div>
+              </div>
+              <div class="toggle-row">
+                <div><b>Accent colour</b><span>Buttons and highlights. Picking a theme sets this to the theme's own colour.</span></div>
                 <div class="accents" id="accentPicker">
                   <button class="accent" data-accent="ember" aria-label="Ember (Reminth orange)"></button>
                   <button class="accent" data-accent="cyan" aria-label="Cyan"></button>

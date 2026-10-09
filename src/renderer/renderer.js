@@ -3164,6 +3164,34 @@ document.querySelectorAll(".accent").forEach((btn) => {
     if (!(await saveSetting({ accent, accentChosen: true }))) applyAccent(previous);
   };
 });
+/** The whole launcher's look (Settings -> Theme): "ember" = orange, "frost" = blue. */
+const THEME_ACCENT = { ember: "ember", frost: "cyan" };
+function applyTheme(theme) {
+  theme = theme === "frost" ? "frost" : "ember";
+  document.documentElement.dataset.theme = theme;
+  const css = $("themeCss");
+  const href = theme === "frost" ? "styles-frost.css" : "styles.css";
+  if (css && css.getAttribute("href") !== href) css.setAttribute("href", href);
+  document.querySelectorAll('img[src*="reminth-mark"]').forEach((img) => {
+    img.src = "../../assets/icons/source/" + (theme === "frost" ? "reminth-mark-frost.svg" : "reminth-mark.svg");
+  });
+  document.querySelectorAll(".theme-pick").forEach((b) => b.classList.toggle("selected", b.dataset.theme === theme));
+}
+window.applyTheme = applyTheme;
+document.querySelectorAll(".theme-pick").forEach((btn) => {
+  btn.onclick = async () => {
+    const before = { theme: document.documentElement.dataset.theme || "ember", accent: document.documentElement.dataset.accent || "ember" };
+    const theme = btn.dataset.theme;
+    applyTheme(theme);
+    applyAccent(THEME_ACCENT[theme]);
+    // accentChosen: the theme's own accent must not be moved back to orange at the next start (store.js)
+    if (!(await saveSetting({ theme, accent: THEME_ACCENT[theme], accentChosen: true }))) {
+      applyTheme(before.theme);
+      applyAccent(before.accent);
+    }
+  };
+});
+
 function applyAccent(accent) {
   document.documentElement.dataset.accent = accent;
   document.querySelectorAll(".accent").forEach((b) => b.classList.toggle("selected", b.dataset.accent === accent));
@@ -3208,6 +3236,7 @@ async function boot() {
     state.settings = await window.reminth.getSettings();
     const s = state.settings;
     state.activeId = s.activeInstance || "reminth";
+    applyTheme(s.theme);
     applyAccent(s.accent || "ember");
     setSwitch("toggleLaunchMinimized", s.launchMinimized);
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
