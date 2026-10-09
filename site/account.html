@@ -105,7 +105,6 @@
     <div class="meta" id="since"></div>
     <div class="msg hidden" id="msg2"></div>
     <div class="methods" id="methods"></div>
-    <label class="check hidden" id="pullRow"><input type="checkbox" id="pullBox" /> <span>Add me to the Reminth Discord server (you can leave the server any time).</span></label>
     <p>In the launcher, sign in the same way to use this account there.</p>
     <button class="btn ghost" id="logoutBtn" type="button">Sign out</button>
     <button class="btn danger" id="deleteBtn" type="button">Delete my account</button>
@@ -137,9 +136,11 @@
   const q = new URLSearchParams(location.search);
   const err = q.get("error");
   const linked = q.get("linked");
+  const welcome = q.get("welcome");
   if (err && errors[err]) { flash($("err"), errors[err]); flash($("msg2"), errors[err]); }
   if (linked && NAMES[linked]) flash($("msg2"), NAMES[linked] + " is connected - you can sign in with it too now.", true);
-  if (err || linked) history.replaceState(null, "", location.pathname);
+  if (welcome) flash($("msg2"), "Sign-in complete - you're signed in. You can close this tab, or use the website.", true);
+  if (err || linked || welcome) history.replaceState(null, "", location.pathname);
 
   let status = { providers: [] };
   let mode = "signup";
@@ -165,7 +166,7 @@
       const r = await fetch("/api/auth/email", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" },
         body: JSON.stringify({ mode, client: "web", email: $("fEmail").value, password: $("fPass").value, name: $("fName").value }) });
       const d = await r.json().catch(() => ({}));
-      if (r.ok) { $("fPass").value = ""; $("err").classList.add("hidden"); paint(d.user); return; }
+      if (r.ok) { $("fPass").value = ""; $("err").classList.add("hidden"); paint(d.user); flash($("msg2"), mode === "signup" ? "Account created - you're signed in." : "Sign-in complete - you're signed in.", true); return; }
       flash($("err"), d.message || "Something went wrong. Try again.");
     } catch {
       flash($("err"), "No connection. Try again.");
@@ -196,17 +197,11 @@
       m.appendChild(row);
     }
     m.classList.toggle("hidden", !m.children.length);
-    $("pullRow").classList.toggle("hidden", !user.providers.includes("discord"));
-    $("pullBox").checked = !!user.discordPull;
     show("signedIn");
     $("ownerCard").classList.toggle("hidden", !user.admin);
     if (user.admin) ownerStats();
   }
 
-  $("pullBox").onchange = async () => {
-    const r = await fetch("/api/account/settings", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ discordPull: $("pullBox").checked }) }).catch(() => null);
-    if (!r || !r.ok) { $("pullBox").checked = !$("pullBox").checked; alert("Couldn't save that right now. Try again."); }
-  };
 
   async function ownerStats() {
     const s = await fetch("/api/admin/discord", { credentials: "same-origin" }).then((r) => r.json()).catch(() => null);

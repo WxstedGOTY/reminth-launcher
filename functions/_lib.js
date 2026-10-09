@@ -140,7 +140,6 @@ export function publicUser(a, idents = [], env = null) {
     avatarUrl: a.avatar_url || null,
     providers: idents.map((i) => i.provider),
     provider: (idents[0] && idents[0].provider) || null,
-    discordPull: Boolean(a.discord_pull),
     createdAt: a.created_at * 1000,
   };
   const email = idents.find((i) => i.provider === "email");

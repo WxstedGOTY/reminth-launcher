@@ -40,6 +40,7 @@ const crashReport = require("./crashReport");
 const versionSwitch = require("./versionSwitch");
 const deepLink = require("./deepLink");
 const reminthAccount = require("./reminthAccount");
+const { openInBrowser } = require("./openInBrowser");
 const markdown = require("../renderer/markdown");
 const { fetchJson } = require("./downloader");
 
@@ -196,7 +197,7 @@ function createWindow() {
   // was killed from Task Manager. Every outbound link opens in the real
   // browser instead, and the window itself is pinned to its own page.
   const openExternally = (url) => {
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    if (/^https?:\/\//i.test(url)) openInBrowser(url).catch(() => {});
   };
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternally(url);
@@ -347,7 +348,7 @@ ipcMain.handle("auth:signIn", async (_e, restart) => {
       send("auth:code", data);
       // The Microsoft page opens by itself; a link in the window that would not open was the common complaint.
       const href = markdown.safeLink(data && data.verificationUri);
-      if (href) shell.openExternal(href).catch(() => {});
+      if (href) openInBrowser(href).catch(() => {});
     },
     onWaiting: () => send("auth:waiting"),
   });
@@ -722,12 +723,12 @@ ipcMain.handle("reminthAccount:signIn", async (_e, provider) => {
   const url = reminthAccount.startSignIn(provider === "google" ? "google" : "discord");
   // Reminth's own tests only: hand the address back instead of opening a browser
   if (process.env.REMINTH_TEST_NO_BROWSER === "1" && !app.isPackaged) return { opened: false, url };
-  await shell.openExternal(url);
+  await openInBrowser(url);
   return { opened: true };
 });
 ipcMain.handle("reminthAccount:email", (_e, form) => reminthAccount.emailSignIn(form && typeof form === "object" ? form : {}));
 ipcMain.handle("reminthAccount:signOut", () => reminthAccount.signOut());
-ipcMain.handle("reminthAccount:openWebsite", () => shell.openExternal(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
+ipcMain.handle("reminthAccount:openWebsite", () => openInBrowser(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
 
 ipcMain.handle("settings:get", async () => {
   cachedSettings = await store.loadSettings();
@@ -1313,7 +1314,7 @@ ipcMain.handle("catalog:projectPage", async (_e, idOrSlug) => projectPage.getPro
 ipcMain.handle("link:open", async (_e, url) => {
   const href = markdown.safeLink(url);
   if (!href) throw new Error("Only https links can be opened.");
-  await shell.openExternal(href);
+  await openInBrowser(href);
   return { ok: true };
 });
 ipcMain.handle("catalog:projectVersions", async (_e, idOrSlug, filters) => modrinth.getProjectVersions(idOrSlug, filters));

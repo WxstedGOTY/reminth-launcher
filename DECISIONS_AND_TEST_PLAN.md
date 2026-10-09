@@ -51,6 +51,16 @@ Blue/Orange pick on that first screen, blue by default; a better-looking step tr
   PBKDF2 100k on Cloudflare's free CPU limit (10 ms) - if email sign-in fails live with "exceeded CPU", lower
   `PBKDF2_ITERATIONS` (stored per hash, old hashes keep working).
 
+- **Owner setup + test (9 Oct, evening):** D1 bound, Discord app + variables set - live `/api/status` says
+  `{"accounts":true,"providers":["discord","email"]}`; a live email sign-up/delete worked (PBKDF2 within the CPU limit).
+  Owner: C1 (website Discord) PASS, C2 (installed app, Discord) PASS. His changes, done after that:
+  `src/main/openInBrowser.js` (AllowSetForegroundWindow(ASFW_ANY) through **koffi** - new dependency, only its
+  win32_x64 build is packed - before every browser open, so a running Firefox comes to the front instead of blinking);
+  callback page "Sign-in complete - you can close this tab"; website `?welcome=1` green message; the Discord-server
+  checkbox and `/api/account/settings` removed (consent = Discord's Authorize page; leave the server / deauthorize in
+  Discord); "Open the browser again" on the app's waiting view. Not tested for real yet: the browser coming forward
+  (owner's C2 retest).
+
 ### Decisions for the owner
 1. (Recommended: keep) Account required when accounts are on. Fallback: none blocks if the server is down.
 2. No "forgot password" for email yet (needs an email service, e.g. Resend - costs nothing at small size, needs a domain).

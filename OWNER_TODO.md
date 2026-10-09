@@ -1,7 +1,8 @@
 # Your steps - one small thing at a time
 
-**Where you are (9 Oct 2026):** Part A DONE (accounts + email on). Part B DONE (Discord on - checked live).
-**Next: Part C.**
+**Where you are (9 Oct 2026):** Part A DONE. Part B DONE. Part C PASSED - then you asked for 3 changes (done):
+the browser comes to the front, a big "Sign-in complete" page, no Discord-server checkbox.
+**Next: Part C again with the new installer (only C2 needs redoing), then Part D.**
 
 Do **one part**, then tell me **"Part A done"** (or what went wrong). I'll check it works before you do the next one.
 Every line is one click or one paste. If a button looks different on your screen, stop and tell me what you see.

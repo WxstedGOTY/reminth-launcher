@@ -1031,7 +1031,9 @@ function rmGateMessage(text) {
   $("rmGateMsg").textContent = text || "";
   $("rmGateMsg").hidden = !text;
 }
+let rmLastProvider = "discord";
 async function rmBrowserSignIn(provider) {
+  rmLastProvider = provider;
   rmGateMessage("");
   rmGateBusy(true);
   try {
@@ -1044,6 +1046,7 @@ async function rmBrowserSignIn(provider) {
 $("rmGateDiscord").onclick = () => rmBrowserSignIn("discord");
 $("rmGateGoogle").onclick = () => rmBrowserSignIn("google");
 $("rmGateCancel").onclick = () => rmGateBusy(false);
+$("rmGateReopen").onclick = () => rmBrowserSignIn(rmLastProvider);
 $("rmGateEmail").onclick = () => {
   rmGateMessage("");
   rmGateView("email");

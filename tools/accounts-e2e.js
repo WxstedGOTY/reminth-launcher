@@ -48,7 +48,7 @@ const step = (name) => console.log("  ok -", name);
   const state2 = new URL(r.headers.get("location")).searchParams.get("state");
   r = await req(`/api/auth/discord/callback?code=c1&state=${state2}`);
   assert.equal(r.status, 302);
-  assert.equal(r.headers.get("location"), "/account.html");
+  assert.equal(r.headers.get("location"), "/account.html?welcome=1");
   assert.ok(jar.has("rm_session"));
   step("the website sign-in makes the account and a session cookie");
 
@@ -77,6 +77,7 @@ const step = (name) => console.log("  ok -", name);
   const state3 = new URL(r.headers.get("location")).searchParams.get("state");
   r = await req(`/api/auth/discord/callback?code=c2&state=${state3}`);
   const html = await r.text();
+  assert.ok(html.includes("Sign-in complete") && html.includes("close this tab"), "the page says it's done");
   const code = (/reminth:\/\/auth\/([a-f0-9]{32})/.exec(html) || [])[1];
   assert.ok(code, "the page hands the app a code");
   assert.ok(!html.includes("<b>Tester <b>"), "the name is escaped on the page");
@@ -116,7 +117,7 @@ const step = (name) => console.log("  ok -", name);
   assert.match(r.headers.get("location"), /error=expired/, "a Google state can't finish a Discord sign-in");
   r = await req("/api/auth/google/start?client=web");
   r = await req(`/api/auth/google/callback?code=g1&state=${new URL(r.headers.get("location")).searchParams.get("state")}`);
-  assert.equal(r.headers.get("location"), "/account.html");
+  assert.equal(r.headers.get("location"), "/account.html?welcome=1");
   me = (await (await req("/api/me")).json()).user;
   assert.equal(me.name, "Gina");
   assert.deepEqual(me.providers, ["google"]);
@@ -184,11 +185,6 @@ const step = (name) => console.log("  ok -", name);
 
   jar.clear();
   for (const [k, v] of ginaJar) jar.set(k, v);
-  r = await req("/api/account/settings", { method: "POST", body: { discordPull: false } });
-  assert.equal((await r.json()).user.discordPull, false);
-  s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
-  assert.equal(s.allowed, 1);
-  step("a player can say no to being added to the server");
 
   r = await req("/api/account/delete", { method: "POST", body: { confirm: "DELETE" } });
   assert.equal(r.status, 200);

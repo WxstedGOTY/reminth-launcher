@@ -17,7 +17,8 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
-    "extract-zip": "^2.0.1"
+    "extract-zip": "^2.0.1",
+    "koffi": "^2.16.3"
   },
   "build": {
     "appId": "com.reminth.launcher",
@@ -31,6 +32,9 @@
       "!assets/icons/reminth.icns",
       "!assets/icons/source/reminth-icon-master-1024.png",
       "!assets/icons/source/reminth-mark-1024.png",
+      "!node_modules/koffi/build/koffi/{darwin,freebsd,linux,musl,openbsd}_*/**",
+      "!node_modules/koffi/build/koffi/win32_{arm64,ia32}/**",
+      "!node_modules/koffi/{src,vendor,doc}/**",
       "package.json"
     ],
     "win": {
