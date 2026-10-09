@@ -25,18 +25,20 @@ const step = (name) => console.log("  ok -", name);
 
 (async () => {
   console.log("accounts e2e against", BASE);
-  assert.equal((await (await req("/api/status")).json()).accounts, true);
-  step("status says accounts are on");
+  const st = await (await req("/api/status")).json();
+  assert.equal(st.accounts, true);
+  assert.deepEqual(st.providers, ["discord", "google", "email"]);
+  step("status says accounts are on, with Discord, Google and email");
 
   // --- website: start -> Discord -> callback -> cookie session
   let r = await req("/api/auth/discord/start?client=web");
   assert.equal(r.status, 302);
   const disc = new URL(r.headers.get("location"));
   assert.equal(disc.hostname, "discord.com");
-  assert.equal(disc.searchParams.get("scope"), "identify");
+  assert.equal(disc.searchParams.get("scope"), "identify guilds.join");
   const state = disc.searchParams.get("state");
   assert.ok(jar.has("rm_state"));
-  step("start sends the browser to Discord with scope identify and a state cookie");
+  step("start sends the browser to Discord (identify + guilds.join) with a state cookie");
 
   r = await req(`/api/auth/discord/callback?code=c1&state=wrong`);
   assert.match(r.headers.get("location"), /error=expired/);
@@ -105,6 +107,95 @@ const step = (name) => console.log("  ok -", name);
   assert.equal(me.user.id, got.user.id);
   step("the app's token works on /api/me, and it's the same account as on the website");
 
+  // --- Google (website), then connecting Discord to that same account
+  jar.clear();
+  r = await req("/api/auth/google/start?client=web");
+  const gUrl = new URL(r.headers.get("location"));
+  assert.equal(gUrl.searchParams.get("scope"), "openid profile");
+  r = await req(`/api/auth/discord/callback?code=g1&state=${gUrl.searchParams.get("state")}`);
+  assert.match(r.headers.get("location"), /error=expired/, "a Google state can't finish a Discord sign-in");
+  r = await req("/api/auth/google/start?client=web");
+  r = await req(`/api/auth/google/callback?code=g1&state=${new URL(r.headers.get("location")).searchParams.get("state")}`);
+  assert.equal(r.headers.get("location"), "/account.html");
+  me = (await (await req("/api/me")).json()).user;
+  assert.equal(me.name, "Gina");
+  assert.deepEqual(me.providers, ["google"]);
+  assert.match(me.avatarUrl, /^https:\/\/lh3\.googleusercontent\.com\//);
+  const gina = me.id;
+  step("Google sign-in makes its own account (name, picture)");
+
+  r = await req("/api/auth/discord/start?client=web&link=1");
+  r = await req(`/api/auth/discord/callback?code=c9&state=${new URL(r.headers.get("location")).searchParams.get("state")}`);
+  assert.match(r.headers.get("location"), /error=already_linked/, "Tester's Discord belongs to Tester's account");
+  r = await req("/api/auth/discord/start?client=web&link=1");
+  r = await req(`/api/auth/discord/callback?code=other&state=${new URL(r.headers.get("location")).searchParams.get("state")}`);
+  assert.match(r.headers.get("location"), /linked=discord/);
+  me = (await (await req("/api/me")).json()).user;
+  assert.equal(me.id, gina);
+  assert.deepEqual(me.providers, ["google", "discord"]);
+  assert.equal(me.admin, undefined);
+  step("Connect: Discord added to the Google account; someone else's Discord is refused");
+  const ginaJar = new Map(jar);
+
+  // --- email + password
+  const origin = { origin: BASE };
+  const email = (b, extra = {}) => req("/api/auth/email", { method: "POST", body: { client: "web", ...b }, headers: { ...origin, ...extra }, useJar: false });
+  assert.equal((await email({ mode: "signup", email: "nope", password: "longenough", name: "Em" })).status, 400);
+  assert.equal((await email({ mode: "signup", email: "em@test.dev", password: "short", name: "Em" })).status, 400);
+  assert.equal((await email({ mode: "signup", email: "em@test.dev", password: "longenough", name: "E" })).status, 400);
+  assert.equal((await email({ mode: "signup", email: "em@test.dev", password: "longenough", name: "Em" }, { origin: "https://evil.example" })).status, 403);
+  r = await email({ mode: "signup", email: "Em@Test.dev", password: "longenough", name: "Em" });
+  assert.equal(r.status, 200);
+  assert.ok((r.headers.getSetCookie() || []).some((c) => /^rm_session=[a-f0-9]{64};.*HttpOnly/.test(c)));
+  const em = (await r.json()).user;
+  assert.equal(em.email, "em@test.dev");
+  assert.equal((await email({ mode: "signup", email: "em@test.dev", password: "otherpass1", name: "Em2" })).status, 409);
+  assert.equal((await email({ mode: "signin", email: "em@test.dev", password: "wrongpass1" })).status, 401);
+  assert.equal((await email({ mode: "signin", email: "nobody@test.dev", password: "wrongpass1" })).status, 401);
+  r = await email({ mode: "signin", client: "app", email: "EM@test.dev", password: "longenough" });
+  const emApp = await r.json();
+  assert.equal(r.status, 200);
+  assert.equal(emApp.user.id, em.id);
+  assert.match(emApp.token, /^[a-f0-9]{64}$/);
+  step("email: checks, sign up (web cookie), taken address, wrong password, app sign-in gets a token");
+
+  let limited = false;
+  for (let i = 0; i < 12 && !limited; i++) limited = (await email({ mode: "signin", email: "em@test.dev", password: "wrongpass" + i })).status === 429;
+  assert.ok(limited, "too many wrong passwords get slowed down");
+  step("email: many wrong passwords in a row -> 'too many tries'");
+
+  // --- owner tools: the Discord pull
+  assert.equal((await req("/api/admin/discord")).status, 403);
+  const adminH = { authorization: "Bearer " + got.token };
+  let s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
+  assert.deepEqual(s.setup, { bot: true, server: true });
+  assert.equal(s.allowed, 2);
+  assert.equal(s.inServer, 0);
+  assert.equal((await (await req("/api/me", { headers: adminH, useJar: false })).json()).user.admin, true);
+  r = await req("/api/admin/discord", { method: "POST", body: {}, headers: adminH, useJar: false });
+  let pull = await r.json();
+  assert.equal(pull.added, 2);
+  assert.equal(pull.done, true);
+  pull = await (await req("/api/admin/discord", { method: "POST", body: {}, headers: adminH, useJar: false })).json();
+  assert.equal(pull.already, 2);
+  s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
+  assert.equal(s.inServer, 2);
+  step("owner button: only the owner; adds both Discord players to the server, then 'already in'");
+
+  jar.clear();
+  for (const [k, v] of ginaJar) jar.set(k, v);
+  r = await req("/api/account/settings", { method: "POST", body: { discordPull: false } });
+  assert.equal((await r.json()).user.discordPull, false);
+  s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
+  assert.equal(s.allowed, 1);
+  step("a player can say no to being added to the server");
+
+  r = await req("/api/account/delete", { method: "POST", body: { confirm: "DELETE" } });
+  assert.equal(r.status, 200);
+  const mock = await (await fetch("http://127.0.0.1:8799/_test/state")).json();
+  assert.ok(mock.revoked.some((t) => /^rt-other-/.test(t)), "deleting hands the Discord permission back");
+  step("deleting an account with Discord hands its Discord permission back");
+
   r = await req("/api/account/delete", { method: "POST", body: {}, headers: bearer, useJar: false });
   assert.equal(r.status, 400);
   r = await req("/api/account/delete", { method: "POST", body: { confirm: "DELETE" }, headers: bearer, useJar: false });
@@ -122,6 +213,9 @@ const step = (name) => console.log("  ok -", name);
   process.exit(1);
 });
 
-// Local run:  node <mock discord on 8799> &
-//   npx wrangler@4 pages dev site --port 8788 --d1 DB=reminth-test --binding DISCORD_CLIENT_ID=test-id \
-//     --binding DISCORD_CLIENT_SECRET=test-secret --binding DISCORD_API=http://127.0.0.1:8799
+// Local run:  node tools/accounts-mock.js &
+//   npx wrangler@4 pages dev site --port 8788 --d1 DB=reminth-test-<new name each run> --binding DISCORD_CLIENT_ID=test-id \
+//     --binding DISCORD_CLIENT_SECRET=test-secret --binding DISCORD_API=http://127.0.0.1:8799 \
+//     --binding GOOGLE_CLIENT_ID=g-id --binding GOOGLE_CLIENT_SECRET=g-secret --binding GOOGLE_API=http://127.0.0.1:8799/google \
+//     --binding ADMIN_DISCORD_ID=123456789 --binding DISCORD_BOT_TOKEN=bot-test --binding DISCORD_GUILD_ID=555
+// (the mock remembers who it added to the server - restart it too between runs)

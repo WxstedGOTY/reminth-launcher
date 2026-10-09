@@ -718,13 +718,14 @@ ipcMain.handle("perf:restorePack", async (_e, id) => {
 // ---- Reminth accounts (reminthAccount.js) ----
 ipcMain.handle("reminthAccount:get", (_e, opts) => reminthAccount.get(opts || {}));
 ipcMain.handle("reminthAccount:status", () => reminthAccount.status());
-ipcMain.handle("reminthAccount:signIn", async () => {
-  const url = reminthAccount.startSignIn();
+ipcMain.handle("reminthAccount:signIn", async (_e, provider) => {
+  const url = reminthAccount.startSignIn(provider === "google" ? "google" : "discord");
   // Reminth's own tests only: hand the address back instead of opening a browser
   if (process.env.REMINTH_TEST_NO_BROWSER === "1" && !app.isPackaged) return { opened: false, url };
   await shell.openExternal(url);
   return { opened: true };
 });
+ipcMain.handle("reminthAccount:email", (_e, form) => reminthAccount.emailSignIn(form && typeof form === "object" ? form : {}));
 ipcMain.handle("reminthAccount:signOut", () => reminthAccount.signOut());
 ipcMain.handle("reminthAccount:openWebsite", () => shell.openExternal(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
 

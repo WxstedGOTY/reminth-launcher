@@ -59,3 +59,47 @@ test("a malformed code is refused without asking the server", async () => {
 test("signed out with nothing saved: no account", async () => {
   assert.deepEqual(await acct.get(), { user: null });
 });
+
+test("Google sign-in uses its own start address; unknown methods are refused", () => {
+  assert.match(acct.startSignIn("google"), /\/api\/auth\/google\/start\?client=app&nonce=[a-f0-9]{48}$/);
+  assert.throws(() => acct.startSignIn("../admin"));
+});
+
+test("email sign-in: posts as the app, keeps the token, and passes the server's message on", async () => {
+  const realFetch = global.fetch;
+  const sent = [];
+  try {
+    global.fetch = async (url, opts) => {
+      sent.push({ url, body: JSON.parse(opts.body) });
+      if (sent.length === 1) return new Response(JSON.stringify({ error: "wrong", message: "Wrong email or password." }), { status: 401 });
+      return new Response(JSON.stringify({ token: "b".repeat(64), user: { id: "u1", name: "Em", providers: ["email"] } }), { status: 200 });
+    };
+    assert.deepEqual(await acct.emailSignIn({ mode: "signin", email: "em@test.dev", password: "nope-nope" }), { error: "wrong", message: "Wrong email or password." });
+    const ok = await acct.emailSignIn({ mode: "signup", email: "em@test.dev", password: "longenough", name: "Em" });
+    assert.equal(ok.user.name, "Em");
+    assert.match(sent[0].url, /\/api\/auth\/email$/);
+    assert.equal(sent[0].body.client, "app");
+    assert.equal(sent[0].body.name, undefined, "no name on a sign-in");
+    assert.equal(sent[1].body.name, "Em");
+    global.fetch = async () => new Response(JSON.stringify({ user: { id: "u1", name: "Em" } }), { status: 200 });
+    assert.equal((await acct.get({ fresh: true })).user.name, "Em", "the token was kept (in memory here)");
+    global.fetch = async () => {
+      throw new Error("offline");
+    };
+    assert.equal((await acct.emailSignIn({ mode: "signin", email: "a@b.cd", password: "12345678" })).error, "offline");
+  } finally {
+    global.fetch = async () => new Response("{}", { status: 200 }); // sign out without the real server
+    await acct.signOut().catch(() => {});
+    global.fetch = realFetch;
+  }
+});
+
+test("status passes on only the sign-in methods the app knows", async () => {
+  const realFetch = global.fetch;
+  try {
+    global.fetch = async () => new Response(JSON.stringify({ accounts: true, providers: ["discord", "evil", "email"] }), { status: 200 });
+    assert.deepEqual(await acct.status(), { accounts: true, providers: ["discord", "email"] });
+  } finally {
+    global.fetch = realFetch;
+  }
+});

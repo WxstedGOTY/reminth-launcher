@@ -4,16 +4,58 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **9 Oct 2026 (afternoon): 1.7.0 built and installed, NOT published. The owner's steps are in `OWNER_TODO.md`** (publish
-  1.7.0; switch accounts on: Discord app + D1 database + Cloudflare settings). Section 000000000000000000000000000.
+- **9 Oct 2026 (evening): 1.7.0 rebuilt (accounts required, Discord/Google/email, Discord server pull, blue default), NOT
+  installed, NOT published. The owner's exact steps are in `OWNER_TODO.md` (steps 1-9: Discord app + bot, Google client,
+  D1, Cloudflare variables, rerun workflow, test website, install, publish, later the server pull).** Sections
+  0000000000000000000000000000 and 000000000000000000000000000.
 - **NEXT after that (owner, 9 Oct 2026): marketing.** 1.6.1 is published; the website is live at https://reminth.pages.dev (auto-deployed to
   Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
   changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 676 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
-- **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`, installed here, not published). 1.6.1 is published.
+- **`main` is at:** this file's commit. **`npm test`: 679 pass** (9 Oct evening) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
+- **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`, rebuilt 9 Oct evening, NOT installed, not published). 1.6.1 is published.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000000000. Reminth accounts for everyone: required step, Discord/Google/email, Discord server pull, blue default (9 Oct 2026, evening) - desktop window
+
+**Owner:** the Reminth account at the top of Home instead of the Minecraft account; a required first step ("you also
+gotta connect Discord or Google or email"); Discord sign-ins must be pullable into his future Discord server with a
+button; official Discord/Google icons; email as its own button that opens a panel; "gamer tag" instead of name; the
+Blue/Orange pick on that first screen, blue by default; a better-looking step tracker; simple exact steps for him.
+
+**Done:**
+- **Server** (`functions/`): one account with several sign-in ways. Tables `accounts`, `identities(provider, subject,
+  account_id, secret, guild_joined_at)`, `sessions`, `login_codes`, `tries` (made on first use; an old 1.7.0-test
+  `users` table is copied over once and dropped - untested, no live data existed). `_oauth.js` = Discord (scope
+  `identify guilds.join`, refresh token kept AES-GCM encrypted, key from `TOKEN_KEY` or the Discord client secret) and
+  Google (`openid profile`). Routes `/api/auth/[provider]/start|callback` (`?link=1` = "Connect" on the website),
+  `/api/auth/email` (signup/signin, PBKDF2-SHA256 100k, 8+ chars, 10 tries/15 min per address, 30 per network),
+  `/api/account/settings` (discordPull opt-out), `/api/admin/discord` (owner only: `ADMIN_DISCORD_ID`; GET numbers, POST
+  adds 10 per call to `DISCORD_GUILD_ID` with `DISCORD_BOT_TOKEN`, handles 429 waits, stops on a wrong token/server/
+  permission). Delete also revokes the Discord token. `/api/status` -> `{accounts, providers}`.
+- **Website** `site/account.html`: Discord/Google/email buttons (email opens a panel), connected ways + Connect, the
+  Discord-server checkbox, Owner tools box. Privacy v10, Terms v8.
+- **App:** `#rmGate` (Home): step 1 Reminth account (Discord / Google via browser + `reminth://auth`, email straight from
+  main via `reminthAccount.emailSignIn`), Pick your look (Blue/Orange), then step 2 Microsoft (`#mcSteps`). The whole
+  app waits behind it like the Microsoft gate (`rmGateNeeded()` in `applyAccountUI`/`switchPage`) - only when the
+  server says accounts are on; offline or off = no gate. Top bar chip = Reminth account ("Playing as <MC name>").
+  Theme default `frost` (store.js); an unchosen accent follows the theme; `index.html` loads `styles-frost.css` first.
+  CSP allows `lh3.googleusercontent.com`. Invalid `font: ... inherit` shorthands fixed (app + website).
+- **Tested:** `tools/accounts-e2e.js` 21 steps against `wrangler pages dev` + `tools/accounts-mock.js` (pretend
+  Discord/Google/guild) - all pass; app in isolated test copies: email sign-up, Discord through a real second-instance
+  `reminth://auth` link, the gate, both steps, top bar, fresh install is blue; `npm test` 679.
+- **Not tested for real:** real Discord, real Google, the real bot adding people (needs the owner's setup);
+  PBKDF2 100k on Cloudflare's free CPU limit (10 ms) - if email sign-in fails live with "exceeded CPU", lower
+  `PBKDF2_ITERATIONS` (stored per hash, old hashes keep working).
+
+### Decisions for the owner
+1. (Recommended: keep) Account required when accounts are on. Fallback: none blocks if the server is down.
+2. No "forgot password" for email yet (needs an email service, e.g. Resend - costs nothing at small size, needs a domain).
+
+### PASS/FAIL for the owner - see OWNER_TODO.md steps 6 and 7
 
 ---
 

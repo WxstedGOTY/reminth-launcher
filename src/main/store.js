@@ -187,13 +187,13 @@ const DEFAULT_SETTINGS = {
   processPriority: "above-normal",
   launchMinimized: true, // most launchers get out of the way once the game starts
   hardwareAcceleration: true, // only takes effect on next app start - see main.js
-  accent: "ember", // UI accent colour (renderer only). "ember" = the Reminth brand orange of the app icon.
-  // false until the player picks an accent themselves. Settings saved before the brand colour existed hold the old
-  // default, "cyan"; while this is false, "cyan" is read as "ember" (see settingsFrom), so everyone gets the brand
-  // colour once and a later deliberate pick of cyan sticks.
+  accent: "cyan", // UI accent colour (renderer only). "cyan" = the blue theme's, "ember" = the orange theme's.
+  // false until the player picks an accent (or a theme) themselves; while false, the accent follows the theme (see
+  // settingsFrom), so a later deliberate pick sticks.
   accentChosen: false,
-  // The whole launcher's look: "ember" (orange, styles.css) or "frost" (blue, styles-frost.css made by tools/frost.js).
-  theme: "ember",
+  // The whole launcher's look: "frost" (blue, the default since 1.7.0; styles-frost.css made by tools/frost.js) or
+  // "ember" (orange, styles.css). Picked on the first screen (the Reminth account step) and in Settings.
+  theme: "frost",
   // Game window. null width/height = let Minecraft use its own last-used size.
   gameWidth: null,
   gameHeight: null,
@@ -401,8 +401,10 @@ async function readSettingsFile() {
 function settingsFrom(parsed) {
   if (!parsed) return { ...DEFAULT_SETTINGS };
   const clean = sanitizeSettings(parsed, { counters: true });
-  // Old files carry the old default accent: show the brand orange until the player picks one themselves.
-  if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan")) clean.accent = DEFAULT_SETTINGS.accent;
+  // Until the player picks an accent themselves, the old defaults (cyan, then the brand orange) follow the theme
+  // (blue -> cyan, orange -> ember). Any other old pick (violet...) was the player's own and stays.
+  if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan" || clean.accent === "ember"))
+    clean.accent = (clean.theme || DEFAULT_SETTINGS.theme) === "ember" ? "ember" : "cyan";
   return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed.streamer) };
 }
 

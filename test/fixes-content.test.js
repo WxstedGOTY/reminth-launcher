@@ -882,12 +882,14 @@ test("instances: remove deletes the folder with retries; if it can't, the instan
   await assert.rejects(instances.remove("reminth"), /can't be deleted/);
 });
 
-test("brand accent: old settings (default cyan) show the brand orange once; a pick made after that sticks", async () => {
+test("theme accent: old default accents follow the theme (blue by default); a pick made after that sticks", async () => {
   const fsp = require("fs").promises;
   const paths = require("../src/main/paths");
   await fsp.mkdir(paths.ROOT, { recursive: true });
-  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", maxMemoryMb: 4096 }));
-  assert.equal((await store.loadSettings()).accent, "ember");
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "ember", maxMemoryMb: 4096 }));
+  assert.equal((await store.loadSettings()).accent, "cyan", "no theme picked: blue, with its own accent");
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", theme: "ember" }));
+  assert.equal((await store.loadSettings()).accent, "ember", "orange theme: the orange accent");
   // a different old pick is the player's own and stays
   await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "violet" }));
   assert.equal((await store.loadSettings()).accent, "violet");
@@ -898,8 +900,10 @@ test("brand accent: old settings (default cyan) show the brand orange once; a pi
   assert.equal(saved.accent, "cyan");
   assert.equal(saved.accentChosen, true);
   assert.equal((await store.loadSettings()).accent, "cyan");
-  // no file at all: the default is the brand orange
+  // no file at all: the default is blue
   await fsp.rm(paths.SETTINGS_FILE, { force: true });
   await fsp.rm(`${paths.SETTINGS_FILE}.bak`, { force: true });
-  assert.equal((await store.loadSettings()).accent, "ember");
+  const fresh = await store.loadSettings();
+  assert.equal(fresh.theme, "frost");
+  assert.equal(fresh.accent, "cyan");
 });

@@ -1,12 +1,13 @@
 "use strict";
 /**
  * Reminth accounts in the launcher (the server is functions/ on the website, Cloudflare Pages).
- * Separate from the Microsoft sign-in that plays Minecraft: a Reminth account is Reminth's own (Discord sign-in),
- * shared with the website. Nothing in the launcher needs one yet.
+ * Separate from the Microsoft sign-in that plays Minecraft: a Reminth account is Reminth's own (Discord, Google or
+ * email + password), shared with the website. When accounts are switched on, the launcher asks for one first.
  *
- * Sign-in: startSignIn() makes a random nonce (kept only in memory) and opens the browser on
- *   <api>/api/auth/discord/start?client=app&nonce=<nonce>
- * After Discord, the page opens reminth://auth/<code>; main.js hands the code to completeSignIn(), which swaps it
+ * Email: emailSignIn() posts straight to <api>/api/auth/email (client "app") and gets the session token back.
+ * Discord / Google: startSignIn(provider) makes a random nonce (kept only in memory) and opens the browser on
+ *   <api>/api/auth/<provider>/start?client=app&nonce=<nonce>
+ * After Discord / Google, the page opens reminth://auth/<code>; main.js hands the code to completeSignIn(), which swaps it
  * together with the nonce at /api/auth/exchange. A reminth://auth link the player didn't start here (no nonce
  * waiting, or older than 10 minutes) is ignored - a link from a web page can't sign anyone into someone else's account.
  *
@@ -24,6 +25,7 @@ const config = require("./config");
 
 const FILE = path.join(paths.ROOT, "reminth-account.bin");
 const PENDING_MS = 10 * 60 * 1000;
+const PROVIDERS = ["discord", "google", "email"];
 
 let pending = null; // { nonce, at }
 let memoryToken = null;
@@ -65,11 +67,12 @@ async function call(pathname, { method = "GET", token, body, timeoutMs = 10000 }
   return { status: r.status, data };
 }
 
-/** Whether accounts are switched on on the server ({ accounts }), or { accounts: false, offline: true }. */
+/** Whether accounts are switched on on the server ({ accounts, providers }), or { accounts: false, offline: true }. */
 async function status() {
   try {
     const r = await call("/api/status", { timeoutMs: 6000 });
-    return { accounts: Boolean(r.data && r.data.accounts) };
+    const providers = r.data && Array.isArray(r.data.providers) ? r.data.providers.filter((p) => PROVIDERS.includes(p)) : [];
+    return { accounts: Boolean(r.data && r.data.accounts), providers };
   } catch {
     return { accounts: false, offline: true };
   }
@@ -97,11 +100,29 @@ async function get({ fresh = false } = {}) {
   return cached ? { user: cached.user, offline: true } : { user: { name: "Signed in", offline: true }, offline: true };
 }
 
-/** The address to open in the browser to sign in (a new nonce each time). */
-function startSignIn() {
+/** The address to open in the browser to sign in with Discord or Google (a new nonce each time). */
+function startSignIn(provider = "discord") {
+  if (provider !== "discord" && provider !== "google") throw new Error("unknown sign-in method");
   const nonce = crypto.randomBytes(24).toString("hex");
   pending = { nonce, at: Date.now() };
-  return `${api()}/api/auth/discord/start?client=app&nonce=${nonce}`;
+  return `${api()}/api/auth/${provider}/start?client=app&nonce=${nonce}`;
+}
+
+/** Email + password, without a browser: { user } or { error, message }. mode "signup" also needs a name. */
+async function emailSignIn({ mode, email, password, name } = {}) {
+  const body = { client: "app", mode: mode === "signup" ? "signup" : "signin", email: String(email || "").slice(0, 254), password: String(password || "").slice(0, 200) };
+  if (body.mode === "signup") body.name = String(name || "").slice(0, 32);
+  try {
+    const r = await call("/api/auth/email", { method: "POST", body, timeoutMs: 15000 });
+    if (r.status !== 200 || !r.data || !/^[a-f0-9]{64}$/.test(r.data.token || "")) {
+      return { error: (r.data && r.data.error) || "failed", message: (r.data && r.data.message) || "That didn't work. Try again." };
+    }
+    await writeToken(r.data.token);
+    cached = { user: r.data.user, at: Date.now() };
+    return { user: r.data.user };
+  } catch {
+    return { error: "offline", message: "Can't reach Reminth right now. Check your internet and try again." };
+  }
 }
 
 /** reminth://auth/<code> came in: { user } when it was ours and worked, else { error }. */
@@ -132,4 +153,4 @@ async function signOut() {
   return { user: null };
 }
 
-module.exports = { status, get, startSignIn, completeSignIn, signOut, _test: { setPending: (p) => (pending = p), FILE } };
+module.exports = { status, get, startSignIn, emailSignIn, completeSignIn, signOut, _test: { setPending: (p) => (pending = p), FILE } };

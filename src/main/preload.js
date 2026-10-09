@@ -10,7 +10,8 @@ contextBridge.exposeInMainWorld("reminth", {
   reminthAccount: {
     get: (opts) => ipcRenderer.invoke("reminthAccount:get", opts),
     status: () => ipcRenderer.invoke("reminthAccount:status"),
-    signIn: () => ipcRenderer.invoke("reminthAccount:signIn"),
+    signIn: (provider) => ipcRenderer.invoke("reminthAccount:signIn", provider),
+    email: (form) => ipcRenderer.invoke("reminthAccount:email", form),
     signOut: () => ipcRenderer.invoke("reminthAccount:signOut"),
     openWebsite: () => ipcRenderer.invoke("reminthAccount:openWebsite"),
     onChanged: (fn) => ipcRenderer.on("reminthAccount:changed", (_e, data) => fn(data)),

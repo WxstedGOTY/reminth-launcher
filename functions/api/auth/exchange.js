@@ -2,7 +2,7 @@
 // The app swaps the one-time code from reminth://auth/<code> for its own session. The nonce is the random value the
 // app made when it started this sign-in (it never leaves the app before that), so a code from a link the player didn't
 // start is refused.
-import { configured, json, newSession, notConfigured, publicUser, takeLoginCode, db } from "../../_lib.js";
+import { accountView, configured, json, newSession, notConfigured, takeLoginCode } from "../../_lib.js";
 
 export async function onRequestPost({ request, env }) {
   if (!configured(env)) return notConfigured();
@@ -14,8 +14,8 @@ export async function onRequestPost({ request, env }) {
   }
   const userId = await takeLoginCode(env, body && body.code, body && body.nonce);
   if (!userId) return json({ error: "invalid_code", message: "That sign-in link has expired. Try again." }, 400);
-  const user = await (await db(env)).prepare("SELECT * FROM users WHERE id = ?").bind(userId).first();
+  const user = await accountView(env, userId);
   if (!user) return json({ error: "invalid_code" }, 400);
   const token = await newSession(env, userId, "app");
-  return json({ token, user: publicUser(user) });
+  return json({ token, user });
 }

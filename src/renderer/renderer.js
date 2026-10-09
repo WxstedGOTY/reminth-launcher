@@ -727,7 +727,7 @@ function switchPage(page) {
   // the player's instances. Every other route (rail, tiles, sidebar, hotkeys)
   // funnels through here, so this one check keeps a shared PC's next user
   // out of the last player's instances, worlds, mods and servers.
-  if (!state.signedIn && page !== "home") return;
+  if ((!state.signedIn || rmGateNeeded()) && page !== "home") return;
   currentPage = page;
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === page));
   document.querySelectorAll(".rail-btn[data-page]").forEach((b) => b.classList.toggle("active", b.dataset.page === page));
@@ -905,7 +905,7 @@ async function refreshSkin() {
   }
   if (requestId !== skinRequestId) return;
   state.accountSkin = skin;
-  setAvatar($("topAvatar"), skin, letter);
+  paintTopChip();
   setAvatar($("settingsAvatar"), skin, letter);
   setAvatar($("sideAvatar"), skin, letter);
   if (window.onAccountSkin) window.onAccountSkin(skin);
@@ -914,31 +914,41 @@ async function refreshSkin() {
 function applyAccountUI() {
   const signedIn = state.signedIn;
   const name = state.username || "Not signed in";
-  $("topName").textContent = name;
-  $("topState").textContent = signedIn ? "Online" : "Offline";
-  $("topState").classList.toggle("online", signedIn);
   $("settingsName").textContent = name;
   $("settingsState").textContent = signedIn ? "Microsoft account connected" : "Not connected";
   $("settingsAuthBtn").textContent = signedIn ? "Sign out" : "Sign in";
   $("sideName").textContent = name;
   $("sideState").textContent = signedIn ? "Microsoft · online" : "Not connected";
-  $("signInHero").hidden = signedIn;
-  $("homeMain").hidden = !signedIn;
+  // step 1 the Reminth account (when switched on), step 2 Minecraft
+  const needRm = rmGateNeeded();
+  $("rmGate").hidden = !needRm;
+  $("signInHero").hidden = signedIn || needRm;
+  $("mcSteps").hidden = !(state.rm && state.rm.user && state.rm.accounts);
+  $("homeMain").hidden = !signedIn || needRm;
   const greeting = $("heroGreeting");
   greeting.textContent = signedIn ? "Welcome back, " : "Ready to play?";
   if (signedIn) greeting.appendChild(el("span", "pii", state.username));
   // The same sign-in card gates the whole app, not just Home: signed out, the
   // rail, top actions and sidebar are hidden (styles.css, #app.signed-out)
   // and switchPage refuses every page but Home.
-  $("app").classList.toggle("signed-out", !signedIn);
-  if (!signedIn && currentPage !== "home") switchPage("home");
+  $("app").classList.toggle("signed-out", !signedIn || needRm);
+  if ((!signedIn || needRm) && currentPage !== "home") switchPage("home");
+  paintTopChip();
   refreshSkin();
 }
 
-/* ---- Reminth account (Discord) - main/reminthAccount.js ---- */
-function paintReminthAccount(r) {
-  const user = r && r.user;
-  const av = $("rmAvatar");
+/* ---- Reminth account (Discord / Google / email) - main/reminthAccount.js ----
+ * When accounts are switched on on the server, a Reminth account is step 1 (the #rmGate card on Home, the whole app
+ * waits behind it like it does for the Microsoft sign-in), Minecraft is step 2. Accounts off, or the server can't be
+ * reached: no gate, the launcher works as before. The top bar chip shows the Reminth account. */
+state.rm = { user: null, accounts: false, providers: [], checked: false };
+const RM_NAMES = { discord: "Discord", google: "Google", email: "email" };
+
+function rmGateNeeded() {
+  return Boolean(state.rm && state.rm.checked && state.rm.accounts && !state.rm.user);
+}
+
+function rmAvatarInto(av, user) {
   av.textContent = "";
   if (user && user.avatarUrl && !user.offline) {
     const img = new Image();
@@ -953,44 +963,152 @@ function paintReminthAccount(r) {
   } else {
     av.appendChild(el("span", "avatar-letter", user ? (user.name || "R").slice(0, 1).toUpperCase() : "R"));
   }
+}
+
+/** The top bar chip: the Reminth account when there is one, the Microsoft account otherwise. */
+function paintTopChip() {
+  const user = state.rm && state.rm.user;
+  if (!user) {
+    $("topName").textContent = state.username || "Not signed in";
+    $("topState").textContent = state.signedIn ? "Online" : "Offline";
+    $("topState").classList.toggle("online", state.signedIn);
+    setAvatar($("topAvatar"), state.accountSkin, (state.username || "?").slice(0, 1).toUpperCase());
+    return;
+  }
+  $("topName").textContent = user.name;
+  $("topState").textContent = state.signedIn ? `Playing as ${state.username}` : "Minecraft not connected";
+  $("topState").classList.toggle("online", state.signedIn);
+  rmAvatarInto($("topAvatar"), user);
+  $("accountBtn").title = "Reminth account" + (state.signedIn ? ` - Minecraft: ${state.username}` : "");
+}
+
+function paintReminthAccount(r) {
+  const user = (r && r.user) || null;
+  state.rm.user = user;
+  if (r && "accounts" in r) {
+    state.rm.accounts = Boolean(r.accounts);
+    state.rm.providers = r.providers || [];
+    state.rm.checked = true;
+  }
+  if (user) state.rm.checked = true;
+  rmAvatarInto($("rmAvatar"), user);
   $("rmName").textContent = user ? user.name : "Reminth account";
-  $("rmSignInBtn").hidden = Boolean(user) || r.accounts === false;
+  $("rmSignInBtn").hidden = Boolean(user) || !state.rm.accounts;
   $("rmSignOutBtn").hidden = !user;
   $("rmManageBtn").hidden = !user;
-  if (user) $("rmState").textContent = r.offline ? "Signed in with Discord - offline right now" : "Signed in with Discord";
-  else if (r.accounts === false) $("rmState").textContent = r.offline ? "Can't reach Reminth right now" : "Reminth accounts are coming soon";
-  else if (r.waiting) $("rmState").textContent = "Finish signing in in your browser\u2026";
-  else $("rmState").textContent = "One account for the launcher and the website. Optional.";
+  const via = user && (user.providers || [user.provider]).filter(Boolean).map((p) => RM_NAMES[p] || p).join(" + ");
+  if (user) $("rmState").textContent = (via ? `Signed in with ${via}` : "Signed in") + (r && r.offline ? " - offline right now" : "");
+  else if (!state.rm.accounts) $("rmState").textContent = r && r.offline ? "Can't reach Reminth right now" : "Reminth accounts are coming soon";
+  else $("rmState").textContent = "One account for the launcher and the website.";
+  // the gate's buttons follow what the server has switched on
+  $("rmGateDiscord").hidden = !state.rm.providers.includes("discord");
+  $("rmGateGoogle").hidden = !state.rm.providers.includes("google");
+  $("rmGateEmail").hidden = !state.rm.providers.includes("email");
+  applyAccountUI();
 }
+
 async function loadReminthAccount(fresh) {
   try {
     const r = await window.reminth.reminthAccount.get({ fresh });
-    if (r.user) return paintReminthAccount(r);
-    paintReminthAccount({ user: null, ...(await window.reminth.reminthAccount.status()) });
+    const st = await window.reminth.reminthAccount.status();
+    // offline with a kept account: keep it; offline without one: no gate
+    paintReminthAccount({ ...st, user: r.user || null, offline: r.offline || st.offline, ...(r.user && st.offline ? { accounts: true } : {}) });
   } catch {
-    paintReminthAccount({ user: null, accounts: false, offline: true });
+    paintReminthAccount({ user: null, accounts: false, providers: [], offline: true });
   }
 }
-$("rmSignInBtn").onclick = async () => {
-  paintReminthAccount({ user: null, waiting: true });
+
+/** The step-1 card shows one of: the ways to sign in, the email panel, or "finish in your browser". */
+function rmGateView(view) {
+  $("rmGateChoices").hidden = view !== "choices";
+  $("rmEmailPanel").hidden = view !== "email";
+  $("rmGateWait").hidden = view !== "wait";
+}
+function rmGateBusy(waiting) {
+  rmGateView(waiting ? "wait" : "choices");
+}
+function rmGateMessage(text) {
+  $("rmGateMsg").textContent = text || "";
+  $("rmGateMsg").hidden = !text;
+}
+async function rmBrowserSignIn(provider) {
+  rmGateMessage("");
+  rmGateBusy(true);
   try {
-    await window.reminth.reminthAccount.signIn();
+    await window.reminth.reminthAccount.signIn(provider);
   } catch {
-    toast("Couldn't open your browser.");
-    loadReminthAccount();
+    rmGateBusy(false);
+    rmGateMessage("Couldn't open your browser.");
+  }
+}
+$("rmGateDiscord").onclick = () => rmBrowserSignIn("discord");
+$("rmGateGoogle").onclick = () => rmBrowserSignIn("google");
+$("rmGateCancel").onclick = () => rmGateBusy(false);
+$("rmGateEmail").onclick = () => {
+  rmGateMessage("");
+  rmGateView("email");
+  $(rmMode === "signup" ? "rmFName" : "rmFEmail").focus();
+};
+$("rmEmailBack").onclick = () => {
+  rmGateMessage("");
+  rmGateView("choices");
+};
+$("rmGatePrivacy").onclick = (e) => {
+  e.preventDefault();
+  window.reminth.openLink("https://reminth.pages.dev/privacy.html").catch(() => {});
+};
+let rmMode = "signup";
+document.querySelectorAll(".rm-tabs button").forEach((b) => {
+  b.onclick = () => {
+    rmMode = b.dataset.rmmode;
+    document.querySelectorAll(".rm-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+    $("rmFName").hidden = rmMode !== "signup";
+    $("rmFPass").autocomplete = rmMode === "signup" ? "new-password" : "current-password";
+    $("rmEmailBtn").textContent = rmMode === "signup" ? "Create account" : "Sign in";
+    rmGateMessage("");
+  };
+});
+$("rmEmailForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const btn = $("rmEmailBtn");
+  btn.disabled = true;
+  rmGateMessage("");
+  try {
+    const r = await window.reminth.reminthAccount.email({ mode: rmMode, name: $("rmFName").value, email: $("rmFEmail").value, password: $("rmFPass").value });
+    if (r && r.user) {
+      $("rmFPass").value = "";
+      paintReminthAccount({ user: r.user });
+      toast(rmMode === "signup" ? `Welcome to Reminth, ${r.user.name}!` : `Signed in to Reminth as ${r.user.name}.`);
+    } else {
+      rmGateMessage((r && r.message) || "That didn't work. Try again.");
+    }
+  } catch {
+    rmGateMessage("That didn't work. Try again.");
+  } finally {
+    btn.disabled = false;
   }
 };
+
+$("rmSignInBtn").onclick = () => {
+  rmGateBusy(false);
+  switchPage("home");
+};
 $("rmSignOutBtn").onclick = async () => {
-  paintReminthAccount(await window.reminth.reminthAccount.signOut().catch(() => ({ user: null })));
+  const r = await window.reminth.reminthAccount.signOut().catch(() => ({ user: null }));
+  paintReminthAccount(r);
   toast("Signed out of your Reminth account.");
+  if (rmGateNeeded()) switchPage("home");
 };
 $("rmManageBtn").onclick = () => window.reminth.reminthAccount.openWebsite().catch(() => {});
 window.reminth.reminthAccount.onChanged((r) => {
+  rmGateBusy(false);
   if (r && r.user) {
     paintReminthAccount(r);
     toast(`Signed in to Reminth as ${r.user.name}.`);
   } else {
-    toast((r && r.message) || "That sign-in didn't work. Try again from Settings.");
+    const why = (r && r.message) || "That sign-in didn't work. Try again.";
+    rmGateMessage(why);
+    toast(why);
     loadReminthAccount();
   }
 });
@@ -1069,7 +1187,7 @@ function signedOutByBackend(err) {
 }
 
 $("signInBtn").onclick = () => doSignIn($("signInBtn"), true);
-$("accountBtn").onclick = () => switchPage("settings");
+$("accountBtn").onclick = () => (rmGateNeeded() ? switchPage("home") : switchPage("settings"));
 $("settingsAuthBtn").onclick = () => (state.signedIn ? doSignOut() : doSignIn($("settingsAuthBtn"), true));
 
 window.reminth.onAccountRestored(({ username }) => {
@@ -2922,8 +3040,8 @@ paintFocus();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "Reminth accounts: sign in with Discord in Settings - the same account on the website. Optional; nothing needs one.",
-  "Pick your look in Settings: the whole launcher in orange or in blue, the icon included.",
+  "Reminth accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
+  "Pick your look: the whole launcher in blue (new default) or orange, the icon included - on the first screen or in Settings.",
   "Fixed: clicking Reminth on the taskbar could open a second taskbar button.",
   "The Reminth Mods Panel: press G in game for 140+ of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
   "A pointer that never vanishes in full screen, a new title screen, and a heads-up when a server's rules ban one of your mods.",

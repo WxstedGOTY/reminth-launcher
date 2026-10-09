@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Privacy Policy — Reminth</title>
-<meta name="description" content="Who runs Reminth, what the launcher and website store and send, the legal basis for it, how long it is kept, and your rights under the GDPR. Reminth collects no analytics; the Reminth account is optional." />
+<meta name="description" content="Who runs Reminth, what the launcher and website store and send, the legal basis for it, how long it is kept, and your rights under the GDPR. Reminth collects no analytics; the Reminth account stores only what is listed here." />
 <meta name="robots" content="index, follow" />
 <link rel="canonical" href="https://reminth.pages.dev/privacy.html" />
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
@@ -25,13 +25,14 @@
   <div class="wrap">
     <p class="eyebrow">Legal</p>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: 9 October 2026 · Version 9</p>
+    <p class="updated">Last updated: 9 October 2026 · Version 10</p>
 
     <div class="summary">
       <b>The short version.</b> Reminth has no analytics, no crash reporting and no advertising. What the
-      launcher stores stays on your computer, and we never receive it. The one exception is the optional
-      <b>Reminth account</b> (sign in with Discord): if you make one, we keep your Discord user id, name and
-      picture, and when you signed in - nothing else, and you can delete it yourself at any time.
+      launcher stores stays on your computer, and we never receive it. The one exception is your
+      <b>Reminth account</b> (Discord, Google or email): we keep your gamer tag, picture, how you sign in and when
+      you signed in - and for email sign-in your address and a scrambled form of your password. You can delete it
+      yourself at any time.
       The launcher talks directly to the services it needs (Microsoft, Mojang, Modrinth, GitHub and so on),
       listed below. The only personal data that ever reaches us is what you choose to send us, such as an
       email. You have full rights over that data under the GDPR, and you can complain to a data protection
@@ -56,8 +57,7 @@
     <h2>2. The principle this policy follows</h2>
     <p>
       This page describes what the code actually does. Reminth is built so that we don't need your data:
-      the launcher reports nothing to us, you never need an account to use it (the Reminth account is optional),
-      there is no tracking, and no selling or sharing of personal data with anyone. We do not use your data for profiling or automated
+      the launcher reports nothing to us beyond your Reminth account (section 3c), there is no tracking, and no selling or sharing of personal data with anyone. We do not use your data for profiling or automated
       decision-making.
     </p>
 
@@ -86,22 +86,40 @@
       </li>
     </ul>
 
-    <h3>c) The Reminth account (optional)</h3>
+    <h3>c) The Reminth account</h3>
     <p>
-      You can sign in to Reminth, in the launcher or on this website, with your <b>Discord</b> account. The first
-      sign-in makes your Reminth account. Nothing in Reminth requires one.
+      The launcher asks you to make a Reminth account (or sign in to yours) the first time you open it, before you
+      connect Minecraft; the same account works on this website. You sign in with <b>Discord</b>, <b>Google</b> or
+      an <b>email address and password</b>. If our account server can't be reached, the launcher still works.
     </p>
     <ul>
       <li>
-        <b>What we get from Discord:</b> only what Discord's <code>identify</code> permission gives - your Discord
-        user id, username and display name, and your profile picture's id. <b>Not</b> your email address, your
-        servers, friends or messages. Discord's access token is used once to read this and then thrown away.
+        <b>What we get from Discord:</b> your Discord user id, username and display name, and your profile
+        picture's id (Discord's <code>identify</code> permission). <b>Not</b> your email address, your servers,
+        friends or messages. Discord also asks you to allow <b>"Join servers for you"</b>
+        (<code>guilds.join</code>): it lets Reminth add you to the official Reminth Discord server. For that we
+        keep Discord's renewal key ("refresh token"), encrypted. You can switch this off on the account page
+        (untick "Add me to the Reminth Discord server"), leave the server at any time, or take the permission back
+        in Discord (Settings - Authorized Apps).
       </li>
       <li>
-        <b>What we store:</b> your Discord user id, name and picture id, when the account was made and when you
-        last signed in; and for each signed-in device or browser a session record (a one-way fingerprint of a
-        random key - not the key itself) with when it was made and when it expires (after 90 days). While you
-        sign in from the launcher, a 2-minute one-time code is stored too.
+        <b>What we get from Google:</b> your Google account id, name and profile picture (the <code>openid</code>
+        and <code>profile</code> permissions). <b>Not</b> your email address, Gmail, Drive or anything else.
+        Google's access key is used once to read this and then thrown away.
+      </li>
+      <li>
+        <b>Email sign-in:</b> your email address and your password in a scrambled one-way form (PBKDF2 with a
+        random salt - we cannot read your password back). We don't send emails, so there is no address check and
+        no "forgot password" yet; email us if you are locked out. To slow down guessing, we count failed
+        sign-ins per address and per network for 15 minutes (stored as one-way fingerprints).
+      </li>
+      <li>
+        <b>What we store:</b> your gamer tag, the link to your picture, which ways you sign in (with the Discord or
+        Google id, or the email address), whether you allow being added to the Reminth Discord server and whether
+        you were added, when the account was made and when you last signed in; and for each signed-in device or
+        browser a session record (a one-way fingerprint of a random key - not the key itself) with when it was made
+        and when it expires (after 90 days). While you sign in from the launcher with Discord or Google, a 2-minute
+        one-time code is stored too.
       </li>
       <li>
         <b>Cookies (website, only when you sign in):</b> <code>rm_state</code> (10 minutes, protects the sign-in
@@ -109,18 +127,21 @@
         session key is kept on your computer, encrypted with Windows' own key store.
       </li>
       <li>
-        <b>Your profile picture</b> is shown from Discord's image server (<code>cdn.discordapp.com</code>), so
-        Discord receives a normal web request from you when it is shown.
+        <b>Your profile picture</b> is shown from Discord's or Google's image server (<code>cdn.discordapp.com</code>,
+        <code>lh3.googleusercontent.com</code>), so they receive a normal web request from you when it is shown.
       </li>
       <li>
-        <b>Purpose:</b> letting you sign in and showing who is signed in. <b>Legal basis:</b> performing the
-        service you asked for (GDPR Art. 6(1)(b)). <b>Retention:</b> until you delete the account; sessions end
-        after 90 days or when you sign out. <b>Deleting:</b> "Delete my account" on the account page removes the
-        account and every session at once; we keep no copy.
+        <b>Purpose:</b> letting you sign in, showing who is signed in, and (if you allow it) adding you to the
+        Reminth Discord server. <b>Legal basis:</b> performing the service you asked for (GDPR Art. 6(1)(b)); for
+        the Discord server, your consent (Art. 6(1)(a)), which you can withdraw as described above.
+        <b>Retention:</b> until you delete the account; sessions end after 90 days or when you sign out.
+        <b>Deleting:</b> "Delete my account" on the account page removes the account, its sign-in ways and every
+        session at once, and hands the Discord permission back to Discord; we keep no copy.
       </li>
       <li>
         <b>Where it is stored:</b> in a Cloudflare D1 database run by Cloudflare, Inc. (USA) as our processor, under
-        the same safeguards as the website hosting above. Discord is a separate company with its own privacy policy.
+        the same safeguards as the website hosting above. Discord and Google are separate companies with their own
+        privacy policies.
       </li>
     </ul>
 
@@ -281,9 +302,9 @@
     <h2>7. Children</h2>
     <p>
       Playing Minecraft requires a Microsoft account, and Microsoft applies its own age rules and parental
-      controls. The optional Reminth account uses Discord, which requires its users to be at least 13 (or older
-      where local law says so). Reminth does not ask your age and does not knowingly collect personal data from
-      children below Discord's minimum age; if that happened, we delete the account. If you are under 15, please ask a parent or guardian before emailing us.
+      controls. A Reminth account is meant for people at least 13 years old (or older where local law says so),
+      like Discord and Google accounts. Reminth does not ask your age and does not knowingly collect personal data
+      from children below that age; if that happened, we delete the account. If you are under 15, please ask a parent or guardian before emailing us.
       A parent or guardian who believes their child has sent us personal data can ask us to delete it.
     </p>
 
@@ -363,6 +384,8 @@
     </p>
     <h3>Version history</h3>
     <ul>
+      <li><b>Version 10, 9 October 2026</b>: the launcher now asks for a Reminth account; added Google and email +
+        password sign-in, and the optional adding to the Reminth Discord server (Discord's "Join servers for you").</li>
       <li><b>Version 9, 9 October 2026</b>: added the optional Reminth account (sign in with Discord): what it
         stores, the two sign-in cookies on the website, Discord profile pictures, and how to delete it.</li>
       <li><b>Version 8, 5 October 2026</b>: described that ReminthHUD asks the server you play on for your own

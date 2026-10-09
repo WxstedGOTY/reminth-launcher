@@ -43,7 +43,7 @@ test("frost: oranges become blue, status colours and greys stay", () => {
 
 test("the theme setting only takes ember or frost", () => {
   const store = require("../src/main/store");
-  assert.equal(store.DEFAULT_SETTINGS.theme, "ember");
-  assert.equal(store.sanitizeSettings({ theme: "frost" }).theme, "frost");
-  assert.equal(store.sanitizeSettings({ theme: "pink" }).theme, "ember");
+  assert.equal(store.DEFAULT_SETTINGS.theme, "frost", "blue is the default");
+  assert.equal(store.sanitizeSettings({ theme: "ember" }).theme, "ember");
+  assert.equal(store.sanitizeSettings({ theme: "pink" }).theme, "frost");
 });
