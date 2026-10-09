@@ -144,6 +144,11 @@
   .nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
   .nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
   .nav a:hover svg { color: var(--accent); }
+  .top-signin {
+    display: none; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 10px; text-decoration: none;
+    color: var(--text); font-size: 14.5px; font-weight: 500; border: 1px solid var(--border-2); background: rgba(255, 255, 255, 0.04);
+  }
+  .top-signin svg { width: 17px; height: 17px; }
   .soon {
     font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1;
     padding: 4px 7px; border-radius: 999px;
@@ -511,6 +516,11 @@
       overflow-x: auto; scrollbar-width: none;
     }
     .nav::-webkit-scrollbar { display: none; }
+    /* the row scrolls sideways: a soft fade at the right edge shows there is more */
+    .nav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+    /* "Sign in" sits next to the logo on small screens, always in view */
+    .nav .nav-signin { display: none; }
+    .top-signin { display: inline-flex !important; margin-left: auto; }
     .hero { padding-top: 36px; }
     .hero .cta-row .btn { flex: 1 1 100%; }
   }
@@ -551,8 +561,9 @@
         <a href="#mods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg> Mods</a>
         <a href="#" data-soon="Server hosting is coming soon."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg> Host a server <span class="soon">Soon</span></a>
         <a href="#get"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Get Reminth App</a>
-        <a href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Sign in</a>
+        <a class="nav-signin" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Sign in</a>
       </nav>
+      <a class="top-signin" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Sign in</a>
     </div>
   </header>
 
