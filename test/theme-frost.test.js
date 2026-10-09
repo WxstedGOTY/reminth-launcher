@@ -10,6 +10,15 @@ const fs = require("fs");
 const path = require("path");
 const frost = require("../tools/frost");
 
+// store.js needs "electron"; CI installs without Electron's binary, so a stand-in like the other tests use
+const Module = require("module");
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function (request, ...rest) {
+  if (request === "electron") return "STUB_ELECTRON_THEME";
+  return originalResolve.call(this, request, ...rest);
+};
+Module._cache.STUB_ELECTRON_THEME = { id: "STUB_ELECTRON_THEME", filename: "STUB_ELECTRON_THEME", loaded: true, exports: { safeStorage: { isEncryptionAvailable: () => false } } };
+
 const ROOT = path.join(__dirname, "..");
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), "utf8").replace(/\r\n/g, "\n");
 
