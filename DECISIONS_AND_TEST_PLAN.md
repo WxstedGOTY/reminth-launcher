@@ -4,15 +4,55 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **NEXT (owner, 9 Oct 2026): marketing.** 1.6.1 is published; the website is live at https://reminth.pages.dev (auto-deployed to
+- **9 Oct 2026 (afternoon): 1.7.0 built and installed, NOT published. The owner's steps are in `OWNER_TODO.md`** (publish
+  1.7.0; switch accounts on: Discord app + D1 database + Cloudflare settings). Section 000000000000000000000000000.
+- **NEXT after that (owner, 9 Oct 2026): marketing.** 1.6.1 is published; the website is live at https://reminth.pages.dev (auto-deployed to
   Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
   changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 667 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
-- **Version:** `package.json` says **1.6.1**. **1.6.0 is published** (GitHub release tag `1.6.0`, 8 Oct). 1.6.1 installer in
-  `release-1.6.1\` (23:19), installed on this PC, **not published** - the owner publishes it (tag `1.6.1`).
+- **`main` is at:** this file's commit. **`npm test`: 676 pass** (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
+- **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`, installed here, not published). 1.6.1 is published.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000000000. 1.7.0: Reminth accounts, Orange/Blue theme, taskbar fix (9 Oct 2026) - desktop window
+
+**Owner (away 6 h, "it's all on you"):** Reminth accounts with real sign-in (Discord) in the app and on the website;
+a blue version of the style and icon, picked in Settings (orange/blue changes the whole app); the pinned taskbar icon
+opened a second taskbar button; a deep bug check of everything; leave the steps to publish.
+
+**Done:**
+- **Taskbar:** 1.6.0 added `app.setAppUserModelId("com.reminth.launcher")`; a taskbar pin made earlier (pinning the
+  running window) carries no id, so the window got its own button. The installed app no longer sets it (dev runs only).
+- **Theme** (Settings -> Theme: Orange / Blue): `tools/frost.js` makes `src/renderer/styles-frost.css` and
+  `assets/icons/source/reminth-mark-frost.svg` from the orange ones (warm hues -> cyan/sky, dark warm greys -> navy;
+  green/amber/the error pink-red and lines with `data-accent` kept). `test/theme-frost.test.js` fails if they drift
+  (run `node tools/frost.js` after editing styles.css). The renderer swaps the stylesheet link `#themeCss` and the logo
+  images; main sets the window icon (`reminth-frost.ico`, made by `tools/make-icon-mark.js`). Setting `theme` (store.js).
+  Picking a theme sets the accent to the theme's (ember / cyan). Checked in pictures; survives a restart.
+- **Reminth accounts:** server = Cloudflare Pages Functions in `functions/` (deployed with `site/` by
+  `.github/workflows/cloudflare.yml`) + a D1 database (binding `DB`; tables made on first use). Discord OAuth
+  (scope `identify` only). Endpoints: `/api/status`, `/api/auth/discord/start|callback`, `/api/auth/exchange`,
+  `/api/me`, `/api/auth/logout`, `/api/account/delete`. Sessions stored as SHA-256 hashes, 90 days; website cookie
+  `rm_session` (HttpOnly, Secure, Lax), sign-in state cookie `rm_state`; cookie POSTs need same origin. App sign-in:
+  `reminthAccount.startSignIn()` opens the browser with a random nonce; the callback page opens `reminth://auth/<code>`
+  (deepLink.js allows exactly 32 hex); `completeSignIn` swaps it with the nonce at `/api/auth/exchange` (2-minute,
+  single use; a link the app didn't start is ignored). Token stored encrypted (`reminth-account.bin`, safeStorage).
+  UI: Settings -> Account (second row). Website: `site/account.html` (+ "Sign in" in the header; on phones next to the
+  logo). Privacy v9, Terms v7. **Tested:** `tools/accounts-e2e.js` (13 steps incl. forged state, foreign nonce,
+  reused code, other-site logout/delete, made-up tokens) against `wrangler pages dev` with a pretend Discord - all pass;
+  the app's whole sign-in through a real `reminth://auth` link (second instance) in an isolated test copy - signed in,
+  sign-out, a stray link ignored. Live: `/api/status` says `{"accounts":false}` until the owner's setup.
+  **Not tested:** real Discord (needs the owner's Discord app).
+- **Bug check:** every page in both themes clicked through in a test copy with all console/network errors recorded -
+  none; no HTML injection points in the renderer; the owner's real error log only has the known "window said maximized
+  but was 816x568; repaired" (handled every time); CI was red once (the theme test loaded store.js without the
+  Electron stand-in) - fixed, green; website menu on phones (items pushed off screen) - fixed.
+- Dev runs are isolated with `USERPROFILE=<fake home>` + `--user-data-dir` (never the owner's data).
+
+### PASS/FAIL for the owner - see OWNER_TODO.md section 4
 
 ---
 
