@@ -479,7 +479,8 @@ svg use, .rail-btn svg, .top-action svg, .btn svg, .i {
   display: grid; place-items: center; overflow: hidden;
   background: radial-gradient(90% 120% at 50% 0%, rgba(255, 255, 255, .05), transparent 70%), #160f0f;
 }
-.recent-art.world { background: radial-gradient(90% 120% at 50% 0%, rgba(52, 211, 153, .14), transparent 70%), #160f0f; }
+/* worlds in the theme's own colour, not green (owner, 9 Oct 2026) */
+.recent-art.world { background: radial-gradient(90% 120% at 50% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%), #160f0f; }
 .recent-art.server { background: radial-gradient(90% 120% at 50% 0%, rgba(255, 154, 107, .14), transparent 70%), #160f0f; }
 
 /* A 64x64 icon shown at exactly 64px, nearest-neighbour: no upscaling, so
@@ -511,7 +512,7 @@ svg use, .rail-btn svg, .top-action svg, .btn svg, .i {
   font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
   padding: 3px 7px; border-radius: 6px; backdrop-filter: blur(8px);
 }
-.recent-kind.world { color: var(--emerald); background: rgba(6, 30, 22, .78); border: 1px solid rgba(52, 211, 153, .3); }
+.recent-kind.world { color: var(--accent); background: rgba(40, 16, 8, .78); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
 .recent-kind.server { color: var(--sky); background: rgba(40, 16, 8, .78); border: 1px solid rgba(255, 154, 107, .3); }
 .recent-body { padding: 12px 14px 14px; }
 .recent-name { font-size: 13.5px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
