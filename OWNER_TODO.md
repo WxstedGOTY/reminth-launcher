@@ -1,7 +1,6 @@
 # Your steps - one small thing at a time
 
-**Where you are (9 Oct 2026):** Parts A, B, C all PASSED (also the browser coming to the front).
-**Next: Part D - publish.**
+**Where you are (9 Oct 2026):** ALL DONE - 1.7.0 is published (files checked). Next: marketing.
 
 Do **one part**, then tell me **"Part A done"** (or what went wrong). I'll check it works before you do the next one.
 Every line is one click or one paste. If a button looks different on your screen, stop and tell me what you see.
