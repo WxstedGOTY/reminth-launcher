@@ -2922,14 +2922,12 @@ paintFocus();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "A new look: the new Reminth icon and the orange brand colour across the launcher.",
-  "The Reminth Mods Panel: press G in game for about 145 of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more - with profiles and a HUD layout editor. On every version from 1.20.1 to 26.3.",
-  "A new title screen: Discover opens the panel, and tips show on the title and loading screens.",
-  "A Minecraft-style pixel pointer at your Windows pointer's size - and in full screen Reminth draws it itself, so it never vanishes.",
+  "Reminth accounts: sign in with Discord in Settings - the same account on the website. Optional; nothing needs one.",
+  "Pick your look in Settings: the whole launcher in orange or in blue, the icon included.",
+  "Fixed: clicking Reminth on the taskbar could open a second taskbar button.",
+  "The Reminth Mods Panel: press G in game for 140+ of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
+  "A pointer that never vanishes in full screen, a new title screen, and a heads-up when a server's rules ban one of your mods.",
   "Pick what an instance is for (PvP, survival and more) and get a matching set of mods and packs.",
-  "A heads-up when a server's rules ban one of your mods. Nothing is ever turned off for you.",
-  "Player Statistics include your numbers from servers; the Library keeps your clips and screenshots.",
-  "Every Minecraft version Mojang lists launches, snapshots too.",
 ];
 
 function renderChangelog() {
