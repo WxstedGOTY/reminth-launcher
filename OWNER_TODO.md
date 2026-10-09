@@ -1,5 +1,8 @@
 # Your steps - one small thing at a time
 
+**Where you are (9 Oct 2026):** Part A DONE (accounts + email on). Part B DONE (Discord on - checked live).
+**Next: Part C.**
+
 Do **one part**, then tell me **"Part A done"** (or what went wrong). I'll check it works before you do the next one.
 Every line is one click or one paste. If a button looks different on your screen, stop and tell me what you see.
 
