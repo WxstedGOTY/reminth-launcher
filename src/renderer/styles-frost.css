@@ -2595,3 +2595,10 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .rules-list li { margin: 3px 0; }
 .rules-list span { color: var(--text-2); }
 *, *::before, *::after { background-origin: border-box !important; }
+
+/* "Join our Discord" in the sidebar (under What's new) - Discord's own colour in both themes */
+.side-discord { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none; color: #fff; background: #5865f2; border-color: #5865f2; transition: filter .15s; } /* data-accent: Discord's colour */
+.side-discord:hover { filter: brightness(1.1); }
+.side-discord svg { width: 26px; height: 26px; flex: none; }
+.side-discord b { display: block; font-size: 13px; }
+.side-discord small { display: block; font-size: 11px; opacity: .85; }
