@@ -21,6 +21,35 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 00000000000000000000000000000000. Bot setup for the owner's EXISTING server + every-minute check (10 Oct 2026) - desktop window
+
+**Owner:** he already made his server ("Reminth Launcher", community on): rules, moderator-only; Information
+(annoucements, updates, socials, giveaways, events, boosts, faq); Community (general, clips, suggestions, commands);
+Support (support, application) - from his screenshot. He wants: roles Owner, Co-Owner, Admin (Administrator),
+Moderator (timeout, kick, ban; delete messages ONLY in Community), Helper (timeouts), Member (given by onboarding),
+Launcher Player (Discord sign-in, /verify); no threads anywhere; no external apps; bot commands only in #commands;
+info channels read-only; texts by webhook (reviewed first - `discord/texts.md`); Tickets v2 for support and
+applications (he sets it up); onboarding with region / interests / socials roles and the rules; releases posted by
+the bot pinging the Launcher Updates role; anti-raid that demotes a mod (choice A: free, every minute); every mod action
+logged in the mod channel; new accounts (< 1 day) a 24 h timeout; 2 s slowmode in #general; no @everyone ping; X
+(https://x.com/reminthsupport) in #socials; YouTube alerts later (no link yet); no Reddit.
+
+**Done:** `functions/_setup.js` (steps check, commands, roles, order, channels, onboarding, bot - channels found by
+name without emojis; only ever changes permissions, never makes channels), `functions/_texts.js` (5 messages via a
+"Reminth" webhook, edited on re-post), `functions/_tick.js` + `functions/api/discord/tick.js` (every minute: audit log
+-> mod log + anti-raid (5 min: 3 bans/kicks, 2 channel/role deletes, 15 deleted messages -> staff roles removed, owner
+pinged), new accounts -> 24 h timeout (needs Server Members Intent), GitHub release -> #updates with the Launcher
+Updates ping, YouTube RSS (once a channel id is set)), `workers/cron` (Cloudflare Worker, cron * * * * *, deployed by
+the website workflow - needs the token permission "Workers Scripts: Edit"; if missing, only that step fails).
+Account page: "Set up my server" (shows what it found, then OK) and "Post the channel messages". The old builder
+(`_build.js`) and the GitHub release webhook workflow are removed.
+- **Tested:** `tools/bot-e2e.js` 19 steps against a pretend copy of HIS server (his channel names with emojis and the
+  'annoucements' spelling, a Tickets bot role, his own Moderator role with Manage Messages): all pass.
+- **Open:** Discord's onboarding needs 7 default channels with 5 where members can write - he has 4 chat channels
+  (OWNER_TODO step 6). Real Discord not tested yet (owner's steps 1-7).
+
+---
+
 ## 0000000000000000000000000000000. "Build my Discord server" (10 Oct 2026) - desktop window
 
 **Owner:** building the server by hand takes too long - "help with pressing buttons to build". Automating his own

@@ -10,9 +10,29 @@ const revoked = [];
 const log = [];
 let rules = [];
 let ruleId = 1;
-const guildRoles = [{ id: "r-mod", name: "Moderator", color: 1 }]; // the owner already made a "Moderator" role
-const guildChannels = [{ id: "pre-general", name: "general", type: 0 }]; // and Discord's default #general
-let rateLimited = false;
+// the owner's real server layout (10 Oct 2026), for "Set up my server"
+const ALL = String((1n << 51n) - 1n & ~(1n << 3n)); // every permission except Administrator
+const guildRoles = [
+  { id: "555", name: "@everyone", permissions: ALL, position: 0 },
+  { id: "r-mod", name: "Moderator", permissions: "8192", color: 1, position: 2 }, // he made one, with Manage Messages
+  { id: "r-tickets", name: "Tickets", permissions: "8", position: 1, tags: { bot_id: "tk" } },
+];
+const C = (id, name, type, parent_id) => ({ id, name, type, parent_id: parent_id || null, permission_overwrites: [] });
+const guildChannels = [
+  C("c-rules", "rules", 0), C("c-modonly", "moderator-only", 0),
+  C("cat-info", "Information", 4), C("c-ann", "📢｜annoucements", 0, "cat-info"), C("c-upd", "⚡｜updates", 0, "cat-info"), C("c-soc", "👥｜socials", 0, "cat-info"),
+  C("c-give", "🎉｜giveaways", 0, "cat-info"), C("c-ev", "✳️｜events", 0, "cat-info"), C("c-boost", "💎｜boosts", 0, "cat-info"), C("c-faq", "⁉️｜faq", 0, "cat-info"),
+  C("cat-comm", "Community", 4), C("c-gen", "💬｜general", 0, "cat-comm"), C("c-clips", "🎬｜clips", 0, "cat-comm"), C("c-sugg", "🌐｜suggestions", 0, "cat-comm"),
+  C("c-cmd", "🤖｜commands", 0, "cat-comm"), C("c-offt", "💭｜off-topic", 0, "cat-comm"),
+  C("cat-sup", "Support", 4), C("c-sup", "🎫｜support", 0, "cat-sup"), C("c-app", "🎫｜application", 0, "cat-sup"),
+];
+let onboarding = null;
+const hooks = {}; // channel id -> [{id, token, name}]
+const hookMsgs = {}; // message id -> body
+let audit = []; // audit log entries the test adds
+let newMembers = []; // members the test adds
+const memberRoles = { m1: ["r-mod"], owner1: [] };
+let releaseTag = "1.7.0";
 const BOT_OWNER = "1";
 const NOW = Date.now();
 const MESSAGES = [
@@ -68,9 +88,38 @@ http
       }
       if (req.url === "/_test/state") return send(200, { members: [...members], revoked });
       if (req.url === "/_test/log") return send(200, log);
+      // test controls: add audit log entries / new members, set the latest release, look at the server
+      if (req.method === "POST" && req.url === "/_test/audit") {
+        audit = audit.concat(JSON.parse(body));
+        return send(200, {});
+      }
+      if (req.method === "POST" && req.url === "/_test/members") {
+        newMembers = JSON.parse(body);
+        return send(200, {});
+      }
+      if (req.method === "POST" && req.url === "/_test/release") {
+        releaseTag = JSON.parse(body).tag;
+        return send(200, {});
+      }
+      if (req.url === "/_test/guild") return send(200, { roles: guildRoles, channels: guildChannels, onboarding, hooks, hookMsgs, memberRoles });
       // --- GitHub (GITHUB_API)
       if (req.url === "/repos/WxstedGOTY/reminth-launcher/releases/latest")
-        return send(200, { tag_name: "1.7.0", body: " Reminth 1.7.0\r\n- Accounts\r\n- Blue theme", html_url: "https://github.com/x/releases/1.7.0" });
+        return send(200, { tag_name: releaseTag, body: ` Reminth ${releaseTag}\r\n- Accounts\r\n- Blue theme`, html_url: `https://github.com/x/releases/${releaseTag}` });
+      // --- webhooks (no bot token needed; the token is in the address)
+      const wurl = req.url.replace(/^\/v10/, "");
+      let wm;
+      if (req.method === "POST" && (wm = /^\/webhooks\/(wh-[\w-]+)\/(tok-[\w-]+)\?wait=true$/.exec(wurl))) {
+        const id = "hm-" + Object.keys(hookMsgs).length;
+        hookMsgs[id] = JSON.parse(body);
+        log.push({ method: "POST", url: wurl, body: JSON.parse(body) });
+        return send(200, { id });
+      }
+      if (req.method === "PATCH" && (wm = /^\/webhooks\/(wh-[\w-]+)\/(tok-[\w-]+)\/messages\/([\w-]+)$/.exec(wurl))) {
+        if (!hookMsgs[wm[3]]) return send(404, { message: "Unknown Message" });
+        hookMsgs[wm[3]] = JSON.parse(body);
+        log.push({ method: "PATCH", url: wurl, body: JSON.parse(body) });
+        return send(200, { id: wm[3] });
+      }
       // --- the bot's REST calls
       const url = req.url.replace(/^\/v10/, "");
       const isBot = req.headers.authorization === "Bot bot-test";
@@ -83,28 +132,65 @@ http
       if (url.startsWith("/guilds/") || url.startsWith("/channels/") || url.startsWith("/users/@me/channels") || url.startsWith("/applications/")) {
         if (!isBot) return send(401, { message: "401: Unauthorized", code: 0 });
         if (req.method === "GET" && url === "/guilds/555")
-          return send(200, { id: "555", owner_id: BOT_OWNER, roles: [{ id: "555", position: 0 }, { id: "r-mod", position: 5 }, { id: "r-admin", position: 10 }] });
+          return send(200, { id: "555", owner_id: BOT_OWNER, verification_level: 0, explicit_content_filter: 0, roles: [{ id: "555", position: 0 }, { id: "r-mod", name: "Moderator", position: 5 }, { id: "r-admin", position: 10 }] });
         if (req.method === "GET" && url === "/guilds/555/auto-moderation/rules") return send(200, rules);
-        if (req.method === "GET" && url === "/guilds/555/roles") return send(200, [{ id: "555", name: "@everyone" }, ...guildRoles]);
+        if (req.method === "GET" && url === "/guilds/555/roles") return send(200, guildRoles);
         if (req.method === "GET" && url === "/guilds/555/channels") return send(200, guildChannels);
+        if (req.method === "GET" && url.startsWith("/guilds/555/audit-logs")) {
+          const after = new URL("http://x" + url).searchParams.get("after");
+          return send(200, { audit_log_entries: audit.filter((e) => !after || BigInt(e.id) > BigInt(after)).reverse() });
+        }
+        if (req.method === "GET" && url.startsWith("/guilds/555/members?")) return send(200, newMembers);
+        if (req.method === "GET" && (m = /^\/guilds\/555\/members\/(\w+)$/.exec(url))) return memberRoles[m[1]] ? send(200, { user: { id: m[1] }, roles: memberRoles[m[1]] }) : send(404, {});
+        if (req.method === "GET" && (m = /^\/channels\/([\w-]+)\/webhooks$/.exec(url))) return send(200, hooks[m[1]] || []);
         rec();
         if (req.method === "POST" && url === "/guilds/555/roles") {
-          const r = { ...JSON.parse(body), id: "role-" + guildRoles.length };
+          const r = { ...JSON.parse(body), id: "role-" + guildRoles.length, position: 1 };
           guildRoles.push(r);
           return send(200, r);
         }
-        if (req.method === "POST" && url === "/guilds/555/channels") {
-          // Discord's channel-creation limit, once: the builder must wait and try again
-          if (!rateLimited && guildChannels.length === 7) {
-            rateLimited = true;
-            return send(429, { message: "You are being rate limited.", retry_after: 1.2 });
+        if (req.method === "PATCH" && url === "/guilds/555/roles") {
+          for (const p of JSON.parse(body)) {
+            const r = guildRoles.find((x) => x.id === p.id);
+            if (r) r.position = p.position;
           }
-          const c = { ...JSON.parse(body), id: "ch-" + guildChannels.length };
-          guildChannels.push(c);
+          return send(200, guildRoles);
+        }
+        if (req.method === "PATCH" && (m = /^\/guilds\/555\/roles\/([\w-]+)$/.exec(url))) {
+          const r = guildRoles.find((x) => x.id === m[1]);
+          if (!r) return send(404, {});
+          Object.assign(r, JSON.parse(body));
+          return send(200, r);
+        }
+        if (req.method === "PATCH" && (m = /^\/channels\/([\w-]+)$/.exec(url))) {
+          const c = guildChannels.find((x) => x.id === m[1]);
+          if (!c) return send(404, {});
+          Object.assign(c, JSON.parse(body));
           return send(200, c);
         }
+        if (req.method === "PUT" && url === "/guilds/555/onboarding") {
+          const b = JSON.parse(body);
+          // Discord's rule: 7 default channels, 5 of them where @everyone can write
+          const canWrite = b.default_channel_ids.filter((id) => {
+            const c = guildChannels.find((x) => x.id === id);
+            const e = c && (c.permission_overwrites || []).find((o) => o.id === "555");
+            return c && !(e && BigInt(e.deny) & (1n << 11n));
+          });
+          if (b.default_channel_ids.length < 7 || canWrite.length < 5) return send(400, { message: "Invalid Form Body", code: 50035, errors: { default_channel_ids: "needs 7, with 5 where everyone can chat" } });
+          onboarding = b;
+          return send(200, b);
+        }
+        if (req.method === "PATCH" && (m = /^\/guilds\/555\/members\/(\w+)$/.exec(url)) && memberRoles[m[1]]) {
+          const b = JSON.parse(body);
+          if (b.roles) memberRoles[m[1]] = b.roles;
+          return send(200, {});
+        }
         if (req.method === "PATCH" && url === "/guilds/555") return send(200, { id: "555" });
-        if ((m = /^\/channels\/([\w-]+)\/webhooks$/.exec(url)) && req.method === "POST") return send(200, { id: "wh1", token: "whtoken", channel_id: m[1] });
+        if ((m = /^\/channels\/([\w-]+)\/webhooks$/.exec(url)) && req.method === "POST") {
+          const h = { id: "wh-" + m[1], token: "tok-" + m[1], name: JSON.parse(body).name, channel_id: m[1] };
+          (hooks[m[1]] = hooks[m[1]] || []).push(h);
+          return send(200, h);
+        }
         if (req.method === "POST" && url === "/guilds/555/auto-moderation/rules") {
           const b = JSON.parse(body);
           if (rules.some((r) => r.trigger_type === b.trigger_type && b.trigger_type !== 1)) return send(400, { message: "only one", code: 30035 });

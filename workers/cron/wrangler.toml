@@ -1,0 +1,8 @@
+# Deployed by .github/workflows/cloudflare.yml (wrangler deploy). Runs every minute; see index.js.
+name = "reminth-cron"
+main = "index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+[triggers]
+crons = ["* * * * *"]

@@ -116,12 +116,10 @@
     <div class="stats" id="ownerStats">Loading&hellip;</div>
     <button class="btn primary" id="pullBtn" type="button">Add everyone to my Discord server</button>
     <div class="log" id="pullLog"></div>
-    <button class="btn ghost" id="buildBtn" type="button">Build my Discord server</button>
-    <div class="log" id="buildLog"></div>
-    <div class="hidden" id="hookBox">
-      <div class="log">For release posts in #updates, copy this address into GitHub (Settings -> Secrets and variables -> Actions -> New repository secret, name <b>DISCORD_UPDATES_WEBHOOK</b>). Keep it secret.</div>
-      <button class="btn ghost" id="hookCopy" type="button">Copy the webhook address</button>
-    </div>
+    <button class="btn ghost" id="setupBtn" type="button">Set up my server</button>
+    <div class="log" id="setupLog"></div>
+    <button class="btn ghost" id="msgBtn" type="button">Post the channel messages</button>
+    <div class="log" id="msgLog"></div>
     <button class="btn ghost" id="cmdBtn" type="button">Set up the bot's commands</button>
     <div class="log" id="cmdLog"></div>
   </div>
@@ -216,7 +214,8 @@
     if (!s || s.error) { $("ownerStats").textContent = "Couldn't load the numbers."; return; }
     const missing = [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID"].filter(Boolean);
     $("cmdBtn").disabled = !s.setup.bot_commands;
-    $("buildBtn").disabled = !s.setup.bot_commands;
+    $("setupBtn").disabled = !s.setup.bot_commands;
+    $("msgBtn").disabled = !s.setup.bot_commands;
     $("cmdLog").textContent = s.setup.bot_commands ? "" : "For the bot's commands, add in Cloudflare: " + [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID", "DISCORD_PUBLIC_KEY (if not added yet)"].filter(Boolean).join(", ");
     $("ownerStats").textContent = s.accounts + " accounts - " + s.discord + " with Discord - " + s.allowed + " can be added - " + s.inServer + " added so far" +
       (missing.length ? "\nTo use the button, add in Cloudflare: " + missing.join(", ") : "");
@@ -245,36 +244,52 @@
     ownerStats();
   };
 
-  let hookUrl = "";
-  $("buildBtn").onclick = async () => {
-    if (!confirm("The Reminth bot will now add roles, channels, the welcome and rules messages and settings to your Discord server. Things that already exist with the same name are kept. Go?")) return;
-    $("buildBtn").disabled = true;
-    const log = $("buildLog");
-    log.textContent = "Building...";
-    let step = 0, lines = [];
+  // runs the steps of "setup" or "messages" until done, showing each line; startAt lets setup show its check first
+  async function runSteps(part, logEl, startAt) {
+    let step = startAt || 0, lines = [];
+    for (let round = 0; round < 80 && step !== null && step !== undefined; round++) {
+      const r = await fetch("/api/admin/discord-setup", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ part, step }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.missing ? "add in Cloudflare: " + d.missing.join(", ") : d.message || d.error || String(r.status));
+      lines = lines.concat(d.log || []);
+      logEl.textContent = lines.join("\n") + (d.waitSeconds ? "\nDiscord says slow down - waiting " + d.waitSeconds + " s..." : "");
+      if (d.problem) { logEl.textContent += "\nStopped: " + d.problem + "\n(Does the bot have Administrator, and is its role at the very top?)"; return false; }
+      if (d.waitSeconds) await new Promise((res) => setTimeout(res, d.waitSeconds * 1000));
+      if (d.done) break;
+      step = d.next;
+    }
+    return true;
+  }
+  $("setupBtn").onclick = async () => {
+    $("setupBtn").disabled = true;
+    const log = $("setupLog");
+    log.textContent = "Looking at your server...";
     try {
-      for (let round = 0; round < 60 && step !== null; round++) {
-        const r = await fetch("/api/admin/discord-build", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ step }) });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.missing ? "add in Cloudflare: " + d.missing.join(", ") : d.message || d.error || String(r.status));
-        lines = lines.concat(d.log || []);
-        log.textContent = lines.join("\n") + (d.waitSeconds ? "\nDiscord says slow down - waiting " + d.waitSeconds + " s..." : "");
-        if (d.problem) { log.textContent += "\nStopped: " + d.problem + "\n(Is the bot in the server with Administrator, and its role at the top?)"; break; }
-        if (d.waitSeconds) await new Promise((res) => setTimeout(res, d.waitSeconds * 1000));
-        step = d.next;
-      }
-      if (step === null) {
-        log.textContent += "\nDone! Have a look in Discord.";
-        const h = await fetch("/api/admin/discord-build", { credentials: "same-origin" }).then((x) => x.json()).catch(() => ({}));
-        if (h.webhook) { hookUrl = h.webhook; $("hookBox").classList.remove("hidden"); }
+      const r = await fetch("/api/admin/discord-setup", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ part: "setup", step: 0 }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.missing ? "add in Cloudflare: " + d.missing.join(", ") : d.message || d.error || String(r.status));
+      log.textContent = (d.log || []).join("\n");
+      if (d.problem) throw new Error(d.problem);
+      if (confirm("This is what I found (see the list on the page). Set up roles, permissions, onboarding and the bot now? Your channels stay as they are.")) {
+        log.textContent += "\n\nSetting up...";
+        if (await runSteps("setup", log, 1)) log.textContent += "\nDone! Have a look in Discord.";
       }
     } catch (e) {
       log.textContent += "\nStopped: " + e.message;
     }
-    $("buildBtn").disabled = false;
+    $("setupBtn").disabled = false;
   };
-  $("hookCopy").onclick = async () => {
-    try { await navigator.clipboard.writeText(hookUrl); $("hookCopy").textContent = "Copied!"; } catch { prompt("Copy this:", hookUrl); }
+  $("msgBtn").onclick = async () => {
+    if (!confirm("Post the rules, the first announcement, the updates intro, socials and FAQ? Messages that are already there are updated instead.")) return;
+    $("msgBtn").disabled = true;
+    const log = $("msgLog");
+    log.textContent = "Posting...";
+    try {
+      if (await runSteps("messages", log, 0)) log.textContent += "\nDone!";
+    } catch (e) {
+      log.textContent += "\nStopped: " + e.message;
+    }
+    $("msgBtn").disabled = false;
   };
 
   $("cmdBtn").onclick = async () => {

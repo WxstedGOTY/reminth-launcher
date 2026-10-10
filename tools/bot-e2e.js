@@ -224,61 +224,120 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   assert.equal(res.status, 401);
   step("the owner's website button installs the commands (with default permissions); others can't");
 
-  // --- "Build my Discord server" (owner only), run like the account page does
-  async function build() {
-    let step = 0, waited = 0, lines = [];
-    for (let round = 0; round < 40 && step !== null; round++) {
-      const res = await fetch(`${BASE}/api/admin/discord-build`, { method: "POST", headers: { cookie: session, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ step }) });
-      const d = await res.json();
-      assert.equal(res.status, 200, JSON.stringify(d));
-      assert.ok(!d.problem, d.problem);
-      lines = lines.concat(d.log);
-      if (d.waitSeconds) {
-        waited++;
-        await wait(d.waitSeconds * 1000);
-      }
-      step = d.next;
+  // --- "Set up my server" on the owner's existing server (owner only), run like the account page does
+  const MOCKG = async () => (await fetch(`${MOCK}/_test/guild`)).json();
+  async function run(part, startAt = 0) {
+    let step = startAt, lines = [], last;
+    for (let round = 0; round < 60 && step !== null && step !== undefined; round++) {
+      const res = await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", headers: { cookie: session, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ part, step }) });
+      last = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(last));
+      assert.ok(!last.problem, last.problem);
+      lines = lines.concat(last.log || []);
+      if (last.waitSeconds) await wait(last.waitSeconds * 1000);
+      if (last.done) break;
+      step = last.next;
     }
-    assert.equal(step, null, "the build finished");
-    return { lines, waited };
+    return lines;
   }
-  assert.equal((await fetch(`${BASE}/api/admin/discord-build`, { method: "POST", body: "{}" })).status, 401);
-  const before2 = (await log()).length;
-  const b1 = await build();
-  assert.equal(b1.waited, 1, "waited once for Discord's rate limit");
-  L = (await log()).slice(before2);
-  const posts = (u) => L.filter((x) => x.method === "POST" && x.url === u);
-  assert.deepEqual(posts("/guilds/555/roles").map((x) => x.body.name), ["Reminth Player"], "the owner's own Moderator role is reused");
-  const made = posts("/guilds/555/channels").map((x) => x.body);
-  assert.equal(made.filter((c) => c.type === 4).length, 5, "5 categories");
-  assert.equal(new Set(made.filter((c) => c.type !== 4).map((c) => c.name)).size + 1, 15, "14 channels made, #general reused");
-  assert.equal(made.filter((c) => c.type !== 4).length, 15, "...one of them asked twice (the rate-limited try was repeated)");
-  const modlogCh = made.find((c) => c.name === "mod-log");
-  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "555" && BigInt(o.deny) & (1n << 10n)), "#mod-log is hidden from everyone");
-  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "r-mod" && BigInt(o.allow) & (1n << 10n)), "...but mods see it");
-  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "test-id" && o.type === 1), "...and the bot");
-  const rulesCh = made.find((c) => c.name === "rules");
-  assert.ok(rulesCh.permission_overwrites.some((o) => o.id === "555" && BigInt(o.deny) & (1n << 11n)), "#rules is read-only");
-  assert.ok(!made.find((c) => c.name === "general"), "#general wasn't made twice");
-  const welcomeMsg = L.find((x) => x.method === "POST" && /^\/channels\/ch-\d+\/messages$/.test(x.url) && x.body.embeds && /Welcome/.test(x.body.embeds[0].title));
-  assert.ok(welcomeMsg && /\/verify/.test(JSON.stringify(welcomeMsg.body)), "welcome message with /verify");
-  assert.ok(L.some((x) => x.body && x.body.embeds && x.body.embeds[0].title === "Rules"), "rules posted");
-  const settings = L.find((x) => x.method === "PATCH" && x.url === "/guilds/555");
-  assert.equal(settings.body.system_channel_id, "pre-general");
-  assert.match(settings.body.icon || "", /^data:image\/png;base64,/, "the Reminth icon");
-  assert.ok(L.some((x) => x.method === "PUT" && x.url === "/applications/test-id/guilds/555/commands"), "commands installed");
-  r = await interact(cmd("config", [subcmd("show")]));
-  assert.match(content(r), new RegExp(`<#${(made.find((c) => c.name === "mod-log") && "ch-")}`), "the bot uses the new #mod-log");
-  const hook = await (await fetch(`${BASE}/api/admin/discord-build`, { headers: { cookie: session } })).json();
-  assert.equal(hook.webhook, "https://discord.com/api/webhooks/wh1/whtoken");
-  step("server builder: roles, 5 categories, 14 channels with permissions, rate limit waited out, welcome + rules, settings + icon, bot setup, webhook");
+  assert.equal((await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", body: "{}" })).status, 401);
+  let res0 = await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", headers: { cookie: session, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ part: "setup", step: 0 }) });
+  const check = await res0.json();
+  assert.deepEqual(
+    [check.jobs.rules, check.jobs.modlog, check.jobs.announcements, check.jobs.updates, check.jobs.faq, check.jobs.general, check.jobs.commands, check.jobs.support, check.jobs.application],
+    ["rules", "moderator-only", "📢｜annoucements", "⚡｜updates", "⁉️｜faq", "💬｜general", "🤖｜commands", "🎫｜support", "🎫｜application"]
+  );
+  const before4 = (await log()).length;
+  assert.equal(before4, (await log()).length, "the check changes nothing");
+  step("setup check: finds every channel by its name (emojis and the 'annoucements' spelling too)");
 
-  const before3 = (await log()).length;
-  await build();
-  L = (await log()).slice(before3);
-  assert.equal(L.filter((x) => x.method === "POST" && /^\/guilds\/555\/(roles|channels)$/.test(x.url)).length, 0, "nothing made twice");
-  assert.equal(L.filter((x) => x.method === "POST" && /\/messages$/.test(x.url) && x.body.embeds && /Welcome|Rules/.test(x.body.embeds[0].title)).length, 0, "messages not posted twice");
-  step("pressing the button again changes nothing that's already there");
+  const setupLines = await run("setup", 1);
+  let G = await MOCKG();
+  const R = (n) => G.roles.find((r) => r.name === n);
+  for (const n of ["Owner", "Co-Owner", "Admin", "Helper", "Member", "Launcher Player", "Launcher Updates", "Europe", "Oceania", "X (Twitter)", "TikTok"]) assert.ok(R(n), "role " + n);
+  assert.equal(R("Moderator").id, "r-mod", "his own Moderator role is kept");
+  assert.equal(BigInt(R("Moderator").permissions), (1n << 1n) | (1n << 2n) | (1n << 40n) | (1n << 31n), "Moderator: kick, ban, timeout (+ commands) - no Manage Messages everywhere");
+  assert.equal(BigInt(R("Helper").permissions), (1n << 40n) | (1n << 31n), "Helper: timeouts only");
+  assert.equal(BigInt(R("Admin").permissions), 1n << 3n);
+  assert.equal(BigInt(R("Co-Owner").permissions), 1n << 3n);
+  assert.ok(R("Owner").position > R("Co-Owner").position && R("Co-Owner").position > R("Admin").position && R("Admin").position > R("Moderator").position && R("Moderator").position > R("Helper").position && R("Helper").position > R("Member").position, "role order");
+  const ev = BigInt(R("@everyone").permissions);
+  for (const [bit, what] of [[35n, "public threads"], [36n, "private threads"], [38n, "talking in threads"], [50n, "external apps"], [31n, "slash commands"], [13n, "deleting messages"]]) assert.equal(ev & (1n << bit), 0n, "@everyone has no " + what);
+  const CH = (id) => G.channels.find((c) => c.id === id);
+  const ow = (c, id) => (c.permission_overwrites || []).find((o) => o.id === id) || { allow: "0", deny: "0" };
+  assert.ok(BigInt(ow(CH("c-rules"), "555").deny) & (1n << 11n), "#rules read-only");
+  assert.ok(BigInt(ow(CH("c-sup"), "r-tickets").allow) & (1n << 11n), "Tickets bot may still post its panel in #support");
+  assert.ok(BigInt(ow(CH("c-modonly"), "555").deny) & (1n << 10n), "#moderator-only hidden");
+  assert.ok(BigInt(ow(CH("c-modonly"), "r-mod").allow) & (1n << 10n), "...mods see it");
+  assert.ok(BigInt(ow(CH("c-cmd"), "555").allow) & (1n << 31n), "slash commands allowed in #commands");
+  assert.ok(BigInt(ow(CH("c-gen"), "r-mod").allow) & (1n << 13n), "mods may delete messages in #general");
+  assert.equal(BigInt(ow(CH("c-faq"), "r-mod").allow) & (1n << 13n), 0n, "...but not in #faq");
+  assert.equal(CH("c-gen").rate_limit_per_user, 2, "2 s slowmode in #general");
+  assert.ok(G.channels.every((c) => BigInt(ow(c, "555").deny) & (1n << 35n)), "no threads in any channel");
+  assert.ok(G.onboarding && G.onboarding.enabled, "onboarding on");
+  const rulesQ = G.onboarding.prompts.find((p) => p.required);
+  assert.deepEqual(rulesQ.options[0].role_ids, [R("Member").id], "accepting the rules gives Member");
+  assert.equal(G.onboarding.prompts.find((p) => /Where/.test(p.title)).options.length, 7, "7 regions");
+  assert.ok(setupLines.some((l) => /AutoMod on/.test(l)), setupLines.join("\n"));
+  assert.ok(G.memberRoles && true);
+  r = await interact(cmd("config", [subcmd("show")]));
+  assert.match(content(r), /<#c-modonly>/, "mod log -> #moderator-only");
+  step("setup: roles with exactly his permissions + order, @everyone without threads/apps/commands, read-only info channels, staff-only mod channel, mods delete only in Community, slowmode, onboarding (rules -> Member), AutoMod");
+
+  const before5 = (await log()).length;
+  await run("setup", 1);
+  L = (await log()).slice(before5);
+  assert.equal(L.filter((x) => x.method === "POST" && x.url === "/guilds/555/roles").length, 0, "no roles made twice");
+  step("setup again: nothing made twice");
+
+  // --- the channel messages (webhooks): posted once, then edited
+  const msgLines = await run("messages");
+  G = await MOCKG();
+  assert.equal(Object.keys(G.hookMsgs).length, 5, msgLines.join("\n"));
+  const all = JSON.stringify(G.hookMsgs);
+  assert.ok(/Server Rules/.test(all) && /Frequently asked questions/.test(all) && /x\.com\/reminthsupport/.test(all), "rules, faq, socials");
+  assert.ok(!/@everyone/.test(all), "no @everyone ping");
+  assert.ok(/<#c-cmd>/.test(all) && /<#c-sup>/.test(all), "mentions his real #commands and #support");
+  assert.ok(Object.values(G.hookMsgs).every((b) => b.username === "Reminth"), "sent as 'Reminth'");
+  await run("messages");
+  G = await MOCKG();
+  assert.equal(Object.keys(G.hookMsgs).length, 5, "the second time edits, no new messages");
+  step("channel messages: 5 posted by the Reminth webhook (rules, announcement, updates, socials, faq), the second time edited");
+
+  // --- the every-minute check
+  const tick = async () => (await fetch(`${BASE}/api/discord/tick`, { method: "POST" })).json();
+  let t = await tick();
+  assert.match(JSON.stringify(t.audit), /started/);
+  assert.equal(t.release.note, "started - the next release gets posted");
+  t = await tick();
+  assert.equal(t.skipped, "too soon", "at most once every 45 seconds");
+  step("tick: starts quietly (no old history posted), and runs at most every 45 s");
+  // (the 45 s wait is skipped for the rest of the test with ?force - see below)
+  const ftick = async () => (await fetch(`${BASE}/api/discord/tick?force=1`, { method: "POST" })).json();
+  const snow = (msAgo) => String((BigInt(Date.now() - msAgo) - 1420070400000n) << 22n);
+  await fetch(`${MOCK}/_test/audit`, { method: "POST", body: JSON.stringify([
+    { id: snow(-1000), user_id: "m1", target_id: "u7", action_type: 22, reason: "raid" },
+    { id: snow(-2000), user_id: "m1", target_id: "u8", action_type: 22 },
+    { id: snow(-3000), user_id: "m1", target_id: "u9", action_type: 20 },
+    { id: snow(-4000), user_id: "1", target_id: "u10", action_type: 22, reason: "owner may" },
+  ]) });
+  await fetch(`${MOCK}/_test/members`, { method: "POST", body: JSON.stringify([{ user: { id: snow(3600000) }, joined_at: new Date().toISOString() }, { user: { id: snow(7200000), bot: true } }]) });
+  await fetch(`${MOCK}/_test/release`, { method: "POST", body: JSON.stringify({ tag: "1.7.2" }) });
+  const before6 = (await log()).length;
+  t = await ftick();
+  L = (await log()).slice(before6);
+  G = await MOCKG();
+  assert.deepEqual(G.memberRoles.m1, [], "the raiding mod lost the Moderator role");
+  assert.equal(t.audit.demoted, 1);
+  const modPost = L.find((x) => x.url === "/channels/c-modonly/messages" && /Anti-raid/.test(JSON.stringify(x.body)));
+  assert.ok(modPost && modPost.body.content === "<@1>", "the owner is pinged in #moderator-only");
+  assert.ok(L.some((x) => x.url === "/channels/c-modonly/messages" && /banned <@u7>/.test(JSON.stringify(x.body))), "every action is in the mod log");
+  const newTo = L.find((x) => x.method === "PATCH" && /^\/guilds\/555\/members\/\d+$/.test(x.url) && x.body && x.body.communication_disabled_until);
+  assert.ok(newTo, "the 1-hour-old account got a timeout");
+  assert.ok(Date.parse(newTo.body.communication_disabled_until) > Date.now() + 23 * 3600000, "24 hours");
+  const rel = L.find((x) => x.url === "/channels/c-upd/messages");
+  assert.ok(rel && rel.body.content === `<@&${R("Launcher Updates").id}>` && /1\.7\.2 is out/.test(rel.body.embeds[0].title), "release posted in #updates, pinging Launcher Updates");
+  step("tick: logs every mod action, takes the raiding mod's staff role (owner pinged, owner never), times out a 1-hour-old account for 24 h, posts the new release with the Updates ping");
 
   console.log("ALL PASSED");
 })().catch((e) => {
