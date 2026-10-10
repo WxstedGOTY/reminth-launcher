@@ -2602,3 +2602,30 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .side-discord svg { width: 26px; height: 26px; flex: none; }
 .side-discord b { display: block; font-size: 13px; }
 .side-discord small { display: block; font-size: 11px; opacity: .85; }
+
+/* The sidebar fits the window (owner, 10 Oct: the Discord card must be fully visible without scrolling): every card
+   keeps its size except "What's new", which shrinks and scrolls inside itself; the Discord card sits at the bottom. */
+.app-side > .card, .app-side > .app-side-extra { flex-shrink: 0; }
+.app-side > .side-news { flex: 0 1 auto; min-height: 96px; display: flex; flex-direction: column; overflow: hidden; }
+.side-news .changelog { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.app-side > .side-discord { margin-top: auto; padding: 10px 14px; gap: 10px; }
+.side-discord svg { width: 22px; height: 22px; }
+@media (max-width: 880px) {
+  .app-side > .side-news { overflow: visible; }
+  .side-news .changelog { overflow: visible; }
+  .app-side > .side-discord { margin-top: 0; }
+}
+.side-news .changelog::-webkit-scrollbar { width: 6px; }
+.side-news .changelog::-webkit-scrollbar-button { display: none; height: 0; }
+.side-news .changelog::-webkit-scrollbar-thumb { background: rgba(160, 194, 210, .16); border-radius: 6px; }
+/* short windows (down to Reminth's smallest, 660 px): tighter cards, Reminth+ without its sentence, one-line Discord */
+@media (max-height: 780px) and (min-width: 881px) {
+  .app-side { padding-top: 18px; padding-bottom: 16px; gap: 10px; }
+  .app-side > .side-card { padding: 14px 18px; }
+  .side-kv { margin-top: 12px; padding-top: 11px; }
+  .side-plus p { display: none; }
+  .side-plus .side-head { margin-bottom: 8px; }
+  .side-news .side-head { margin-bottom: 8px; }
+  .app-side > .side-news { min-height: 64px; }
+  .side-discord small { display: none; }
+}
