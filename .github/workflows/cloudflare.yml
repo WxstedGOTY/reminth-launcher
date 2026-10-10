@@ -55,6 +55,6 @@ jobs:
           set -o pipefail
           if ! npx --yes wrangler@4 deploy 2>&1 | tee out.txt; then
             # Cloudflare's whole answer, without colours, as notes on the run (the account id is masked)
-            sed -e 's/\[[0-9;]*m//g' out.txt | grep -v "^\s*$" | tail -15 | while read -r l; do echo "::warning::$l"; done
+            sed -e "s/[^[:print:]]//g" out.txt | grep -v "^ *$" | tail -15 | while read -r l; do echo "::warning::$l"; done
             exit 1
           fi
