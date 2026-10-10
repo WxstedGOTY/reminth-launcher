@@ -1,5 +1,5 @@
 // Owner tools - only for the account signed in with the Discord id in ADMIN_DISCORD_ID.
-// GET  /api/admin/discord           -> {setup: {...}, accounts, discord, allowed, inServer}
+// GET  /api/admin/discord           -> {setup: {...}, accounts, newThisWeek, signedInThisWeek, minecraft, discord, allowed, inServer}
 // POST /api/admin/discord {after}   -> adds up to 10 players who signed in with Discord to DISCORD_GUILD_ID (_pull.js):
 //                                      {added, already, failed, next, done, waitSeconds}
 // The account page calls POST again with `next` until done.
@@ -17,10 +17,14 @@ export async function onRequestGet({ request, env }) {
   const { res } = await admin(env, request);
   if (res) return res;
   const DB = await db(env);
-  const one = async (sql) => ((await DB.prepare(sql).first()) || {}).n || 0;
+  const one = async (sql, ...args) => ((await DB.prepare(sql).bind(...args).first()) || {}).n || 0;
+  const weekAgo = Math.floor(Date.now() / 1000) - 7 * 86400;
   return json({
     setup: setup(env),
     accounts: await one("SELECT COUNT(*) AS n FROM accounts"),
+    newThisWeek: await one("SELECT COUNT(*) AS n FROM accounts WHERE created_at > ?", weekAgo),
+    signedInThisWeek: await one("SELECT COUNT(*) AS n FROM accounts WHERE last_login > ?", weekAgo),
+    minecraft: await one("SELECT COUNT(*) AS n FROM accounts WHERE mc_signed_in_at IS NOT NULL"),
     discord: await one("SELECT COUNT(*) AS n FROM identities WHERE provider = 'discord'"),
     allowed: await one(
       "SELECT COUNT(*) AS n FROM identities JOIN accounts ON accounts.id = identities.account_id WHERE provider = 'discord' AND secret IS NOT NULL AND discord_pull = 1"

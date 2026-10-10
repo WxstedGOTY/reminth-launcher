@@ -153,4 +153,23 @@ async function signOut() {
   return { user: null };
 }
 
-module.exports = { status, get, startSignIn, emailSignIn, completeSignIn, signOut, _test: { setPending: (p) => (pending = p), FILE } };
+let reportedFor = null; // the token we already told this run
+
+/**
+ * Tells the Reminth server that this account has signed in to Minecraft in the launcher - only that it happened (the
+ * server keeps when it first did), never the Minecraft name or any Microsoft data. For the owner's player count.
+ * Once per run per Reminth account; quietly does nothing when signed out or offline.
+ */
+async function reportMinecraft() {
+  const token = await readToken();
+  if (!token || reportedFor === token) return false;
+  try {
+    const r = await call("/api/account/minecraft", { method: "POST", token, body: {}, timeoutMs: 8000 });
+    if (r.status === 200) reportedFor = token;
+    return r.status === 200;
+  } catch {
+    return false;
+  }
+}
+
+module.exports = { status, get, startSignIn, emailSignIn, completeSignIn, signOut, reportMinecraft, _test: { setPending: (p) => (pending = p), FILE } };

@@ -103,3 +103,8 @@ test("status passes on only the sign-in methods the app knows", async () => {
     global.fetch = realFetch;
   }
 });
+
+test("telling the server about the Minecraft sign-in does nothing without a Reminth account", async () => {
+  await acct.signOut();
+  assert.equal(await acct.reportMinecraft(), false);
+});

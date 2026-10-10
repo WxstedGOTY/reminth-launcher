@@ -67,6 +67,7 @@ const showLinkPage = (link) => {
       .then((r) => {
         if (r.error === "not_started") return;
         send("reminthAccount:changed", r);
+        if (r.user && auth.current()) reminthAccount.reportMinecraft().catch(() => {});
       })
       .catch(() => {});
     return;
@@ -295,6 +296,7 @@ app.whenReady().then(async () => {
     if (pendingLink) send("deeplink:open", pendingLink);
     pendingLink = null;
     if (restored) send("auth:restored", { username: restored.username });
+    if (restored) reminthAccount.reportMinecraft().catch(() => {}); // counted for the owner: a yes, no name
     streamer.configure(cachedSettings);
     // A game started before Reminth was closed, restarted or updated is still running.
     adoptionDone = adoptRunningGames().catch(() => {});
@@ -352,6 +354,7 @@ ipcMain.handle("auth:signIn", async (_e, restart) => {
     },
     onWaiting: () => send("auth:waiting"),
   });
+  reminthAccount.reportMinecraft().catch(() => {});
   return { username: account.username };
 });
 
@@ -726,7 +729,11 @@ ipcMain.handle("reminthAccount:signIn", async (_e, provider) => {
   await openInBrowser(url);
   return { opened: true };
 });
-ipcMain.handle("reminthAccount:email", (_e, form) => reminthAccount.emailSignIn(form && typeof form === "object" ? form : {}));
+ipcMain.handle("reminthAccount:email", async (_e, form) => {
+  const r = await reminthAccount.emailSignIn(form && typeof form === "object" ? form : {});
+  if (r.user && auth.current()) reminthAccount.reportMinecraft().catch(() => {});
+  return r;
+});
 ipcMain.handle("reminthAccount:signOut", () => reminthAccount.signOut());
 ipcMain.handle("reminthAccount:openWebsite", () => openInBrowser(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
 

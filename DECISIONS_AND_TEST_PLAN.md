@@ -53,6 +53,8 @@ Back key. Known: with very many displays on at their default places, the left si
 (drag them in Edit HUD Layout or the studio). The website / Discord texts still say "about 145 features" - update after
 1.7.2 is published.
 
+**Also in 1.7.2 (owner, 10 Oct: "how many people signed in, only me can see it"):** Owner tools on the account page now show Reminth accounts (total, new this week, signed in this week), how many signed in to Minecraft in the launcher (`POST /api/account/minecraft`, app token only; the server stores only `accounts.mc_signed_in_at`, no name; reported by `reminthAccount.reportMinecraft()` once per run) and installer downloads (the owner's browser asks GitHub; updates count too). Privacy page version 12. Checked with `tools/accounts-e2e.js` against `wrangler pages dev` (all pass); `npm test` 680. Installer rebuilt 19:59.
+
 **Owner decisions:** none needed; publish 1.7.2 when happy (release text given in chat).
 
 **Test plan (owner, in his own game after installing 1.7.2):**

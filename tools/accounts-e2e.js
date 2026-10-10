@@ -175,6 +175,17 @@ const step = (name) => console.log("  ok -", name);
   assert.equal(s.setup.server, true);
   assert.equal(s.allowed, 2);
   assert.equal(s.inServer, 0);
+  assert.equal(s.minecraft, 0);
+  assert.ok(s.accounts >= 2 && s.newThisWeek === s.accounts && s.signedInThisWeek >= 1);
+  // the launcher says "signed in to Minecraft": only with the app's token, counted once
+  assert.equal((await req("/api/account/minecraft", { method: "POST", body: {}, useJar: false })).status, 401);
+  assert.equal((await req("/api/account/minecraft", { method: "POST", body: {} })).status, 403, "the website's cookie can't");
+  assert.equal((await req("/api/account/minecraft", { method: "POST", body: {}, headers: adminH, useJar: false })).status, 200);
+  assert.equal((await req("/api/account/minecraft", { method: "POST", body: {}, headers: adminH, useJar: false })).status, 200);
+  s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
+  assert.equal(s.minecraft, 1);
+  assert.match(await (await req("/api/tools", { headers: adminH, useJar: false })).text(), /Signed in to Minecraft/);
+  step("Minecraft sign-ins: the app can say yes (once counted), the owner sees the numbers");
   const ownerMe = (await (await req("/api/me", { headers: adminH, useJar: false })).json()).user;
   assert.equal(ownerMe.admin, true);
   assert.equal(ownerMe.extra, "/api/tools");

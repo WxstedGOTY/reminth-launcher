@@ -118,6 +118,12 @@ export async function db(env) {
       }
     }
     await migrateOldUsers(env.DB);
+    // when the account first signed in to Minecraft in the launcher (a yes/no for the owner's count, nothing else)
+    try {
+      await env.DB.prepare("ALTER TABLE accounts ADD COLUMN mc_signed_in_at INTEGER").run();
+    } catch {
+      // the column is already there
+    }
     tablesReady = true;
   }
   return env.DB;
