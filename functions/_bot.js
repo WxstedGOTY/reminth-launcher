@@ -475,15 +475,40 @@ function botError(r, what) {
   return `Couldn't ${what} (${r.status}${r.data && r.data.message ? ": " + r.data.message : ""}).`;
 }
 
+/**
+ * The newest Reminth release from GitHub's public releases feed (github.com/.../releases.atom). The GitHub API refuses
+ * Cloudflare's shared addresses after a few calls an hour (403), the feed doesn't. -> {tag, title, body (plain text), url, published} or null
+ */
+export async function fetchLatestRelease(env) {
+  const r = await fetch(`${env.GITHUB_WEB || "https://github.com"}/${GITHUB_REPO}/releases.atom`, { headers: { "user-agent": "ReminthBot", accept: "application/atom+xml" } });
+  if (!r.ok) return null;
+  const xml = await r.text();
+  const entry = (/<entry>([\s\S]*?)<\/entry>/.exec(xml) || [])[1];
+  if (!entry) return null;
+  const pick = (re) => (re.exec(entry) || [])[1] || "";
+  const url = pick(/<link[^>]*href="([^"]+)"/);
+  const tag = decodeURIComponent((/\/releases\/tag\/([^"/?#]+)/.exec(url) || [])[1] || "");
+  const unescape = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
+  const html = unescape(pick(/<content[^>]*>([\s\S]*?)<\/content>/));
+  const body = unescape(
+    html
+      .replace(/<li>\s*/gi, "- ")
+      .replace(/<\/(li|p|h\d)>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+  )
+    .replace(/\n\s*\n(?=- )/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { tag: tag.slice(0, 30), title: unescape(pick(/<title>([^<]*)<\/title>/)), body, url: url || SITE, published: pick(/<updated>([^<]+)<\/updated>/) };
+}
+
 let releaseCache = null;
 async function latestRelease(env) {
   if (releaseCache && Date.now() - releaseCache.at < 10 * 60 * 1000) return releaseCache.rel;
   try {
-    const r = await fetch(`${env.GITHUB_API || "https://api.github.com"}/repos/${GITHUB_REPO}/releases/latest`, { headers: { "user-agent": "ReminthBot", accept: "application/vnd.github+json" } });
-    if (!r.ok) return null;
-    const d = await r.json();
-    const rel = { tag: String(d.tag_name || "").slice(0, 20), body: String(d.body || ""), url: d.html_url || SITE };
-    releaseCache = { rel, at: Date.now() };
+    const rel = await fetchLatestRelease(env);
+    if (rel && rel.tag) releaseCache = { rel, at: Date.now() };
     return rel;
   } catch {
     return null;

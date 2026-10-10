@@ -59,7 +59,7 @@ const JOBS = {
   events: (n) => n === "events",
   boosts: (n) => n.includes("boost"),
   faq: (n) => n === "faq",
-  general: (n) => n === "general",
+  general: (n) => n === "general" || n === "chat",
   clips: (n) => n.includes("clip"),
   suggestions: (n) => n.includes("suggest"),
   commands: (n) => n.includes("command"),
@@ -291,7 +291,8 @@ export async function setupStep(env, step) {
     const existing = await dapi(env, "GET", `/guilds/${g}/auto-moderation/rules`);
     if (existing.ok) {
       const a = await setupAutomod(env, g, false, "Reminth setup", existing.data || []);
-      log.push(a.done.length ? `AutoMod on: ${a.done.join(", ")}` : "AutoMod: " + a.problems.join("; "));
+      if (a.done.length) log.push(`AutoMod on: ${a.done.join(", ")}`);
+      if (a.problems.length) log.push(`AutoMod couldn't set: ${a.problems.join("; ")}`);
     }
     const guild = await dapi(env, "GET", `/guilds/${g}`);
     if (guild.ok) {

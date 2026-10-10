@@ -245,7 +245,7 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   const check = await res0.json();
   assert.deepEqual(
     [check.jobs.rules, check.jobs.modlog, check.jobs.announcements, check.jobs.updates, check.jobs.faq, check.jobs.general, check.jobs.commands, check.jobs.support, check.jobs.application],
-    ["rules", "moderator-only", "📢｜annoucements", "⚡｜updates", "⁉️｜faq", "💬｜general", "🤖｜commands", "🎫｜support", "🎫｜application"]
+    ["rules", "moderator-only", "📢｜annoucements", "⚡｜updates", "⁉️｜faq", "💬｜chat", "🤖｜commands", "🎫｜support", "🎫｜application"]
   );
   const before4 = (await log()).length;
   assert.equal(before4, (await log()).length, "the check changes nothing");
@@ -353,6 +353,6 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
 //   node tools/accounts-mock.js &
 //   npx wrangler@4 pages dev site --port 8788 --d1 DB=reminth-bot-<n> --binding DISCORD_CLIENT_ID=test-id \
 //     --binding DISCORD_CLIENT_SECRET=test-secret --binding DISCORD_API=http://127.0.0.1:8799 \
-//     --binding GITHUB_API=http://127.0.0.1:8799 --binding ADMIN_DISCORD_ID=123456789 \
+//     --binding GITHUB_API=http://127.0.0.1:8799 --binding GITHUB_WEB=http://127.0.0.1:8799 --binding ADMIN_DISCORD_ID=123456789 \
 //     --binding DISCORD_BOT_TOKEN=bot-test --binding DISCORD_GUILD_ID=555 \
 //     --binding DISCORD_PUBLIC_KEY=a8e103f5f1241eca659449cd7a514456827b0cb1278a4d1848cd7bc2d479d179

@@ -22,7 +22,7 @@ const guildChannels = [
   C("c-rules", "rules", 0), C("c-modonly", "moderator-only", 0),
   C("cat-info", "Information", 4), C("c-ann", "📢｜annoucements", 0, "cat-info"), C("c-upd", "⚡｜updates", 0, "cat-info"), C("c-soc", "👥｜socials", 0, "cat-info"),
   C("c-give", "🎉｜giveaways", 0, "cat-info"), C("c-ev", "✳️｜events", 0, "cat-info"), C("c-boost", "💎｜boosts", 0, "cat-info"), C("c-faq", "⁉️｜faq", 0, "cat-info"),
-  C("cat-comm", "Community", 4), C("c-gen", "💬｜general", 0, "cat-comm"), C("c-clips", "🎬｜clips", 0, "cat-comm"), C("c-sugg", "🌐｜suggestions", 0, "cat-comm"),
+  C("cat-comm", "Community", 4), C("c-gen", "💬｜chat", 0, "cat-comm"), C("c-clips", "🎬｜clips", 0, "cat-comm"), C("c-sugg", "🌐｜suggestions", 0, "cat-comm"),
   C("c-cmd", "🤖｜commands", 0, "cat-comm"), C("c-read", "📖｜read-first", 0, "cat-sup"),
   C("cat-sup", "Support", 4), C("c-sup", "🎫｜support", 0, "cat-sup"), C("c-app", "🎫｜application", 0, "cat-sup"),
 ];
@@ -102,6 +102,16 @@ http
         return send(200, {});
       }
       if (req.url === "/_test/guild") return send(200, { roles: guildRoles, channels: guildChannels, onboarding, hooks, hookMsgs, memberRoles });
+      // --- GitHub's releases feed (GITHUB_WEB)
+      if (req.url === "/WxstedGOTY/reminth-launcher/releases.atom") {
+        res.setHeader("content-type", "application/atom+xml");
+        res.statusCode = 200;
+        return res.end(`<?xml version="1.0"?><feed><entry><updated>2026-10-10T07:25:54Z</updated><link rel="alternate" type="text/html" href="https://github.com/WxstedGOTY/reminth-launcher/releases/tag/${releaseTag}"/><title>Reminth ${releaseTag}</title><content type="html">&lt;p&gt;Reminth ${releaseTag}&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Accounts&lt;/li&gt;
+&lt;li&gt;Blue theme&lt;/li&gt;
+&lt;/ul&gt;</content></entry></feed>`);
+      }
       // --- GitHub (GITHUB_API)
       if (req.url === "/repos/WxstedGOTY/reminth-launcher/releases/latest")
         return send(200, { tag_name: releaseTag, body: ` Reminth ${releaseTag}\r\n- Accounts\r\n- Blue theme`, html_url: `https://github.com/x/releases/${releaseTag}` });

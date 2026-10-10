@@ -8,7 +8,7 @@
 //   3. Releases: a new GitHub release of Reminth is posted in the updates channel, pinging the Launcher Updates role.
 //   4. YouTube: a new video on the configured channel is posted in the socials channel, pinging the YouTube role.
 // Anyone may call the address; it does its work at most once every 45 seconds.
-import { dapi, getConfig, setConfig } from "./_bot.js";
+import { dapi, fetchLatestRelease, getConfig, setConfig } from "./_bot.js";
 
 const GITHUB_REPO = "WxstedGOTY/reminth-launcher";
 const SITE = "https://reminth.pages.dev";
@@ -197,10 +197,9 @@ async function newAccounts(env) {
 async function release(env) {
   const ch = await getConfig(env, "updates_channel");
   if (!ch) return { skipped: "no updates channel" };
-  const r = await fetch(`${env.GITHUB_API || "https://api.github.com"}/repos/${GITHUB_REPO}/releases/latest`, { headers: { "user-agent": "ReminthBot", accept: "application/vnd.github+json" } });
-  if (!r.ok) return { error: `github: ${r.status}` };
-  const rel = await r.json();
-  const tag = String(rel.tag_name || "");
+  const rel = await fetchLatestRelease(env);
+  if (!rel) return { error: "couldn't read GitHub's releases feed" };
+  const tag = rel.tag;
   const seen = await getConfig(env, "tick:release");
   if (!tag || tag === seen) return { tag };
   await setConfig(env, "tick:release", tag);
@@ -209,7 +208,7 @@ async function release(env) {
   const notes = String(rel.body || "").replace(/\r\n/g, "\n").replace(/^\s*#*\s*Reminth\s+v?[\d.]+\s*\n+/i, "").trim().slice(0, 3500);
   const res = await dapi(env, "POST", `/channels/${ch}/messages`, {
     content: role ? `<@&${role}>` : undefined,
-    embeds: [{ title: `Reminth ${tag} is out`, url: SITE, color: 0xff4a1c, description: `${notes}\n\n**Download:** ${SITE}\nAlready have Reminth? It updates by itself.`, timestamp: rel.published_at || undefined }],
+    embeds: [{ title: `Reminth ${tag} is out`, url: SITE, color: 0xff4a1c, description: `${notes}\n\n**Download:** ${SITE}\nAlready have Reminth? It updates by itself.`, timestamp: rel.published || undefined }],
     allowed_mentions: { roles: role ? [role] : [] },
   });
   return { tag, posted: res.ok };
