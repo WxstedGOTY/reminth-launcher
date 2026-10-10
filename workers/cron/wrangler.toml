@@ -3,6 +3,8 @@ name = "reminth-cron"
 main = "index.js"
 compatibility_date = "2026-09-01"
 workers_dev = false
+# keep settings added in the Cloudflare dashboard (like DISCORD_BOT_TOKEN as Text) when GitHub uploads a new version
+keep_vars = true
 
 [triggers]
 crons = ["* * * * *"]

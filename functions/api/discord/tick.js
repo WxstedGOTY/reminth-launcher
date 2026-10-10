@@ -25,5 +25,8 @@ export async function onRequestPost({ request, env }) {
   } catch {
     gateway = null;
   }
-  return json({ ...out, gateway });
+  // which bot settings exist (ids only, nothing secret) - to see whether "Set up my server" finished
+  const has = async (k) => Boolean(env.DB && (await getConfig(env, k)));
+  const settings = { modlog: await has("modlog_channel"), updates: await has("updates_channel"), updatesRole: await has("updates_role"), playerRole: await has("player_role"), socials: await has("socials_channel") };
+  return json({ ...out, gateway, settings });
 }
