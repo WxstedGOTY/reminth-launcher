@@ -38,12 +38,12 @@ export function messages(jobs) {
           color: RED,
           description:
             "Reminth is a free Minecraft launcher for Windows, built for PvP and performance. This is its home on Discord: news, support, and the people who use it.\n\n" +
-            "**Reminth 1.7.1 is out now**\n" +
-            "- **Tier Tagger:** see players' PvP tiers from MCTiers, PvPTiers and SubTiers above their heads and in the tab list, in every gamemode. Type `/tiers <name>` in game for all of a player's tiers.\n" +
-            "- **Reminth accounts:** sign in with Discord or email. The same account works on the website.\n" +
-            "- **Pick your look:** the whole launcher in blue or orange.\n\n" +
+            "**Reminth 1.7.2 is out now: the big G panel update**\n" +
+            "- **See-through panel:** see your game behind it, walk while it's open, press E to close it.\n" +
+            "- **Streamer category:** type your own text on screen in any size, colour and animation, plus a LIVE badge, Be Right Back screen, facecam frame, goal bar and more.\n" +
+            "- **Over 120 new features** and many more options on every display.\n\n" +
             "**What you get with Reminth**\n" +
-            "- Press **G** in game for the Reminth Mods Panel: about 145 built-in features like FPS, keystrokes, armor status, potion timers, zoom, hit markers and a combo counter\n" +
+            "- Press **G** in game for the Reminth Mods Panel: over 240 built-in features like FPS, keystrokes, armor status, potion timers, zoom, a custom crosshair and on-screen text for streamers\n" +
             "- Sodium, Lithium and other performance mods set up for you on Fabric and Quilt\n" +
             "- Your mods are checked before the game starts, so you don't wait two minutes for an \"incompatible mods\" screen\n" +
             "- Every version from 1.20.1 to 26.3\n\n" +
@@ -84,7 +84,7 @@ export function messages(jobs) {
           title: "Frequently asked questions",
           color: RED,
           description: [
-            "**What is Reminth?**\nA free Minecraft: Java Edition launcher for Windows 10 and 11. It sets up Minecraft, mod loaders and Java for you, comes with performance mods and its own in-game panel with about 145 features.",
+            "**What is Reminth?**\nA free Minecraft: Java Edition launcher for Windows 10 and 11. It sets up Minecraft, mod loaders and Java for you, comes with performance mods and its own in-game panel with over 240 features.",
             "**Is it free?**\nYes.",
             "**Does Reminth see my Microsoft password?**\nNo. You sign in on Microsoft's own page (microsoft.com/link). Reminth never sees your password.",
             "**Which Minecraft versions and mod loaders does it support?**\nFabric, Quilt, Forge and NeoForge. The Reminth Mods Panel works on every version from 1.20.1 to 26.3.",
