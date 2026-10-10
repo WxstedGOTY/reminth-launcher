@@ -65,8 +65,9 @@ const JOBS = {
   commands: (n) => n.includes("command"),
   support: (n) => n.includes("support"),
   application: (n) => n.includes("applic"),
+  readfirst: (n) => n.includes("readfirst"),
 };
-const READ_ONLY = ["rules", "announcements", "updates", "socials", "giveaways", "events", "boosts", "faq", "support", "application"];
+const READ_ONLY = ["rules", "announcements", "updates", "socials", "giveaways", "events", "boosts", "faq", "support", "application", "readfirst"];
 const COMMUNITY = ["general", "clips", "suggestions", "commands"];
 
 export function findJobs(channels) {

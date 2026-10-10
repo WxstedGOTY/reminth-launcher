@@ -112,38 +112,28 @@ Open a ticket in #support and we'll help you there.
 
 ---
 
-## 6. #support - the ticket panel (paste into Tickets v2)
+## 6. #read-first - support and applications in one (paste into Tickets v2, one panel with 2 buttons)
 
-**Need help?**
+**Support & Applications**
 
-Open a ticket and a member of the team will help you as soon as possible.
-
-Before you open one, check #faq. Your question might already be answered there.
+**🎫 Need help?**
+Open a support ticket and a member of the team will help you as soon as possible. Check #faq first, your question might already be answered there.
 
 When you open a ticket, tell us:
 - What happened, and what you expected to happen
 - Your Minecraft version and mod loader
 - A screenshot, if you can
 
-**[ 🎫 Open a ticket ]** (Tickets v2's button)
+**📝 Want to join the team?**
+We're looking for people who want to help the Reminth community grow, keep the server a good place and help other players. Answer honestly and in your own words. Applications copied from somewhere else are declined.
+
+Pick what you need below.
+
+**[ 🎫 Support ]**  **[ 📝 Apply ]**  (Tickets v2's buttons)
 
 Support team in Tickets v2: **Admin, Moderator, Helper** (Owner and Co-Owner see everything anyway).
 
----
-
-## 7. #application - the application panel (paste into Tickets v2)
-
-**Join the Reminth team**
-
-We're looking for people who want to help the Reminth community grow, keep the server a good place and help other players.
-
-Press the button below to apply. Answer honestly and in your own words. Applications copied from somewhere else are declined.
-
-You'll get a message from the Reminth bot once your application has been reviewed.
-
-**[ 📝 Apply ]** (Tickets v2's button)
-
-**Questions for the Tickets v2 form** (change them if you want):
+**Questions for the Apply form** (change them if you want):
 1. How old are you?
 2. Which region are you from, and what's your timezone?
 3. Why do you want to join the team?
@@ -152,7 +142,7 @@ You'll get a message from the Reminth bot once your application has been reviewe
 
 ---
 
-## 8. Onboarding (what new members see when they join)
+## 7. Onboarding (what new members see when they join)
 
 **Question 1 - 🌍 Where are you from?** (pick one)
 - 🇪🇺 Europe (EU)
