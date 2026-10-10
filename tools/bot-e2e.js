@@ -297,16 +297,16 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   // --- the channel messages (webhooks): posted once, then edited
   const msgLines = await run("messages");
   G = await MOCKG();
-  assert.equal(Object.keys(G.hookMsgs).length, 5, msgLines.join("\n"));
+  assert.equal(Object.keys(G.hookMsgs).length, 6, msgLines.join("\n"));
   const all = JSON.stringify(G.hookMsgs);
-  assert.ok(/Server Rules/.test(all) && /Frequently asked questions/.test(all) && /x\.com\/reminthsupport/.test(all), "rules, faq, socials");
+  assert.ok(/Support & Applications/.test(all) && /Server Rules/.test(all) && /Frequently asked questions/.test(all) && /x\.com\/reminthsupport/.test(all), "rules, faq, socials");
   assert.ok(!/@everyone/.test(all), "no @everyone ping");
   assert.ok(/<#c-cmd>/.test(all) && /<#c-sup>/.test(all), "mentions his real #commands and #support");
   assert.ok(Object.values(G.hookMsgs).every((b) => b.username === "Reminth"), "sent as 'Reminth'");
   await run("messages");
   G = await MOCKG();
-  assert.equal(Object.keys(G.hookMsgs).length, 5, "the second time edits, no new messages");
-  step("channel messages: 5 posted by the Reminth webhook (rules, announcement, updates, socials, faq), the second time edited");
+  assert.equal(Object.keys(G.hookMsgs).length, 6, "the second time edits, no new messages");
+  step("channel messages: 6 posted by the Reminth webhook (rules, announcement, updates, socials, faq, read-first), the second time edited");
 
   // --- the every-minute check
   const tick = async () => (await fetch(`${BASE}/api/discord/tick`, { method: "POST" })).json();

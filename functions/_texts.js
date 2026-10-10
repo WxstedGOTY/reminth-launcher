@@ -100,6 +100,21 @@ export function messages(jobs) {
         },
       ],
     },
+    {
+      job: "readfirst",
+      embeds: [
+        {
+          title: "Support & Applications",
+          color: RED,
+          description: [
+            `**🎫 Need help?**\nOpen a support ticket and a member of the team will help you as soon as possible. Check ${ch(jobs, "faq", "#faq")} first, your question might already be answered there.`,
+            "When you open a ticket, tell us:\n- What happened, and what you expected to happen\n- Your Minecraft version and mod loader\n- A screenshot, if you can",
+            "**📝 Want to join the team?**\nWe're looking for people who want to help the Reminth community grow, keep the server a good place and help other players. Answer honestly and in your own words. Applications copied from somewhere else are declined.",
+            "Pick what you need below.",
+          ].join("\n\n"),
+        },
+      ],
+    },
   ];
 }
 
