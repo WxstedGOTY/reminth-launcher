@@ -10,6 +10,9 @@ const revoked = [];
 const log = [];
 let rules = [];
 let ruleId = 1;
+const guildRoles = [{ id: "r-mod", name: "Moderator", color: 1 }]; // the owner already made a "Moderator" role
+const guildChannels = [{ id: "pre-general", name: "general", type: 0 }]; // and Discord's default #general
+let rateLimited = false;
 const BOT_OWNER = "1";
 const NOW = Date.now();
 const MESSAGES = [
@@ -82,7 +85,26 @@ http
         if (req.method === "GET" && url === "/guilds/555")
           return send(200, { id: "555", owner_id: BOT_OWNER, roles: [{ id: "555", position: 0 }, { id: "r-mod", position: 5 }, { id: "r-admin", position: 10 }] });
         if (req.method === "GET" && url === "/guilds/555/auto-moderation/rules") return send(200, rules);
+        if (req.method === "GET" && url === "/guilds/555/roles") return send(200, [{ id: "555", name: "@everyone" }, ...guildRoles]);
+        if (req.method === "GET" && url === "/guilds/555/channels") return send(200, guildChannels);
         rec();
+        if (req.method === "POST" && url === "/guilds/555/roles") {
+          const r = { ...JSON.parse(body), id: "role-" + guildRoles.length };
+          guildRoles.push(r);
+          return send(200, r);
+        }
+        if (req.method === "POST" && url === "/guilds/555/channels") {
+          // Discord's channel-creation limit, once: the builder must wait and try again
+          if (!rateLimited && guildChannels.length === 7) {
+            rateLimited = true;
+            return send(429, { message: "You are being rate limited.", retry_after: 1.2 });
+          }
+          const c = { ...JSON.parse(body), id: "ch-" + guildChannels.length };
+          guildChannels.push(c);
+          return send(200, c);
+        }
+        if (req.method === "PATCH" && url === "/guilds/555") return send(200, { id: "555" });
+        if ((m = /^\/channels\/([\w-]+)\/webhooks$/.exec(url)) && req.method === "POST") return send(200, { id: "wh1", token: "whtoken", channel_id: m[1] });
         if (req.method === "POST" && url === "/guilds/555/auto-moderation/rules") {
           const b = JSON.parse(body);
           if (rules.some((r) => r.trigger_type === b.trigger_type && b.trigger_type !== 1)) return send(400, { message: "only one", code: 30035 });

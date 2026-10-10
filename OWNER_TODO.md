@@ -1,37 +1,21 @@
 # Your steps - one small thing at a time
 
-**Where you are (10 Oct 2026):** 1.7.0 is published. Accounts (Discord + email) are live.
-**1.7.1 is published (checked).** **Next: Part E - the bot** once your server exists.
-
----
-
-## Part F - Publish Reminth 1.7.1 (2 minutes)
-
-1. GitHub -> **Releases** -> **Draft a new release**.
-2. Tag: `1.7.1` -> **Create new tag**. Title: `Reminth 1.7.1`
-3. Drag in the 3 files from **`release-1.7.1`** (check the folder name!): `Reminth-Setup.exe`,
-   `Reminth-Setup.exe.blockmap`, `latest.yml`
-4. Description:
-
-```
-## Reminth 1.7.1
-- New in the G panel: Tier Tagger. See players' PvP tiers from MCTiers, PvPTiers and SubTiers above their heads and in the tab list - every gamemode (crystal, sword, UHC, pot, axe, mace, SMP and more). On by default - change it in the G panel (Visual).
-- Type /tiers <name> in game to see all of a player's tiers.
-```
-
-5. **Publish release**, then tell me - I'll check the files.
-
-To try it yourself first: install `release-1.7.1\Reminth-Setup.exe`, start a game (Tier Tagger is on by itself),
-join a PvP server and look at someone / hold Tab. Or type `/tiers <name>`. Settings: **G** -> **Visual** -> **Tier Tagger**.
+**Where you are (10 Oct 2026):** 1.7.1 is published (checked). Accounts (Discord + email) are live.
+**Next: Part E - the bot builds your Discord server for you** (about 15 minutes of clicking, then one button).
 
 Do one step, then the next. If a screen looks different, stop and tell me what you see.
 **Never send the Bot Token to anyone, not even me.** It goes only into Cloudflare.
 
 ---
 
-## Part E - The Reminth bot (about 20 minutes)
+## Part E - The Reminth bot builds your server
 
-You'll put 4 things into Cloudflare. Open Notepad to keep them while you work.
+**E0. Make an empty server** (30 seconds)
+1. In Discord, click the **+** at the bottom of your server list (Add a Server).
+2. **Create My Own** -> **For me and my friends** -> name it `Reminth` -> **Create**.
+   (Don't make channels or roles - the bot does that. Leave the picture - the bot sets the Reminth icon.)
+
+You'll now put 4 things into Cloudflare. Open Notepad to keep them while you work.
 
 **E1. Public Key**
 1. Open https://discord.com/developers/applications and click **Reminth**.
@@ -49,7 +33,7 @@ You'll put 4 things into Cloudflare. Open Notepad to keep them while you work.
 2. Close settings. Click your own name/picture at the bottom left -> **Copy User ID**. Paste it into Notepad.
 
 **E4. Your server's ID**
-1. Right-click your **server icon** on the left -> **Copy Server ID**. Paste it into Notepad.
+1. Right-click your new **Reminth server icon** on the left -> **Copy Server ID**. Paste it into Notepad.
 
 **E5. Put all 4 into Cloudflare**
 1. https://dash.cloudflare.com -> **Workers & Pages** -> **reminth** -> **Settings** -> **Variables and Secrets** -> **Add**.
@@ -77,40 +61,44 @@ GitHub -> **Actions** -> **Website to Cloudflare** -> **Run workflow** -> green 
 **E8. Add the bot to your server**
 1. Left menu: **OAuth2** -> **OAuth2 URL Generator**.
 2. Under **Scopes**, tick: **bot** and **applications.commands**.
-3. Under **Bot Permissions**, tick: **Manage Server**, **Manage Roles**, **Kick Members**, **Ban Members**,
-   **Create Instant Invite**, **Moderate Members**, **View Channels**, **Send Messages**, **Embed Links**,
-   **Manage Messages**, **Read Message History**.
-4. Copy the **Generated URL** at the bottom, open it in your browser, pick your server -> **Authorize**.
+3. Under **Bot Permissions**, tick only: **Administrator** (it needs to make channels, roles and webhooks).
+4. Copy the **Generated URL** at the bottom, open it in your browser, pick your **Reminth** server -> **Authorize**.
 
-**E9. Put the bot's role at the top**
-In Discord: **Server Settings** -> **Roles** -> drag the **Reminth** role to the very top (above your mod roles).
+**E9. Press the button**
+1. Open https://reminth.pages.dev/account (signed in with your Discord).
+2. In **Owner tools**, click **Build my Discord server** -> **OK**. Watch the list - it takes about a minute
+   (Discord makes it wait a few seconds now and then, that's normal).
+3. When it says **Done**, look at your server: categories, channels, roles, welcome + rules, the Reminth icon.
+
+**E10. Put the bot's role at the top**
+In Discord: **Server Settings** -> **Roles** -> drag the **Reminth** role (the bot's) to the very top.
 The bot can only moderate people whose roles are below its own.
 
-**E10. Install the commands**
-1. Open https://reminth.pages.dev/account (signed in with your Discord).
-2. In **Owner tools**, click **Set up the bot's commands**. It says how many commands are in your server.
-
-**E11. Set the bot up in your server** (type these in any channel)
-1. `/config modlog` -> pick **#mod-log**
-2. `/config bugs` -> pick **#bug-reports**
-3. Make a role called **Reminth Player** (Server Settings -> Roles), keep it **below** the Reminth bot role,
-   then `/config player-role` -> pick it.
-4. `/automod setup` -> pick if swear words should be blocked too.
-
-**E12. Release posts in #updates**
-1. In Discord: hover **#updates** -> the cog (Edit Channel) -> **Integrations** -> **Webhooks** -> **New Webhook**.
-2. Click the new webhook, name it `Reminth`, then **Copy Webhook URL**.
-3. GitHub -> your repo -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**:
+**E11. Release posts in #updates**
+1. Back on the account page, under the build list, click **Copy the webhook address**.
+2. GitHub -> your repo -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**:
    - Name: `DISCORD_UPDATES_WEBHOOK`
-   - Secret: paste the webhook URL -> **Add secret**
-4. Test it: GitHub -> **Actions** -> **Announce release on Discord** -> **Run workflow** -> tag `1.7.0` -> green
-   **Run workflow**. "Reminth 1.7.0 is out" should appear in #updates.
+   - Secret: paste -> **Add secret**
+3. Test it: GitHub -> **Actions** -> **Announce release on Discord** -> **Run workflow** -> tag `1.7.1` -> green
+   **Run workflow**. "Reminth 1.7.1 is out" should appear in #updates.
 
-Tell me **"Part E done"** and what worked.
+**E12. Try it** - in your server type `/download`, `/help`, `/verify`. Then tell me **"Part E done"** and what you see.
 
 ---
 
-## What the bot can do (once it's on)
+## What the bot builds
+
+- **Roles:** Moderator (orange, can kick/ban/timeout/delete messages), Reminth Player (cyan, for people with a Reminth account - `/verify`)
+- **📌 Start here:** #welcome, #rules, #announcements, #updates (only mods and the bot can write)
+- **💬 Community:** #general, #pvp-talk, #clips-and-screenshots, #off-topic
+- **🛠️ Help:** #help, #bug-reports (filled by `/bug`), #suggestions
+- **🔊 Voice:** General, PvP
+- **🔒 Staff:** #mod-log, #staff-chat (only mods see them)
+- A welcome message and the rules, the Reminth server icon, members need a verified email, notifications only for
+  mentions, join messages in #general, AutoMod (spam, mass pings, invite links, slurs), all slash commands.
+- Pressing the button again never makes doubles - it only adds what's missing.
+
+## What the bot can do
 
 **Moderation** (only people with the matching Discord permission see these):
 - `/ban` (choose how much of their messages to delete), `/unban`, `/kick`

@@ -116,6 +116,12 @@
     <div class="stats" id="ownerStats">Loading&hellip;</div>
     <button class="btn primary" id="pullBtn" type="button">Add everyone to my Discord server</button>
     <div class="log" id="pullLog"></div>
+    <button class="btn ghost" id="buildBtn" type="button">Build my Discord server</button>
+    <div class="log" id="buildLog"></div>
+    <div class="hidden" id="hookBox">
+      <div class="log">For release posts in #updates, copy this address into GitHub (Settings -> Secrets and variables -> Actions -> New repository secret, name <b>DISCORD_UPDATES_WEBHOOK</b>). Keep it secret.</div>
+      <button class="btn ghost" id="hookCopy" type="button">Copy the webhook address</button>
+    </div>
     <button class="btn ghost" id="cmdBtn" type="button">Set up the bot's commands</button>
     <div class="log" id="cmdLog"></div>
   </div>
@@ -210,6 +216,7 @@
     if (!s || s.error) { $("ownerStats").textContent = "Couldn't load the numbers."; return; }
     const missing = [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID"].filter(Boolean);
     $("cmdBtn").disabled = !s.setup.bot_commands;
+    $("buildBtn").disabled = !s.setup.bot_commands;
     $("cmdLog").textContent = s.setup.bot_commands ? "" : "For the bot's commands, add in Cloudflare: " + [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID", "DISCORD_PUBLIC_KEY (if not added yet)"].filter(Boolean).join(", ");
     $("ownerStats").textContent = s.accounts + " accounts - " + s.discord + " with Discord - " + s.allowed + " can be added - " + s.inServer + " added so far" +
       (missing.length ? "\nTo use the button, add in Cloudflare: " + missing.join(", ") : "");
@@ -236,6 +243,38 @@
       log.textContent += "\nStopped: " + e.message;
     }
     ownerStats();
+  };
+
+  let hookUrl = "";
+  $("buildBtn").onclick = async () => {
+    if (!confirm("The Reminth bot will now add roles, channels, the welcome and rules messages and settings to your Discord server. Things that already exist with the same name are kept. Go?")) return;
+    $("buildBtn").disabled = true;
+    const log = $("buildLog");
+    log.textContent = "Building...";
+    let step = 0, lines = [];
+    try {
+      for (let round = 0; round < 60 && step !== null; round++) {
+        const r = await fetch("/api/admin/discord-build", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ step }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.missing ? "add in Cloudflare: " + d.missing.join(", ") : d.message || d.error || String(r.status));
+        lines = lines.concat(d.log || []);
+        log.textContent = lines.join("\n") + (d.waitSeconds ? "\nDiscord says slow down - waiting " + d.waitSeconds + " s..." : "");
+        if (d.problem) { log.textContent += "\nStopped: " + d.problem + "\n(Is the bot in the server with Administrator, and its role at the top?)"; break; }
+        if (d.waitSeconds) await new Promise((res) => setTimeout(res, d.waitSeconds * 1000));
+        step = d.next;
+      }
+      if (step === null) {
+        log.textContent += "\nDone! Have a look in Discord.";
+        const h = await fetch("/api/admin/discord-build", { credentials: "same-origin" }).then((x) => x.json()).catch(() => ({}));
+        if (h.webhook) { hookUrl = h.webhook; $("hookBox").classList.remove("hidden"); }
+      }
+    } catch (e) {
+      log.textContent += "\nStopped: " + e.message;
+    }
+    $("buildBtn").disabled = false;
+  };
+  $("hookCopy").onclick = async () => {
+    try { await navigator.clipboard.writeText(hookUrl); $("hookCopy").textContent = "Copied!"; } catch { prompt("Copy this:", hookUrl); }
   };
 
   $("cmdBtn").onclick = async () => {

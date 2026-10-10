@@ -66,11 +66,11 @@ async function followUp(env, i, data) {
 }
 
 // ---------- settings kept in the database (/config) ----------
-async function getConfig(env, key) {
+export async function getConfig(env, key) {
   const row = await (await db(env)).prepare("SELECT value FROM bot_config WHERE key = ?").bind(key).first();
   return row ? row.value : null;
 }
-async function setConfig(env, key, value) {
+export async function setConfig(env, key, value) {
   await (await db(env)).prepare("INSERT OR REPLACE INTO bot_config (key, value) VALUES (?, ?)").bind(key, value).run();
 }
 
@@ -200,6 +200,35 @@ export const COMMANDS = [
   { name: "stats", description: "Owner: Reminth account numbers", default_member_permissions: String(P.ADMIN), dm_permission: false },
 ];
 
+/** Turns on (or updates) Reminth's AutoMod rules. `existing`: the server's current rules. Used by /automod and the server builder. */
+export async function setupAutomod(env, g, swearing, by, existing) {
+  const log = await getConfig(env, "modlog_channel");
+  const ours = existing.filter((r) => String(r.name).startsWith("Reminth: "));
+  const alert = log ? [{ type: 2, metadata: { channel_id: log } }] : [];
+  const block = (msg) => ({ type: 1, metadata: { custom_message: msg } });
+  const rules = [
+    { name: "Reminth: spam", event_type: 1, trigger_type: 3, actions: [block("That looked like spam, so it was blocked."), ...alert] },
+    { name: "Reminth: mass pings", event_type: 1, trigger_type: 5, trigger_metadata: { mention_total_limit: 5, mention_raid_protection_enabled: true },
+      actions: [block("Too many pings in one message."), { type: 3, metadata: { duration_seconds: 600 } }, ...alert] },
+    { name: "Reminth: invite links", event_type: 1, trigger_type: 1,
+      trigger_metadata: { regex_patterns: ["(?:discord\\.gg|discord(?:app)?\\.com/invite)/[a-z0-9-]+"] },
+      actions: [block("Invite links to other servers aren't allowed here."), ...alert] },
+    { name: "Reminth: bad words", event_type: 1, trigger_type: 4, trigger_metadata: { presets: swearing ? [1, 2, 3] : [2, 3] },
+      actions: [block("That message was blocked by the server's filter."), ...alert] },
+  ];
+  const done = [];
+  const problems = [];
+  for (const rule of rules) {
+    const have = ours.find((r) => r.name === rule.name) || ([3, 4, 5].includes(rule.trigger_type) && existing.find((r) => r.trigger_type === rule.trigger_type));
+    const r = have
+      ? await dapi(env, "PATCH", `/guilds/${g}/auto-moderation/rules/${have.id}`, { name: rule.name, actions: rule.actions, enabled: true, ...(rule.trigger_metadata ? { trigger_metadata: rule.trigger_metadata } : {}) }, `automod setup by ${by}`)
+      : await dapi(env, "POST", `/guilds/${g}/auto-moderation/rules`, { ...rule, enabled: true }, `automod setup by ${by}`);
+    if (r.ok) done.push(rule.name.slice(9));
+    else problems.push(`${rule.name.slice(9)}: ${(r.data && r.data.message) || r.status}`);
+  }
+  return { done, problems, log };
+}
+
 const HANDLERS = {
   async ban(env, i) {
     if (!has(i, P.BAN)) return say("You need the Ban Members permission.");
@@ -326,34 +355,11 @@ const HANDLERS = {
       return say(ours.length ? `Turned off ${ours.length} rule${ours.length === 1 ? "" : "s"}.` : "None of Reminth's rules were on.");
     }
     // setup
-    const log = await getConfig(env, "modlog_channel");
-    const alert = log ? [{ type: 2, metadata: { channel_id: log } }] : [];
-    const block = (msg) => ({ type: 1, metadata: { custom_message: msg } });
-    const rules = [
-      { name: "Reminth: spam", event_type: 1, trigger_type: 3, actions: [block("That looked like spam, so it was blocked."), ...alert] },
-      { name: "Reminth: mass pings", event_type: 1, trigger_type: 5, trigger_metadata: { mention_total_limit: 5, mention_raid_protection_enabled: true },
-        actions: [block("Too many pings in one message."), { type: 3, metadata: { duration_seconds: 600 } }, ...alert] },
-      { name: "Reminth: invite links", event_type: 1, trigger_type: 1,
-        trigger_metadata: { regex_patterns: ["(?:discord\\.gg|discord(?:app)?\\.com/invite)/[a-z0-9-]+"] },
-        actions: [block("Invite links to other servers aren't allowed here."), ...alert] },
-      { name: "Reminth: bad words", event_type: 1, trigger_type: 4, trigger_metadata: { presets: opt(i, "swearing") ? [1, 2, 3] : [2, 3] },
-        actions: [block("That message was blocked by the server's filter."), ...alert] },
-    ];
-    const done = [];
-    const problems = [];
-    for (const rule of rules) {
-      const have = ours.find((r) => r.name === rule.name) || (rule.trigger_type === 3 && (existing.data || []).find((r) => r.trigger_type === 3)) || (rule.trigger_type === 5 && (existing.data || []).find((r) => r.trigger_type === 5)) || (rule.trigger_type === 4 && (existing.data || []).find((r) => r.trigger_type === 4));
-      const body = { ...rule, enabled: true };
-      const r = have
-        ? await dapi(env, "PATCH", `/guilds/${g}/auto-moderation/rules/${have.id}`, { name: body.name, actions: body.actions, enabled: true, ...(body.trigger_metadata ? { trigger_metadata: body.trigger_metadata } : {}) }, `automod setup by ${tag(invoker(i))}`)
-        : await dapi(env, "POST", `/guilds/${g}/auto-moderation/rules`, body, `automod setup by ${tag(invoker(i))}`);
-      if (r.ok) done.push(rule.name.slice(9));
-      else problems.push(`${rule.name.slice(9)}: ${(r.data && r.data.message) || r.status}`);
-    }
+    const out = await setupAutomod(env, g, Boolean(opt(i, "swearing")), tag(invoker(i)), existing.data || []);
     return say(
-      (done.length ? `AutoMod is on: ${done.join(", ")}.` : "") +
-        (problems.length ? `\nCouldn't set: ${problems.join("; ")}` : "") +
-        (log ? "" : "\nTip: `/config modlog` first, then run this again, so blocked messages are reported there.")
+      (out.done.length ? `AutoMod is on: ${out.done.join(", ")}.` : "") +
+        (out.problems.length ? `\nCouldn't set: ${out.problems.join("; ")}` : "") +
+        (out.log ? "" : "\nTip: `/config modlog` first, then run this again, so blocked messages are reported there.")
     );
   },
   async config(env, i) {

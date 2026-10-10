@@ -21,6 +21,28 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 0000000000000000000000000000000. "Build my Discord server" (10 Oct 2026) - desktop window
+
+**Owner:** building the server by hand takes too long - "help with pressing buttons to build". Automating his own
+Discord account is against Discord's terms (risk to his account), so the BOT builds it instead.
+
+**Done:** `functions/_build.js` (blueprint + 7 steps: commands, roles, categories, channels (6 per request), messages,
+settings, bot) and `functions/api/admin/discord-build.js` (owner only; POST {step}, GET the #updates webhook URL).
+Owner tools button "Build my Discord server" on the account page runs the steps, waits out Discord's rate limits and
+shows the webhook address to copy into the GitHub secret. Roles Moderator + Reminth Player; categories Start here /
+Community / Help / Voice / Staff; read-only and staff-only permission overwrites (bot allowed by member overwrite =
+application id); welcome + rules embeds (posted once); server settings (verification low, mentions-only
+notifications, explicit filter all members, system channel #general, the site's favicon.png as icon); bot config
+(mod log, bug channel, Player role) + AutoMod (`setupAutomod` in `_bot.js`, shared with /automod) + webhook.
+Everything matched by name, so pressing again only adds what's missing. OWNER_TODO Part E rewritten (bot gets
+Administrator).
+- **Tested:** `tools/bot-e2e.js` now 16 steps - the full build against the pretend Discord (owner's existing
+  Moderator role and #general reused, one 429 waited out, overwrites checked, icon, webhook) and a second run that
+  makes nothing new. All pass.
+- **Not tested for real:** the real Discord (owner's Part E).
+
+---
+
 ## 000000000000000000000000000000. Tier Tagger in the G panel, Reminth 1.7.1 (10 Oct 2026) - desktop window
 
 **Owner:** "a tier tagger that reaches every tier tracking website for your opponents' tier on any PvP gamemode".

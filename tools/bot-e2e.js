@@ -224,6 +224,62 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   assert.equal(res.status, 401);
   step("the owner's website button installs the commands (with default permissions); others can't");
 
+  // --- "Build my Discord server" (owner only), run like the account page does
+  async function build() {
+    let step = 0, waited = 0, lines = [];
+    for (let round = 0; round < 40 && step !== null; round++) {
+      const res = await fetch(`${BASE}/api/admin/discord-build`, { method: "POST", headers: { cookie: session, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ step }) });
+      const d = await res.json();
+      assert.equal(res.status, 200, JSON.stringify(d));
+      assert.ok(!d.problem, d.problem);
+      lines = lines.concat(d.log);
+      if (d.waitSeconds) {
+        waited++;
+        await wait(d.waitSeconds * 1000);
+      }
+      step = d.next;
+    }
+    assert.equal(step, null, "the build finished");
+    return { lines, waited };
+  }
+  assert.equal((await fetch(`${BASE}/api/admin/discord-build`, { method: "POST", body: "{}" })).status, 401);
+  const before2 = (await log()).length;
+  const b1 = await build();
+  assert.equal(b1.waited, 1, "waited once for Discord's rate limit");
+  L = (await log()).slice(before2);
+  const posts = (u) => L.filter((x) => x.method === "POST" && x.url === u);
+  assert.deepEqual(posts("/guilds/555/roles").map((x) => x.body.name), ["Reminth Player"], "the owner's own Moderator role is reused");
+  const made = posts("/guilds/555/channels").map((x) => x.body);
+  assert.equal(made.filter((c) => c.type === 4).length, 5, "5 categories");
+  assert.equal(new Set(made.filter((c) => c.type !== 4).map((c) => c.name)).size + 1, 15, "14 channels made, #general reused");
+  assert.equal(made.filter((c) => c.type !== 4).length, 15, "...one of them asked twice (the rate-limited try was repeated)");
+  const modlogCh = made.find((c) => c.name === "mod-log");
+  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "555" && BigInt(o.deny) & (1n << 10n)), "#mod-log is hidden from everyone");
+  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "r-mod" && BigInt(o.allow) & (1n << 10n)), "...but mods see it");
+  assert.ok(modlogCh.permission_overwrites.some((o) => o.id === "test-id" && o.type === 1), "...and the bot");
+  const rulesCh = made.find((c) => c.name === "rules");
+  assert.ok(rulesCh.permission_overwrites.some((o) => o.id === "555" && BigInt(o.deny) & (1n << 11n)), "#rules is read-only");
+  assert.ok(!made.find((c) => c.name === "general"), "#general wasn't made twice");
+  const welcomeMsg = L.find((x) => x.method === "POST" && /^\/channels\/ch-\d+\/messages$/.test(x.url) && x.body.embeds && /Welcome/.test(x.body.embeds[0].title));
+  assert.ok(welcomeMsg && /\/verify/.test(JSON.stringify(welcomeMsg.body)), "welcome message with /verify");
+  assert.ok(L.some((x) => x.body && x.body.embeds && x.body.embeds[0].title === "Rules"), "rules posted");
+  const settings = L.find((x) => x.method === "PATCH" && x.url === "/guilds/555");
+  assert.equal(settings.body.system_channel_id, "pre-general");
+  assert.match(settings.body.icon || "", /^data:image\/png;base64,/, "the Reminth icon");
+  assert.ok(L.some((x) => x.method === "PUT" && x.url === "/applications/test-id/guilds/555/commands"), "commands installed");
+  r = await interact(cmd("config", [subcmd("show")]));
+  assert.match(content(r), new RegExp(`<#${(made.find((c) => c.name === "mod-log") && "ch-")}`), "the bot uses the new #mod-log");
+  const hook = await (await fetch(`${BASE}/api/admin/discord-build`, { headers: { cookie: session } })).json();
+  assert.equal(hook.webhook, "https://discord.com/api/webhooks/wh1/whtoken");
+  step("server builder: roles, 5 categories, 14 channels with permissions, rate limit waited out, welcome + rules, settings + icon, bot setup, webhook");
+
+  const before3 = (await log()).length;
+  await build();
+  L = (await log()).slice(before3);
+  assert.equal(L.filter((x) => x.method === "POST" && /^\/guilds\/555\/(roles|channels)$/.test(x.url)).length, 0, "nothing made twice");
+  assert.equal(L.filter((x) => x.method === "POST" && /\/messages$/.test(x.url) && x.body.embeds && /Welcome|Rules/.test(x.body.embeds[0].title)).length, 0, "messages not posted twice");
+  step("pressing the button again changes nothing that's already there");
+
   console.log("ALL PASSED");
 })().catch((e) => {
   console.error("FAILED:", e && e.message);
