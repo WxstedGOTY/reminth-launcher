@@ -76,6 +76,7 @@ public final class Panel {
 		// Fullscreen Pointer: drawn on top of every menu
 		net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> V.afterDraw(screen, g -> SoftCursor.draw(g, client)));
 		Tips.init();
+		TierTagger.registerCommand();
 		load();
 		ClientTickEvents.END_CLIENT_TICK.register(Panel::tick);
 		V.registerHud(Panel::renderHud);
@@ -113,6 +114,7 @@ public final class Panel {
 			}
 			Features2.tick(mc);
 			Features3.tick(mc);
+			TierTagger.testTick(mc);
 			for (Module m : MODULES) if (m.enabled) m.tick(mc);
 		} catch (Throwable t) {
 			ReminthHud.LOGGER.warn("Reminth panel: tick failed ({})", t.toString());

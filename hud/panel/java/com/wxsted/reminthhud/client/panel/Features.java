@@ -43,6 +43,7 @@ public final class Features {
 		list.add(new ToggleSneak());
 		list.addAll(Features2.all());
 		list.addAll(Features3.all());
+		list.add(new TierTagger());
 		return list;
 	}
 

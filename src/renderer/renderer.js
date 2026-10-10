@@ -3043,9 +3043,9 @@ paintFocus();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
+  "New in the G panel: Tier Tagger - players' PvP tiers (MCTiers, PvPTiers, SubTiers) above their heads and in the tab list, every gamemode. Type /tiers <name> to see all of someone's tiers.",
   "Reminth accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
   "Pick your look: the whole launcher in blue (new default) or orange, the icon included - on the first screen or in Settings.",
-  "Fixed: clicking Reminth on the taskbar could open a second taskbar button.",
   "The Reminth Mods Panel: press G in game for 140+ of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
   "A pointer that never vanishes in full screen, a new title screen, and a heads-up when a server's rules ban one of your mods.",
   "Pick what an instance is for (PvP, survival and more) and get a matching set of mods and packs.",

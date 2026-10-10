@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **10 Oct 2026 (later): Reminth 1.7.1 built (Tier Tagger), NOT published - owner publishes `release-1.7.1\`.**
 - **10 Oct 2026: 1.7.0 PUBLISHED. The Discord bot is built (section 00000000000000000000000000000); the owner switches it on with `OWNER_TODO.md` Part E.**
 - **9 Oct 2026 (evening): 1.7.0 rebuilt (accounts required, Discord/Google/email, Discord server pull, blue default), NOT
   installed, NOT published. The owner's exact steps are in `OWNER_TODO.md` (steps 1-9: Discord app + bot, Google client,
@@ -13,10 +14,38 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
   changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 679 pass** (9 Oct evening) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
+- **`main` is at:** this file's commit. **`npm test`: 679 pass** (10 Oct) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
 - **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`) - **published 9 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000000000000. Tier Tagger in the G panel, Reminth 1.7.1 (10 Oct 2026) - desktop window
+
+**Owner:** "a tier tagger that reaches every tier tracking website for your opponents' tier on any PvP gamemode".
+
+**Research (10 Oct):** MCTiers (mctiers.com) - official v2 API, used by the official TierTagger mod, but the DOMAIN
+DOES NOT RESOLVE right now (NXDOMAIN, also via 1.1.1.1). PvPTiers (pvptiers.com) - no official API, its own website's
+`/api/profile/<uuid without dashes>` works. SubTiers (subtiers.net) - `/api/v2/profile/<uuid>` works. OuterTiers -
+domain gone. Arise / Central TierList / mctiers.it - websites only, no API found. All three APIs: `{rankings: {mode:
+{tier 1-5, pos 0 high / 1 low, retired}}}`.
+
+**Done:** `hud/panel/java/.../panel/TierTagger.java` (Visual, OFF by default): options tier list (all = best / one),
+gamemode (best or Crystal/Sword/UHC/Pot/NethPot/SMP/Axe/Mace/Elytra), above heads, tab list, show gamemode, show
+retired. Shared mixins in `hud/panel/java/.../mixin/` (both builds): `TierNameMixin` (Player.getDisplayName, only
+AbstractClientPlayer - singleplayer's server players untouched) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay)
+- same names 1.20.1-26.3 (checked with javap in every version). `/tiers <name>` (Fabric client command built with plain
+Brigadier because ClientCommandManager was renamed ClientCommands). Cache 30 min per player per list, 2 min after a
+failure, 6 requests at once, offline-mode (v3) UUIDs never looked up. GameProfile id/name read by reflection (class up
+to 1.21.8, record after). Test switch `-Dreminthhud.testTier=<s>`. ReminthHUD **1.5.0** for all 10 jars in
+`assets/mods` (same ranges as 1.4.0). Privacy v11 (section 5). Launcher **1.7.1** (What's new), installer `release-1.7.1\`.
+- **Tested in real games (hidden window):** 1.21.11 - both mixins applied, own name "HT1 Crystal | Bench" with a ranked
+  account id, `/tiers michaelcycle00` -> PvPTiers HT1 Crystal / HT1 Sword / LT2 Pot (retired), MCTiers unreachable,
+  SubTiers not ranked; 26.3 - both mixins applied, decorate -> "HT1 Crystal | X", same `/tiers`. All 10 jars compile;
+  1.20/1.21 jars carry the remapped targets (method_5476, method_1918).
+- **Not tested:** other players' nametags and the tab list on a real server (singleplayer has neither); 1.20.1 and
+  26.1/26.2 in a game (same shared code).
 
 ---
 

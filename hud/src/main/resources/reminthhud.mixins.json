@@ -9,7 +9,9 @@
 		"PongMixin",
 		"AttackMixin",
 		"ChatTimestampMixin",
-		"EffectIconMixin"
+		"EffectIconMixin",
+		"TierNameMixin",
+		"TierTabMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

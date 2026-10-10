@@ -153,3 +153,9 @@ inventory walk, health bars over other players.
 FPS (1), Ping (2), CPS (3), Keystrokes (4), Coordinates (5), Real clock (9), Armor status (11), Held item durability
 (12), Potion effects (13), Totem counter (23), Hurt cam (44), Low fire (45), Toggle sprint (73), Toggle sneak (74),
 Zoom (41).
+
+## Added 10 Oct 2026
+
+| # | Name | What it does | Difficulty | Risk |
+|---|---|---|---|---|
+| - | Tier Tagger | Players' PvP tiers from MCTiers, PvPTiers and SubTiers in front of their names (above heads and in the tab list); pick a list and a gamemode or "best tier"; `/tiers <name>` lists all of a player's tiers. Off until turned on. Code: `hud/panel/java/.../panel/TierTagger.java`, mixins `TierNameMixin` (Player.getDisplayName) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay) - same names in every version 1.20.1-26.3. | hard | Safe (a TierTagger mod is common on PvP servers) |

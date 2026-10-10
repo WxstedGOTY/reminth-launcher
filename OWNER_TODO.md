@@ -1,7 +1,28 @@
 # Your steps - one small thing at a time
 
 **Where you are (10 Oct 2026):** 1.7.0 is published. Accounts (Discord + email) are live.
-**Next: Part E - switch on the Reminth bot** (after your Discord server exists).
+**Next: Part F - publish 1.7.1 (Tier Tagger)** whenever you want, and **Part E - the bot** once your server exists.
+
+---
+
+## Part F - Publish Reminth 1.7.1 (2 minutes)
+
+1. GitHub -> **Releases** -> **Draft a new release**.
+2. Tag: `1.7.1` -> **Create new tag**. Title: `Reminth 1.7.1`
+3. Drag in the 3 files from **`release-1.7.1`** (check the folder name!): `Reminth-Setup.exe`,
+   `Reminth-Setup.exe.blockmap`, `latest.yml`
+4. Description:
+
+```
+## Reminth 1.7.1
+- New in the G panel: Tier Tagger. See players' PvP tiers from MCTiers, PvPTiers and SubTiers above their heads and in the tab list - every gamemode (crystal, sword, UHC, pot, axe, mace, SMP and more). Turn it on in the panel (Visual).
+- Type /tiers <name> in game to see all of a player's tiers.
+```
+
+5. **Publish release**, then tell me - I'll check the files.
+
+To try it yourself first: install `release-1.7.1\Reminth-Setup.exe`, start a game, press **G** -> **Visual** ->
+**Tier Tagger** -> **ENABLED**, join a PvP server and look at someone / hold Tab. Or type `/tiers <name>`.
 
 Do one step, then the next. If a screen looks different, stop and tell me what you see.
 **Never send the Bot Token to anyone, not even me.** It goes only into Cloudflare.
