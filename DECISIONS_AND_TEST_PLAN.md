@@ -21,6 +21,36 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 
 ---
 
+## 000000000000000000000000000000000. The bot is live: online status, owner-only tools, real setup (10 Oct 2026) - desktop window
+
+**State (checked live):** the bot is in "Reminth Launcher" (server id in `local-notes/discord-ids.txt`), "Set up my
+server" ran all the way (owner's screenshot): roles, every channel, onboarding on, bot settings stored (mod log =
+#moderator-only, updates, socials, Launcher Player, Launcher Updates). The reminth-cron Worker deploys (the owner made a
+new Cloudflare token from the "Edit Cloudflare Workers" template - the old one had no Workers access: "No access to the
+specified resource" on /workers/scripts/.../deployments). Every-minute check runs; `/api/discord/tick` (public, no
+secrets) shows `gateway` (online status) and `settings` (which bot settings exist).
+
+**Done this round:**
+- **Online status:** `workers/cron/index.js` Durable Object `Gateway` (SQLite class, free plan) holds the Discord gateway
+  connection: intents 0, "Watching reminth.pages.dev", heartbeat, op 7 / dropped connection -> resume, invalid session
+  -> new identify, refused token (4004) -> stops until a new token (fingerprint) is saved. Started by the minute cron and
+  a 30 s alarm. ~10,800 of the free 13,000 GB-s/day. Needs the secret DISCORD_BOT_TOKEN ON THE WORKER too;
+  `keep_vars = true` so a dashboard Text var survives deploys (one was wiped once). Tested against `tools/gateway-mock.js`.
+- **Owner tools hidden:** removed from `site/account.html`; `/api/tools` sends them (functions/_ownerPanel.js) only to the
+  owner (`user.extra` in his /api/me); every owner address answers 404 to others (`ownerOnly` in _lib.js).
+- **Releases from GitHub's feed** (`fetchLatestRelease` in _bot.js, releases.atom) - the API returned 403 to Cloudflare's
+  shared addresses. 1.7.1 marked seen; the next release is posted with the Launcher Updates ping.
+- Setup: #off-topic made if onboarding lacks a 5th chat channel (he made "👀｜off-topic" himself); #read-first read-only;
+  "#chat" = general (2 s slowmode); AutoMod problems shown. Middleware trims pasted Cloudflare values.
+- Texts: `discord/texts.md` 1-5 posted by the owner via the webhook button; 6 (support + apply) is for Tickets v2.
+- **Incident:** an old Notepad saved the owner's codes INTO OWNER_TODO.md (bot token included) - caught before any
+  commit (verified with git log -S); token removed, IDs moved to local-notes; owner reset the token.
+
+**Open:** AutoMod "mass pings" wasn't set (Discord refused; reason shows on the next setup run); #chat slowmode needs a
+setup re-run; Tickets v2 panel (owner); YouTube link (none yet).
+
+---
+
 ## 00000000000000000000000000000000. Bot setup for the owner's EXISTING server + every-minute check (10 Oct 2026) - desktop window
 
 **Owner:** he already made his server ("Reminth Launcher", community on): rules, moderator-only; Information
