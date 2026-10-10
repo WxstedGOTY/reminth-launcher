@@ -22,11 +22,15 @@ public final class Draw {
 	public static final int TEXT = 0xFFFFFFFF;
 	public static final int TEXT_DIM = 0xFFB4B4B8;
 	public static final int TEXT_FAINT = 0xFF7E7E84;
-	public static final int ON = 0xFF3FA34D;
-	public static final int ON_HOT = 0xFF4CBB5B;
-	public static final int OFF = 0xFFB8403C;
-	public static final int OFF_HOT = 0xFFD04B46;
+	public static int ON = 0xFF3FA34D;
+	public static int ON_HOT = 0xFF4CBB5B;
+	public static int OFF = 0xFFB8403C;
+	public static int OFF_HOT = 0xFFD04B46;
 	public static int ACCENT = 0xFFFFFFFF;
+	public static int BUTTON_EDGE = 0xFF2A2A2D;
+	public static int FIELD = 0xFF232326; // text and search boxes
+	public static int FIELD_EDGE = 0xFF4A4A4E;
+	public static int SWITCH_OFF = 0xFF55555A;
 	public static final int NEW_TAG = 0xFFE5484D;
 
 	/**
@@ -35,16 +39,27 @@ public final class Draw {
 	 */
 	public static void applyStyle(float opacity, int accent) {
 		int a = Math.round(Math.max(0.1f, Math.min(1f, opacity)) * 255);
-		int t = Math.min(255, a + 40);
+		// cards sit on the window and buttons on the cards, so their see-through adds up: keep each layer light
+		int t = Math.max(40, a / 2), th = Math.min(255, t + 40);
 		WINDOW = (a << 24) | 0x141416;
 		BAR = (Math.min(255, a + 25) << 24) | 0x1B1B1E;
 		WINDOW_EDGE = (Math.min(255, a / 3 + 30) << 24) | 0xFFFFFF;
 		TILE = (t << 24) | 0x3A3A3D;
-		TILE_HOT = (t << 24) | 0x4A4A4E;
-		TILE_EDGE = (t << 24) | 0x5C5C61;
+		TILE_HOT = (th << 24) | 0x4A4A4E;
+		TILE_EDGE = (Math.min(255, t + 50) << 24) | 0x5C5C61;
 		TILE_EDGE_HOT = (accent & 0xFFFFFF) == 0xFFFFFF ? 0xFFB9B9BE : 0xFF000000 | accent;
-		BUTTON = (Math.min(255, t + 20) << 24) | 0x6F6F73;
-		BUTTON_HOT = (Math.min(255, t + 20) << 24) | 0x8A8A8F;
+		// buttons, switches and boxes are see-through too (owner, 10 Oct), a little less than the window so they stand out
+		int b = Math.max(60, Math.round(a * 0.75f)), bh = Math.min(255, b + 60);
+		BUTTON = (b << 24) | 0x6F6F73;
+		BUTTON_HOT = (bh << 24) | 0x8A8A8F;
+		BUTTON_EDGE = (b << 24) | 0x2A2A2D;
+		ON = (b << 24) | 0x3FA34D;
+		ON_HOT = (bh << 24) | 0x4CBB5B;
+		OFF = (b << 24) | 0xB8403C;
+		OFF_HOT = (bh << 24) | 0xD04B46;
+		FIELD = (b << 24) | 0x232326;
+		FIELD_EDGE = (b << 24) | 0x4A4A4E;
+		SWITCH_OFF = (b << 24) | 0x55555A;
 		ACCENT = 0xFF000000 | accent;
 	}
 

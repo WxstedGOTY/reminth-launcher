@@ -80,7 +80,7 @@ public class PanelScreen extends BaseScreen {
 		if (look != null) look.stopEditing();
 		lastCat = cat;
 		Panel.save();
-		V.setScreen(minecraft, parent);
+		Walk.setScreen(minecraft, parent);
 	}
 
 	/** Game tests only: show a category ("STREAM") or the SETTINGS tab ("settings"). */
@@ -175,7 +175,7 @@ public class PanelScreen extends BaseScreen {
 		}
 		// search box
 		int sx = x0 + w - 166, sy = y0 + 6;
-		Draw.tile(g, sx, sy, 136, 18, 4, searchFocus ? 0xFFB9B9BE : 0xFF4A4A4E, 0xFF232326);
+		Draw.tile(g, sx, sy, 136, 18, 4, searchFocus ? 0xFFB9B9BE : Draw.FIELD_EDGE, Draw.FIELD);
 		Draw.icon(g, "search", sx + 5, sy + 5, 9, 0xFFB4B4B8);
 		if (query.isEmpty() && !searchFocus) g.text(font, "Search...", sx + 18, sy + 5, Draw.TEXT_FAINT, false);
 		else {
@@ -233,11 +233,23 @@ public class PanelScreen extends BaseScreen {
 		Draw.icon(g, "plus", lx + 6, ly + 4, 8, addHot ? 0xFFFFFFFF : 0xFF9A9AA0);
 		Draw.text(g, "SAVE AS NEW PROFILE", lx + 19, ly + 5, 0.75f, addHot ? Draw.TEXT : Draw.TEXT_DIM, false);
 		// edit HUD layout
+		// EDIT HUD LAYOUT stands out (owner, 10 Oct: players must find it): same colours, but a solid button, a white
+		// outline, bold text and - until it has been opened once - a soft pulse and an arrow pointing at it
 		int by = y0 + h - 30;
 		boolean hot = Draw.in(mx, my, lx, by, lw - 4, 22);
-		Draw.tile(g, lx, by, lw - 4, 22, 4, hot ? Draw.TILE_EDGE_HOT : Draw.TILE_EDGE, hot ? Draw.BUTTON_HOT : Draw.BUTTON);
+		if (!Panel.layoutSeen) {
+			float p = (float) ((Math.sin(System.currentTimeMillis() / 300.0) + 1) / 2);
+			Draw.round(g, lx - 2, by - 2, lw, 26, 6, Draw.alpha(0xFFFFFFFF, 0.15 + 0.35 * p));
+		}
+		Draw.tile(g, lx, by, lw - 4, 22, 4, hot ? 0xFFFFFFFF : 0xDDFFFFFF, hot ? 0xFF8A8A8F : 0xFF6F6F73);
 		Draw.icon(g, "layout", lx + 7, by + 6, 10);
-		Draw.text(g, "EDIT HUD LAYOUT", lx + 22, by + 8, 0.75f, Draw.TEXT, true);
+		Draw.text(g, Component.literal("EDIT HUD LAYOUT").withStyle(ChatFormatting.BOLD), lx + 21, by + 8, 0.72f, Draw.TEXT, true);
+		if (!Panel.layoutSeen) {
+			int ax = lx + lw / 2 - 3;
+			int ay = by - 9 + (int) Math.round(Math.sin(System.currentTimeMillis() / 250.0) * 1.5);
+			for (int i = 0; i < 4; i++) g.fill(ax - 3 + i, ay + i, ax + 4 - i, ay + i + 1, 0xFFFFFFFF); // a small arrow pointing down
+			Draw.centered(g, "Move your HUD here", lx + lw / 2f - 2, ay - 8, 0.6f, Draw.TEXT);
+		}
 	}
 
 	private void drawCards(Gfx g, int mx, int my) {
@@ -280,10 +292,10 @@ public class PanelScreen extends BaseScreen {
 		// OPTIONS + gear
 		int bx = x + 6, by = y + 59, bw = cw - 12 - 20;
 		boolean oh = inside && Draw.in(mx, my, bx, by, bw, 16);
-		Draw.tile(g, bx, by, bw, 16, 3, oh ? Draw.TILE_EDGE_HOT : 0xFF2A2A2D, oh ? Draw.BUTTON_HOT : Draw.BUTTON);
+		Draw.tile(g, bx, by, bw, 16, 3, oh ? Draw.TILE_EDGE_HOT : Draw.BUTTON_EDGE, oh ? Draw.BUTTON_HOT : Draw.BUTTON);
 		Draw.centered(g, "OPTIONS", bx + bw / 2f, by + 5, 0.75f, Draw.TEXT);
 		boolean gh = inside && Draw.in(mx, my, bx + bw + 4, by, 16, 16);
-		Draw.tile(g, bx + bw + 4, by, 16, 16, 3, gh ? Draw.TILE_EDGE_HOT : 0xFF2A2A2D, gh ? Draw.BUTTON_HOT : Draw.BUTTON);
+		Draw.tile(g, bx + bw + 4, by, 16, 16, 3, gh ? Draw.TILE_EDGE_HOT : Draw.BUTTON_EDGE, gh ? Draw.BUTTON_HOT : Draw.BUTTON);
 		Draw.icon(g, "gear", bx + bw + 7, by + 3, 10);
 		// ENABLED / DISABLED
 		int ty = y + 79;
@@ -314,7 +326,7 @@ public class PanelScreen extends BaseScreen {
 			Draw.text(g, rows[i][1], x + 8, y + 15, 0.75f, Draw.TEXT_DIM, false);
 			int bw = 64, bx = x + mw - 6 - bw - 6, by = y + 5;
 			boolean hot = Draw.in(mx, my, bx, by, bw, 16);
-			Draw.tile(g, bx, by, bw, 16, 3, hot ? Draw.TILE_EDGE_HOT : 0xFF2A2A2D, i == 3 ? (hot ? Draw.OFF_HOT : Draw.OFF) : hot ? Draw.BUTTON_HOT : Draw.BUTTON);
+			Draw.tile(g, bx, by, bw, 16, 3, hot ? Draw.TILE_EDGE_HOT : Draw.BUTTON_EDGE, i == 3 ? (hot ? Draw.OFF_HOT : Draw.OFF) : hot ? Draw.BUTTON_HOT : Draw.BUTTON);
 			Draw.centered(g, rows[i][2], bx + bw / 2f, by + 5, 0.75f, Draw.TEXT);
 		}
 		look.draw(g, mx, my);
@@ -401,7 +413,7 @@ public class PanelScreen extends BaseScreen {
 			int bx = x + 6, bw = cw - 12 - 20;
 			if (Draw.in(mx, my, bx, y + 59, bw + 24, 16)) {
 				Screen own = m.optionsScreen(this);
-				V.setScreen(minecraft, own != null ? own : new ModuleScreen(this, m));
+				Walk.setScreen(minecraft, own != null ? own : new ModuleScreen(this, m));
 				return true;
 			}
 			if (Draw.in(mx, my, bx, y + 79, cw - 12, 15)) {
@@ -537,7 +549,7 @@ public class PanelScreen extends BaseScreen {
 			Draw.centered(g, "Profile name", width / 2f, y + 10, 1f, Draw.TEXT);
 			// the text box
 			int bx0 = width / 2 - 90, by0 = height / 2 - 14;
-			Draw.tile(g, bx0, by0, 180, 16, 3, 0xFFB9B9BE, 0xFF232326);
+			Draw.tile(g, bx0, by0, 180, 16, 3, 0xFFB9B9BE, Draw.FIELD);
 			String shown = value;
 			while (font.width(shown) > 170 && shown.length() > 1) shown = shown.substring(1);
 			g.text(font, shown, bx0 + 5, by0 + 4, Draw.TEXT, false);

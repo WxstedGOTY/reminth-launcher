@@ -36,6 +36,28 @@ public final class Walk {
 		return mc != null && PanelLook.get().inventoryCloses.value && V.matches(mc.options.keyInventory, key, scancode, mods);
 	}
 
+	/** A screen you can walk in (or none, the game itself). */
+	private static boolean walkable(net.minecraft.client.gui.screens.Screen s) {
+		return s == null || s instanceof PanelScreen || s instanceof ModuleScreen || s instanceof TextStudioScreen;
+	}
+
+	/**
+	 * Opens a screen without stopping you (owner, 10 Oct: opening the panel while running stopped the player). The game
+	 * lets go of every key when a screen opens; the movement keys you were holding are pressed again right after, but
+	 * only when the new screen passes key releases on (the panel's own screens) - so a key can never stay stuck.
+	 */
+	public static void setScreen(Minecraft mc, net.minecraft.client.gui.screens.Screen s) {
+		KeyMapping[] ks = mc.player == null ? new KeyMapping[0] : keys(mc);
+		boolean[] held = new boolean[ks.length];
+		for (int i = 0; i < ks.length; i++) held[i] = ks[i].isDown();
+		V.setScreen(mc, s);
+		if (mc.player == null || !walkable(V.screen(mc)) || (s != null && !PanelLook.get().walk.value)) return;
+		for (int i = 0; i < ks.length; i++) {
+			// a toggle key (Sprint: Toggle) flips on setDown(true), so only press what the game let go of
+			if (held[i] && !ks[i].isDown()) ks[i].setDown(true);
+		}
+	}
+
 	/** Lets go of every movement key (the panel closed while one was held through it). */
 	public static void releaseAll(Minecraft mc) {
 		if (mc == null) return;

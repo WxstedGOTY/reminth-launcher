@@ -15,6 +15,7 @@ public class HudEditorScreen extends BaseScreen {
 	public HudEditorScreen(Screen back) {
 		super(Component.literal("Edit HUD layout"));
 		this.back = back;
+		Panel.layoutSeen = true;
 	}
 
 	@Override

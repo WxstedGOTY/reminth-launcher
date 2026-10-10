@@ -55,7 +55,7 @@ public class TextStudioScreen extends BaseScreen {
 	public void onClose() {
 		list.stopEditing();
 		Panel.save();
-		V.setScreen(minecraft, back);
+		Walk.setScreen(minecraft, back);
 	}
 
 	private void pick(int i) {
@@ -96,7 +96,7 @@ public class TextStudioScreen extends BaseScreen {
 			boolean hot = Draw.in(mx, my, x0 + 4, ry, w - 8, ROW - 1);
 			if (i == sel || hot) Draw.round(g, x0 + 4, ry, w - 8, ROW - 1, 4, i == sel ? Draw.TILE : 0x26FFFFFF);
 			int sx = x0 + 8;
-			Draw.round(g, sx, ry + 3, 22, 11, 5, t.enabled ? Draw.ON : 0xFF55555A);
+			Draw.round(g, sx, ry + 3, 22, 11, 5, t.enabled ? Draw.ON : Draw.SWITCH_OFF);
 			Draw.round(g, t.enabled ? sx + 12 : sx + 1, ry + 4, 9, 9, 4, 0xFFFFFFFF);
 			g.text(Draw.font(), (i + 1) + ".", x0 + 36, ry + 5, Draw.TEXT_DIM, true);
 			String preview = ChatFormatting.stripFormatting(t.text.value.replaceAll("&([0-9a-fk-orA-FK-OR])", "")).replace('|', ' ');
@@ -195,7 +195,7 @@ public class TextStudioScreen extends BaseScreen {
 		if (list.key(key)) return true;
 		if (Walk.closes(minecraft, key, scancode, mods) || V.matches(Panel.openKey(), key, scancode, mods)) {
 			Panel.save();
-			V.setScreen(minecraft, null);
+			Walk.setScreen(minecraft, null);
 			return true;
 		}
 		return Walk.key(minecraft, key, scancode, mods, true);

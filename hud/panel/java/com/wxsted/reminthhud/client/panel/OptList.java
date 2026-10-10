@@ -96,12 +96,12 @@ final class OptList {
 			g.text(font, Draw.fit(o.label, labelMax(o), 1f), x + 8, ry + 6, Draw.TEXT, true);
 			if (o instanceof Opt.Bool b) {
 				int sx = x + w - 38;
-				Draw.round(g, sx, ry + 3, 28, 14, 7, b.value ? Draw.ON : 0xFF55555A);
+				Draw.round(g, sx, ry + 3, 28, 14, 7, b.value ? Draw.ON : Draw.SWITCH_OFF);
 				Draw.round(g, b.value ? sx + 15 : sx + 1, ry + 4, 12, 12, 6, 0xFFFFFFFF);
 			} else if (o instanceof Opt.Num n) {
 				int cx = sliderX(), tw = 100;
 				float f = (float) ((n.value - n.min) / (n.max - n.min));
-				Draw.round(g, cx, ry + 8, tw, 4, 2, 0xFF55555A);
+				Draw.round(g, cx, ry + 8, tw, 4, 2, Draw.SWITCH_OFF);
 				Draw.round(g, cx, ry + 8, Math.round(tw * f), 4, 2, Draw.ACCENT);
 				Draw.round(g, cx + Math.round(tw * f) - 4, ry + 4, 9, 12, 3, 0xFFFFFFFF);
 				g.text(font, n.shown(), cx + tw + 8, ry + 6, Draw.TEXT_DIM, true);
@@ -118,12 +118,12 @@ final class OptList {
 			} else if (o instanceof Opt.Choice ch) {
 				int cx = x + w - 136;
 				boolean hot = Draw.in(mx, my, cx, ry + 2, 130, 16);
-				Draw.tile(g, cx, ry + 2, 130, 16, 3, hot ? Draw.TILE_EDGE_HOT : 0xFF2A2A2D, hot ? Draw.BUTTON_HOT : Draw.BUTTON);
+				Draw.tile(g, cx, ry + 2, 130, 16, 3, hot ? Draw.TILE_EDGE_HOT : Draw.BUTTON_EDGE, hot ? Draw.BUTTON_HOT : Draw.BUTTON);
 				Draw.centered(g, "< " + Draw.fit(ch.shown(), 104, 1f) + " >", cx + 65, ry + 6, 1f, Draw.TEXT);
 			} else if (o instanceof Opt.Text t) {
 				int bx = textX(), bw = x + w - 8 - bx;
 				boolean focus = editing == t;
-				Draw.tile(g, bx, ry + 2, bw, 16, 3, focus ? Draw.TILE_EDGE_HOT : 0xFF4A4A4E, 0xE0232326);
+				Draw.tile(g, bx, ry + 2, bw, 16, 3, focus ? Draw.TILE_EDGE_HOT : Draw.FIELD_EDGE, Draw.FIELD);
 				String shown = t.value;
 				while (font.width(shown) > bw - 12 && shown.length() > 1) shown = shown.substring(1);
 				if (shown.isEmpty() && !focus) g.text(font, "Click to type...", bx + 5, ry + 6, Draw.TEXT_FAINT, false);

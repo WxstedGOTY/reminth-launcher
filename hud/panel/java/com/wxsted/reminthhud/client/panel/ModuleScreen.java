@@ -58,7 +58,7 @@ public class ModuleScreen extends BaseScreen {
 	public void onClose() {
 		list.stopEditing();
 		Panel.save();
-		V.setScreen(minecraft, back);
+		Walk.setScreen(minecraft, back);
 	}
 
 	@Override
@@ -164,7 +164,7 @@ public class ModuleScreen extends BaseScreen {
 		if (list.key(key)) return true;
 		if (Walk.closes(minecraft, key, scancode, mods) || V.matches(Panel.openKey(), key, scancode, mods)) {
 			Panel.save();
-			V.setScreen(minecraft, null);
+			Walk.setScreen(minecraft, null);
 			return true;
 		}
 		return Walk.key(minecraft, key, scancode, mods, true);

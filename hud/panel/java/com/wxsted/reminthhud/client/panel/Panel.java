@@ -50,8 +50,11 @@ public final class Panel {
 	private static String testEnable = System.getProperty("reminthhud.testEnable");
 	private static final boolean TEST_WALK = Boolean.getBoolean("reminthhud.testWalk");
 	private static boolean testWalking;
+	private static int testWalkTicks;
 	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
 	public static boolean hudHidden;
+	/** The HUD layout editor was opened at least once (the panel stops pointing at its button then). */
+	public static boolean layoutSeen;
 
 	public static KeyMapping hideKey() {
 		return hideKey;
@@ -129,8 +132,17 @@ public final class Panel {
 				testEnable = null;
 			}
 			if (TEST_WALK && mc.player != null && mc.level != null) {
-				if (V.screen(mc) instanceof PanelScreen && !testWalking) testWalking = Walk.key(mc, InputConstants.KEY_W, 0, 0, true);
-				if (mc.level.getGameTime() % 40 == 0) ReminthHud.LOGGER.info("Reminth panel: test walk {} at {} {} (W down: {})", V.screen(mc), Math.round(mc.player.getX() * 10) / 10.0, Math.round(mc.player.getZ() * 10) / 10.0, mc.options.keyUp.isDown());
+				// holds W while no screen is open (running), then the panel opens: W must still be down (Walk.setScreen)
+				if (V.screen(mc) == null && !testWalking && testOpenIn == 0) {
+					mc.options.keyUp.setDown(true);
+					if (++testWalkTicks == 40) {
+						mc.player.setYRot(mc.player.getYRot() + 180); // walk back the way it came (free space)
+						open(null);
+						testWalking = true;
+						ReminthHud.LOGGER.info("Reminth panel: test walk just opened {} (W down: {})", V.screen(mc), mc.options.keyUp.isDown());
+					}
+				}
+				if (mc.level.getGameTime() % 10 == 0) ReminthHud.LOGGER.info("Reminth panel: test walk {} at {} {} (W down: {})", V.screen(mc), Math.round(mc.player.getX() * 10) / 10.0, Math.round(mc.player.getZ() * 10) / 10.0, mc.options.keyUp.isDown());
 			}
 			while (openKey.consumeClick()) {
 				if (V.screen(mc) == null) open(null);
@@ -149,7 +161,7 @@ public final class Panel {
 	/** Opens the panel; `parent` is where closing it goes back to (null: back to the game). */
 	public static void open(Screen parent) {
 		Minecraft mc = Minecraft.getInstance();
-		V.setScreen(mc, new PanelScreen(parent));
+		Walk.setScreen(mc, new PanelScreen(parent));
 	}
 
 	/** For the home screen's Discover button (found by name: the home mod doesn't depend on this one). */
@@ -376,6 +388,7 @@ public final class Panel {
 				if (root instanceof JsonObject o && o.get("profiles") instanceof JsonObject ps) {
 					for (var e : ps.entrySet()) if (e.getValue() instanceof JsonObject p) profiles.put(e.getKey(), p);
 					if (o.get("active") != null && profiles.containsKey(o.get("active").getAsString())) active = o.get("active").getAsString();
+					layoutSeen = o.get("layoutSeen") != null && o.get("layoutSeen").getAsBoolean();
 				}
 			}
 		} catch (Exception e) {
@@ -397,6 +410,7 @@ public final class Panel {
 			profiles.put(active, capture());
 			JsonObject root = new JsonObject();
 			root.addProperty("active", active);
+			root.addProperty("layoutSeen", layoutSeen);
 			JsonObject ps = new JsonObject();
 			for (var e : profiles.entrySet()) ps.add(e.getKey(), e.getValue());
 			root.add("profiles", ps);
