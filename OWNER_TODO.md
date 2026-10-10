@@ -1,7 +1,7 @@
 # Your steps - one small thing at a time
 
 **Where you are (10 Oct 2026):** 1.7.0 is published. Accounts (Discord + email) are live.
-**Next: Part F - publish 1.7.1 (Tier Tagger)** whenever you want, and **Part E - the bot** once your server exists.
+**1.7.1 is published (checked).** **Next: Part E - the bot** once your server exists.
 
 ---
 
