@@ -221,7 +221,7 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   const put = (await log()).reverse().find((x) => x.method === "PUT" && x.url === "/applications/test-id/guilds/555/commands");
   assert.ok(put.body.some((c) => c.name === "ban" && c.default_member_permissions === "4"), "ban only for Ban Members by default");
   res = await fetch(`${BASE}/api/admin/discord-commands`, { method: "POST" });
-  assert.equal(res.status, 401);
+  assert.equal(res.status, 404);
   step("the owner's website button installs the commands (with default permissions); others can't");
 
   // --- "Set up my server" on the owner's existing server (owner only), run like the account page does
@@ -240,7 +240,7 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
     }
     return lines;
   }
-  assert.equal((await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", body: "{}" })).status, 401);
+  assert.equal((await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", body: "{}" })).status, 404);
   let res0 = await fetch(`${BASE}/api/admin/discord-setup`, { method: "POST", headers: { cookie: session, origin: BASE, "content-type": "application/json" }, body: JSON.stringify({ part: "setup", step: 0 }) });
   const check = await res0.json();
   assert.deepEqual(

@@ -3,16 +3,12 @@
 // POST /api/admin/discord {after}   -> adds up to 10 players who signed in with Discord to DISCORD_GUILD_ID (_pull.js):
 //                                      {added, already, failed, next, done, waitSeconds}
 // The account page calls POST again with `next` until done.
-import { configured, currentUser, db, identitiesOf, isAdmin, json, notConfigured, sameOrigin } from "../../_lib.js";
+import { db, json, ownerOnly } from "../../_lib.js";
 import { pullBatch, pullSetup } from "../../_pull.js";
 
 async function admin(env, request) {
-  if (!configured(env)) return { res: notConfigured() };
-  const me = await currentUser(env, request);
-  if (!me) return { res: json({ error: "signed_out" }, 401) };
-  if (!isAdmin(env, await identitiesOf(env, me.user.id))) return { res: json({ error: "forbidden" }, 403) };
-  if (me.viaCookie && !sameOrigin(request)) return { res: json({ error: "forbidden" }, 403) };
-  return { me };
+  const no = await ownerOnly(env, request);
+  return no ? { res: no } : {};
 }
 
 const setup = (env) => ({ ...pullSetup(env), bot_commands: Boolean(env.DISCORD_PUBLIC_KEY && env.DISCORD_BOT_TOKEN && env.DISCORD_GUILD_ID) });

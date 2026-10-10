@@ -149,7 +149,10 @@ export function publicUser(a, idents = [], env = null) {
   };
   const email = idents.find((i) => i.provider === "email");
   if (email) out.email = email.subject;
-  if (env && isAdmin(env, idents)) out.admin = true;
+  if (env && isAdmin(env, idents)) {
+    out.admin = true;
+    out.extra = "/api/tools"; // the owner's tools (only the owner's own account ever gets this)
+  }
   return out;
 }
 
@@ -164,6 +167,19 @@ export async function accountView(env, accountId) {
   const a = await DB.prepare("SELECT * FROM accounts WHERE id = ?").bind(accountId).first();
   if (!a) return null;
   return publicUser(a, await identitiesOf(env, accountId), env);
+}
+
+/**
+ * For the owner's own addresses: null when the request is the signed-in owner, else a plain 404 - nobody else can
+ * tell that these addresses exist (not even signed-out visitors, and not "forbidden").
+ */
+export async function ownerOnly(env, request) {
+  const missing = () => json({ error: "not_found" }, 404);
+  if (!configured(env)) return missing();
+  const me = await currentUser(env, request);
+  if (!me || !isAdmin(env, await identitiesOf(env, me.user.id))) return missing();
+  if (me.viaCookie && !sameOrigin(request)) return missing();
+  return null;
 }
 
 export function isAdmin(env, idents) {

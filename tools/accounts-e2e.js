@@ -166,14 +166,24 @@ const step = (name) => console.log("  ok -", name);
   step("email: many wrong passwords in a row -> 'too many tries'");
 
   // --- owner tools: the Discord pull
-  assert.equal((await req("/api/admin/discord")).status, 403);
+  assert.equal((await req("/api/admin/discord")).status, 404, "for others the owner's addresses don't exist");
+  assert.equal((await req("/api/tools")).status, 404);
+  assert.equal((await (await req("/api/me")).json()).user.extra, undefined, "others' accounts never point at the tools");
   const adminH = { authorization: "Bearer " + got.token };
   let s = await (await req("/api/admin/discord", { headers: adminH, useJar: false })).json();
   assert.equal(s.setup.bot, true);
   assert.equal(s.setup.server, true);
   assert.equal(s.allowed, 2);
   assert.equal(s.inServer, 0);
-  assert.equal((await (await req("/api/me", { headers: adminH, useJar: false })).json()).user.admin, true);
+  const ownerMe = (await (await req("/api/me", { headers: adminH, useJar: false })).json()).user;
+  assert.equal(ownerMe.admin, true);
+  assert.equal(ownerMe.extra, "/api/tools");
+  const tools = await req("/api/tools", { headers: adminH, useJar: false });
+  assert.equal(tools.status, 200);
+  assert.match(tools.headers.get("content-type"), /javascript/);
+  assert.match(await tools.text(), /Add everyone to my Discord server/);
+  const page = await (await fetch(BASE + "/account")).text();
+  assert.doesNotMatch(page, /owner|Owner|admin|Add everyone|Set up my server/, "the public page shows nothing of the owner's tools");
   r = await req("/api/admin/discord", { method: "POST", body: {}, headers: adminH, useJar: false });
   let pull = await r.json();
   assert.equal(pull.added, 2);
