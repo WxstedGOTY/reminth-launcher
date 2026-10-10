@@ -28,6 +28,10 @@ https://dash.cloudflare.com -> **Workers & Pages** -> **reminth** -> **Settings*
 | `ADMIN_DISCORD_ID`   | Text   | your ID    |
 | `DISCORD_GUILD_ID`   | Text   | server ID  |
 
+**One more permission for the token** (so the bot can check things every minute):
+Cloudflare -> your profile picture (top right) -> **My Profile** -> **API Tokens** -> at the token GitHub uses, **...** -> **Edit** ->
+**Add more** permission: **Account** | **Workers Scripts** | **Edit** -> **Continue to summary** -> **Update Token**.
+
 Then GitHub -> **Actions** -> **Website to Cloudflare** -> **Run workflow** -> **Run workflow**. Wait for the green tick.
 
 ### 4. Tell Discord where the bot is
