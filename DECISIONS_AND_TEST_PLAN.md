@@ -31,7 +31,7 @@ DOES NOT RESOLVE right now (NXDOMAIN, also via 1.1.1.1). PvPTiers (pvptiers.com)
 domain gone. Arise / Central TierList / mctiers.it - websites only, no API found. All three APIs: `{rankings: {mode:
 {tier 1-5, pos 0 high / 1 low, retired}}}`.
 
-**Done:** `hud/panel/java/.../panel/TierTagger.java` (Visual, OFF by default): options tier list (all = best / one),
+**Done:** `hud/panel/java/.../panel/TierTagger.java` (Visual, ON by default - the owner's call; privacy v11 says so): options tier list (all = best / one),
 gamemode (best or Crystal/Sword/UHC/Pot/NethPot/SMP/Axe/Mace/Elytra), above heads, tab list, show gamemode, show
 retired. Shared mixins in `hud/panel/java/.../mixin/` (both builds): `TierNameMixin` (Player.getDisplayName, only
 AbstractClientPlayer - singleplayer's server players untouched) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay)

@@ -158,4 +158,4 @@ Zoom (41).
 
 | # | Name | What it does | Difficulty | Risk |
 |---|---|---|---|---|
-| - | Tier Tagger | Players' PvP tiers from MCTiers, PvPTiers and SubTiers in front of their names (above heads and in the tab list); pick a list and a gamemode or "best tier"; `/tiers <name>` lists all of a player's tiers. Off until turned on. Code: `hud/panel/java/.../panel/TierTagger.java`, mixins `TierNameMixin` (Player.getDisplayName) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay) - same names in every version 1.20.1-26.3. | hard | Safe (a TierTagger mod is common on PvP servers) |
+| - | Tier Tagger | Players' PvP tiers from MCTiers, PvPTiers and SubTiers in front of their names (above heads and in the tab list); pick a list and a gamemode or "best tier"; `/tiers <name>` lists all of a player's tiers. On by default (owner, 10 Oct). Code: `hud/panel/java/.../panel/TierTagger.java`, mixins `TierNameMixin` (Player.getDisplayName) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay) - same names in every version 1.20.1-26.3. | hard | Safe (a TierTagger mod is common on PvP servers) |

@@ -36,7 +36,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.TextColor;
 
 /**
- * Tier Tagger: players' PvP tiers from the public tier lists, in front of their names above their heads and in the tab
+ * Tier Tagger (on by default): players' PvP tiers from the public tier lists, in front of their names above their heads and in the tab
  * list (mixin/TierNameMixin, mixin/TierTabMixin), and /tiers <name> for everything one player has.
  *
  * Tier lists read (10 Oct 2026): MCTiers (mctiers.com, the official TierTagger's API - its domain is down right now,
@@ -104,7 +104,7 @@ public final class TierTagger extends Module {
 	final Opt.Bool retired = opt(new Opt.Bool("retired", "Show retired tiers", true));
 
 	TierTagger() {
-		super("tiertagger", "Tier Tagger", Cat.VISUAL, "tiers", "Players' PvP tiers (MCTiers, PvPTiers, SubTiers) next to their names. Type /tiers <name> for all of a player's tiers.", true, false,
+		super("tiertagger", "Tier Tagger", Cat.VISUAL, "tiers", "Players' PvP tiers (MCTiers, PvPTiers, SubTiers) next to their names. Type /tiers <name> for all of a player's tiers.", true, true,
 			null, 0, 0);
 	}
 

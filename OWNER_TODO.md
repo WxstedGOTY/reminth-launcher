@@ -15,14 +15,14 @@
 
 ```
 ## Reminth 1.7.1
-- New in the G panel: Tier Tagger. See players' PvP tiers from MCTiers, PvPTiers and SubTiers above their heads and in the tab list - every gamemode (crystal, sword, UHC, pot, axe, mace, SMP and more). Turn it on in the panel (Visual).
+- New in the G panel: Tier Tagger. See players' PvP tiers from MCTiers, PvPTiers and SubTiers above their heads and in the tab list - every gamemode (crystal, sword, UHC, pot, axe, mace, SMP and more). On by default - change it in the G panel (Visual).
 - Type /tiers <name> in game to see all of a player's tiers.
 ```
 
 5. **Publish release**, then tell me - I'll check the files.
 
-To try it yourself first: install `release-1.7.1\Reminth-Setup.exe`, start a game, press **G** -> **Visual** ->
-**Tier Tagger** -> **ENABLED**, join a PvP server and look at someone / hold Tab. Or type `/tiers <name>`.
+To try it yourself first: install `release-1.7.1\Reminth-Setup.exe`, start a game (Tier Tagger is on by itself),
+join a PvP server and look at someone / hold Tab. Or type `/tiers <name>`. Settings: **G** -> **Visual** -> **Tier Tagger**.
 
 Do one step, then the next. If a screen looks different, stop and tell me what you see.
 **Never send the Bot Token to anyone, not even me.** It goes only into Cloudflare.
