@@ -6,3 +6,12 @@ workers_dev = false
 
 [triggers]
 crons = ["* * * * *"]
+
+# the bot's always-on connection to Discord (shows it as online) - see index.js
+[[durable_objects.bindings]]
+name = "GATEWAY"
+class_name = "Gateway"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Gateway"]
