@@ -4,7 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
-- **10 Oct 2026 (evening): Reminth 1.7.2 BUILT (`release-1.7.2\`), NOT installed, NOT published: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
+- **10 Oct 2026 (night): Reminth 1.7.2 PUBLISHED - assets checked (latest.yml identical, exe sha512 matches); website and Discord texts say "over 240 features" (owner presses "Post the channel messages" to update #announcements).** It is: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
 - **10 Oct 2026 (later): Reminth 1.7.1 (Tier Tagger) PUBLISHED - assets checked (latest.yml 1.7.1, sha512 matches).**
 - **10 Oct 2026: 1.7.0 PUBLISHED. The Discord bot is built (section 00000000000000000000000000000); the owner switches it on with `OWNER_TODO.md` Part E.**
 - **9 Oct 2026 (evening): 1.7.0 rebuilt (accounts required, Discord/Google/email, Discord server pull, blue default), NOT
