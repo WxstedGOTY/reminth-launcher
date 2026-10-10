@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **10 Oct 2026: 1.7.0 PUBLISHED. The Discord bot is built (section 00000000000000000000000000000); the owner switches it on with `OWNER_TODO.md` Part E.**
 - **9 Oct 2026 (evening): 1.7.0 rebuilt (accounts required, Discord/Google/email, Discord server pull, blue default), NOT
   installed, NOT published. The owner's exact steps are in `OWNER_TODO.md` (steps 1-9: Discord app + bot, Google client,
   D1, Cloudflare variables, rerun workflow, test website, install, publish, later the server pull).** Sections
@@ -16,6 +17,29 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`) - **published 9 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000000000. The Reminth Discord bot (10 Oct 2026) - desktop window
+
+**Owner:** a full custom bot while he builds the server: ban, kick, timeouts, auto-moderation, purge, release posts in an
+updates channel, "and more".
+
+**Done** (no new hosting - Discord sends slash commands to the website):
+- `functions/_bot.js` (commands + handlers), `functions/api/discord/interactions.js` (Ed25519-checked with
+  `DISCORD_PUBLIC_KEY`; PING/PONG; slow work deferred with `waitUntil`), `functions/api/admin/discord-commands.js`
+  (owner button "Set up the bot's commands" on the account page -> guild commands), `functions/_pull.js` (the server
+  pull, shared by the website button and /pull; gives the Player role). Tables `bot_config`, `warnings`.
+- Commands: /ban /unban /kick /timeout /untimeout /warn /warnings /purge (Discord default permissions + checked again;
+  role hierarchy, owner and self refused; DM with the reason; audit-log reason; #mod-log embed), /automod setup|status|off
+  (Discord's native AutoMod: spam, mention spam + 10 min timeout, invite-link regex, presets slurs/sexual [+profanity]),
+  /config modlog|bugs|player-role|show, /download /changelog /help /bug (modal) /account /verify, owner-only /pull /stats.
+- Release posts: `.github/workflows/discord-release.yml` + `tools/release-to-discord.js` (secret
+  `DISCORD_UPDATES_WEBHOOK`; also runnable by hand for a tag).
+- **Tested:** `tools/bot-e2e.js` 14 steps (signed with a test-only key) against `wrangler pages dev` +
+  `tools/accounts-mock.js` (now also a pretend Discord REST API) - all pass; `tools/accounts-e2e.js` still 21/21.
+- **Not tested for real:** real Discord (needs the owner's Part E in `OWNER_TODO.md`), the GitHub webhook post.
+  Not possible this way (needs an always-on bot, ~$5/month): XP levels, custom welcome messages, message logs.
 
 ---
 

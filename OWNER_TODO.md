@@ -1,116 +1,114 @@
 # Your steps - one small thing at a time
 
-**Where you are (9 Oct 2026):** ALL DONE - 1.7.0 is published (files checked). Next: marketing.
+**Where you are (10 Oct 2026):** 1.7.0 is published. Accounts (Discord + email) are live.
+**Next: Part E - switch on the Reminth bot** (after your Discord server exists).
 
-Do **one part**, then tell me **"Part A done"** (or what went wrong). I'll check it works before you do the next one.
-Every line is one click or one paste. If a button looks different on your screen, stop and tell me what you see.
-
-Open **Notepad** now. You'll paste a few codes into it as you go.
-
----
-
-## Part A - Turn on accounts with email (5 minutes)
-
-**A1. Make the database**
-1. Open https://dash.cloudflare.com and log in.
-2. In the left menu, click **Storage & Databases**.
-3. Click **D1 SQL Database**.
-4. Click the blue **Create** button.
-5. In the name box, type: `reminth-accounts`
-6. Click **Create**.
-
-**A2. Connect the database to the website**
-1. In the left menu, click **Workers & Pages**.
-2. Click **reminth**.
-3. Click the **Settings** tab at the top.
-4. Find **Bindings** and click **Add**.
-5. Pick **D1 database**.
-6. Variable name: type `DB` (capital letters).
-7. Database: pick `reminth-accounts`.
-8. Click **Save**.
-
-**A3. Restart the website**
-1. Open your repo on GitHub.
-2. Click the **Actions** tab at the top.
-3. On the left, click **Website to Cloudflare**.
-4. On the right, click **Run workflow**, then the green **Run workflow** button.
-5. Wait until it shows a green tick (about 1 minute).
-
-Tell me **"Part A done"**. I'll check that email sign-in works.
+Do one step, then the next. If a screen looks different, stop and tell me what you see.
+**Never send the Bot Token to anyone, not even me.** It goes only into Cloudflare.
 
 ---
 
-## Part B - Add "Continue with Discord" (10 minutes)
+## Part E - The Reminth bot (about 20 minutes)
 
-**B1. Make the Discord app**
-1. Open https://discord.com/developers/applications and log in.
-2. Click **New Application** (top right).
-3. Name: `Reminth`. Tick the box. Click **Create**.
+You'll put 4 things into Cloudflare. Open Notepad to keep them while you work.
 
-**B2. Copy two codes**
-1. In the left menu, click **OAuth2**.
-2. Under **Client ID**, click **Copy**. Paste it into Notepad and write `CLIENT ID` next to it.
-3. Under **Client Secret**, click **Reset Secret**, then **Yes, do it!**, then **Copy**. Paste it into Notepad and
-   write `SECRET` next to it. (This one is like a password - never send it to anyone, not even me.)
+**E1. Public Key**
+1. Open https://discord.com/developers/applications and click **Reminth**.
+2. You're on **General Information**. Under **Public Key**, click **Copy**. Paste it into Notepad.
 
-**B3. Add the redirect**
-1. Still on the OAuth2 page, find **Redirects** and click **Add Redirect**.
-2. Paste exactly this:
-   `https://reminth.pages.dev/api/auth/discord/callback`
-3. Click **Save Changes** (green bar at the bottom).
+**E2. Bot Token**
+1. Left menu: **Bot**.
+2. Click **Reset Token**, then **Yes, do it!**, then **Copy**. Paste it into Notepad.
+3. Turn **Public Bot** OFF, then **Save Changes**.
+   If it says "Private application cannot have a default authorization link": left menu **Installation** ->
+   **Install Link** -> **None** -> **Save Changes**, then go back to **Bot** and turn Public Bot OFF.
 
-**B4. Put the codes into Cloudflare**
-1. Go back to https://dash.cloudflare.com, then **Workers & Pages**, then **reminth**, then **Settings**.
-2. Find **Variables and Secrets** and click **Add**.
-3. Type: **Text**. Variable name: `DISCORD_CLIENT_ID`. Value: your `CLIENT ID` from Notepad.
-4. Click **Add variable** (or **+ Add**) for a second one.
-5. Type: **Secret**. Variable name: `DISCORD_CLIENT_SECRET`. Value: your `SECRET` from Notepad.
-6. Click **Save**.
+**E3. Your own Discord ID**
+1. In the Discord app: **User Settings** (the cog) -> **Advanced** -> turn **Developer Mode** ON.
+2. Close settings. Click your own name/picture at the bottom left -> **Copy User ID**. Paste it into Notepad.
 
-**B5. Restart the website** - same as A3 (GitHub, then Actions, then Website to Cloudflare, then Run workflow).
+**E4. Your server's ID**
+1. Right-click your **server icon** on the left -> **Copy Server ID**. Paste it into Notepad.
 
-Tell me **"Part B done"**.
+**E5. Put all 4 into Cloudflare**
+1. https://dash.cloudflare.com -> **Workers & Pages** -> **reminth** -> **Settings** -> **Variables and Secrets** -> **Add**.
+2. Add these 4 (Production):
+
+| Variable name        | Type   | Value                 |
+|----------------------|--------|-----------------------|
+| `DISCORD_PUBLIC_KEY` | Text   | the Public Key (E1)   |
+| `DISCORD_BOT_TOKEN`  | Secret | the Bot Token (E2)    |
+| `ADMIN_DISCORD_ID`   | Text   | your own ID (E3)      |
+| `DISCORD_GUILD_ID`   | Text   | the server ID (E4)    |
+
+3. Click **Save**.
+
+**E6. Restart the website**
+GitHub -> **Actions** -> **Website to Cloudflare** -> **Run workflow** -> green **Run workflow**. Wait for the green tick.
+
+**E7. Tell Discord where the bot lives**
+1. Back in the developer portal -> **Reminth** -> **General Information**.
+2. **Interactions Endpoint URL** - paste exactly:
+   `https://reminth.pages.dev/api/discord/interactions`
+3. Click **Save Changes**. (Discord tests the address right away. If it says it couldn't verify it, E6 isn't
+   finished yet - wait a minute and save again.)
+
+**E8. Add the bot to your server**
+1. Left menu: **OAuth2** -> **OAuth2 URL Generator**.
+2. Under **Scopes**, tick: **bot** and **applications.commands**.
+3. Under **Bot Permissions**, tick: **Manage Server**, **Manage Roles**, **Kick Members**, **Ban Members**,
+   **Create Instant Invite**, **Moderate Members**, **View Channels**, **Send Messages**, **Embed Links**,
+   **Manage Messages**, **Read Message History**.
+4. Copy the **Generated URL** at the bottom, open it in your browser, pick your server -> **Authorize**.
+
+**E9. Put the bot's role at the top**
+In Discord: **Server Settings** -> **Roles** -> drag the **Reminth** role to the very top (above your mod roles).
+The bot can only moderate people whose roles are below its own.
+
+**E10. Install the commands**
+1. Open https://reminth.pages.dev/account (signed in with your Discord).
+2. In **Owner tools**, click **Set up the bot's commands**. It says how many commands are in your server.
+
+**E11. Set the bot up in your server** (type these in any channel)
+1. `/config modlog` -> pick **#mod-log**
+2. `/config bugs` -> pick **#bug-reports**
+3. Make a role called **Reminth Player** (Server Settings -> Roles), keep it **below** the Reminth bot role,
+   then `/config player-role` -> pick it.
+4. `/automod setup` -> pick if swear words should be blocked too.
+
+**E12. Release posts in #updates**
+1. In Discord: hover **#updates** -> the cog (Edit Channel) -> **Integrations** -> **Webhooks** -> **New Webhook**.
+2. Click the new webhook, name it `Reminth`, then **Copy Webhook URL**.
+3. GitHub -> your repo -> **Settings** -> **Secrets and variables** -> **Actions** -> **New repository secret**:
+   - Name: `DISCORD_UPDATES_WEBHOOK`
+   - Secret: paste the webhook URL -> **Add secret**
+4. Test it: GitHub -> **Actions** -> **Announce release on Discord** -> **Run workflow** -> tag `1.7.0` -> green
+   **Run workflow**. "Reminth 1.7.0 is out" should appear in #updates.
+
+Tell me **"Part E done"** and what worked.
 
 ---
 
-## Part C - Try it (5 minutes)
+## What the bot can do (once it's on)
 
-**C1. On the website**
-1. Open https://reminth.pages.dev/account
-2. Click **Continue with Discord**, then **Authorize**.
-3. You should see your Discord name and picture. Tell me yes or no.
+**Moderation** (only people with the matching Discord permission see these):
+- `/ban` (choose how much of their messages to delete), `/unban`, `/kick`
+- `/timeout` (60 seconds to 1 week), `/untimeout`
+- `/warn`, `/warnings` (see or clear someone's warnings)
+- `/purge` 1-100 messages (or only one person's)
+- They get a DM saying why; everything goes into #mod-log. Mods can't act on people ranked equal or higher.
 
-**C2. In the app**
-1. Close Minecraft and Reminth.
-2. Open the folder `Downloads\reminth-launcher\release-1.7.0` and double-click `Reminth-Setup.exe`.
-3. Reminth opens (blue) on "Create your Reminth account".
-4. Click **Continue with Discord**. Your browser opens. Click **Authorize**. When the browser asks to open
-   Reminth, click **Open**.
-5. Top right in Reminth should show your Discord name. Tell me yes or no.
+**Auto-moderation** (`/automod setup`, `/automod status`, `/automod off`):
+spam, mass pings (blocked + 10 minute timeout), invite links to other servers, slurs and sexual content (swearing optional).
 
----
+**For everyone:** `/download`, `/changelog`, `/help`, `/bug` (a form -> #bug-reports), `/account`, `/verify` (Reminth Player role).
 
-## Part D - Publish the update (2 minutes) - only after Part C worked
+**Only you:** `/pull` (adds everyone who signed in with Discord, with the Reminth Player role), `/stats`.
 
-1. On GitHub, click **Releases** (right side of your repo), then **Draft a new release**.
-2. Tag: type `1.7.0`, then click **Create new tag**. Title: `Reminth 1.7.0`
-3. Drag in the 3 files from `release-1.7.0`: `Reminth-Setup.exe`, `Reminth-Setup.exe.blockmap`, `latest.yml`
-4. Paste this as the description:
-
-```
-## Reminth 1.7.0
-- Reminth accounts: sign in with Discord or email. Your account shows at the top of the launcher, and the same account works on reminth.pages.dev.
-- Pick your look: blue (new default) or orange - the whole launcher changes, the icon too.
-- Fixed: clicking Reminth on the taskbar could open a second taskbar button.
-```
-
-5. Click **Publish release**.
+**Automatic:** every GitHub release is posted in #updates.
 
 ---
 
-## Later (not now)
-
-- **Google sign-in** - ask me when you want it; I'll walk you through it.
-- **Pulling people into your Discord server** - when your server exists, tell me and I'll give you those steps
-  (it needs 3 more codes). Everyone who signs in with Discord from now on can be pulled in later.
-- Then: **marketing**.
+## Later
+- Google sign-in - ask me when you want it.
+- Marketing posts: `marketing\posts.md`.

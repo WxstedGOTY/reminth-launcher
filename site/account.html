@@ -116,6 +116,8 @@
     <div class="stats" id="ownerStats">Loading&hellip;</div>
     <button class="btn primary" id="pullBtn" type="button">Add everyone to my Discord server</button>
     <div class="log" id="pullLog"></div>
+    <button class="btn ghost" id="cmdBtn" type="button">Set up the bot's commands</button>
+    <div class="log" id="cmdLog"></div>
   </div>
 </main>
 <script>
@@ -207,6 +209,8 @@
     const s = await fetch("/api/admin/discord", { credentials: "same-origin" }).then((r) => r.json()).catch(() => null);
     if (!s || s.error) { $("ownerStats").textContent = "Couldn't load the numbers."; return; }
     const missing = [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID"].filter(Boolean);
+    $("cmdBtn").disabled = !s.setup.bot_commands;
+    $("cmdLog").textContent = s.setup.bot_commands ? "" : "For the bot's commands, add in Cloudflare: " + [!s.setup.bot && "DISCORD_BOT_TOKEN", !s.setup.server && "DISCORD_GUILD_ID", "DISCORD_PUBLIC_KEY (if not added yet)"].filter(Boolean).join(", ");
     $("ownerStats").textContent = s.accounts + " accounts - " + s.discord + " with Discord - " + s.allowed + " can be added - " + s.inServer + " added so far" +
       (missing.length ? "\nTo use the button, add in Cloudflare: " + missing.join(", ") : "");
     $("pullBtn").disabled = missing.length > 0;
@@ -232,6 +236,20 @@
       log.textContent += "\nStopped: " + e.message;
     }
     ownerStats();
+  };
+
+  $("cmdBtn").onclick = async () => {
+    $("cmdBtn").disabled = true;
+    $("cmdLog").textContent = "Working...";
+    try {
+      const r = await fetch("/api/admin/discord-commands", { method: "POST", credentials: "same-origin" });
+      const d = await r.json().catch(() => ({}));
+      $("cmdLog").textContent = r.ok ? "Done - " + d.commands + " commands are in your server. Type / in Discord to see them."
+        : "Didn't work: " + (d.missing ? "add in Cloudflare: " + d.missing.join(", ") : (d.message || d.error || r.status));
+    } catch {
+      $("cmdLog").textContent = "No connection. Try again.";
+    }
+    $("cmdBtn").disabled = false;
   };
 
   async function load() {

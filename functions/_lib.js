@@ -105,6 +105,11 @@ export async function db(env) {
       `CREATE TABLE IF NOT EXISTS login_codes (
         code_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL, nonce_hash TEXT NOT NULL, expires_at INTEGER NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS tries (key TEXT PRIMARY KEY, count INTEGER NOT NULL, reset_at INTEGER NOT NULL)`,
+      // the Discord bot (_bot.js): its settings (/config) and saved warnings (/warn)
+      `CREATE TABLE IF NOT EXISTS bot_config (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS warnings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, mod_id TEXT NOT NULL, reason TEXT NOT NULL, created_at INTEGER NOT NULL)`,
+      `CREATE INDEX IF NOT EXISTS warnings_user ON warnings (user_id)`,
     ]) {
       try {
         await env.DB.prepare(sql).run();
