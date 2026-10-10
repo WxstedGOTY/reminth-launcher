@@ -1,6 +1,11 @@
 // Every /api request: an unexpected error is written to the log (Cloudflare -> the project -> Functions -> logs) and
 // the visitor gets a short JSON answer instead of Cloudflare's error page.
+// Text settings pasted into the Cloudflare dashboard can carry an invisible space or line break - trimmed here once,
+// so an id like "1558... " still works everywhere.
+const TRIM = ["DISCORD_CLIENT_ID", "DISCORD_CLIENT_SECRET", "DISCORD_BOT_TOKEN", "DISCORD_GUILD_ID", "DISCORD_PUBLIC_KEY", "ADMIN_DISCORD_ID", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"];
+
 export async function onRequest(context) {
+  for (const k of TRIM) if (typeof context.env[k] === "string") context.env[k] = context.env[k].trim().replace(/^["']|["']$/g, "");
   try {
     return await context.next();
   } catch (e) {

@@ -94,6 +94,12 @@ async function auditLog(env) {
   const g = String(env.DISCORD_GUILD_ID);
   const after = await getConfig(env, "tick:audit_after");
   const r = await dapi(env, "GET", `/guilds/${g}/audit-logs?limit=100${after ? `&after=${after}` : ""}`);
+  if (r.status === 404) {
+    // which servers is the bot really in? (ids only - to tell a wrong server id from a bot that isn't in the server)
+    const mine = await dapi(env, "GET", "/users/@me/guilds");
+    const ids = mine.ok ? (mine.data || []).map((x) => x.id) : [];
+    return { error: "audit log: 404 - the bot isn't in that server", serverIdSet: g, serverIdLooksRight: /^\d{17,20}$/.test(g), botIsInServers: ids };
+  }
   if (!r.ok) return { error: `audit log: ${r.status}` };
   const entries = ((r.data && r.data.audit_log_entries) || []).slice().sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
   if (!after) {
