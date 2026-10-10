@@ -4,5 +4,7 @@
   "key.reminthhud.panel": "Open the Reminth panel",
   "key.reminthhud.zoom": "Zoom",
   "key.reminthhud.snaplook": "Snaplook (look behind you)",
-  "key.reminthhud.hidehud": "Hide Reminth HUD"
+  "key.reminthhud.hidehud": "Hide Reminth HUD",
+  "key.reminthhud.brb": "Be Right Back screen (on/off)",
+  "key.reminthhud.streamtext": "Hide / show Stream Text"
 }

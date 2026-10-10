@@ -4,7 +4,7 @@
 const { app, BrowserWindow } = require("electron");
 const fs = require("fs");
 const path = require("path");
-const icons = { ...require("./icons"), ...require("./icons2"), ...require("./icons3") };
+const icons = { ...require("./icons"), ...require("./icons2"), ...require("./icons3"), ...require("./icons4") };
 
 const OUT = path.join(__dirname, "..", "panel", "resources", "assets", "reminthhud", "textures", "gui", "panel");
 const SIZE = 128;

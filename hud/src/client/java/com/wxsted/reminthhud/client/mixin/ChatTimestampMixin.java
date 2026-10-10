@@ -1,7 +1,5 @@
 package com.wxsted.reminthhud.client.mixin;
 
-import com.wxsted.reminthhud.client.panel.Features3;
-import com.wxsted.reminthhud.client.panel.Panel;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.network.chat.Component;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +12,7 @@ public abstract class ChatTimestampMixin {
 	@ModifyVariable(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
 	private Component reminthhud$stamp(Component msg) {
 		try {
-			if (Panel.byId("chattime") instanceof Features3.ChatTimestamps t && t.enabled) return t.stamp(msg);
+			return com.wxsted.reminthhud.client.panel.ChatHooks.onMessage(msg);
 		} catch (Throwable ignored) {
 			// leave the message as it is
 		}

@@ -11,7 +11,7 @@ import net.minecraft.client.Minecraft;
  */
 public abstract class Module {
 	public enum Cat {
-		HUD("HUD", "cat_hud"), VISUAL("Visual", "cat_visual"), PERFORMANCE("Performance", "fpslimit"), MECHANIC("Mechanic", "cat_mechanic"), CHAT("Chat", "cat_chat"), UTILITY("Utility", "cat_utility");
+		HUD("HUD", "cat_hud"), STREAM("Streamer", "cat_stream"), VISUAL("Visual", "cat_visual"), PERFORMANCE("Performance", "fpslimit"), MECHANIC("Mechanic", "cat_mechanic"), CHAT("Chat", "cat_chat"), UTILITY("Utility", "cat_utility");
 
 		public final String label;
 		public final String icon;
@@ -44,6 +44,8 @@ public abstract class Module {
 	public final List<Opt> opts = new ArrayList<>();
 
 	public boolean enabled;
+	/** Not a card in the grid (the panel's own settings). */
+	public boolean hidden;
 	/** What a game setting was before this feature changed it (saved, so switching off after a restart still puts it back). */
 	public String restore;
 	// HUD placement (only for HUD features)
@@ -128,6 +130,11 @@ public abstract class Module {
 	}
 
 	public void tick(Minecraft mc) {
+	}
+
+	/** Its own settings window instead of the usual options list (null = the usual one). */
+	public net.minecraft.client.gui.screens.Screen optionsScreen(net.minecraft.client.gui.screens.Screen back) {
+		return null;
 	}
 
 	/**

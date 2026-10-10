@@ -44,6 +44,12 @@ public final class Features {
 		list.addAll(Features2.all());
 		list.addAll(Features3.all());
 		list.add(new TierTagger());
+		list.addAll(Features4.all());
+		list.addAll(Features5.all());
+		list.add(new ChatHooks.Mention());
+		list.add(new ChatHooks.Highlight());
+		list.add(new ChatHooks.ChatLog());
+		list.add(new PanelLook());
 		return list;
 	}
 
@@ -154,6 +160,8 @@ public final class Features {
 
 	static final class Clock extends TextHud {
 		private final Opt.Choice format = opt(new Opt.Choice("format", "Format", 0, "24 hour", "12 hour"));
+		private final Opt.Bool seconds = opt(new Opt.Bool("seconds", "Seconds", false));
+		private final Opt.Bool blink = opt(new Opt.Bool("blink", "Blinking colon", false));
 
 		Clock() {
 			super("clock", "Clock", "clock", "Your computer's time.", false, Anchor.TOP_RIGHT, -60, 4);
@@ -166,7 +174,9 @@ public final class Features {
 
 		@Override
 		protected String value(Minecraft mc, boolean preview) {
-			return LocalTime.now().format(DateTimeFormatter.ofPattern(format.value == 0 ? "HH:mm" : "h:mm a", Locale.ROOT));
+			String p = format.value == 0 ? (seconds.value ? "HH:mm:ss" : "HH:mm") : (seconds.value ? "h:mm:ss a" : "h:mm a");
+			String t = LocalTime.now().format(DateTimeFormatter.ofPattern(p, Locale.ROOT));
+			return blink.value && (System.currentTimeMillis() / 500) % 2 == 1 ? t.replace(':', ' ') : t;
 		}
 	}
 

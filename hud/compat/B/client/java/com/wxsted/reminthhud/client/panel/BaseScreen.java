@@ -40,6 +40,11 @@ public abstract class BaseScreen extends Screen {
 		return false;
 	}
 
+	/** A key went up (GLFW key code). */
+	protected boolean keyUp(int key, int scancode, int mods) {
+		return false;
+	}
+
 	/** A key went down (GLFW key code). */
 	protected boolean key(int key, int scancode, int mods) {
 		return false;
@@ -88,5 +93,10 @@ public abstract class BaseScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent e) {
 		return key(e.key(), e.keycode(), e.modifiers()) || super.keyPressed(e);
+	}
+
+	@Override
+	public boolean keyReleased(KeyEvent e) {
+		return keyUp(e.key(), e.keycode(), e.modifiers()) || super.keyReleased(e);
 	}
 }

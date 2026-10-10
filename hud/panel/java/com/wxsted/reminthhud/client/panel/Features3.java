@@ -142,6 +142,7 @@ public final class Features3 {
 		if (!session.equals(lastSession)) {
 			lastSession = session;
 			lowest = Integer.MAX_VALUE;
+			HitTracker.hits = HitTracker.crits = HitTracker.kills = HitTracker.bestCombo = HitTracker.swings = 0;
 			lastShown = -1;
 		}
 		float h = mc.player.getHealth();
@@ -172,12 +173,15 @@ public final class Features3 {
 		private static int wait, hurtBefore;
 		private static long lastHitAt;
 		private static int combo;
+		/** This session (reset when you join another server): hits that landed, crits, kills, best combo, swings. */
+		static int hits, crits, kills, bestCombo, swings;
 		static long markAt;
 		static int markKind; // 0 hit, 1 crit, 2 kill
 
 		/** The player attacked this entity (before the game sends it). */
 		public static void onAttack(Minecraft mc, Entity e) {
 			if (mc.player == null) return;
+			swings++;
 			var p = mc.player;
 			// the game's own rules (Player.attack): a "strong" hit needs the charge above 0.9, a crit also needs falling
 			float charge = p.getAttackStrengthScale(0.5f);
@@ -196,10 +200,14 @@ public final class Features3 {
 			boolean dead = target instanceof LivingEntity le2 && (le2.isDeadOrDying() || !le2.isAlive());
 			if (landed || dead) {
 				markKind = dead ? 2 : crit ? 1 : 0;
+				hits++;
+				if (crit) crits++;
+				if (dead) kills++;
 				markAt = System.currentTimeMillis();
 				if (strong || crit) {
 					lastHitAt = markAt;
 					combo++;
+					bestCombo = Math.max(bestCombo, combo);
 				}
 				Module hm = Panel.byId("hitmarker");
 				if (hm instanceof HitMarker h && h.enabled && h.sound.value) {
@@ -539,9 +547,20 @@ public final class Features3 {
 			super("chattime", "Chat Timestamps", Cat.CHAT, "chattime", "The time in front of each chat message.", true, false, null, 0, 0);
 		}
 
+		private final Opt.Choice brackets = opt(new Opt.Choice("brackets", "Brackets", 0, "[12:30]", "(12:30)", "12:30 |", "12:30"));
+		private final Opt.Color color = opt(new Opt.Color("color", "Colour", 0xFFB4B4B8));
+		private final Opt.Bool bold = opt(new Opt.Bool("bold", "Bold", false));
+
 		public Component stamp(Component msg) {
 			String p = format.value == 0 ? (seconds.value ? "HH:mm:ss" : "HH:mm") : (seconds.value ? "h:mm:ss a" : "h:mm a");
-			return Component.empty().append(Component.literal("[" + LocalTime.now().format(DateTimeFormatter.ofPattern(p, Locale.ROOT)) + "] ").withStyle(ChatFormatting.GRAY)).append(msg);
+			String t = LocalTime.now().format(DateTimeFormatter.ofPattern(p, Locale.ROOT));
+			String s = switch (brackets.value) {
+				case 1 -> "(" + t + ") ";
+				case 2 -> t + " | ";
+				case 3 -> t + " ";
+				default -> "[" + t + "] ";
+			};
+			return Component.empty().append(Component.literal(s).withStyle(st -> st.withColor(color.value & 0xFFFFFF).withBold(bold.value))).append(msg);
 		}
 	}
 }

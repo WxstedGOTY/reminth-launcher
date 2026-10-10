@@ -130,6 +130,9 @@ public final class OptionFeature extends Module {
 	@Override
 	public void tick(Minecraft mc) {
 		if (++ticks % 10 != 0) return; // twice a second is plenty (also on the title screen)
+		// the FPS / sound savers lower these for a while (tabbed out, AFK): don't fight them
+		if (Features4.holdingFps && id.equals("fpslimit")) return;
+		if (Features4.holdingVolume && id.equals("vol_master")) return;
 		try {
 			apply(mc);
 		} catch (Throwable ignored) {

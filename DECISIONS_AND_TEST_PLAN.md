@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **10 Oct 2026 (evening): Reminth 1.7.2 BUILT (`release-1.7.2\`), NOT installed, NOT published: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
 - **10 Oct 2026 (later): Reminth 1.7.1 (Tier Tagger) PUBLISHED - assets checked (latest.yml 1.7.1, sha512 matches).**
 - **10 Oct 2026: 1.7.0 PUBLISHED. The Discord bot is built (section 00000000000000000000000000000); the owner switches it on with `OWNER_TODO.md` Part E.**
 - **9 Oct 2026 (evening): 1.7.0 rebuilt (accounts required, Discord/Google/email, Discord server pull, blue default), NOT
@@ -14,10 +15,54 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
   changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 679 pass** (10 Oct) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
-- **Version:** `package.json` says **1.7.0** (installer `release-1.7.0\`) - **published 9 Oct 2026**.
+- **`main` is at:** this file's commit. **`npm test`: 679 pass** (10 Oct, evening) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
+- **Version:** `package.json` says **1.7.2** (installer `release-1.7.2\`, built 10 Oct, not published). 1.7.1 is the published one.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000000000000000. The big G panel update: ReminthHUD 1.6.0, Reminth 1.7.2 (10 Oct 2026) - desktop window
+
+**Owner's ask (while on a break):** panel see-through and slightly smaller, walk while it's open and still click it, E
+closes it, streamer friendly (type text on screen in any size and colour), "about 300 more useful things that Lunar
+has", more settings on each feature, "something huge".
+
+**Done** (details: `docs/PANEL_FEATURES.md`, section "ReminthHUD 1.6.0"):
+- Panel see-through in a world (no blur/tint), 560x330 at 100%, its own settings in SETTINGS (`PanelLook.java`: opacity,
+  size, accent, darken, walk, E closes, hover text, 4 cards a row, opens on). Walk while open (`Walk.java`, all BaseScreens
+  now report key releases), E closes the panel, options window and studio.
+- Options window rebuilt on `OptList.java` (scrolls; text boxes; headings); Size slider on every HUD feature; ~16 new
+  looks on every one-line display (`TextHud.java`); Clock and Chat Timestamps got more options.
+- 121 new features -> 268 cards on 26.3: new **Streamer** category (`Features5.java`, `StreamText.java`,
+  `TextStudioScreen.java`, `StreamKeys.java`), `Features4.java` (45 HUD lines, 16 item counters, graphs, inventory HUD,
+  pickups, custom crosshair, overlays, savers, reminders, skin parts), chat features (`ChatHooks.java`; the chat mixin in
+  all 7 mixin copies now calls `ChatHooks.onMessage`), 7 game-setting cards (`settings.txt` -> `gensettings.py`).
+  New V methods in all 9 families: `setModelPart`, `hideCrosshair` (works on 1.21.6+ and 26.x). 39 new icons (`hud/tools/icons4.js`).
+- Jars: `assets/mods/reminthhud-1.6.0+*.jar` (10; 1.5.0 removed; ranges checked identical). Launcher 1.7.2.
+
+**Tested for real (hidden test games, low priority, while the owner played):** compiles on all 10 versions. 26.3: walking
+with the panel open moved the player 3.2 blocks forward (log), panel see-through, Streamer category, SETTINGS tab,
+studio, options window with the new options, HUD with 24 new features on (no draw errors). 1.21.11: HUD, options
+window, studio; the game's own crosshair is hidden there. Test-only switches (need JVM flags, off for players):
+`-Dreminthhud.testScreen=studio|none|module:<id>|cat:<CAT>|cat:settings`, `testEnable=a,b`, `testWalk=true`.
+
+**Not tested yet:** real mouse/keyboard (dragging texts in the studio, typing, sliders, E with a real key), 1.20.1-1.21.10
+and 26.1/26.2 in a world, chat features with real chat, Mute in Background / FPS savers when tabbing out, Be Right
+Back key. Known: with very many displays on at their default places, the left side runs out of room and some overlap
+(drag them in Edit HUD Layout or the studio). The website / Discord texts still say "about 145 features" - update after
+1.7.2 is published.
+
+**Owner decisions:** none needed; publish 1.7.2 when happy (release text given in chat).
+
+**Test plan (owner, in his own game after installing 1.7.2):**
+1. Press G in a world: the game is visible behind the panel. PASS/FAIL
+2. Hold W with the panel open: you walk. Space jumps. PASS/FAIL
+3. Press E: the panel closes. PASS/FAIL
+4. Streamer -> Screen Text 1 -> OPTIONS: the studio opens on the right; switch line 1 on, type, drag the text, scroll on it to resize. PASS/FAIL
+5. SETTINGS: change Panel opacity and Panel size; the panel changes. PASS/FAIL
+6. FPS -> OPTIONS: turn on Rainbow text and a Border; the FPS display changes. PASS/FAIL
+7. Visual -> Custom Crosshair on: your own crosshair, the game's one gone (1.21.6+). PASS/FAIL
 
 ---
 

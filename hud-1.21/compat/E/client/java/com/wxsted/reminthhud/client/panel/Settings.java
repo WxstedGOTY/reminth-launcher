@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.minecraft.client.AttackIndicatorStatus;
 import net.minecraft.client.CloudStatus;
+import net.minecraft.client.NarratorStatus;
 import net.minecraft.client.PrioritizeChunkUpdates;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.player.ChatVisiblity;
@@ -12,7 +13,7 @@ import net.minecraft.world.entity.player.ChatVisiblity;
 /**
  * The game's own settings as panel cards, for this Minecraft version (compat family E: 1.20.1). MADE BY
  * hud/tools/gensettings.py from hud/panel/settings.txt - edit that file, not this one: a card is left out where this
- * version has no such setting (54 of 69 here).
+ * version has no such setting (57 of 76 here).
  */
 final class Settings {
 	private Settings() {
@@ -75,6 +76,9 @@ final class Settings {
 		l.add(OptionFeature.bool("reduceddebug", "Reduced Debug Info", U, "bug", "F3 shows less (handy when streaming).", o -> o.reducedDebugInfo(), true));
 		l.add(OptionFeature.bool("darkloading", "Dark Loading Screen", U, "loading", "A black loading screen instead of red.", o -> o.darkMojangStudiosBackground(), true));
 		l.add(OptionFeature.bool("notelemetry", "Less Telemetry", U, "antenna", "Don't send optional usage data to Mojang.", o -> o.telemetryOptInExtra(), false));
+		l.add(OptionFeature.percent("panorama", "Menu Panorama Speed", U, "loading", "How fast the title screen's background turns.", o -> o.panoramaSpeed(), "Speed", 0, 100, 5, 100));
+		l.add(OptionFeature.bool("opitems", "Operator Items Tab", U, "list", "Show the operator items tab in the creative inventory.", o -> o.operatorItemsTab(), true));
+		l.add(OptionFeature.choice("narrator", "Narrator", U, "subtitles", "The game reads menus and chat out loud.", o -> o.narrator(), "Reads", NarratorStatus.values(), 0));
 		return l;
 	}
 }

@@ -128,4 +128,17 @@ public final class V {
 		if (visible) org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
 		else org.lwjgl.sdl.SDLMouse.SDL_HideCursor();
 	}
+
+	/** Shows or hides a part of your skin (cape, jacket, sleeves...). */
+	public static void setModelPart(net.minecraft.client.Options o, net.minecraft.world.entity.player.PlayerModelPart part, boolean on) {
+		o.setModelPart(part, on);
+	}
+
+	/** Hides the game's own crosshair while hide says so (Custom Crosshair). True: this version can. */
+	public static boolean hideCrosshair(java.util.function.BooleanSupplier hide) {
+		HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, old -> (g, d) -> {
+			if (!hide.getAsBoolean()) old.extractRenderState(g, d);
+		});
+		return true;
+	}
 }

@@ -111,4 +111,14 @@ public final class V {
 	public static void osPointer(Minecraft mc, boolean visible) {
 		org.lwjgl.glfw.GLFW.glfwSetInputMode(mc.getWindow().getWindow(), org.lwjgl.glfw.GLFW.GLFW_CURSOR, visible ? org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL : org.lwjgl.glfw.GLFW.GLFW_CURSOR_HIDDEN);
 	}
+
+	/** Shows or hides a part of your skin (cape, jacket, sleeves...). */
+	public static void setModelPart(net.minecraft.client.Options o, net.minecraft.world.entity.player.PlayerModelPart part, boolean on) {
+		o.toggleModelPart(part, on);
+	}
+
+	/** Hides the game's own crosshair (Custom Crosshair): this version's Fabric API can't, so false. */
+	public static boolean hideCrosshair(java.util.function.BooleanSupplier hide) {
+		return false;
+	}
 }

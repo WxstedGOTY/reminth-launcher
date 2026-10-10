@@ -159,3 +159,34 @@ Zoom (41).
 | # | Name | What it does | Difficulty | Risk |
 |---|---|---|---|---|
 | - | Tier Tagger | Players' PvP tiers from MCTiers, PvPTiers and SubTiers in front of their names (above heads and in the tab list); pick a list and a gamemode or "best tier"; `/tiers <name>` lists all of a player's tiers. On by default (owner, 10 Oct). Code: `hud/panel/java/.../panel/TierTagger.java`, mixins `TierNameMixin` (Player.getDisplayName) and `TierTabMixin` (PlayerTabOverlay.getNameForDisplay) - same names in every version 1.20.1-26.3. | hard | Safe (a TierTagger mod is common on PvP servers) |
+
+## ReminthHUD 1.6.0 (10 Oct 2026, owner: "transparent and slightly smaller, walk while it's open, E closes, streamer friendly, about 300 more things, more settings on each")
+
+**The panel itself:** see-through over the game (no blur, no dark tint; "Darken the game behind it" in SETTINGS),
+560x330 at 100% (was 620x360), and its own settings in the SETTINGS tab (Panel Look, `PanelLook.java`): opacity
+15-100%, size 70-115%, accent colour, darken behind, walk while open, E closes it, hover descriptions, four cards a
+row, which category it opens on. **Walk while open** (`Walk.java`): forward/back/left/right/jump/sprint/sneak keys
+still move you in the panel, a feature's options and the Stream Text studio (other keys don't). **E** (the inventory
+key) closes them. Every BaseScreen now also reports key releases (`keyUp`).
+
+**More settings on every feature:** the options window scrolls (`OptList.java`, shared by the options window, the
+SETTINGS tab and the studio) and has text boxes and headings. Every HUD feature has a Size slider. Every one-line
+display (`TextHud`, about 80 of them) now has: show label, own label text, label after value, label/value colours,
+rainbow + speed, bold, ALL CAPS, brackets, shadow, background on/off + colour + opacity, border + colour, rounded
+corners, padding, fixed width. Clock: seconds, blinking colon. Chat Timestamps: brackets, colour, bold.
+
+**New: 121 features** (268 cards on 26.3):
+
+| Group | Features |
+|---|---|
+| Streamer (new category, 25) | Screen Text 1-8 (your text anywhere: & colour codes, \| new line, size 0.5-8x, one colour / rainbow / rainbow letters / fade two colours / pick a shade, opacity, bold, italic, underline, strikethrough, shadow, outline, alignment, line spacing, 8 animations - blink, pulse, wave, bounce, shake, typewriter, scroll, fade - box, border, padding, colour bar; typed and dragged in the Stream Text studio, scroll on a text to resize), Live Badge (LIVE/REC/ON AIR/own word + timer), Streamer Mode (hides coordinates, server address, biome; Reduced Debug Info), Be Right Back screen (+ key), Facecam Frame, Goal Bar, News Ticker, Socials Rotator, Key Press Display, Stream Timer, Stopwatch, Countdown, Death Counter, Kill Counter, Chat Counter, Cinematic Bars, Framing Grid, Screen Border. Keys (unset, in Controls): Be Right Back on/off, hide/show Stream Text. |
+| HUD lines (45) | Server TPS, Vertical Speed, 3D Speed, Distance Travelled, Jump Counter, Time Since Death, Height Above Sea, Looked-at Block Position, Block Distance, Looked-at Entity, Entity Distance, Held Item Name, Held Item Total, Free Slots, XP Points, XP to Next Level, Air Left, Freezing, Movement State, Game Mode, Difficulty, Server Name, Dimension, Sky & Block Light, Mob Spawn Warning, Date and Time, Hit Counter, Crit Counter, Hit Accuracy, Best Combo, Ping Low/High, FPS Low/High, Direction Name, Days to Full Moon, No Totem Warning, Mount Speed, Mount Health, AFK Timer, Render Distance Display, Window Size, Minecraft Version, Java Version, Mods Loaded, CPU Threads, Game Uptime |
+| Item counters (16) | Ender Pearl, Arrow, Golden Apple, Enchanted Apple, End Crystal, Obsidian, XP Bottle, Firework, Cobweb, Golden Carrot, Steak, Water Bucket, TNT, Respawn Anchor, Glowstone, all Blocks |
+| Drawn HUD (11) | FPS Graph, Ping Graph, Inventory HUD, Item Pickups (+16 Cobblestone), Analog Clock, Coordinates Box, Armor Durability Bars, Hotbar Numbers, Hotbar Totals, Status Bar Numbers (health/food/XP on the game's bars), Custom Crosshair (8 styles; hides the game's crosshair on 1.21.6+ and 26.x) |
+| Visual (10) | Low Health Glow, Damage Flash, Colour Filter, Hide Cape / Jacket / Left+Right Sleeve / Left+Right Pants / Hat layer (the game's own Skin Customization) |
+| Performance / Utility (4) | Background FPS Saver, AFK FPS Saver, Mute in Background (the volume from before is kept with the profile), Reminders |
+| Chat (3) | Mention Alert (sound + mark when someone writes your name or other names you list), Chat Highlights (your own words), Chat Log (a text file per day in reminth-chatlogs) - every chat line now goes through `ChatHooks.onMessage` (mixin/ChatTimestampMixin, all versions) |
+| Game settings (7, where the version has them) | Weather Distance, Anisotropic Filtering, Texture Filtering, Menu Panorama Speed, Invert Mouse X, Operator Items Tab, Narrator |
+
+Still left out on purpose: anything that plays for you (auto-clickers, macros, auto-GG/auto-text) or shows what you
+couldn't see (radar, X-ray, other players' health).

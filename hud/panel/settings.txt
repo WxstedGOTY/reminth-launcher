@@ -1,7 +1,7 @@
 # The game-setting cards of the Reminth panel, one per line (Java). Settings.java per Minecraft version is made
 # from this by tools/gensettings.py: a card is left out where that version has no such setting.
 # "o -> o.a()|b()" = the setting is called a() or, on older versions, b().
-# imports: net.minecraft.client.AttackIndicatorStatus net.minecraft.client.CameraType net.minecraft.client.CloudStatus net.minecraft.client.GraphicsPreset net.minecraft.client.InactivityFpsLimit net.minecraft.client.KeyMapping net.minecraft.client.Minecraft net.minecraft.client.MusicToastDisplayState net.minecraft.client.PrioritizeChunkUpdates net.minecraft.client.sounds.MusicManager net.minecraft.core.BlockPos net.minecraft.server.level.ParticleStatus net.minecraft.world.entity.EquipmentSlot net.minecraft.world.entity.HumanoidArm net.minecraft.world.entity.player.ChatVisiblity net.minecraft.world.item.ItemStack net.minecraft.world.item.Items net.minecraft.world.phys.BlockHitResult net.minecraft.world.phys.HitResult
+# imports: net.minecraft.client.AttackIndicatorStatus net.minecraft.client.CameraType net.minecraft.client.CloudStatus net.minecraft.client.GraphicsPreset net.minecraft.client.InactivityFpsLimit net.minecraft.client.KeyMapping net.minecraft.client.Minecraft net.minecraft.client.MusicToastDisplayState net.minecraft.client.PrioritizeChunkUpdates net.minecraft.client.sounds.MusicManager net.minecraft.core.BlockPos net.minecraft.server.level.ParticleStatus net.minecraft.world.entity.EquipmentSlot net.minecraft.world.entity.HumanoidArm net.minecraft.world.entity.player.ChatVisiblity net.minecraft.world.item.ItemStack net.minecraft.world.item.Items net.minecraft.world.phys.BlockHitResult net.minecraft.world.phys.HitResult net.minecraft.client.TextureFilteringMethod net.minecraft.client.NarratorStatus
 // Visual
 l.add(OptionFeature.bool("nobob", "No View Bobbing", V, "bob", "The camera doesn't bob up and down as you walk.", o -> o.bobView(), false));
 l.add(OptionFeature.percent("fovfx", "Speed FOV Effect", V, "fov", "How much sprinting and speed change your field of view.", o -> o.fovEffectScale(), "Strength", 0, 100, 5, 0));
@@ -76,3 +76,11 @@ l.add(OptionFeature.bool("unicode", "Unicode Font", U, "font", "A smoother font 
 l.add(OptionFeature.bool("reduceddebug", "Reduced Debug Info", U, "bug", "F3 shows less (handy when streaming).", o -> o.reducedDebugInfo(), true));
 l.add(OptionFeature.bool("darkloading", "Dark Loading Screen", U, "loading", "A black loading screen instead of red.", o -> o.darkMojangStudiosBackground(), true));
 l.add(OptionFeature.bool("notelemetry", "Less Telemetry", U, "antenna", "Don't send optional usage data to Mojang.", o -> o.telemetryOptInExtra(), false));
+// Batch 4 (10 Oct 2026)
+l.add(OptionFeature.integer("weatherdist", "Weather Distance", V, "weather", "How far away rain and snow are drawn.", o -> o.weatherRadius(), "Distance", 3, 10, 1, 10, " chunks"));
+l.add(OptionFeature.integer("aniso", "Anisotropic Filtering", P, "mipmap", "Sharper textures on the ground far away (0 is off).", o -> o.maxAnisotropyBit(), "Level", 0, 4, 1, 2, ""));
+l.add(OptionFeature.choice("texfilter", "Texture Filtering", P, "graphics", "How textures are smoothed.", o -> o.textureFiltering(), "Filtering", TextureFilteringMethod.values(), 0));
+l.add(OptionFeature.percent("panorama", "Menu Panorama Speed", U, "loading", "How fast the title screen's background turns.", o -> o.panoramaSpeed(), "Speed", 0, 100, 5, 100));
+l.add(OptionFeature.bool("invertx", "Invert Mouse X", M, "invert", "Moving the mouse left looks right.", o -> o.invertMouseX(), true));
+l.add(OptionFeature.bool("opitems", "Operator Items Tab", U, "list", "Show the operator items tab in the creative inventory.", o -> o.operatorItemsTab(), true));
+l.add(OptionFeature.choice("narrator", "Narrator", U, "subtitles", "The game reads menus and chat out loud.", o -> o.narrator(), "Reads", NarratorStatus.values(), 0));

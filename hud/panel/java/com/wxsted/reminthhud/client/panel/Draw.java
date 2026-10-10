@@ -10,15 +10,15 @@ public final class Draw {
 	}
 
 	// The panel's colours: Minecraft's button greys, white text, green/red for on/off.
-	public static final int WINDOW = 0xEE141416;
-	public static final int WINDOW_EDGE = 0x55FFFFFF;
-	public static final int BAR = 0xF01B1B1E;
-	public static final int TILE = 0xFF3A3A3D;
-	public static final int TILE_HOT = 0xFF4A4A4E;
-	public static final int TILE_EDGE = 0xFF5C5C61;
-	public static final int TILE_EDGE_HOT = 0xFFB9B9BE;
-	public static final int BUTTON = 0xFF6F6F73; // Minecraft's button grey
-	public static final int BUTTON_HOT = 0xFF8A8A8F;
+	public static int WINDOW = 0xEE141416;
+	public static int WINDOW_EDGE = 0x55FFFFFF;
+	public static int BAR = 0xF01B1B1E;
+	public static int TILE = 0xFF3A3A3D;
+	public static int TILE_HOT = 0xFF4A4A4E;
+	public static int TILE_EDGE = 0xFF5C5C61;
+	public static int TILE_EDGE_HOT = 0xFFB9B9BE;
+	public static int BUTTON = 0xFF6F6F73; // Minecraft's button grey
+	public static int BUTTON_HOT = 0xFF8A8A8F;
 	public static final int TEXT = 0xFFFFFFFF;
 	public static final int TEXT_DIM = 0xFFB4B4B8;
 	public static final int TEXT_FAINT = 0xFF7E7E84;
@@ -26,8 +26,43 @@ public final class Draw {
 	public static final int ON_HOT = 0xFF4CBB5B;
 	public static final int OFF = 0xFFB8403C;
 	public static final int OFF_HOT = 0xFFD04B46;
-	public static final int ACCENT = 0xFFFFFFFF;
+	public static int ACCENT = 0xFFFFFFFF;
 	public static final int NEW_TAG = 0xFFE5484D;
+
+	/**
+	 * The panel's look from its Look settings (PanelLook): how see-through the window and cards are, and the accent
+	 * colour. Called every frame by the panel's screens (cheap: a few ints).
+	 */
+	public static void applyStyle(float opacity, int accent) {
+		int a = Math.round(Math.max(0.1f, Math.min(1f, opacity)) * 255);
+		int t = Math.min(255, a + 40);
+		WINDOW = (a << 24) | 0x141416;
+		BAR = (Math.min(255, a + 25) << 24) | 0x1B1B1E;
+		WINDOW_EDGE = (Math.min(255, a / 3 + 30) << 24) | 0xFFFFFF;
+		TILE = (t << 24) | 0x3A3A3D;
+		TILE_HOT = (t << 24) | 0x4A4A4E;
+		TILE_EDGE = (t << 24) | 0x5C5C61;
+		TILE_EDGE_HOT = (accent & 0xFFFFFF) == 0xFFFFFF ? 0xFFB9B9BE : 0xFF000000 | accent;
+		BUTTON = (Math.min(255, t + 20) << 24) | 0x6F6F73;
+		BUTTON_HOT = (Math.min(255, t + 20) << 24) | 0x8A8A8F;
+		ACCENT = 0xFF000000 | accent;
+	}
+
+	/** A colour going round the rainbow (speed: rounds per second; offset 0..1 shifts it). */
+	public static int rainbow(float speed, float offset) {
+		float h = (System.currentTimeMillis() % 1000000L) / 1000f * speed + offset;
+		return hsb(h - (float) Math.floor(h), 0.7f, 1f);
+	}
+
+	/** HSB (0..1 each) to opaque ARGB. */
+	public static int hsb(float h, float s, float b) {
+		return 0xFF000000 | (java.awt.Color.HSBtoRGB(h, s, b) & 0xFFFFFF);
+	}
+
+	/** A colour with its alpha replaced (0..1). */
+	public static int alpha(int color, double a) {
+		return ((int) Math.round(Math.max(0, Math.min(1, a)) * 255) << 24) | (color & 0xFFFFFF);
+	}
 
 	/** How far a row is pulled in from the edge to round a corner of radius r. */
 	static int inset(int r, int row) {

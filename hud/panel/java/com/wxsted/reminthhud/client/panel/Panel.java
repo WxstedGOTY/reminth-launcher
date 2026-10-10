@@ -47,6 +47,9 @@ public final class Panel {
 	private static KeyMapping hideKey;
 	private static int testOpenIn = Integer.getInteger("reminthhud.testOpenPanel", 0);
 	private static final boolean testWatch = testOpenIn > 0;
+	private static String testEnable = System.getProperty("reminthhud.testEnable");
+	private static final boolean TEST_WALK = Boolean.getBoolean("reminthhud.testWalk");
+	private static boolean testWalking;
 	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
 	public static boolean hudHidden;
 
@@ -72,6 +75,8 @@ public final class Panel {
 		zoomKey = V.registerKey("key.reminthhud.zoom", InputConstants.KEY_C, category);
 		snapKey = V.registerKey("key.reminthhud.snaplook", InputConstants.KEY_V, category);
 		hideKey = V.registerKey("key.reminthhud.hidehud", InputConstants.KEY_F7, category);
+		StreamKeys.register(category);
+		Features4.registerCrosshair();
 		Features3.initTooltips();
 		// Fullscreen Pointer: drawn on top of every menu
 		net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> V.afterDraw(screen, g -> SoftCursor.draw(g, client)));
@@ -105,15 +110,35 @@ public final class Panel {
 			// after the game started (the test tool can't press keys in every version)
 			if (testOpenIn > 0 && java.lang.management.ManagementFactory.getRuntimeMXBean().getUptime() >= testOpenIn * 1000L) {
 				testOpenIn = 0;
-				if (!(V.screen(mc) instanceof PanelScreen)) open(V.screen(mc));
+				String which = System.getProperty("reminthhud.testScreen", "");
+				if (which.equals("studio")) V.setScreen(mc, new TextStudioScreen(null, 0));
+				else if (which.equals("none")) V.setScreen(mc, null);
+				else if (which.startsWith("module:") && byId(which.substring(7)) != null) V.setScreen(mc, new ModuleScreen(null, byId(which.substring(7))));
+				else if (which.startsWith("cat:")) {
+					PanelScreen ps = new PanelScreen(null);
+					V.setScreen(mc, ps);
+					ps.testShow(which.substring(4));
+				} else if (!(V.screen(mc) instanceof PanelScreen)) open(V.screen(mc));
 				ReminthHud.LOGGER.info("Reminth panel: test open -> {}", V.screen(mc));
 			}
 			if (testWatch && mc.level != null && mc.level.getGameTime() % 200 == 0) ReminthHud.LOGGER.info("Reminth panel: test screen {}", V.screen(mc));
+			// game tests only: -Dreminthhud.testEnable=a,b turns those features on; -Dreminthhud.testWalk=true holds W
+			// (through Walk, like a real key press in the panel) once the panel is open, and logs where the player is
+			if (testEnable != null && mc.player != null) {
+				for (String id : testEnable.split(",")) if (byId(id) != null) setEnabled(byId(id), true);
+				testEnable = null;
+			}
+			if (TEST_WALK && mc.player != null && mc.level != null) {
+				if (V.screen(mc) instanceof PanelScreen && !testWalking) testWalking = Walk.key(mc, InputConstants.KEY_W, 0, 0, true);
+				if (mc.level.getGameTime() % 40 == 0) ReminthHud.LOGGER.info("Reminth panel: test walk {} at {} {} (W down: {})", V.screen(mc), Math.round(mc.player.getX() * 10) / 10.0, Math.round(mc.player.getZ() * 10) / 10.0, mc.options.keyUp.isDown());
+			}
 			while (openKey.consumeClick()) {
 				if (V.screen(mc) == null) open(null);
 			}
 			Features2.tick(mc);
 			Features3.tick(mc);
+			Features4.tick(mc);
+			Features5.tick(mc);
 			TierTagger.testTick(mc);
 			for (Module m : MODULES) if (m.enabled) m.tick(mc);
 		} catch (Throwable t) {
@@ -138,7 +163,21 @@ public final class Panel {
 		if (V.debugShown(mc)) return;
 		if (V.screen(mc) instanceof HudEditorScreen) return; // it draws them itself
 		if (hudHidden) return;
+		overlays(g, mc, false);
 		drawHud(g, mc, false);
+		overlays(g, mc, true);
+	}
+
+	/** The whole-screen features (Overlay): under the HUD displays, or over them (Be Right Back). */
+	private static void overlays(Gfx g, Minecraft mc, boolean top) {
+		for (Module m : MODULES) {
+			if (!m.enabled || !(m instanceof Overlay o) || o.onTop() != top) continue;
+			try {
+				o.overlay(g, mc);
+			} catch (Throwable t) {
+				ReminthHud.LOGGER.warn("Reminth panel: {} failed to draw ({})", m.id, t.toString());
+			}
+		}
 	}
 
 	/**

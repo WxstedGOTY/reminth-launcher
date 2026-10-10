@@ -62,7 +62,7 @@ public final class Features2 {
 	}
 
 	private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("EEE d MMM", Locale.ROOT);
-	private static long sessionStart = System.currentTimeMillis();
+	static long sessionStart = System.currentTimeMillis();
 	private static String lastLevel = "";
 	private static BlockPos deathPos;
 	private static String deathDim = "";

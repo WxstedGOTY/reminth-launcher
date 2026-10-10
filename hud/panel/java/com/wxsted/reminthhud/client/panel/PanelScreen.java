@@ -26,6 +26,8 @@ public class PanelScreen extends BaseScreen {
 	private int realMx, realMy;
 	private int tab = 0; // 0 mods, 1 settings
 	private Module.Cat cat = null; // null = all
+	private static Module.Cat lastCat = null; // "Opens on: Last category"
+	private OptList look;
 	private double scroll = 0;
 	private int x0, y0, w, h;
 	private static final int TOP = 30, LEFT = 118;
@@ -38,13 +40,34 @@ public class PanelScreen extends BaseScreen {
 
 	@Override
 	protected void init() {
-		s = Math.min(1f, Math.min(width / 640f, height / 370f));
+		// 560x330 at 100% (a bit smaller than before, owner 10 Oct), resized by Panel Look's "Panel size"
+		PanelLook pl = PanelLook.get();
+		float size = (float) (pl.size.value / 100.0);
+		int wantW = Math.round(560 * size), wantH = Math.round(330 * size);
+		s = Math.min(1f, Math.min(width / (float) (wantW + 20), height / (float) (wantH + 14)));
 		vw = Math.round(width / s);
 		vh = Math.round(height / s);
-		w = Math.min(vw - 24, 620);
-		h = Math.min(vh - 20, 360);
+		w = Math.min(vw - 16, wantW);
+		h = Math.min(vh - 10, wantH);
 		x0 = (vw - w) / 2;
 		y0 = (vh - h) / 2;
+		if (look == null) {
+			look = new OptList(pl.opts, Panel::save);
+			cat = switch (pl.openOn.value) {
+				case 1 -> null;
+				case 2 -> Module.Cat.HUD;
+				case 3 -> Module.Cat.STREAM;
+				default -> lastCat;
+			};
+		}
+		look.layout(mainX(), settingsRowY(4) + 2, mainW() - 6, mainY() + mainH() - settingsRowY(4) - 2);
+	}
+
+	/** In a world: no blur and no dark tint, so the game stays in view (owner, 10 Oct). In menus: the usual background. */
+	@Override
+	protected void drawBackground(Gfx g, int mx, int my, float pt) {
+		if (minecraft.level == null) super.drawBackground(g, mx, my, pt);
+		else if (PanelLook.get().dim.value) g.fill(0, 0, width, height, 0x66000000);
 	}
 
 	@Override
@@ -54,8 +77,16 @@ public class PanelScreen extends BaseScreen {
 
 	@Override
 	public void onClose() {
+		if (look != null) look.stopEditing();
+		lastCat = cat;
 		Panel.save();
 		V.setScreen(minecraft, parent);
+	}
+
+	/** Game tests only: show a category ("STREAM") or the SETTINGS tab ("settings"). */
+	void testShow(String what) {
+		if (what.equals("settings")) tab = 1;
+		else for (Module.Cat c : Module.Cat.values()) if (c.name().equalsIgnoreCase(what)) cat = c;
 	}
 
 	/* ------------------------------ what is shown ------------------------------ */
@@ -64,6 +95,7 @@ public class PanelScreen extends BaseScreen {
 		String q = query.trim().toLowerCase(Locale.ROOT);
 		List<Module> out = new ArrayList<>();
 		for (Module m : Panel.MODULES) {
+			if (m.hidden) continue;
 			if (cat != null && m.cat != cat) continue;
 			if (!q.isEmpty() && !m.name.toLowerCase(Locale.ROOT).contains(q) && !m.description.toLowerCase(Locale.ROOT).contains(q) && !m.cat.label.toLowerCase(Locale.ROOT).contains(q)) continue;
 			out.add(m);
@@ -88,7 +120,7 @@ public class PanelScreen extends BaseScreen {
 	}
 
 	private int cols() {
-		return mainW() < 300 ? 2 : 3;
+		return mainW() < 300 ? 2 : PanelLook.get().compact.value && mainW() >= 400 ? 4 : 3;
 	}
 
 	private static final int GAP = 6, CARD_H = 100;
@@ -111,6 +143,7 @@ public class PanelScreen extends BaseScreen {
 
 	@Override
 	protected void draw(Gfx g, int rmx, int rmy, float pt) {
+		PanelLook.get().apply();
 		realMx = rmx;
 		realMy = rmy;
 		int mx = Math.round(rmx / s), my = Math.round(rmy / s);
@@ -130,7 +163,7 @@ public class PanelScreen extends BaseScreen {
 		Draw.round(g, x0, y0, w, TOP, 8, Draw.BAR);
 		g.fill(x0, y0 + TOP - 8, x0 + w, y0 + TOP, Draw.BAR);
 		g.fill(x0, y0 + TOP, x0 + w, y0 + TOP + 1, 0x33FFFFFF);
-		Draw.text(g, Component.literal("REMINTH MODS PANEL").withStyle(ChatFormatting.BOLD), x0 + 12, y0 + 11, 1f, Draw.TEXT, false);
+		Draw.text(g, Component.literal("REMINTH MODS PANEL").withStyle(ChatFormatting.BOLD), x0 + 12, y0 + 11, 1f, Draw.TEXT, true);
 		String[] tabs = {"MODS", "SETTINGS"};
 		int tx = x0 + TABS_X;
 		for (int i = 0; i < tabs.length; i++) {
@@ -171,16 +204,16 @@ public class PanelScreen extends BaseScreen {
 		for (int i = -1; i < cats.length; i++) {
 			Module.Cat c = i < 0 ? null : cats[i];
 			boolean sel = cat == c;
-			boolean hot = Draw.in(mx, my, lx, ly, lw - 4, 18);
-			if (sel || hot) Draw.round(g, lx, ly, lw - 4, 18, 4, sel ? 0xFF3A3A3D : 0xFF26262A);
-			if (sel) g.fill(lx, ly + 3, lx + 2, ly + 15, Draw.ACCENT);
-			Draw.icon(g, c == null ? "cat_all" : c.icon, lx + 7, ly + 4, 10, sel ? 0xFFFFFFFF : 0xFFB4B4B8);
+			boolean hot = Draw.in(mx, my, lx, ly, lw - 4, 16);
+			if (sel || hot) Draw.round(g, lx, ly, lw - 4, 16, 4, sel ? Draw.TILE : 0x26FFFFFF);
+			if (sel) g.fill(lx, ly + 3, lx + 2, ly + 13, Draw.ACCENT);
+			Draw.icon(g, c == null ? "cat_all" : c.icon, lx + 7, ly + 3, 10, sel ? 0xFFFFFFFF : 0xFFB4B4B8);
 			String label = c == null ? "All" : c.label;
 			int count = 0;
-			for (Module m : Panel.MODULES) if (c == null || m.cat == c) count++;
-			Draw.text(g, label, lx + 21, ly + 5, label.length() > 9 ? 0.85f : 1f, sel ? Draw.TEXT : Draw.TEXT_DIM, false);
-			Draw.text(g, Integer.toString(count), lx + lw - 8 - font.width(Integer.toString(count)) * 0.75f, ly + 6, 0.75f, Draw.TEXT_FAINT, false);
-			ly += 19;
+			for (Module m : Panel.MODULES) if (!m.hidden && (c == null || m.cat == c)) count++;
+			Draw.text(g, label, lx + 21, ly + 4, label.length() > 9 ? 0.85f : 1f, sel ? Draw.TEXT : Draw.TEXT_DIM, true);
+			Draw.text(g, Integer.toString(count), lx + lw - 8 - font.width(Integer.toString(count)) * 0.75f, ly + 5, 0.75f, Draw.TEXT_FAINT, true);
+			ly += 17;
 		}
 		ly += 6;
 		Draw.text(g, "PROFILES", lx + 4, ly, 0.75f, Draw.TEXT_FAINT, false);
@@ -190,7 +223,7 @@ public class PanelScreen extends BaseScreen {
 			if (ly + 16 > bottom - 18 && !p.equals(Panel.active)) continue;
 			boolean sel = p.equals(Panel.active);
 			boolean hot = Draw.in(mx, my, lx, ly, lw - 4, 16);
-			if (sel || hot) Draw.round(g, lx, ly, lw - 4, 16, 4, sel ? 0xFF3A3A3D : 0xFF26262A);
+			if (sel || hot) Draw.round(g, lx, ly, lw - 4, 16, 4, sel ? Draw.TILE : 0x26FFFFFF);
 			Draw.icon(g, "profile", lx + 6, ly + 4, 8, sel ? 0xFFFFFFFF : 0xFFB4B4B8);
 			g.text(font, Draw.fit(p, lw - 44, 1f), lx + 19, ly + 4, sel ? Draw.TEXT : Draw.TEXT_DIM, false);
 			if (sel || hot) Draw.icon(g, "pencil", lx + lw - 18, ly + 4, 8, Draw.in(mx, my, lx + lw - 21, ly, 14, 16) ? 0xFFFFFFFF : 0xFF9A9AA0);
@@ -259,7 +292,7 @@ public class PanelScreen extends BaseScreen {
 		Draw.round(g, bx, ty, cw - 12, 15, 3, fill);
 		Draw.centered(g, Component.literal(m.enabled ? "ENABLED" : "DISABLED").withStyle(ChatFormatting.BOLD), x + cw / 2f, ty + 5, 0.75f, 0xFFFFFFFF);
 		// the description over the icon and name only (not over the buttons)
-		if (hot && my < y + 56) g.setTooltipForNextFrame(font, Component.literal(m.description), realMx, realMy);
+		if (hot && my < y + 56 && PanelLook.get().tooltips.value) g.setTooltipForNextFrame(font, Component.literal(m.description), realMx, realMy);
 	}
 
 	private int settingsRowY(int i) {
@@ -284,8 +317,7 @@ public class PanelScreen extends BaseScreen {
 			Draw.tile(g, bx, by, bw, 16, 3, hot ? Draw.TILE_EDGE_HOT : 0xFF2A2A2D, i == 3 ? (hot ? Draw.OFF_HOT : Draw.OFF) : hot ? Draw.BUTTON_HOT : Draw.BUTTON);
 			Draw.centered(g, rows[i][2], bx + bw / 2f, by + 5, 0.75f, Draw.TEXT);
 		}
-		int y = settingsRowY(rows.length) + 6;
-		g.textWithWordWrap(font, Component.literal("Reminth's own features, built into Reminth. Nothing here plays for you: no auto-clickers, macros, X-ray or radar. Servers' rules still apply - Reminth warns you before you join a server that bans something you have on."), x + 2, y, mw - 12, Draw.TEXT_FAINT, false);
+		look.draw(g, mx, my);
 	}
 
 	/* ------------------------------ input ------------------------------ */
@@ -324,13 +356,13 @@ public class PanelScreen extends BaseScreen {
 		int lx = x0 + 6, ly = y0 + TOP + 18, lw = LEFT - 6;
 		Module.Cat[] cats = Module.Cat.values();
 		for (int i = -1; i < cats.length; i++) {
-			if (Draw.in(mx, my, lx, ly, lw - 4, 18)) {
+			if (Draw.in(mx, my, lx, ly, lw - 4, 16)) {
 				cat = i < 0 ? null : cats[i];
 				tab = 0;
 				scroll = 0;
 				return true;
 			}
-			ly += 19;
+			ly += 17;
 		}
 		ly += 16;
 		int bottom = y0 + h - 34;
@@ -368,7 +400,8 @@ public class PanelScreen extends BaseScreen {
 			int y = myy + (i / cols()) * (CARD_H + GAP) - (int) scroll;
 			int bx = x + 6, bw = cw - 12 - 20;
 			if (Draw.in(mx, my, bx, y + 59, bw + 24, 16)) {
-				V.setScreen(minecraft, new ModuleScreen(this, m));
+				Screen own = m.optionsScreen(this);
+				V.setScreen(minecraft, own != null ? own : new ModuleScreen(this, m));
 				return true;
 			}
 			if (Draw.in(mx, my, bx, y + 79, cw - 12, 15)) {
@@ -380,6 +413,10 @@ public class PanelScreen extends BaseScreen {
 	}
 
 	private boolean clickSettings(double mx, double my) {
+		if (look.click(mx, my, 0)) {
+			init(); // the size may have changed
+			return true;
+		}
 		int x = mainX(), mw = mainW();
 		for (int i = 0; i < 4; i++) {
 			int y = settingsRowY(i);
@@ -400,9 +437,24 @@ public class PanelScreen extends BaseScreen {
 	@Override
 	protected boolean scroll(double rmx, double rmy, double sx, double sy) {
 		double mx = rmx / s, my = rmy / s;
+		if (tab == 1) return look.scroll(mx, my, sy);
 		if (tab == 0 && Draw.in(mx, my, mainX(), mainY(), mainW(), mainH())) {
 			scroll -= sy * 24;
 			clampScroll();
+			return true;
+		}
+		return false;
+	}
+
+	@Override
+	protected boolean drag(double ex, double ey, int button, double dx, double dy) {
+		return tab == 1 && look.drag(ex / s, ey / s);
+	}
+
+	@Override
+	protected boolean release(double ex, double ey, int button) {
+		if (tab == 1 && look.release()) {
+			init(); // the size may have changed
 			return true;
 		}
 		return false;
@@ -434,12 +486,18 @@ public class PanelScreen extends BaseScreen {
 			}
 			return true; // typing never triggers the panel's or the game's keys
 		}
-		// the panel key closes it again
-		if (V.matches(Panel.openKey(), key, scancode, mods)) {
+		// the panel key closes it again, and so does the inventory key (E)
+		if (V.matches(Panel.openKey(), key, scancode, mods) || Walk.closes(minecraft, key, scancode, mods)) {
 			onClose();
 			return true;
 		}
-		return false;
+		// W A S D, jump, sprint and sneak still move you
+		return Walk.key(minecraft, key, scancode, mods, true);
+	}
+
+	@Override
+	protected boolean keyUp(int key, int scancode, int mods) {
+		return Walk.key(minecraft, key, scancode, mods, false);
 	}
 
 	/** Small window to rename or delete a profile. */

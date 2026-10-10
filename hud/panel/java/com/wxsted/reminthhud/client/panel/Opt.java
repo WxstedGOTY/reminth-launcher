@@ -91,7 +91,7 @@ public abstract class Opt {
 
 	/** A colour picked from a row of swatches. */
 	public static final class Color extends Opt {
-		public static final int[] SWATCHES = {0xFFFFFFFF, 0xFFB4B4B8, 0xFF55FF55, 0xFF55FFFF, 0xFF5599FF, 0xFFFF55FF, 0xFFFF5555, 0xFFFFAA00, 0xFFFFFF55};
+		public static final int[] SWATCHES = {0xFFFFFFFF, 0xFFB4B4B8, 0xFF555555, 0xFF000000, 0xFFFF5555, 0xFFAA0000, 0xFFFFAA00, 0xFFFFFF55, 0xFF55FF55, 0xFF00AA00, 0xFF55FFFF, 0xFF5599FF, 0xFF0000AA, 0xFFAA00AA, 0xFFFF55FF};
 		public final int def;
 		public int value;
 
@@ -154,14 +154,70 @@ public abstract class Opt {
 		}
 	}
 
+	/** A line of text the player types (Stream Text, labels...). */
+	public static final class Text extends Opt {
+		public final String def;
+		public final int max;
+		public String value;
+
+		public Text(String key, String label, String def, int max) {
+			super(key, label);
+			this.def = def;
+			this.max = max;
+			this.value = def;
+		}
+
+		@Override
+		void reset() {
+			value = def;
+		}
+
+		@Override
+		JsonElement save() {
+			return new JsonPrimitive(value);
+		}
+
+		@Override
+		void load(JsonElement e) {
+			if (e != null && e.isJsonPrimitive()) {
+				String v = e.getAsString();
+				value = v.length() > max ? v.substring(0, max) : v;
+			}
+		}
+	}
+
+	/** A heading between options (saves nothing). */
+	public static final class Label extends Opt {
+		public Label(String label) {
+			super("_label_" + label, label);
+		}
+
+		@Override
+		void reset() {
+		}
+
+		@Override
+		JsonElement save() {
+			return null;
+		}
+
+		@Override
+		void load(JsonElement e) {
+		}
+	}
+
 	static JsonObject saveAll(java.util.List<Opt> opts) {
 		JsonObject o = new JsonObject();
-		for (Opt opt : opts) o.add(opt.key, opt.save());
+		for (Opt opt : opts) {
+			JsonElement e = opt.key.startsWith("_") ? null : opt.save();
+			if (e != null) o.add(opt.key, e);
+		}
 		return o;
 	}
 
 	static void loadAll(java.util.List<Opt> opts, JsonObject o) {
 		for (Opt opt : opts) {
+			if (opt.key.startsWith("_")) continue;
 			opt.reset();
 			if (o != null) opt.load(o.get(opt.key));
 		}
