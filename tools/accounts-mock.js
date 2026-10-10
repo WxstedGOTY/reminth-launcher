@@ -23,7 +23,7 @@ const guildChannels = [
   C("cat-info", "Information", 4), C("c-ann", "📢｜annoucements", 0, "cat-info"), C("c-upd", "⚡｜updates", 0, "cat-info"), C("c-soc", "👥｜socials", 0, "cat-info"),
   C("c-give", "🎉｜giveaways", 0, "cat-info"), C("c-ev", "✳️｜events", 0, "cat-info"), C("c-boost", "💎｜boosts", 0, "cat-info"), C("c-faq", "⁉️｜faq", 0, "cat-info"),
   C("cat-comm", "Community", 4), C("c-gen", "💬｜general", 0, "cat-comm"), C("c-clips", "🎬｜clips", 0, "cat-comm"), C("c-sugg", "🌐｜suggestions", 0, "cat-comm"),
-  C("c-cmd", "🤖｜commands", 0, "cat-comm"), C("c-offt", "💭｜off-topic", 0, "cat-comm"),
+  C("c-cmd", "🤖｜commands", 0, "cat-comm"), C("c-read", "📖｜read-first", 0, "cat-sup"),
   C("cat-sup", "Support", 4), C("c-sup", "🎫｜support", 0, "cat-sup"), C("c-app", "🎫｜application", 0, "cat-sup"),
 ];
 let onboarding = null;
@@ -186,6 +186,11 @@ http
           return send(200, {});
         }
         if (req.method === "PATCH" && url === "/guilds/555") return send(200, { id: "555" });
+        if (req.method === "POST" && url === "/guilds/555/channels") {
+          const c = { ...JSON.parse(body), id: "c-new" + guildChannels.length };
+          guildChannels.push(c);
+          return send(200, c);
+        }
         if ((m = /^\/channels\/([\w-]+)\/webhooks$/.exec(url)) && req.method === "POST") {
           const h = { id: "wh-" + m[1], token: "tok-" + m[1], name: JSON.parse(body).name, channel_id: m[1] };
           (hooks[m[1]] = hooks[m[1]] || []).push(h);

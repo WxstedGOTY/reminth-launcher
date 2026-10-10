@@ -66,9 +66,10 @@ const JOBS = {
   support: (n) => n.includes("support"),
   application: (n) => n.includes("applic"),
   readfirst: (n) => n.includes("readfirst"),
+  offtopic: (n) => n.includes("offtopic"),
 };
 const READ_ONLY = ["rules", "announcements", "updates", "socials", "giveaways", "events", "boosts", "faq", "support", "application", "readfirst"];
-const COMMUNITY = ["general", "clips", "suggestions", "commands"];
+const COMMUNITY = ["general", "clips", "suggestions", "commands", "offtopic"];
 
 export function findJobs(channels) {
   const out = {};
@@ -230,6 +231,22 @@ export async function setupStep(env, step) {
   }
 
   if (name === "onboarding") {
+    // Discord's onboarding needs 5 default channels where everyone can write - with fewer, add #off-topic to Community
+    const chat = COMMUNITY.filter((j) => jobs[j]).length;
+    if (chat < 5 && !jobs.offtopic && jobs.communityCategory) {
+      const mod = role("Moderator");
+      const ow = [{ id: g, type: 0, allow: "0", deny: s(THREADS | PERM.EXTERNAL_APPS) }];
+      if (mod) ow.push({ id: mod.id, type: 0, allow: s(PERM.MANAGE_MESSAGES), deny: "0" });
+      const sep = (jobs.general && /([│｜|])/.exec(jobs.general.name)) || null; // the owner's own "emoji｜name" style
+      const chName = sep ? `💭${sep[1]}off-topic` : "off-topic";
+      const made = await dapi(env, "POST", `/guilds/${g}/channels`, { name: chName, type: 0, parent_id: jobs.communityCategory.id, topic: "Everything else.", permission_overwrites: ow }, "Reminth setup: onboarding needs 5 chat channels");
+      if (retry(made)) return wait(made);
+      if (made.ok) {
+        channels.push(made.data);
+        jobs.offtopic = made.data;
+        log.push(`#${chName}: made in Community (onboarding needs 5 channels where members can write - rename it if you like)`);
+      } else log.push(`Couldn't make #off-topic (${made.status})`);
+    }
     const rid = (n) => (role(n) || {}).id;
     let n = 0;
     const opt = (title, emoji, roleName, description) => ({ id: fakeId(n++), title, description: description || null, emoji_name: emoji, role_ids: rid(roleName) ? [rid(roleName)] : [], channel_ids: [] });

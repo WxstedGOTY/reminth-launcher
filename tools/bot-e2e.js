@@ -274,7 +274,11 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   assert.equal(BigInt(ow(CH("c-faq"), "r-mod").allow) & (1n << 13n), 0n, "...but not in #faq");
   assert.equal(CH("c-gen").rate_limit_per_user, 2, "2 s slowmode in #general");
   assert.ok(G.channels.every((c) => BigInt(ow(c, "555").deny) & (1n << 35n)), "no threads in any channel");
+  const offt = G.channels.find((c) => c.name === "💭｜off-topic");
+  assert.ok(offt && offt.parent_id === "cat-comm", "#💭｜off-topic made in Community (he had 4 chat channels)");
+  assert.ok(BigInt(ow(CH("c-read"), "555").deny) & (1n << 11n), "#read-first read-only");
   assert.ok(G.onboarding && G.onboarding.enabled, "onboarding on");
+  assert.ok(G.onboarding.default_channel_ids.includes(offt.id));
   const rulesQ = G.onboarding.prompts.find((p) => p.required);
   assert.deepEqual(rulesQ.options[0].role_ids, [R("Member").id], "accepting the rules gives Member");
   assert.equal(G.onboarding.prompts.find((p) => /Where/.test(p.title)).options.length, 7, "7 regions");
