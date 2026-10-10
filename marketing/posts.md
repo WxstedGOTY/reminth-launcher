@@ -22,8 +22,9 @@ Every feature named here is real (checked against the app and the website). Don'
 is this the best minecraft pvp and performance launcher in 2026? 👀
 
 - 145 built-in features, press G in game
-- sodium + lithium set up for you
-- checks your mods before you launch
+- over 70,000 mods availble
+- performance mods set up for you
+- fixies version of mods and instances mix-ups
 - cursor that never vanishes in fullscreen
 - free, 1.20.1 to 26.3
 
