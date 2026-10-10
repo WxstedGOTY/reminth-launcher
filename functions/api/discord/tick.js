@@ -1,7 +1,7 @@
 // POST /api/discord/tick - the Reminth bot's every-minute check (_tick.js). Called by the reminth-cron Worker
 // (workers/cron). Safe to call by anyone: it does its work at most once every 45 seconds.
 import { json } from "../../_lib.js";
-import { getConfig, setConfig } from "../../_bot.js";
+import { dapi, getConfig, setConfig } from "../../_bot.js";
 import { tick } from "../../_tick.js";
 
 export async function onRequestPost({ request, env }) {
@@ -28,5 +28,10 @@ export async function onRequestPost({ request, env }) {
   // which bot settings exist (ids only, nothing secret) - to see whether "Set up my server" finished
   const has = async (k) => Boolean(env.DB && (await getConfig(env, k)));
   const settings = { modlog: await has("modlog_channel"), updates: await has("updates_channel"), updatesRole: await has("updates_role"), playerRole: await has("player_role"), socials: await has("socials_channel") };
+  // which AutoMod rules are on (names only)
+  if (env.DISCORD_BOT_TOKEN && env.DISCORD_GUILD_ID && new URL(request.url).searchParams.get("automod") === "1") {
+    const r = await dapi(env, "GET", `/guilds/${env.DISCORD_GUILD_ID}/auto-moderation/rules`);
+    settings.automod = r.ok ? (r.data || []).map((x) => `${x.enabled ? "on" : "off"}: ${x.name} (type ${x.trigger_type})`) : `error ${r.status}`;
+  }
   return json({ ...out, gateway, settings });
 }
