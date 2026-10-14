@@ -170,3 +170,10 @@ input, select, textarea { border-radius: 8px; }
 .btn.primary:disabled:not(.progressing) .soon { opacity: .9; }
 /* installing: the cream button fills up with a darker cream */
 .btn.progressing::before { background: rgba(0, 0, 0, .14); }
+
+/* Pixelify Sans in bold closes the gap of C and c, so "INSTANCE" read "INSTANOE" and "Bench" "Benoh": every pixel
+   heading of the Night look uses the regular weight (Home's big REMINTH keeps the bold: it has no C). */
+.topbar .eyebrow, .page-head h1, .block-head h2, .display, .avatar-letter, .mrow-ico, .mcard-ico, .c-group-name,
+.skin-meta b, .side-account .account-meta b { font-weight: 400; }
+.topbar .eyebrow { letter-spacing: .12em; }
+body[data-page="home"] #app:not(.signed-out) .topbar .eyebrow { font-weight: 700; letter-spacing: .1em; }
