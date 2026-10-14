@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **14 Oct 2026: "Post the channel messages" now posts a NEW #announcements message for each new release (others still edit). Live on the website. Section 00000000000000000000000000000000000.**
 - **10 Oct 2026 (night): Reminth 1.7.2 PUBLISHED - assets checked (latest.yml identical, exe sha512 matches); website and Discord texts say "over 240 features" (owner presses "Post the channel messages" to update #announcements).** It is: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
 - **10 Oct 2026 (later): Reminth 1.7.1 (Tier Tagger) PUBLISHED - assets checked (latest.yml 1.7.1, sha512 matches).**
 - **10 Oct 2026: 1.7.0 PUBLISHED. The Discord bot is built (section 00000000000000000000000000000); the owner switches it on with `OWNER_TODO.md` Part E.**
@@ -15,10 +16,37 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   Cloudflare from `site/`), Google Search Console verified and sitemap submitted. Remind the owner marketing is left; other
   changes come from him.
 - **New chat: read `HANDOFF_FULL.md` first.** **Last updated:** 8 Oct 2026 (night), desktop window: newest section below is 00000000000000000000000000 (1.6.1: brand colours, see-through icon, website). Before it 0000000000000000000000000 (1.6.0). Before it 000000000000000000000000 (fullscreen pointer, 1.21 HUD missing, window size, quiet Play). Before it 00000000000000000000000 (the panel on every version).
-- **`main` is at:** this file's commit. **`npm test`: 679 pass** (10 Oct, evening) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
+- **`main` is at:** this file's commit. **`npm test`: 682 pass** (14 Oct) (Windows, 8 Oct, after merging `claude/stoic-lovelace-y9p76z`: new app icon + orange brand colour; `main.js` setAppUserModelId guarded for the tests). Newest installer: `release-1.6.0\` (20:47; not installed, not published; `release-2.0.0*` folders are outdated).
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000000000000000. Discord: new release = new #announcements post (14 Oct 2026) - desktop window
+
+**Owner's rule (10 Oct):** each release's announcement must be a NEW Discord message, not an edit of the old one.
+
+**Done:** `functions/_texts.js` has `RELEASE` ("1.7.2", must equal `package.json`; a test checks it). The #announcements
+text carries it. "Post the channel messages" now saves `hook:message:release`; when the release differs from the saved
+one it POSTS a new message, otherwise it edits (typo fixes). Rules, updates, socials, FAQ and #read-first still edit.
+`savedPlan()` holds the decision; test `test/discord-texts.test.js`. Confirm text in `functions/_ownerPanel.js` says so.
+Deployed by the "Website to Cloudflare" workflow (run for `080b127`: success).
+
+**On each future release:** change the #announcements text AND `RELEASE` in `functions/_texts.js` together.
+
+**Not tested for real:** the actual post in Discord (only the owner can press the button). The first press now posts a
+new 1.7.2 announcement (the old message was saved without a release); the old announcement stays above it.
+
+**Owner steps / test plan:**
+1. https://reminth.pages.dev/account -> Post the channel messages -> OK. #announcements gets a NEW 1.7.2 post; the
+   log says "new message posted for 1.7.2". PASS/FAIL
+2. Press it again: the log says "message updated" for every channel (no second 1.7.2 post). PASS/FAIL
+3. Set up my server once more (slowmode on #chat, AutoMod mass-pings reason) - screenshot. PASS/FAIL
+4. Tickets v2 panel in #read-first (owner, `discord/texts.md` number 6).
+
+**Still open, not done this round:** in-game checks of HUD 1.6.0 on 1.20.1-1.21.10 and 26.1/26.2 in a world (the owner's
+game was running, so no test games were started).
 
 ---
 
