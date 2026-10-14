@@ -3489,7 +3489,7 @@ function paintNightScene() {
   // faint bands of cloud
   for (let i = 0; i < 9; i++) {
     const y = h * (0.07 + rnd() * 0.24);
-    fill(`rgba(46, 46, 52, ${(0.18 + rnd() * 0.16).toFixed(2)})`, rnd() * w - 80, y, 140 + rnd() * 320, 8 + rnd() * 6);
+    fill(`rgba(46, 46, 52, ${(0.12 + rnd() * 0.12).toFixed(2)})`, rnd() * w - 80, y, 140 + rnd() * 320, 8 + rnd() * 6);
   }
 
   paintNightMoon(h, dpr);

@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **15 Oct 2026 (night): Reminth 1.8.0 = the Night look + the owner's Night home page and Moonrise icon. NOT built, NOT installed, NOT published. Read `design/NIGHT_DESIGN.md`. Section 000000000000000000000000000000000000.**
 - **14 Oct 2026: "Post the channel messages" now posts a NEW #announcements message for each new release (others still edit). Live on the website. Section 00000000000000000000000000000000000.**
 - **10 Oct 2026 (night): Reminth 1.7.2 PUBLISHED - assets checked (latest.yml identical, exe sha512 matches); website and Discord texts say "over 240 features" (owner presses "Post the channel messages" to update #announcements).** It is: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
 - **10 Oct 2026 (later): Reminth 1.7.1 (Tier Tagger) PUBLISHED - assets checked (latest.yml 1.7.1, sha512 matches).**
@@ -22,6 +23,42 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 
 ---
+
+## 000000000000000000000000000000000000. The Night look + Night home page, Reminth 1.8.0 (14-15 Oct 2026, night) - desktop window (design chat)
+
+**Owner's ask (then went to sleep, "dont ask me questions"):** his "Home · Night" design and new Moonrise icon for
+the whole app; "design the whole app again ... following the home screen type/color/vibe"; put the design in a file
+for the other windows. **Everything is in `design/NIGHT_DESIGN.md`** (asks, tokens, files, rules, status, what's
+left) with screenshots in `design/screens/`, the owner's design `design/home-night.png` and his icon kit `design/icon/`.
+
+**Done (commits 232458f, 8e04d4d - the second one was saved by the other window - and this one):**
+- New Home for every look (`index.html` `#homeMain.nh`, `renderer.js` "the Night home page" section, the Home block at
+  the end of `styles.css`): pixel night scene + moon (canvases), stats as pixel icons + drawn pixel digits, PLAY with
+  an instance picker, PvP tiers of the signed-in player (`src/main/tiers.js`, IPC `tiers:mine`), Friends "Soon" (no
+  fake friends), Quick join tiles, What's new pop-up, Discord.
+- Night theme, default; every player moves to it once (`store.js` `lookVersion: 2`); Blue and Orange stay in
+  Settings. `tools/night.js` makes `styles-night.css` from `styles.css` + `night-extra.css`.
+- Moonrise icon: `.exe`/installer/window (`assets/icons/reminth-night.ico`), see-through mark
+  (`assets/icons/source/reminth-mark-night.svg`). Version 1.8.0, What's new updated.
+- Tests: `test/theme-night.test.js`, `test/tiers.test.js`, updated theme/accent tests. `tools/preview/` = the hidden
+  off-screen preview used for all checks (never touches the owner's screen or data; README there).
+
+**`npm test`: 692 pass, 0 fail.** Not installed, no installer built, nothing published, website untouched.
+
+**Decisions for the owner:** none needed tonight. When 1.8.0 is published: privacy v13 (`design/privacy-v13-draft.md`)
+and the website's icon in the Moonrise style.
+
+**Test plan (PASS/FAIL, all not tested in the real app yet):**
+1. Install 1.8.0: the installer, desktop shortcut, taskbar and window show the Moonrise icon.
+2. First start: the launcher is in the Night look (black/white, pixel sky); Settings -> Theme shows Night / Blue / Orange and switching works both ways (icon too).
+3. Home: stats show your real numbers in pixel digits; hover names them.
+4. PLAY starts the instance shown under it; the picker lists every instance, picking one changes PLAY; "Open ..." and "New instance" work.
+5. While the game runs: PLAY says Playing, Stop appears under it and works.
+6. PvP tiers shows your real tiers (or "No tiers yet ..."), hover shows the list each came from.
+7. Quick join: tiles for your last worlds/servers; clicking a server joins it, a world opens it.
+8. What's new opens the list; Discord opens the invite in the browser.
+9. Every other page (Discover, Library, Skins, Servers, Reminth+, Settings, Statistics, an instance, Streamer) reads well; no orange/blue left except status colours.
+10. Sign out -> the sign-in card on the full night scene; sign back in.
 
 ## 00000000000000000000000000000000000. Discord: new release = new #announcements post (14 Oct 2026) - desktop window
 
