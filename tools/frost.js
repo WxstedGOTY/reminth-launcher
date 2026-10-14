@@ -75,7 +75,7 @@ function frostText(text) {
 function frostCss(css) {
   return css
     .split(/(\r?\n)/)
-    .map((part) => (/data-accent/.test(part) ? part : frostText(part)))
+    .map((part) => (/data-accent|keep-colour/.test(part) ? part : frostText(part)))
     .join("");
 }
 
@@ -90,7 +90,7 @@ function build() {
   return { cssOut, svgOut };
 }
 
-module.exports = { frost, frostText, frostCss, build };
+module.exports = { frost, frostText, frostCss, build, rgbToHsl, hslToRgb };
 
 if (require.main === module) {
   const out = build();

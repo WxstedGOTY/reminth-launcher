@@ -187,13 +187,16 @@ const DEFAULT_SETTINGS = {
   processPriority: "above-normal",
   launchMinimized: true, // most launchers get out of the way once the game starts
   hardwareAcceleration: true, // only takes effect on next app start - see main.js
-  accent: "cyan", // UI accent colour (renderer only). "cyan" = the blue theme's, "ember" = the orange theme's.
+  accent: "night", // UI accent colour (renderer only). "night" = the Night theme's cream, "cyan" = the blue theme's, "ember" = the orange theme's.
   // false until the player picks an accent (or a theme) themselves; while false, the accent follows the theme (see
   // settingsFrom), so a later deliberate pick sticks.
   accentChosen: false,
-  // The whole launcher's look: "frost" (blue, the default since 1.7.0; styles-frost.css made by tools/frost.js) or
-  // "ember" (orange, styles.css). Picked on the first screen (the Reminth account step) and in Settings.
-  theme: "frost",
+  // The whole launcher's look: "night" (black and white, the default since 1.8.0; styles-night.css made by
+  // tools/night.js), "frost" (blue; styles-frost.css made by tools/frost.js) or "ember" (orange, styles.css). Picked on
+  // the first screen (the Reminth account step) and in Settings.
+  theme: "night",
+  // 2 = this player has had the one-time move to the Night look (1.8.0, see settingsFrom). Never set by the page.
+  lookVersion: 2,
   // Game window. null width/height = let Minecraft use its own last-used size.
   gameWidth: null,
   gameHeight: null,
@@ -322,7 +325,7 @@ function sanitizeSettings(partial, { strict = false, counters = false } = {}) {
   // One of a fixed list each. Anything else (a typo in settings.json, a
   // value from a newer Reminth) falls back to the default instead of
   // reaching the launch code as something it doesn't know.
-  const choices = { gc: ["auto", "g1", "zgc"], processPriority: ["above-normal", "normal"], theme: ["ember", "frost"] };
+  const choices = { gc: ["auto", "g1", "zgc"], processPriority: ["above-normal", "normal"], theme: ["ember", "frost", "night"] };
   for (const [key, allowed] of Object.entries(choices)) {
     if (!(key in partial)) continue;
     clean[key] = allowed.includes(partial[key]) ? partial[key] : DEFAULT_SETTINGS[key];
@@ -398,14 +401,26 @@ async function readSettingsFile() {
   }
 }
 
+/** Each theme's own accent (renderer.js THEME_ACCENT says the same). */
+const THEME_ACCENTS = { night: "night", frost: "cyan", ember: "ember" };
+
 function settingsFrom(parsed) {
   if (!parsed) return { ...DEFAULT_SETTINGS };
   const clean = sanitizeSettings(parsed, { counters: true });
-  // Until the player picks an accent themselves, the old defaults (cyan, then the brand orange) follow the theme
-  // (blue -> cyan, orange -> ember). Any other old pick (violet...) was the player's own and stays.
-  if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan" || clean.accent === "ember"))
-    clean.accent = (clean.theme || DEFAULT_SETTINGS.theme) === "ember" ? "ember" : "cyan";
-  return { ...DEFAULT_SETTINGS, ...clean, streamer: sanitizeStreamer(parsed.streamer) };
+  // 1.8.0 (owner, 14 Oct 2026: "forget orange, use my new night layout"): everyone moves to the Night look once. A
+  // theme picked after that (lookVersion 2 is saved with the next settings write) is the player's own and stays.
+  if (parsed.lookVersion !== 2) {
+    clean.theme = "night";
+    if (clean.accent === undefined || clean.accent === "cyan" || clean.accent === "ember") {
+      clean.accent = "night";
+      clean.accentChosen = false;
+    }
+  }
+  // Until the player picks an accent themselves, the old defaults follow the theme (night -> night, blue -> cyan,
+  // orange -> ember). Any other old pick (violet...) was the player's own and stays.
+  if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan" || clean.accent === "ember" || clean.accent === "night"))
+    clean.accent = THEME_ACCENTS[clean.theme || DEFAULT_SETTINGS.theme] || "night";
+  return { ...DEFAULT_SETTINGS, ...clean, lookVersion: 2, streamer: sanitizeStreamer(parsed.streamer) };
 }
 
 async function loadSettings() {

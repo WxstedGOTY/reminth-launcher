@@ -882,28 +882,57 @@ test("instances: remove deletes the folder with retries; if it can't, the instan
   await assert.rejects(instances.remove("reminth"), /can't be deleted/);
 });
 
-test("theme accent: old default accents follow the theme (blue by default); a pick made after that sticks", async () => {
+test("theme accent: old default accents follow the theme (Night by default); a pick made after that sticks", async () => {
   const fsp = require("fs").promises;
   const paths = require("../src/main/paths");
   await fsp.mkdir(paths.ROOT, { recursive: true });
   await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "ember", maxMemoryMb: 4096 }));
-  assert.equal((await store.loadSettings()).accent, "cyan", "no theme picked: blue, with its own accent");
-  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", theme: "ember" }));
-  assert.equal((await store.loadSettings()).accent, "ember", "orange theme: the orange accent");
-  // a different old pick is the player's own and stays
+  let s = await store.loadSettings();
+  assert.equal(s.theme, "night", "a settings file from before 1.8.0 moves to the Night look");
+  assert.equal(s.accent, "night", "with the Night accent");
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", theme: "ember", lookVersion: 2 }));
+  assert.equal((await store.loadSettings()).accent, "ember", "orange picked after the move: the orange accent");
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "night", theme: "frost", lookVersion: 2 }));
+  assert.equal((await store.loadSettings()).accent, "cyan", "blue picked after the move: the blue accent");
+  // a different old pick is the player's own and stays (the look still moves to Night)
   await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "violet" }));
-  assert.equal((await store.loadSettings()).accent, "violet");
-  // choosing cyan on purpose (accentChosen) keeps cyan
-  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", accentChosen: true }));
+  s = await store.loadSettings();
+  assert.equal(s.accent, "violet");
+  assert.equal(s.theme, "night");
+  // choosing cyan on purpose (accentChosen) after the move keeps cyan
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ accent: "cyan", accentChosen: true, lookVersion: 2 }));
   assert.equal((await store.loadSettings()).accent, "cyan");
   const saved = await store.saveSettings({ accent: "cyan", accentChosen: true });
   assert.equal(saved.accent, "cyan");
   assert.equal(saved.accentChosen, true);
   assert.equal((await store.loadSettings()).accent, "cyan");
-  // no file at all: the default is blue
+  // no file at all: the default is Night
   await fsp.rm(paths.SETTINGS_FILE, { force: true });
   await fsp.rm(`${paths.SETTINGS_FILE}.bak`, { force: true });
   const fresh = await store.loadSettings();
-  assert.equal(fresh.theme, "frost");
-  assert.equal(fresh.accent, "cyan");
+  assert.equal(fresh.theme, "night");
+  assert.equal(fresh.accent, "night");
+  assert.equal(fresh.lookVersion, 2);
+});
+
+test("the move to the Night look happens once: a theme picked afterwards stays", async () => {
+  const fsp = require("fs").promises;
+  const paths = require("../src/main/paths");
+  await fsp.mkdir(paths.ROOT, { recursive: true });
+  // a blue-theme player from 1.7.x (picking a theme sets accentChosen)
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ theme: "frost", accent: "cyan", accentChosen: true, maxMemoryMb: 4096 }));
+  let s = await store.loadSettings();
+  assert.equal(s.theme, "night");
+  assert.equal(s.accent, "night");
+  assert.equal(s.maxMemoryMb, 4096, "nothing else changes");
+  // the next save writes lookVersion 2 with it; then they pick blue again and it stays blue
+  await store.saveSettings({ maxMemoryMb: 6144 });
+  assert.equal(JSON.parse(await fsp.readFile(paths.SETTINGS_FILE, "utf8")).lookVersion, 2);
+  await store.saveSettings({ theme: "frost", accent: "cyan", accentChosen: true });
+  s = await store.loadSettings();
+  assert.equal(s.theme, "frost");
+  assert.equal(s.accent, "cyan");
+  // the page can't send lookVersion back to 1
+  await store.saveSettings({ lookVersion: 1 });
+  assert.equal((await store.loadSettings()).theme, "frost");
 });

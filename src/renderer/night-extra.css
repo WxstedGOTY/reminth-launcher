@@ -1,0 +1,154 @@
+/* ===================================================================
+   The Night look (owner, 14 Oct 2026 - design/NIGHT_DESIGN.md, design/home-night.png, the icon in design/icon/).
+   tools/night.js adds this to the end of styles-night.css (styles.css with every warm colour made grey), so these
+   rules win. Edit this file, then run: node tools/night.js
+   The vibe: a pixel night over near-black, white text, one cream colour for what you press, thin grey lines, pixel
+   headings, small square-ish corners, no glow except PLAY's. Status colours (green, amber, pink-red) stay.
+   =================================================================== */
+
+:root {
+  --bg: #08080a;
+  --bg-2: #0d0d10;
+  --surface: rgba(15, 15, 18, .82);
+  --surface-solid: #121215;
+  --line: rgba(255, 255, 255, .1);
+  --line-soft: rgba(255, 255, 255, .06);
+  --text: #f5f5f6;
+  --text-2: #d6d6da;
+  --text-soft: #e4e4e8;
+  --text-3: #a3a3a9;
+  --brand-core: #ece8de;
+  --brand-glow-deep: #8a8d95;
+  --brand-rim: #c9c5bb;
+  --brand-hot: #ffffff;
+  --brand-bg-ember: #0d0e12;
+  --brand-bg: #050507;
+  --cyan: #d9d9de;
+  --violet: #b0b0b8;
+  --sky: #c8c8ce;
+  --cream: #ece8de;
+  --radius: 12px;
+  --radius-sm: 9px;
+}
+
+html, body { background: var(--bg); }
+
+/* ── the night sky behind every page: dim everywhere, the whole scene on Home and the sign-in screen ── */
+.night-scene { display: block; opacity: .34; }
+body[data-page="home"] #app:not(.signed-out) .night-scene,
+#app.signed-out .night-scene { opacity: 1; }
+.aurora, .grid-bg { display: none; }
+.backdrop::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(8, 8, 10, 0) 0%, rgba(8, 8, 10, .35) 100%);
+}
+body[data-page="home"] .backdrop::after, #app.signed-out .backdrop::after { display: none; }
+
+/* ── rail: solid black, grey squares, the active one lit with a white bar on its left ── */
+.rail { background: #0a0a0c; border-right: 1px solid rgba(255, 255, 255, .07); backdrop-filter: none; }
+.rail-brand img { filter: none; width: 34px; height: 34px; }
+.rail-btn { border-radius: 11px; border-color: transparent; background: transparent; color: #c9c9ce; }
+.rail-btn:hover { background: rgba(255, 255, 255, .06); border-color: transparent; color: #fff; transform: none; }
+.rail-btn.active {
+  color: #fff; background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .08); box-shadow: none;
+}
+.rail-btn.active::before {
+  content: ""; position: absolute; left: -13px; top: 50%; width: 3px; height: 22px; margin-top: -11px;
+  border-radius: 0 3px 3px 0; background: #f2f2f2;
+}
+.rail-divider { background: rgba(255, 255, 255, .08); width: 28px; }
+.rail-add { border: 1px dashed rgba(255, 255, 255, .14); }
+.instance-chip { background: #1f2026; color: #f1f1f3; box-shadow: inset 0 1px rgba(255, 255, 255, .1); border: 1px solid rgba(255, 255, 255, .1); }
+.rail-btn.active .instance-chip { box-shadow: 0 0 0 2px rgba(255, 255, 255, .5); }
+.rail-live.on { background: rgba(244, 63, 94, .2); border-color: rgba(255, 92, 138, .4); box-shadow: none; }
+
+/* ── top bar: see-through over the sky, the page name in pixel letters ── */
+.topbar { background: transparent; border-bottom-color: transparent; backdrop-filter: none; height: 70px; padding-left: 30px; }
+.topbar .eyebrow {
+  font-family: "Pixelify Sans", "Inter", sans-serif; font-size: 19px; line-height: 1.1; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: #fff;
+}
+.topbar-sub { color: #a3a3a9; font-size: 12px; margin-top: 3px; }
+.top-action, .account-chip, .live-pill:not(.on) {
+  background: rgba(12, 12, 15, .78); border-color: rgba(255, 255, 255, .12); border-radius: 9px; color: #e6e6ea;
+}
+.top-action:hover:not(:disabled), .account-chip:hover { background: rgba(28, 28, 33, .9); border-color: rgba(255, 255, 255, .22); color: #fff; }
+.top-action.active { color: #fff; background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .28); }
+.soon { color: #c9c9ce; background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .16); border-radius: 4px; }
+.avatar { background: #22232a; border-color: rgba(255, 255, 255, .12); border-radius: 7px; }
+.account-state.online { color: #9ee6b8; }
+
+/* no sidebar in the Night look: every page gets the whole width (Home has What's new and Discord itself) */
+.app-side { display: none !important; }
+
+/* ── pages ── */
+.pages { padding: 14px 30px 40px; }
+.pages::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .12); }
+.pages::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .22); }
+.page-head h1, .display { letter-spacing: .03em; }
+.page-head h1 { font-family: "Pixelify Sans", "Inter", sans-serif; text-transform: none; }
+.lede { color: var(--text-3); }
+.block-head h2 { font-family: "Pixelify Sans", "Inter", sans-serif; font-size: 17px; letter-spacing: .04em; font-weight: 700; }
+.eyebrow { color: #a7a7ac; letter-spacing: .17em; }
+
+/* cards: dark glass with a thin line, small corners, no big shadow */
+.card {
+  background: var(--surface); border-color: var(--line); border-radius: var(--radius);
+  backdrop-filter: blur(10px); box-shadow: inset 0 1px rgba(255, 255, 255, .03);
+}
+
+/* buttons: cream for the one that matters, dark outlined for the rest */
+.btn { border-radius: 9px; border-color: rgba(255, 255, 255, .13); background: rgba(14, 14, 17, .75); color: #f1f1f3; }
+.btn:hover:not(:disabled) { background: rgba(32, 32, 37, .9); border-color: rgba(255, 255, 255, .24); transform: none; }
+.btn.primary {
+  background: var(--accent); color: var(--accent-ink); border: 1px solid rgba(255, 255, 255, .5);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 18px rgba(0, 0, 0, .35);
+}
+.btn.primary:hover:not(:disabled) { filter: brightness(1.05); background: var(--accent); }
+.btn.xl { border-radius: 11px; }
+.btn.sm { border-radius: 8px; }
+.btn.ghost { background: transparent; border-color: transparent; }
+.btn.primary.danger-fill { background: #3a0f1c; color: #ffd3dd; border-color: rgba(255, 92, 138, .5); box-shadow: none; }
+
+.tag { border-radius: 5px; letter-spacing: .06em; }
+.tag.cyan, .tag.violet { color: #e9e9ec; border-color: rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .06); }
+.tag.dim { color: #b3b3b9; }
+
+/* tabs, inputs, switches, menus, tooltips */
+.tab { border-radius: 8px; }
+.tab.active { color: var(--accent-ink); background: var(--accent); border-color: transparent; box-shadow: none; }
+.switch.on { background: var(--accent); }
+input, select, textarea { border-radius: 8px; }
+.dd-menu, .tip { background: #0f0f12; border-color: rgba(255, 255, 255, .12); border-radius: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .6); }
+.dd-item { border-radius: 7px; }
+.dd-item.selected { color: #fff; background: rgba(255, 255, 255, .08); }
+.dd-item.selected .i { color: #fff; }
+
+/* dialogs */
+.modal-root { background: rgba(0, 0, 0, .62); backdrop-filter: blur(3px); }
+.modal { background: #0e0e11; border: 1px solid rgba(255, 255, 255, .12); border-radius: 14px; box-shadow: 0 30px 80px rgba(0, 0, 0, .7); }
+/* dialog titles stay in Inter: they often carry versions and numbers, and Pixelify's digits read wrong (2 looks like 8) */
+.modal-head h2 { font-weight: 750; letter-spacing: .01em; }
+
+/* the loading screen: the Moonrise mark on the night */
+.boot-splash { background: #050507; }
+.boot-glow { display: none; }
+.boot-bar i { background: var(--cream); }
+
+/* the sign-in card sits on the full night scene */
+.signin-card { background: rgba(10, 10, 13, .86); border-color: rgba(255, 255, 255, .12); backdrop-filter: blur(10px); }
+.signin-mark img { filter: none; }
+
+/* the moon shows with the whole scene: Home and the sign-in screen */
+#app.signed-out .night-moon { display: block; }
+
+/* the top bar already names the page in pixel letters - the page's own small label would say it twice */
+.page-head .eyebrow { display: none; }
+
+/* switches: the knob goes dark on the cream track, so "on" reads at a glance */
+.switch.on { background: var(--accent); }
+.switch.on::after { background: #141417; }
+
+/* links: cream and underlined (there's no blue in the Night look) */
+.link-blue, .upd-link, .legal-body a, .hint a { color: var(--cream); text-decoration: underline; text-underline-offset: 3px; }
+.link-btn { color: var(--cream); }

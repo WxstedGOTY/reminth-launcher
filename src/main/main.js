@@ -8,6 +8,7 @@ const { spawn: spawnProcess } = require("child_process");
 const minecraft = require("./minecraft");
 const java = require("./java");
 const msAuth = require("./msAuth");
+const tiers = require("./tiers");
 const store = require("./store");
 const paths = require("./paths");
 const config = require("./config");
@@ -415,6 +416,13 @@ ipcMain.handle("auth:skin", async () => {
   return skin.getSkin(account);
 });
 
+// Home's PvP tiers card: the signed-in player's own tiers (tiers.js - only the account id is sent).
+ipcMain.handle("tiers:mine", async () => {
+  const account = auth.current();
+  if (!account || !account.uuid) return { reached: false, ranks: [], error: "Not signed in." };
+  return tiers.playerTiers(account.uuid);
+});
+
 ipcMain.handle("skin:profile", async () => skin.getProfile(await freshAccount()));
 
 function pngFromDataUrl(dataUrl) {
@@ -742,9 +750,10 @@ ipcMain.handle("settings:get", async () => {
   return cachedSettings;
 });
 
-/** The window's (taskbar) icon for a theme: the orange or the blue cube. */
+/** The window's (taskbar) icon for a theme: the Night "Moonrise" icon (also the .exe's), the orange or the blue cube. */
 function themeIcon(theme) {
-  return path.join(__dirname, "..", "..", "assets", "icons", theme === "frost" ? "reminth-frost.ico" : "reminth.ico");
+  const file = theme === "frost" ? "reminth-frost.ico" : theme === "ember" ? "reminth.ico" : "reminth-night.ico";
+  return path.join(__dirname, "..", "..", "assets", "icons", file);
 }
 function applyThemeIcon() {
   try {

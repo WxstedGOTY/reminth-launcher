@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld("reminth", {
   signIn: (restart) => ipcRenderer.invoke("auth:signIn", Boolean(restart)),
   signOut: () => ipcRenderer.invoke("auth:signOut"),
   skin: () => ipcRenderer.invoke("auth:skin"),
+  myTiers: () => ipcRenderer.invoke("tiers:mine"),
   skinProfile: () => ipcRenderer.invoke("skin:profile"),
   skinApply: (req) => ipcRenderer.invoke("skin:apply", req),
   skinLibrary: () => ipcRenderer.invoke("skin:library"),

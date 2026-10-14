@@ -26,6 +26,7 @@ const state = {
   progress: new Map(), // instanceId -> { stage, pct, short }
   progressShown: null, // instance id whose run the progress bar is painting
   lastStage: null, // last stage written to the log, so each is logged once per run
+  heroPick: null, // the instance picked under Home's PLAY (this run only; a game starting clears it)
 };
 
 /* ================================================================== *
@@ -707,7 +708,7 @@ window.reminth.isMaximized().then(paintMaxButton).catch(() => {});
  * navigation                                                          *
  * ================================================================== */
 const PAGE_META = {
-  home: ["Reminth Launcher", "Your Minecraft, your way."],
+  home: ["Reminth", "Your Minecraft, your way."],
   instance: ["Instance", "Its version, its mods, its worlds."],
   library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
@@ -729,6 +730,8 @@ function switchPage(page) {
   // out of the last player's instances, worlds, mods and servers.
   if ((!state.signedIn || rmGateNeeded()) && page !== "home") return;
   currentPage = page;
+  // The Night look styles the shell per page (Home: the full night scene, a see-through top bar).
+  document.body.dataset.page = page;
   document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === page));
   document.querySelectorAll(".rail-btn[data-page]").forEach((b) => b.classList.toggle("active", b.dataset.page === page));
   document.querySelectorAll(".rail-btn.instance-btn").forEach((b) => {
@@ -746,13 +749,18 @@ function switchPage(page) {
   // Discover has its own filter column in the space the sidebar uses.
   // The instance page keeps the side column too (news, Reminth+, your
   // profile) - same as Home - instead of stretching the mod list across it.
-  $("appSide").style.display = page === "discover" || page === "skins" ? "none" : "flex";
+  // Home (the Night design) has its own What's new and Discord at the bottom; the Night look has no sidebar at all
+  // (styles-night.css), the old looks keep it on the other pages.
+  $("appSide").style.display = page === "discover" || page === "skins" || page === "home" ? "none" : "flex";
   $("topEyebrow").textContent = PAGE_META[page][0];
   $("topTitle").textContent = PAGE_META[page][1];
   $("pages").scrollTop = 0;
   if (page === "stats") loadStats();
   if (page === "instance") renderInstancePage();
-  if (page === "home") loadRecent();
+  if (page === "home") {
+    loadRecent();
+    loadMyTiers();
+  }
   // Announced before the page's own hook runs, so a hook that fails can't swallow it.
   document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
   if (pageHooks[page]) pageHooks[page]();
@@ -925,13 +933,13 @@ function applyAccountUI() {
   $("signInHero").hidden = signedIn || needRm;
   $("mcSteps").hidden = !(state.rm && state.rm.user && state.rm.accounts);
   $("homeMain").hidden = !signedIn || needRm;
-  const greeting = $("heroGreeting");
-  greeting.textContent = signedIn ? "Welcome back, " : "Ready to play?";
-  if (signedIn) greeting.appendChild(el("span", "pii", state.username));
   // The same sign-in card gates the whole app, not just Home: signed out, the
   // rail, top actions and sidebar are hidden (styles.css, #app.signed-out)
   // and switchPage refuses every page but Home.
   $("app").classList.toggle("signed-out", !signedIn || needRm);
+  // Home's PvP tiers are the signed-in player's: looked up again for a new account, gone when signed out.
+  $("nhTierList").textContent = "";
+  if (signedIn) loadMyTiers();
   if ((!signedIn || needRm) && currentPage !== "home") switchPage("home");
   paintTopChip();
   refreshSkin();
@@ -1230,7 +1238,7 @@ const activeInstance = () => state.instances.find((i) => i.id === state.activeId
  * whatever was last clicked in the rail - looking at another instance's
  * mods doesn't change Home.
  */
-const heroInstance = () => window.ReminthPure.heroInstance(state.instances, state.activeId);
+const heroInstance = () => (state.heroPick && instanceById(state.heroPick)) || window.ReminthPure.heroInstance(state.instances, state.activeId);
 const instanceById = (id) => state.instances.find((i) => i.id === id) || null;
 const LOADER_LABELS = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" };
 const LOADER_TAGS = { vanilla: "emerald", fabric: "cyan", quilt: "violet", forge: "amber", neoforge: "rose" };
@@ -1337,9 +1345,10 @@ function renderHero() {
   if (!inst) {
     // The instance list couldn't be read: say so instead of "set up and ready".
     $("heroLoader").textContent = "—";
-    $("heroLoader").className = "tag dim";
-    $("heroVersion").textContent = "—";
-    $("heroInstance").textContent = "—";
+    $("heroVersion").textContent = "";
+    $("heroInstance").textContent = "No instance";
+    $("heroMeta").hidden = true;
+    $("heroLede").hidden = false;
     $("heroLede").textContent = state.instancesError
       ? "Reminth couldn't read your instances. Restart Reminth — your worlds and mods are not touched."
       : "No instance yet. Make one with the + on the left.";
@@ -1347,29 +1356,71 @@ function renderHero() {
     return;
   }
   $("heroInstanceBtn").disabled = false;
+  $("heroLede").hidden = true;
+  $("heroMeta").hidden = false;
   $("heroLoader").textContent = loaderLabel(inst);
-  $("heroLoader").className = loaderTag(inst);
-  $("heroVersion").textContent = "Minecraft " + inst.mcVersion;
+  $("heroVersion").textContent = inst.mcVersion;
   $("heroInstance").textContent = inst.name;
-  $("heroLede").textContent = inst.modpack
-    ? `${inst.modpack.title} is installed and ready. One click and you're in.`
-    : `Your ${loaderLabel(inst)} ${inst.mcVersion} instance is set up and ready. One click and you're in.`;
+  $("heroPick").title = inst.modpack ? `${inst.modpack.title} - pick the instance Play starts` : "Pick the instance Play starts";
   paintHeroStats();
   paintPlayButtons();
 }
 
 /**
- * The hero's Time played is the player's whole time through Reminth (every
- * instance, deleted ones too - main.js keeps the counter); Last played is
- * about the hero instance, like the rest of the hero.
+ * Home's "Last played ... · ... played": Time played is the player's whole time through Reminth (every instance,
+ * deleted ones too - main.js keeps the counter); Last played is about the instance PLAY starts.
  */
 function paintHeroStats() {
   const inst = heroInstance();
   const total = window.ReminthPure.homePlayTime(state.settings, state.instances);
-  $("heroPlaytime").textContent = total ? formatPlaytime(msToTicks(total)) : "—";
+  $("heroPlaytime").textContent = total ? formatPlaytime(msToTicks(total)) : "0m";
   $("heroPlaytime").title = "All your time in Minecraft through Reminth, across every instance - including ones you deleted.";
-  $("heroLast").textContent = inst && inst.lastPlayed ? formatWhen(inst.lastPlayed) : "Never";
+  $("heroLast").textContent = inst && inst.lastPlayed ? formatWhen(inst.lastPlayed) : "never";
 }
+
+/** The menu under Home's PLAY: which instance it starts, then that instance's page and a new one. */
+function openHeroPicker() {
+  const opener = $("heroPick");
+  const current = heroInstance();
+  const box = el("div", "dd-menu inst-menu hero-menu");
+  box.setAttribute("role", "menu");
+  box.setAttribute("aria-label", "Pick the instance Play starts");
+  box.appendChild(el("div", "inst-menu-title", "Play starts"));
+  const buttons = [];
+  const add = (label, sub, iconId, onPick, extraClass) => {
+    const b = el("button", "dd-item" + (extraClass ? " " + extraClass : ""));
+    b.type = "button";
+    b.setAttribute("role", "menuitem");
+    b.appendChild(icon(iconId));
+    const text = el("span", "im-text");
+    text.appendChild(el("span", null, label));
+    if (sub) text.appendChild(el("small", "im-why", sub));
+    b.appendChild(text);
+    b.onclick = () => {
+      closeInstanceMenu(false);
+      onPick();
+    };
+    box.appendChild(b);
+    buttons.push(b);
+    return b;
+  };
+  for (const inst of state.instances) {
+    const on = current && inst.id === current.id;
+    const b = add(inst.name, `${loaderLabel(inst)} ${inst.mcVersion}`, on ? "#i-check" : "#i-cube", () => {
+      state.heroPick = inst.id;
+      renderHero();
+    }, on ? "picked" : "");
+    b.setAttribute("aria-checked", on ? "true" : "false");
+    b.setAttribute("role", "menuitemradio");
+  }
+  if (current) {
+    box.appendChild(el("div", "inst-menu-sep"));
+    add(`Open ${current.name}`, "Its mods, worlds, servers and logs", "#i-library", () => selectInstance(current.id, true));
+  }
+  add("New instance", "Any version, any loader", "#i-plus", () => openInstanceModal(null));
+  showMenuBox(box, buttons, { anchor: opener, below: true, opener });
+}
+$("heroPick").onclick = () => (instMenu ? closeInstanceMenu(false) : openHeroPicker());
 
 /**
  * Play buttons double as a progress pill while their instance installs.
@@ -2055,13 +2106,28 @@ function openInstanceMenu(id, at = {}) {
     box.appendChild(b);
     buttons.push(b);
   }
+  showMenuBox(box, buttons, at);
+}
+
+/**
+ * Puts a built menu on screen: at: { x, y } (the pointer), { anchor } (beside it, or under it when there's no room),
+ * or { anchor, below: true } (centred under it). Never runs off the window; keyboard: arrows, Home/End, Enter, Esc;
+ * the opener gets the focus back on Esc. One menu at a time (closeInstanceMenu closes it).
+ */
+function showMenuBox(box, buttons, at = {}) {
+  closeInstanceMenu(false);
   document.body.appendChild(box);
   box.style.display = "flex";
-  // Where: at the pointer, or under the button; then kept inside the window.
+  // Where: at the pointer, beside or under the button; then kept inside the window.
   const r = box.getBoundingClientRect();
   let x = at.x;
   let y = at.y;
-  if (at.anchor) {
+  if (at.anchor && at.below) {
+    const a = at.anchor.getBoundingClientRect();
+    x = a.left + a.width / 2 - r.width / 2;
+    y = a.bottom + 8;
+    if (y + r.height > window.innerHeight - 8) y = a.top - r.height - 8; // no room below: above it
+  } else if (at.anchor) {
     const a = at.anchor.getBoundingClientRect();
     x = a.right + 6;
     y = a.top;
@@ -2096,7 +2162,8 @@ function openInstanceMenu(id, at = {}) {
     }
   };
   const onOutside = (e) => {
-    if (!box.contains(e.target)) closeInstanceMenu(false);
+    // A press on the button that opened it is left to that button (Home's picker closes its menu on a second click).
+    if (!box.contains(e.target) && !(at.opener && at.opener.contains(e.target))) closeInstanceMenu(false);
   };
   const onAway = () => closeInstanceMenu(false);
   document.addEventListener("keydown", onKey, true);
@@ -2810,6 +2877,8 @@ function paintGameRunning() {
 
 window.reminth.onPlayStarted(({ instanceId, startedAt }) => {
   state.running.add(instanceId);
+  // Home's PLAY goes back to "the last played" - which is this one now.
+  state.heroPick = null;
   paintGameRunning();
   // Home's hero moves to this instance now, not after the list is read
   // again (main.js has saved "last played" by the time this arrives).
@@ -2985,6 +3054,61 @@ function addInstanceTile() {
   return card;
 }
 
+/* ---- Home's Quick join: the last worlds and servers, one tile each (the Night design) ---- */
+// Dark tints for the server tiles - picked by the name, so a server keeps its colour.
+const QUICK_TINTS = ["#1d2742", "#331c3b", "#1b3633", "#1c2a4a", "#3a2a1a", "#2a1d1d", "#1f2f24", "#2c2c38"];
+
+/**
+ * Two letters for a server tile: two words -> their first letters ("pvp hub" -> PH); one word (the address without
+ * www. and its ending) -> its first letter and the next consonant ("mcpvp.club" -> MC, "donut" -> DN). `taken`: the
+ * pairs already used, so two servers that would look the same get the next consonant instead ("mcpvp.com" -> MP).
+ */
+function quickInitials(name, taken) {
+  const clean = String(name || "").toLowerCase().replace(/^www\./, "").replace(/\.[a-z]{2,}(:\d+)?$/, "");
+  const words = clean.split(/[^a-z0-9]+/).filter(Boolean);
+  if (!words.length) return "?";
+  const pairs = [];
+  if (words.length > 1) pairs.push(words[0][0] + words[1][0]);
+  const w = words.join("");
+  for (let i = 1; i < w.length; i++) if (!/[aeiou]/.test(w[i])) pairs.push(w[0] + w[i]);
+  pairs.push(w.slice(0, 2));
+  const pick = pairs.find((p) => p.length === 2 && !taken.has(p)) || pairs[0];
+  taken.add(pick);
+  return pick.toUpperCase();
+}
+
+function quickTile(entry, taken) {
+  const b = el("button", "nh-tile recent-play " + entry.type);
+  b.type = "button";
+  if (entry.type === "server") {
+    b.textContent = quickInitials(entry.name || entry.address, taken);
+    let h = 0;
+    for (const c of String(entry.name || entry.address)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    b.style.setProperty("--tint", QUICK_TINTS[h % QUICK_TINTS.length]);
+  } else {
+    b.appendChild(pxIcon("world"));
+  }
+  const inst = recentTarget(entry);
+  if (inst) b.dataset.instance = inst.id;
+  const where = entry.type === "server" ? entry.address : `World · ${entry.instanceName || (inst && inst.name) || "Reminth"}`;
+  b.dataset.tip = `${entry.name}${where ? " · " + where : ""}`;
+  b.setAttribute("aria-label", `${entry.type === "server" ? "Join" : "Open"} ${entry.name}`);
+  bindTip(b);
+  b.onclick = () => {
+    const target = recentTarget(entry);
+    if (!target || b.disabled) return;
+    if (state.running.has(target.id) || state.installing.has(target.id)) return;
+    if (entry.type === "server") {
+      const join = window.ReminthPure.parseServerAddress(entry.address);
+      if (!join) return toast("That server address can't be read.");
+      runPlay({ instanceId: target.id, join: { host: join.host, port: join.port } });
+    } else {
+      runPlay({ instanceId: target.id, world: entry.folder, worldName: entry.name });
+    }
+  };
+  return b;
+}
+
 async function loadRecent() {
   let data;
   try {
@@ -2993,21 +3117,13 @@ async function loadRecent() {
     data = { recent: [], worlds: [], servers: [], worldCount: 0, serverCount: 0, totalPlayTimeTicks: 0, error: err.message };
   }
   state.recent = data;
-  const grid = $("recentGrid");
-  if (data.error) {
-    renderEmpty(grid, "Couldn't read your saves folder", friendlyError(data.error));
-    grid.prepend(addInstanceTile());
-    $("recentNote").textContent = "";
-  } else if (!data.recent.length) {
-    renderEmpty(grid, "Nothing played yet", "Start the game and your worlds and servers will show up here.");
-    grid.prepend(addInstanceTile());
-    $("recentNote").textContent = "";
-  } else {
-    grid.textContent = "";
-    grid.appendChild(addInstanceTile());
-    disambiguate(data.recent).forEach((entry) => grid.appendChild(recentCard(entry, { showInstance: true })));
-    $("recentNote").textContent = `${data.worldCount} world${data.worldCount === 1 ? "" : "s"} · ${data.serverCount} saved server${data.serverCount === 1 ? "" : "s"}`;
-  }
+  const row = $("quickJoin");
+  row.textContent = "";
+  const entries = data.error ? [] : disambiguate(data.recent || []).slice(0, 6);
+  const taken = new Set();
+  entries.forEach((entry) => row.appendChild(quickTile(entry, taken)));
+  $("nhQuickWrap").hidden = !entries.length;
+  paintRecentPlayButtons();
 
   paintHeroStats();
 
@@ -3039,6 +3155,440 @@ document.addEventListener("visibilitychange", paintFocus);
 paintFocus();
 
 /* ================================================================== *
+ * the Night home page (owner's "Home · Night" design, 14 Oct 2026):   *
+ * pixel icons, the PvP tiers card, What's new, the night scene        *
+ * ================================================================== */
+// Small pixel pictures, one string per row: "#" a full pixel, "+" a half-bright one. Drawn as SVG rectangles.
+const PX_ICONS = {
+  sword: [
+    "...........###",
+    "..........####",
+    ".........####.",
+    "........####..",
+    ".......####...",
+    "......####....",
+    "..#..####.....",
+    "..##.###......",
+    "...####.......",
+    "...+##........",
+    "..##+##.......",
+    ".##...#.......",
+    "##............",
+    "#.............",
+  ],
+  skull: [
+    "...########...",
+    ".############.",
+    "##############",
+    "##############",
+    "###...##...###",
+    "###...##...###",
+    "###...##...###",
+    "######..######",
+    ".############.",
+    "..##########..",
+    "..#.##.##.#...",
+    "..##########..",
+  ],
+  mob: [
+    "##..........##",
+    "##############",
+    "##############",
+    "##...####...##",
+    "##...####...##",
+    "##############",
+    "#####....#####",
+    "####......####",
+    "####......####",
+    "####..##..####",
+    "##############",
+  ],
+  pickaxe: [
+    "....######....",
+    "..##########..",
+    ".####....####.",
+    "###.......###.",
+    "##.......####.",
+    "........##+##.",
+    ".......##...#.",
+    "......##......",
+    ".....##.......",
+    "....##........",
+    "...##.........",
+    "..##..........",
+    ".##...........",
+    "##............",
+  ],
+  block: [
+    "##############",
+    "#............#",
+    "#.#..+..#..+.#",
+    "#............#",
+    "#..+..#..+..##",
+    "#............#",
+    "#.#..+..#..+.#",
+    "#............#",
+    "#..+..#..+..##",
+    "#............#",
+    "##############",
+  ],
+  world: [
+    "##############",
+    "#+#+#+#+#+#+##",
+    "##############",
+    "#............#",
+    "#.+..#..+..#.#",
+    "#............#",
+    "#..#..+..#...#",
+    "#............#",
+    "#.+..#..+..#.#",
+    "##############",
+  ],
+};
+
+function pxIcon(name) {
+  const rows = PX_ICONS[name] || PX_ICONS.block;
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  const w = Math.max(...rows.map((r) => r.length));
+  svg.setAttribute("viewBox", `0 0 ${w} ${rows.length}`);
+  svg.setAttribute("class", "px");
+  svg.setAttribute("shape-rendering", "crispEdges");
+  svg.setAttribute("aria-hidden", "true");
+  rows.forEach((row, y) => {
+    // One rectangle per run of the same pixel, not one per pixel.
+    for (let x = 0; x < row.length; ) {
+      const c = row[x];
+      let end = x;
+      while (end < row.length && row[end] === c) end++;
+      if (c === "#" || c === "+") {
+        const r = document.createElementNS(NS, "rect");
+        r.setAttribute("x", x);
+        r.setAttribute("y", y);
+        r.setAttribute("width", end - x);
+        r.setAttribute("height", 1);
+        if (c === "+") r.setAttribute("opacity", "0.5");
+        svg.appendChild(r);
+      }
+      x = end;
+    }
+  });
+  return svg;
+}
+document.querySelectorAll("i.px-icon[data-px]").forEach((i) => i.appendChild(pxIcon(i.dataset.px)));
+
+
+// Pixel digits for the big numbers on Home: Pixelify Sans' own digits are hard to tell apart (a 5 reads as an 8, a 7
+// as a 1), so numbers are drawn from this 5x7 set instead, 3 screen pixels per pixel - always sharp.
+const PX_DIGITS = {
+  0: [".###.", "#...#", "#..##", "#.#.#", "##..#", "#...#", ".###."],
+  1: ["..#..", ".##..", "..#..", "..#..", "..#..", "..#..", ".###."],
+  2: [".###.", "#...#", "....#", "...#.", "..#..", ".#...", "#####"],
+  3: ["####.", "....#", "....#", ".###.", "....#", "....#", "####."],
+  4: ["...#.", "..##.", ".#.#.", "#..#.", "#####", "...#.", "...#."],
+  5: ["#####", "#....", "####.", "....#", "....#", "#...#", ".###."],
+  6: ["..##.", ".#...", "#....", "####.", "#...#", "#...#", ".###."],
+  7: ["#####", "....#", "...#.", "..#..", ".#...", ".#...", ".#..."],
+  8: [".###.", "#...#", "#...#", ".###.", "#...#", "#...#", ".###."],
+  9: [".###.", "#...#", "#...#", ".####", "....#", "...#.", ".##.."],
+  ",": ["..", "..", "..", "..", "..", ".#", ".#", "#."],
+  ".": [".", ".", ".", ".", ".", ".", "#"],
+  // a locale's space between thousands (also the narrow and the no-break one)
+  " ": ["..", "..", "..", "..", "..", "..", ".."],
+  "\u00a0": ["..", "..", "..", "..", "..", "..", ".."],
+  "\u202f": ["..", "..", "..", "..", "..", "..", ".."],
+  "—": ["....", "....", "....", "####", "....", "....", "...."],
+  "-": ["....", "....", "....", "####", "....", "....", "...."],
+};
+
+/** `text` drawn in PX_DIGITS (anything else is left out) as one SVG, `unit` screen pixels per pixel. */
+function pxNumber(text, unit = 3) {
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "px-num");
+  svg.setAttribute("shape-rendering", "crispEdges");
+  svg.setAttribute("aria-hidden", "true");
+  let x = 0;
+  for (const ch of String(text)) {
+    const rows = PX_DIGITS[ch];
+    if (!rows) continue;
+    const w = Math.max(...rows.map((r) => r.length));
+    rows.forEach((row, y) => {
+      for (let i = 0; i < row.length; i++) {
+        if (row[i] !== "#") continue;
+        let end = i;
+        while (end < row.length && row[end] === "#") end++;
+        const r = document.createElementNS(NS, "rect");
+        r.setAttribute("x", x + i);
+        r.setAttribute("y", y);
+        r.setAttribute("width", end - i);
+        r.setAttribute("height", 1);
+        svg.appendChild(r);
+        i = end - 1;
+      }
+    });
+    x += w + 1;
+  }
+  const cols = Math.max(1, x - 1);
+  svg.setAttribute("viewBox", `0 0 ${cols} 8`);
+  svg.setAttribute("width", cols * unit);
+  svg.setAttribute("height", 8 * unit);
+  return svg;
+}
+
+/** A Home stat: the number in pixel digits, the same text for screen readers and copy. */
+function setPxStat(node, text) {
+  node.textContent = "";
+  node.setAttribute("aria-label", text);
+  node.appendChild(pxNumber(text));
+}
+/* ---- PvP tiers: the player's own tiers on MCTiers, PvPTiers and SubTiers (main/tiers.js) ---- */
+let tiersToken = 0;
+async function loadMyTiers() {
+  if (!state.signedIn) return;
+  const token = ++tiersToken;
+  const list = $("nhTierList");
+  if (!list.childElementCount) list.appendChild(el("p", "nh-empty", "Looking up your tiers…"));
+  let res;
+  try {
+    res = await window.reminth.myTiers();
+  } catch {
+    res = null;
+  }
+  if (token !== tiersToken) return;
+  paintTiers(res);
+}
+
+/** res: { reached, ranks, error } from main/tiers.js playerTiers. */
+function paintTiers(res) {
+  const list = $("nhTierList");
+  const note = $("nhTiersNote");
+  list.textContent = "";
+  note.textContent = "";
+  if (!res || res.error || (!res.ranks.length && !res.reached)) {
+    list.appendChild(el("p", "nh-empty", "Couldn't reach the tier lists right now."));
+    return;
+  }
+  if (!res.ranks.length) {
+    list.appendChild(el("p", "nh-empty", "No tiers yet on MCTiers, PvPTiers or SubTiers."));
+    return;
+  }
+  for (const r of res.ranks.slice(0, 8)) {
+    const chip = el("span", "nh-tier" + (r.retired ? " retired" : ""));
+    chip.dataset.tier = String(r.tier);
+    chip.dataset.high = r.high ? "1" : "0";
+    chip.appendChild(el("b", null, r.label));
+    chip.appendChild(el("span", null, r.modeName));
+    chip.dataset.tip = `${r.modeName}: ${r.high ? "high" : "low"} tier ${r.tier} on ${r.sites.join(", ")}${r.retired ? " (retired)" : ""}`;
+    bindTip(chip);
+    list.appendChild(chip);
+  }
+  if (res.ranks.length > 8) note.textContent = `+${res.ranks.length - 8} more`;
+}
+
+/* ---- What's new: the bottom-left of Home opens the release's list ---- */
+$("nhNews").onclick = () => {
+  const body = el("div", "news-body");
+  const list = el("ul", "change-list");
+  CHANGELOG.forEach((item) => list.appendChild(el("li", null, item)));
+  body.appendChild(list);
+  openModal({ title: "What's new in " + $("nhVersion").textContent, body });
+};
+
+/* ---- the pixel night scene behind the app (Home shows all of it, the other pages a dim sky - see the stylesheets) ---- */
+function sceneRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** A hill line: smooth waves plus a little noise, in steps of `step` px, heights rounded to `snap` px. */
+function sceneRidge(rnd, w, step, snap, base, amp, waves) {
+  const phases = waves.map(() => rnd() * Math.PI * 2);
+  const out = [];
+  for (let x = -step; x < w + step; x += step) {
+    let y = base;
+    waves.forEach(([len, a], i) => (y += Math.sin((x / len) * Math.PI * 2 + phases[i]) * a * amp));
+    y += (rnd() - 0.5) * snap * 1.2;
+    out.push([x, Math.round(y / snap) * snap]);
+  }
+  return out;
+}
+
+/**
+ * The moon, top right, in square halos - its own layer (#nightMoon), so the stylesheets show it only where the whole
+ * scene shows (Home, and the sign-in screen in the Night look), not behind the other pages' content.
+ */
+function paintNightMoon(h, dpr) {
+  const canvas = $("nightMoon");
+  if (!canvas) return;
+  const CW = 440;
+  const CH = 360;
+  canvas.style.width = CW + "px";
+  canvas.style.height = CH + "px";
+  canvas.width = Math.round(CW * dpr);
+  canvas.height = Math.round(CH * dpr);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const M = 64;
+  const mx = CW - 236 - M / 2; // the moon's left edge sits 268 px from the window's right, over the side cards
+  const my = Math.round(Math.max(84, h * 0.11) / 4) * 4;
+  const fill = (color, x, y, w, hh) => {
+    g.fillStyle = color;
+    g.fillRect(x, y, w, hh);
+  };
+  for (const [pad, a] of [[90, 0.03], [56, 0.035], [26, 0.045]]) fill(`rgba(160, 160, 168, ${a})`, mx - pad, my - pad, M + pad * 2, M + pad * 2);
+  fill("#cfcfc6", mx, my, M, M);
+  const craters = [[1, 1, "#b5b5ac"], [2, 1, "#a9a9a0"], [5, 2, "#b5b5ac"], [3, 3, "#a3a39a"], [4, 3, "#b0b0a7"], [1, 5, "#a9a9a0"], [5, 5, "#b5b5ac"], [6, 5, "#a3a39a"], [3, 6, "#b5b5ac"]];
+  for (const [cx, cy, c] of craters) fill(c, mx + cx * 8, my + cy * 8, 8, 8);
+  fill("#dedcd4", mx, my, M, 4);
+}
+
+function paintNightScene() {
+  const canvas = $("nightScene");
+  if (!canvas) return;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  const g = canvas.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.imageSmoothingEnabled = false;
+  const rnd = sceneRandom(1402); // the same scene every time
+  const P = 4; // one art pixel
+  const snap = (v) => Math.round(v / P) * P;
+  const fill = (color, x, y, ww, hh) => {
+    g.fillStyle = color;
+    g.fillRect(snap(x), snap(y), Math.max(P, snap(ww)), Math.max(P, snap(hh)));
+  };
+
+  // sky
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, "#040405");
+  sky.addColorStop(0.55, "#09090b");
+  sky.addColorStop(1, "#0e0e10");
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, h);
+
+  // stars
+  const stars = Math.round((w * h) / 6500);
+  for (let i = 0; i < stars; i++) {
+    const x = Math.round(rnd() * w);
+    const y = Math.round(Math.pow(rnd(), 1.25) * h * 0.66);
+    const size = rnd() < 0.18 ? 3 : 2;
+    g.fillStyle = `rgba(235, 235, 240, ${(0.22 + rnd() * 0.68).toFixed(2)})`;
+    g.fillRect(x, y, size, size);
+  }
+
+  // faint bands of cloud
+  for (let i = 0; i < 9; i++) {
+    const y = h * (0.07 + rnd() * 0.24);
+    fill(`rgba(46, 46, 52, ${(0.18 + rnd() * 0.16).toFixed(2)})`, rnd() * w - 80, y, 140 + rnd() * 320, 8 + rnd() * 6);
+  }
+
+  paintNightMoon(h, dpr);
+
+  // far mountains, then nearer hills
+  const groundY = snap(h * 0.82);
+  const layer = (pts, color) => {
+    g.fillStyle = color;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [x, y] = pts[i];
+      g.fillRect(x, y, pts[i + 1][0] - x, groundY + 64 - y);
+    }
+  };
+  layer(sceneRidge(rnd, w, 32, 16, h * 0.58, h * 0.06, [[900, 1], [380, 0.45], [170, 0.18]]), "#1c1c1f");
+  layer(sceneRidge(rnd, w, 24, 8, h * 0.66, h * 0.035, [[620, 1], [240, 0.5]]), "#151517");
+  layer(sceneRidge(rnd, w, 16, 8, h * 0.735, h * 0.02, [[480, 1], [150, 0.4]]), "#101110");
+
+  // small dark trees on the hills
+  const tree = (x, base, size) => {
+    const s = snap(size);
+    const crown = snap(s * 0.7);
+    fill("#0b0b0a", x + s / 2 - P, base - s * 0.5, P * 2, s * 0.5);
+    for (let yy = 0; yy < crown; yy += P) {
+      for (let xx = 0; xx < s; xx += P) {
+        const corner = (yy === 0 || yy >= crown - P) && (xx === 0 || xx >= s - P);
+        if (!corner) fill(rnd() < 0.3 ? "#1a2019" : "#121612", x + xx, base - s * 0.5 - crown + yy, P, P);
+      }
+    }
+  };
+  for (let x = 90 + rnd() * 60; x < w; x += 70 + rnd() * 150) tree(snap(x), snap(h * (0.715 + rnd() * 0.05)), 28 + rnd() * 26);
+
+  // the ground: grassy steps over dirt, then stone
+  const steps = [];
+  for (let x = -20; x < w; ) {
+    const width = snap(120 + rnd() * 170);
+    steps.push([x, width, groundY + [-2, -1, 0, 0, 1, 2][Math.floor(rnd() * 6)] * 16]);
+    x += width;
+  }
+  for (const [sx, sw, top] of steps) {
+    fill("#261d16", sx, top, sw, h - top);
+    for (let yy = top + 12; yy < h; yy += P) {
+      for (let xx = sx; xx < sx + sw; xx += P) {
+        const r = rnd();
+        if (r < 0.09) fill("#33271c", xx, yy, P, P);
+        else if (r < 0.14) fill("#1b1510", xx, yy, P, P);
+        else if (yy > top + 72 && r > 0.9) fill("#1b1b1d", xx, yy, P, P);
+      }
+    }
+    fill("#26401f", sx, top, sw, 12);
+    for (let xx = sx; xx < sx + sw; xx += P) {
+      if (rnd() < 0.35) fill("#33552a", xx, top, P, P);
+      if (rnd() < 0.25) fill("#26401f", xx, top + 12, P, P);
+    }
+    // tall grass and the odd flower
+    for (let xx = sx + 8; xx < sx + sw - 8; xx += P * 2) {
+      const r = rnd();
+      if (r < 0.1) {
+        const tall = P * (2 + Math.floor(rnd() * 4));
+        g.fillStyle = "#2f5326";
+        g.fillRect(snap(xx), top - tall, 2, tall);
+        g.fillRect(snap(xx) + P, top - tall + P, 2, tall - P);
+      } else if (r < 0.125) {
+        g.fillStyle = "#2a4a22";
+        g.fillRect(snap(xx) + 1, top - 16, 2, 16);
+        fill(rnd() < 0.5 ? "#9b3434" : "#b08a26", xx - 1, top - 20, P, P);
+      }
+    }
+  }
+
+  // the big tree on the left
+  const tx = snap(Math.max(100, w * 0.068));
+  const tTop = snap(h * 0.56);
+  const under = steps.find(([sx, sw]) => tx + 64 >= sx && tx + 64 < sx + sw);
+  const tBase = under ? under[2] : groundY;
+  fill("#1f1812", tx + 56, tTop + 120, 24, tBase - tTop - 120);
+  for (const [lx, ly, lw, lh] of [[16, 0, 104, 48], [0, 40, 136, 72], [-16, 64, 168, 64]]) {
+    for (let yy = 0; yy < lh; yy += P) {
+      for (let xx = 0; xx < lw; xx += P) {
+        const r = rnd();
+        fill(r < 0.22 ? "#26381f" : r < 0.3 ? "#101a0e" : "#1b2a17", tx + lx + xx, tTop + ly + yy, P, P);
+      }
+    }
+  }
+
+  // darker towards the bottom, so Quick join and the buttons read
+  const shade = g.createLinearGradient(0, h * 0.7, 0, h);
+  shade.addColorStop(0, "rgba(0, 0, 0, 0)");
+  shade.addColorStop(1, "rgba(0, 0, 0, 0.42)");
+  g.fillStyle = shade;
+  g.fillRect(0, h * 0.7, w, h * 0.3);
+}
+let sceneTimer = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(sceneTimer);
+  sceneTimer = setTimeout(paintNightScene, 120);
+});
+paintNightScene();
+
+/* ================================================================== *
  * what's new                                                          *
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
@@ -3052,6 +3602,7 @@ const CHANGELOG = [
 ];
 
 function renderChangelog() {
+  $("nhVersion").textContent = "Reminth " + (state.info ? state.info.appVersion : "");
   const box = $("changelog");
   box.textContent = "";
   $("changelogVersion").textContent = "Reminth " + (state.info ? state.info.appVersion : "");
@@ -3096,12 +3647,12 @@ function barList(title, entries, formatValue, rawLabels) {
 function updateHomeStatRow(stats) {
   const ok = Boolean(stats) && !stats.error;
   const num = (v) => formatNumber(v || 0);
-  $("statMobKills").textContent = ok ? num(stats.mobKills) : "—";
-  $("statPlayerKills").textContent = ok ? num(stats.playerKills) : "—";
-  $("statDeaths").textContent = ok ? num(stats.deaths) : "—";
-  $("statDeathsNote").textContent = ok ? (stats.deaths ? "Happens to everyone" : "Flawless so far") : "—";
-  $("statPlaced").textContent = ok ? num(stats.totals && (stats.totals.placed != null ? stats.totals.placed : stats.totals.used)) : "—";
-  $("statBroken").textContent = ok ? num(stats.totals && stats.totals.mined) : "—";
+  setPxStat($("statMobKills"), ok ? num(stats.mobKills) : "—");
+  setPxStat($("statPlayerKills"), ok ? num(stats.playerKills) : "—");
+  setPxStat($("statDeaths"), ok ? num(stats.deaths) : "—");
+  $("statDeathsRow").dataset.tip = ok && !stats.deaths ? "Deaths - flawless so far" : "Deaths";
+  setPxStat($("statPlaced"), ok ? num(stats.totals && (stats.totals.placed != null ? stats.totals.placed : stats.totals.used)) : "—");
+  setPxStat($("statBroken"), ok ? num(stats.totals && stats.totals.mined) : "—");
 }
 
 async function loadStats() {
@@ -3337,30 +3888,35 @@ $("saveJvmArgs").onclick = () => saveSetting({ extraJvmArgs: $("extraJvmArgs").v
 
 document.querySelectorAll(".accent").forEach((btn) => {
   btn.onclick = async () => {
-    const previous = document.documentElement.dataset.accent || "ember";
+    const previous = document.documentElement.dataset.accent || "night";
     const accent = btn.dataset.accent;
     applyAccent(accent);
     // accentChosen: from now on this is the player's own pick, so the one-time move to the brand orange (store.js) leaves it alone.
     if (!(await saveSetting({ accent, accentChosen: true }))) applyAccent(previous);
   };
 });
-/** The whole launcher's look (Settings -> Theme): "ember" = orange, "frost" = blue. */
-const THEME_ACCENT = { ember: "ember", frost: "cyan" };
+/** The whole launcher's look (Settings -> Theme): "night" = black and white (the default), "frost" = blue, "ember" = orange. */
+const THEME_ACCENT = { night: "night", ember: "ember", frost: "cyan" };
+const THEME_FILES = {
+  night: ["styles-night.css", "reminth-mark-night.svg"],
+  frost: ["styles-frost.css", "reminth-mark-frost.svg"],
+  ember: ["styles.css", "reminth-mark.svg"],
+};
 function applyTheme(theme) {
-  theme = theme === "frost" ? "frost" : "ember";
+  theme = THEME_FILES[theme] ? theme : "night";
   document.documentElement.dataset.theme = theme;
   const css = $("themeCss");
-  const href = theme === "frost" ? "styles-frost.css" : "styles.css";
+  const [href, mark] = THEME_FILES[theme];
   if (css && css.getAttribute("href") !== href) css.setAttribute("href", href);
   document.querySelectorAll('img[src*="reminth-mark"]').forEach((img) => {
-    img.src = "../../assets/icons/source/" + (theme === "frost" ? "reminth-mark-frost.svg" : "reminth-mark.svg");
+    img.src = "../../assets/icons/source/" + mark;
   });
   document.querySelectorAll(".theme-pick").forEach((b) => b.classList.toggle("selected", b.dataset.theme === theme));
 }
 window.applyTheme = applyTheme;
 document.querySelectorAll(".theme-pick").forEach((btn) => {
   btn.onclick = async () => {
-    const before = { theme: document.documentElement.dataset.theme || "ember", accent: document.documentElement.dataset.accent || "ember" };
+    const before = { theme: document.documentElement.dataset.theme || "night", accent: document.documentElement.dataset.accent || "night" };
     const theme = btn.dataset.theme;
     applyTheme(theme);
     applyAccent(THEME_ACCENT[theme]);
@@ -3417,7 +3973,7 @@ async function boot() {
     const s = state.settings;
     state.activeId = s.activeInstance || "reminth";
     applyTheme(s.theme);
-    applyAccent(s.accent || "ember");
+    applyAccent(s.accent || "night");
     setSwitch("toggleLaunchMinimized", s.launchMinimized);
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
     paintHwNote();

@@ -41,9 +41,11 @@ test("frost: oranges become blue, status colours and greys stay", () => {
   assert.ok(nb > nr, "the charcoal background becomes navy");
 });
 
-test("the theme setting only takes ember or frost", () => {
+test("the theme setting only takes night, ember or frost", () => {
   const store = require("../src/main/store");
-  assert.equal(store.DEFAULT_SETTINGS.theme, "frost", "blue is the default");
+  assert.equal(store.DEFAULT_SETTINGS.theme, "night", "Night is the default since 1.8.0");
   assert.equal(store.sanitizeSettings({ theme: "ember" }).theme, "ember");
-  assert.equal(store.sanitizeSettings({ theme: "pink" }).theme, "frost");
+  assert.equal(store.sanitizeSettings({ theme: "frost" }).theme, "frost");
+  assert.equal(store.sanitizeSettings({ theme: "night" }).theme, "night");
+  assert.equal(store.sanitizeSettings({ theme: "pink" }).theme, "night");
 });

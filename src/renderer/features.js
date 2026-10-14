@@ -647,7 +647,7 @@ function managedModCard(mod) {
   if (mod.name === "ReminthHUD") {
     mark.textContent = "";
     const img = el("img", "mcard-ico");
-    img.src = "../../assets/icons/source/" + (document.documentElement.dataset.theme === "frost" ? "reminth-mark-frost.svg" : "reminth-mark.svg");
+    img.src = "../../assets/icons/source/" + (THEME_FILES[document.documentElement.dataset.theme] || THEME_FILES.night)[1];
     img.alt = "";
     head.appendChild(img);
   } else head.appendChild(mark);
@@ -1813,6 +1813,7 @@ document.addEventListener("reminth:page", (e) => {
 
 async function buildDiscover() {
   const grid = $("discoverGrid");
+  if (!grid) return; // Home's Discover mods row went with the Night home page (1.8.0)
   let found = {};
   try {
     found = await window.reminth.catalogBySlugs("mod", DISCOVER_MODS.map((m) => m.slug));
@@ -3650,7 +3651,9 @@ function applyStreamerUi(settings, problems) {
   $("streamerToggle").setAttribute("aria-pressed", on ? "true" : "false");
   $("streamerToggle").dataset.tip = on ? "Streamer mode: on — open its settings" : "Streamer mode: off — open its settings";
   $("railStreamer").hidden = !on;
-  $("livePill").hidden = !on;
+  // Always in the top bar (the Night design, 14 Oct 2026): off, it opens streamer mode's settings; on, the Library.
+  $("livePill").classList.toggle("on", on);
+  $("livePill").dataset.page = on ? "library" : "streamer";
   const privacy = on && cfg.hidePersonalInfo !== false;
   if (privacy !== Boolean(state.privacy)) {
     state.privacy = privacy;

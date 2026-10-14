@@ -12,14 +12,14 @@
        clips and screenshots in the Captures tab. -->
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' file: data: https://cdn.modrinth.com https://avatars.githubusercontent.com https://cdn.discordapp.com https://lh3.googleusercontent.com; media-src 'self' file:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';" />
-  <link rel="stylesheet" href="styles-frost.css" id="themeCss" />
+  <link rel="stylesheet" href="styles-night.css" id="themeCss" />
 </head>
-<body>
+<body data-page="home">
 
 <!-- Loading screen: removed by renderer.js once the app's pages are ready (3 seconds at most). -->
 <div class="boot-splash" id="bootSplash" aria-hidden="true">
   <div class="boot-glow"></div>
-  <div class="boot-brand"><img src="../../assets/icons/source/reminth-mark.svg" alt="" /><span>Reminth</span></div>
+  <div class="boot-brand"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /><span>Reminth</span></div>
   <div class="boot-bar"><i id="bootFill"></i></div>
   <div class="boot-note" id="bootNote">Getting everything ready</div>
 </div>
@@ -87,6 +87,8 @@
 
 <div id="app">
   <div class="backdrop">
+    <canvas class="night-scene" id="nightScene" aria-hidden="true"></canvas>
+    <canvas class="night-moon" id="nightMoon" aria-hidden="true"></canvas>
     <div class="grid-bg"></div>
     <div class="aurora a1"></div>
     <div class="aurora a2"></div>
@@ -98,7 +100,7 @@
     <!-- ── icon rail ─────────────────────────────────────────── -->
     <aside class="rail">
       <div class="rail-brand" id="railBrand">
-        <img src="../../assets/icons/source/reminth-mark.svg" alt="Reminth" />
+        <img src="../../assets/icons/source/reminth-mark-night.svg" alt="Reminth" />
       </div>
 
       <nav class="rail-group" id="railNav">
@@ -134,12 +136,12 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-title">
-          <div class="eyebrow" id="topEyebrow">Reminth Launcher</div>
+          <div class="eyebrow" id="topEyebrow">Reminth</div>
           <div class="topbar-sub" id="topTitle">Your Minecraft, your way.</div>
         </div>
 
         <div class="topbar-actions">
-          <button class="live-pill" id="livePill" data-page="library" hidden>
+          <button class="live-pill" id="livePill" data-page="streamer">
             <span class="live-dot"></span><span id="livePillText">Streamer mode</span>
           </button>
           <button class="top-action" data-page="stats" id="statsBtn">
@@ -174,7 +176,7 @@
           <!-- step 1: a Reminth account (when accounts are switched on on the server) - renderer.js applyAccountUI -->
           <div class="signin-wrap" id="rmGate" hidden>
             <div class="card signin-card rm-gate">
-              <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark.svg" alt="" /></div>
+              <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /></div>
               <div class="stepper" aria-label="Step 1 of 2"><div class="st now"><b>1</b><span>Reminth account</span></div><i class="st-line"></i><div class="st"><b>2</b><span>Minecraft</span></div></div>
               <h1 class="display">Create your Reminth account</h1>
               <p class="lede">One account for the launcher and the website. Already have one? Sign in the same way.</p>
@@ -202,6 +204,7 @@
               <div class="rm-look">
                 <span>Pick your look</span>
                 <div class="theme-picks">
+                  <button class="theme-pick" data-theme="night" type="button"><i class="tp-swatch night"></i>Night</button>
                   <button class="theme-pick" data-theme="frost" type="button"><i class="tp-swatch frost"></i>Blue</button>
                   <button class="theme-pick" data-theme="ember" type="button"><i class="tp-swatch ember"></i>Orange</button>
                 </div>
@@ -213,7 +216,7 @@
           <!-- signed out -->
           <div class="signin-wrap" id="signInHero" hidden>
             <div class="card signin-card">
-              <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark.svg" alt="" /></div>
+              <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /></div>
               <div class="stepper" id="mcSteps" aria-label="Step 2 of 2" hidden><div class="st done"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span>Reminth account</span></div><i class="st-line full"></i><div class="st now"><b>2</b><span>Minecraft</span></div></div>
               <h1 class="display">Sign in to play</h1>
               <p class="lede">Reminth signs you in through Microsoft's own page and never sees your password.</p>
@@ -245,30 +248,33 @@
             </div>
           </div>
 
-          <!-- signed in -->
-          <div id="homeMain" hidden>
-            <div class="hero card">
-              <div class="hero-glow"></div>
-              <div class="hero-body">
-                <div class="hero-tags">
-                  <span class="tag cyan" id="heroLoader">Fabric</span>
-                  <span class="tag violet" id="heroVersion">—</span>
-                  <span class="tag dim" id="heroInstance">—</span>
-                </div>
-                <h1 class="display" id="heroGreeting">Ready to play?</h1>
-                <p class="lede" id="heroLede">Your instance is set up and ready. One click and you're in.</p>
-                <div class="hero-actions">
-                  <button class="btn primary xl" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
-                  <button class="btn primary danger-fill" id="stopBtn" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
-                  <button class="btn sync-btn" id="heroSyncBtn" hidden><svg class="i"><use href="#i-refresh"/></svg><span>Update mods</span></button>
-                  <button class="btn outline" id="heroInstanceBtn">Instance</button>
-                </div>
+          <!-- signed in: the Night home page (owner's design "Home · Night", 14 Oct 2026 - design/home-night.png).
+               The pixel night scene behind it is the canvas in .backdrop (renderer.js paintNightScene). -->
+          <div id="homeMain" class="nh" hidden>
+            <!-- left: what you've done, in pixel icons (renderer.js updateHomeStatRow) -->
+            <ul class="nh-stats" aria-label="Your stats">
+              <li data-tip="Player kills"><i class="px-icon" data-px="sword"></i><b class="display" id="statPlayerKills">—</b></li>
+              <li data-tip="Deaths" id="statDeathsRow"><i class="px-icon" data-px="skull"></i><b class="display" id="statDeaths">—</b></li>
+              <li data-tip="Mob kills"><i class="px-icon" data-px="mob"></i><b class="display" id="statMobKills">—</b></li>
+              <li data-tip="Blocks broken"><i class="px-icon" data-px="pickaxe"></i><b class="display" id="statBroken">—</b></li>
+              <li data-tip="Blocks placed"><i class="px-icon" data-px="block"></i><b class="display" id="statPlaced">—</b></li>
+            </ul>
+
+            <!-- middle: PLAY, the instance it plays, when you last played -->
+            <div class="nh-center">
+              <button class="nh-play" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+              <div class="nh-row">
+                <button class="nh-pick" id="heroPick" type="button" aria-haspopup="menu" title="Pick the instance Play starts">
+                  <b id="heroLoader">Fabric</b><b id="heroVersion">—</b><i class="nh-dot"></i><span id="heroInstance">—</span><svg class="i"><use href="#i-chevron"/></svg>
+                </button>
+                <button class="nh-stop" id="stopBtn" type="button" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
+                <button class="nh-mini sync-btn" id="heroSyncBtn" type="button" hidden><svg class="i"><use href="#i-refresh"/></svg><span>Update mods</span></button>
               </div>
-              <div class="hero-side">
-                <div class="hero-stat"><span class="k">Time played</span><b id="heroPlaytime">—</b></div>
-                <div class="hero-stat"><span class="k">Last played</span><b id="heroLast">—</b></div>
-              </div>
-              <div class="progress inset" id="progressWrap" hidden>
+              <p class="nh-meta" id="heroMeta">Last played <span id="heroLast">—</span><i>·</i><span id="heroPlaytime">—</span> played</p>
+              <p class="nh-lede" id="heroLede" hidden></p>
+              <!-- kept for the code that opens the instance page from Home; the picker's menu has it too -->
+              <button id="heroInstanceBtn" type="button" hidden>Instance</button>
+              <div class="progress nh-progress" id="progressWrap" hidden>
                 <div class="progress-row">
                   <span id="progressStage">Preparing…</span>
                   <span class="progress-row-right">
@@ -278,32 +284,33 @@
                 </div>
                 <div class="track"><div class="fill" id="progressFill"></div></div>
               </div>
-              <pre class="log" id="log" hidden></pre>
+              <pre class="log nh-log" id="log" hidden></pre>
             </div>
 
-            <div class="stat-row">
-              <div class="card stat s-violet"><span class="stat-k">Mob kills</span><b class="stat-v display" id="statMobKills">—</b><span class="stat-n">Total across your worlds</span></div>
-              <div class="card stat s-amber"><span class="stat-k">Player kills</span><b class="stat-v display" id="statPlayerKills">—</b><span class="stat-n">PvP, total</span></div>
-              <div class="card stat s-rose"><span class="stat-k">Deaths</span><b class="stat-v display" id="statDeaths">—</b><span class="stat-n" id="statDeathsNote">—</span></div>
-              <div class="card stat s-emerald"><span class="stat-k">Blocks placed</span><b class="stat-v display" id="statPlaced">—</b><span class="stat-n">Every block you've set down</span></div>
-              <div class="card stat s-cyan"><span class="stat-k">Blocks broken</span><b class="stat-v display" id="statBroken">—</b><span class="stat-n">Every block you've mined</span></div>
+            <!-- right: PvP tiers and friends -->
+            <div class="nh-side">
+              <section class="nh-card" id="nhTiers">
+                <div class="nh-card-head"><span class="nh-label">PvP tiers</span><span class="nh-note" id="nhTiersNote"></span></div>
+                <div class="nh-tiers" id="nhTierList"></div>
+              </section>
+              <section class="nh-card nh-friends">
+                <div class="nh-card-head"><span class="nh-label">Friends</span><em class="soon">Soon</em></div>
+                <p class="nh-empty">Friends aren't in Reminth yet.</p>
+              </section>
             </div>
 
-            <section class="block">
-              <div class="block-head">
-                <h2>Jump back in</h2>
-                <span class="block-note" id="recentNote">Your last worlds and servers</span>
+            <!-- bottom: the version and What's new, Quick join, Discord -->
+            <div class="nh-foot">
+              <div class="nh-version">
+                <span id="nhVersion">Reminth</span>
+                <button class="nh-news" id="nhNews" type="button"><i></i>What's new</button>
               </div>
-              <div class="recent-grid" id="recentGrid"></div>
-            </section>
-
-            <section class="block">
-              <div class="block-head">
-                <h2>Discover mods</h2>
-                <button class="link-btn" data-page="discover">Browse everything<svg class="i"><use href="#i-chevron"/></svg></button>
+              <div class="nh-quick" id="nhQuickWrap" hidden>
+                <span class="nh-label">Quick join</span>
+                <div class="nh-quick-row" id="quickJoin"></div>
               </div>
-              <div class="discover-grid" id="discoverGrid"></div>
-            </section>
+              <a class="nh-discord" href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener"><svg class="i"><use href="#i-chat"/></svg><span>Discord</span></a>
+            </div>
           </div>
         </div>
 
@@ -804,15 +811,17 @@
                 <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Theme</b><span>The whole launcher in orange or in blue - icon included.</span></div>
+                <div><b>Theme</b><span>The whole launcher in Night (black and white), blue or orange - icon included.</span></div>
                 <div class="theme-picks">
-                  <button class="theme-pick" data-theme="ember"><i class="tp-swatch ember"></i>Orange</button>
+                  <button class="theme-pick" data-theme="night"><i class="tp-swatch night"></i>Night</button>
                   <button class="theme-pick" data-theme="frost"><i class="tp-swatch frost"></i>Blue</button>
+                  <button class="theme-pick" data-theme="ember"><i class="tp-swatch ember"></i>Orange</button>
                 </div>
               </div>
               <div class="toggle-row">
                 <div><b>Accent colour</b><span>Buttons and highlights. Picking a theme sets this to the theme's own colour.</span></div>
                 <div class="accents" id="accentPicker">
+                  <button class="accent" data-accent="night" aria-label="Moonlight (Night's cream)"></button>
                   <button class="accent" data-accent="ember" aria-label="Ember (Reminth orange)"></button>
                   <button class="accent" data-accent="cyan" aria-label="Cyan"></button>
                   <button class="accent" data-accent="violet" aria-label="Violet"></button>
