@@ -1050,7 +1050,8 @@ input[type="range"]::-webkit-slider-thumb {
 .st { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 96px; flex: none; }
 .st b {
   width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
-  font-family: "Pixelify Sans", sans-serif; font-size: 15px; color: var(--text-3);
+  /* Inter, not Pixelify: Pixelify's 2 reads as an 8 */
+  font-family: "Inter", sans-serif; font-weight: 800; font-size: 14px; color: var(--text-3);
   border: 2px solid var(--line); background: rgba(255, 255, 255, .03);
 }
 .st b svg { width: 16px; height: 16px; }
@@ -2956,3 +2957,21 @@ input, select, textarea { border-radius: 8px; }
 /* links: cream and underlined (there's no blue in the Night look) */
 .link-blue, .upd-link, .legal-body a, .hint a { color: var(--cream); text-decoration: underline; text-underline-offset: 3px; }
 .link-btn { color: var(--cream); }
+
+/* no coloured glows behind the big cards - flat night glass, like Home's cards */
+.host-glow, .plus-glow, .hero-glow { display: none; }
+.host-v2 { background: rgba(12, 12, 15, .86); }
+.host-v2::before { opacity: .2; }
+.plus-hero { border-color: var(--line); }
+.plus-badge { color: #f1f1f3; background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .18); }
+.host-feature.f-cyan, .host-feature.f-amber, .host-feature.f-violet { background: var(--surface); border-color: var(--line); }
+
+/* card titles: small spaced capitals, like PVP TIERS and QUICK JOIN on Home */
+.set-head h2 { font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; color: #a7a7ac; }
+.set-head p { margin-top: 8px; }
+
+/* a cream button that can't be pressed (yet) goes dark, so cream always means "press me" */
+.btn.primary:disabled:not(.progressing) { background: rgba(255, 255, 255, .07); color: #b9b9be; border-color: rgba(255, 255, 255, .14); box-shadow: none; opacity: 1; }
+.btn.primary:disabled:not(.progressing) .soon { opacity: .9; }
+/* installing: the cream button fills up with a darker cream */
+.btn.progressing::before { background: rgba(0, 0, 0, .14); }

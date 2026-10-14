@@ -28,5 +28,7 @@ test("channel texts: the announcement carries the release it is about", async ()
   assert.equal(ann.release, RELEASE);
   assert.match(ann.embeds[0].description, new RegExp(`Reminth ${RELEASE.replace(/\./g, "\\.")} is out`));
   assert.equal(list.filter((m) => m.release).length, 1);
-  assert.equal(RELEASE, require("../package.json").version);
+  // the announced release is never newer than the app (between releases package.json is already the next one)
+  const num = (v) => v.split(".").map(Number).reduce((t, x) => t * 1000 + x, 0);
+  assert.ok(num(RELEASE) <= num(require("../package.json").version));
 });

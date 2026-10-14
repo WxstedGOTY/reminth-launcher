@@ -1049,7 +1049,8 @@ input[type="range"]::-webkit-slider-thumb {
 .st { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 96px; flex: none; }
 .st b {
   width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
-  font-family: "Pixelify Sans", sans-serif; font-size: 15px; color: var(--text-3);
+  /* Inter, not Pixelify: Pixelify's 2 reads as an 8 */
+  font-family: "Inter", sans-serif; font-weight: 800; font-size: 14px; color: var(--text-3);
   border: 2px solid var(--line); background: rgba(255, 255, 255, .03);
 }
 .st b svg { width: 16px; height: 16px; }
