@@ -1,10 +1,13 @@
 // The channel messages of the Reminth Discord server (approved texts: discord/texts.md). Posted through a webhook
 // called "Reminth" with the Reminth logo, one message per channel. Posting again EDITS the message that is already
-// there (so a fixed typo doesn't make a second message). Owner tools -> "Post the channel messages".
+// there (so a fixed typo doesn't make a second message) - except a message with `release`: when that changes, it is
+// posted as a NEW message so people see the new version (owner's rule). Owner tools -> "Post the channel messages".
 import { dapi, getConfig, setConfig } from "./_bot.js";
 import { findJobs } from "./_setup.js";
 
 const SITE = "https://reminth.pages.dev";
+// The version the #announcements text is about. Change it together with that text on each release.
+export const RELEASE = "1.7.2";
 const RED = 0xe53935;
 const ch = (jobs, j, fallback) => (jobs[j] ? `<#${jobs[j].id}>` : fallback);
 
@@ -32,6 +35,7 @@ export function messages(jobs) {
     },
     {
       job: "announcements",
+      release: RELEASE,
       embeds: [
         {
           title: "Welcome to the Reminth Launcher server",
@@ -118,6 +122,13 @@ export function messages(jobs) {
   ];
 }
 
+/** saved = "hookId:msgId[:release]" -> edit that message, or post a new one (other webhook, or a new release). */
+export function savedPlan(saved, currentHookId, release) {
+  const [hookId, msgId, savedRelease] = (saved || "").split(":");
+  const newRelease = Boolean(release) && savedRelease !== release;
+  return { msgId, newRelease, edit: Boolean(saved) && hookId === currentHookId && !newRelease };
+}
+
 /** Posts (or edits) one message per call. -> {done, log[], next} */
 export async function postMessages(env, index = 0) {
   const g = String(env.DISCORD_GUILD_ID);
@@ -141,8 +152,8 @@ export async function postMessages(env, index = 0) {
   const body = { username: "Reminth", avatar_url: `${SITE}/favicon.png`, embeds: m.embeds, allowed_mentions: { parse: [] } };
   const key = `msg:${m.job}`;
   const saved = await getConfig(env, key);
-  const [hookId, msgId] = (saved || "").split(":");
-  if (saved && hookId === hook.id) {
+  const { msgId, newRelease, edit } = savedPlan(saved, hook.id, m.release);
+  if (edit) {
     const e = await dapi(env, "PATCH", `/webhooks/${hook.id}/${hook.token}/messages/${msgId}`, body);
     if (e.ok) return { next, log: [`#${channel.name}: message updated`] };
     // deleted by hand - post it again below
@@ -150,6 +161,6 @@ export async function postMessages(env, index = 0) {
   const r = await dapi(env, "POST", `/webhooks/${hook.id}/${hook.token}?wait=true`, body);
   if (r.status === 429) return { next: index, log: [], waitSeconds: Math.ceil(Number((r.data && r.data.retry_after) || 5)) };
   if (!r.ok) return { next: null, log: [], problem: `Posting in #${channel.name}: ${r.status}${r.data && r.data.message ? " " + r.data.message : ""}` };
-  await setConfig(env, key, `${hook.id}:${r.data.id}`);
-  return { next, log: [`#${channel.name}: message posted`] };
+  await setConfig(env, key, `${hook.id}:${r.data.id}${m.release ? ":" + m.release : ""}`);
+  return { next, log: [`#${channel.name}: ${newRelease && saved ? `new message posted for ${m.release}` : "message posted"}`] };
 }
