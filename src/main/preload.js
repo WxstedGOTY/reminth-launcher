@@ -152,6 +152,13 @@ contextBridge.exposeInMainWorld("reminth", {
 
   // events
   onAccountRestored: on("auth:restored"),
+  // friends (main.js "friends" section)
+  friendsList: () => ipcRenderer.invoke("friends:list"),
+  friendRequest: (code) => ipcRenderer.invoke("friends:request", code),
+  friendRespond: (id, accept) => ipcRenderer.invoke("friends:respond", id, accept),
+  friendRemove: (id) => ipcRenderer.invoke("friends:remove", id),
+  friendsAppearOffline: (on) => ipcRenderer.invoke("friends:appearOffline", on),
+  onFriends: on("friends:update"),
   onAuthCode: on("auth:code"),
   onAuthWaiting: on("auth:waiting"),
   onInstallProgress: on("install:progress"),

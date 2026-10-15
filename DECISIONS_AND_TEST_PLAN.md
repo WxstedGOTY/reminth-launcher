@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **15 Oct 2026 (night): Friends work for real (codes, requests, who's online/playing where, Join, Appear offline) and the Friends box is half height with an empty space for ads under it. Tested with two launchers against a local server; not released. Privacy v14 draft must go live with the release. Section 000000000000000000000000000000000000000.**
 - **15 Oct 2026 (evening): Home v2 built from `launch game panel/CLAUDE_CODE_HOME_UPDATE.md` (new background, LAUNCH GAME, your skin + Minecraft-font name, recent tiles in the panel, 12 live servers). Seen in the preview at 1280/1920/2560 wide; not released. Section 00000000000000000000000000000000000000.**
 - **15 Oct 2026 (15:20): tab motion + Minecraft stat icons (commit 3d01e61, not released - 1.8.0 is the published one). `src/renderer/motion.css` (new): pages slide in from the side of the rail you moved towards, parts one after another; one gliding rail marker `#railInd` (renderer.js `placeRailInd`); top bar title slides in; Home stats/PLAY/side cards arrive in turn; rows/tiles cascade in; hover lift, button press; dialogs rise. All off while a game runs, while Reminth is not in front (body.unfocused) and for reduced motion. Home stats: 16x16 colour sprites in Minecraft style drawn in code (`PX_PAL`/`PX_ICONS` in renderer.js: diamond sword, skeleton skull, creeper, iron pickaxe, grass block; Quick join worlds use the grass block). Checked in the hidden test copy (focus faked, since a hidden window is "unfocused"): animations run, nothing left faded after any switch. Not seen on the owner's screen yet. The design window made the Minecraft night background (`scene.js`, dc9492b). `npm test` 693.**
 - **15 Oct 2026 (14:30): "Post the channel messages" never edits any more (`functions/_texts.js` savedPlan/postMessages, test `test/discord-texts.test.js`): rules, FAQ, socials, #read-first = old message deleted, same info posted new; #announcements and #updates = old messages stay, a new one only when the text changed (fingerprint saved in `msg:<job>`). #announcements text now announces 1.8.0 (`RELEASE`). Live; not pressed yet in the real server. Note: after Tickets v2 puts its panel in #read-first, a press moves the Reminth text below that panel. `npm test` 693.**
@@ -27,6 +28,60 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000000000000000000000. Friends work + space for ads (15 Oct 2026, night) - desktop window (code chat)
+
+**Owner's ask (then asleep, "dont ask questions"):** make the Friends box half its size from the bottom - "we need that
+space to put ads" - then "make the friends whole system work".
+
+**Done:**
+- Home's right column: Friends is the top half, `#nhAdSlot` the bottom half (empty on purpose, same box size), then
+  Discord. (`index.html`, `styles.css` "the Friends card".)
+- **Server** (Cloudflare Pages functions, live with this push - unused until a launcher with Friends is released):
+  `functions/_friends.js` (tables `friend_codes`, `friends` (one row per pair, pending/friends), `presence` (latest only)),
+  `GET /api/friends`, `POST /api/friends/request|respond|remove|presence`. Friend codes like K7QX-2MPA (no 0/O/1/I/L),
+  30 requests an hour, 200 friends+requests max, asking back accepts, only accepted friends see presence, offline
+  after 5 min without a report, Appear offline kept until changed, cross-site cookie posts refused, account delete
+  removes everything (`api/account/delete.js`).
+- **Launcher:** `src/main/reminthAccount.js` (friendsList/Request/Respond/Remove/Presence), `src/main/presence.js`
+  (reports every 2 min, at game start, 1 min after, at game end, on Reminth sign-in; the server a game joined from its
+  own latest.log "Connecting to" line, voice chat lines skipped; no server in streamer privacy; "offline" on quit and
+  before signing out), IPC `friends:*` + push `friends:update` (`main.js`, `preload.js`), the card in `renderer.js`
+  ("friends" section): list, Join (same path as Quick join, greyed while the instance runs), requests, add by code,
+  copy code, Appear offline, remove with confirm, messages for every error.
+- Tests: `tools/friends-e2e.js` (13 checks against a local `wrangler pages dev` with an empty D1 - ALL PASSED),
+  `test/presence.test.js` (3), `test/theme-night.test.js` (card ids, empty ad slot).
+- Privacy: **`design/privacy-v14-draft.md`** - must go live with the release that ships Friends (site + the launcher's
+  privacy summary), not before.
+
+**Tested for real** (two hidden launchers, each with its own fake offline player and a new Reminth email account,
+against a local copy of the server - not the live one): codes shown; "+" -> code typed in lower case with a space ->
+"Request sent"; the other launcher shows "Wants to be friends" -> Accept -> both see each other "In the launcher",
+"1 online"; one joins a local 26.2 test server -> the other sees "Playing Minecraft", ~45 s later "Playing on
+127.0.0.1:25599" + JOIN (green dot); Appear offline -> "Offline" (no last seen, no server), off -> back; game stopped
+-> "In the launcher"; the launcher closed -> "Last seen 1m ago", "0 online"; Remove -> confirm "Remove Bench?" -> gone.
+
+**Not tested:** against the live server with real accounts; JOIN from the Friends card into a real server (the same
+code path as Quick join and the server cards, both tested); many friends (the list scrolls inside the card);
+Discord/Google-signed accounts' pictures in the list.
+
+**Decisions for the owner (recommendation first):**
+- Add friends by **friend code** (built) - Reminth names aren't unique and codes can't be spammed by someone who only
+  saw your name. Adding by Minecraft name would need storing everyone's Minecraft name on the server - say if you
+  want it.
+- What goes in the ad space - it's empty until you have real ads.
+
+**Test plan (owner, two PCs or with a friend, after the next release; PASS/FAIL):**
+1. Home: Friends fills the top half of the right column, an empty space under it, Discord at the bottom. PASS/FAIL
+2. Signed in to a Reminth account: "Your code XXXX-XXXX" at the bottom of the card; Copy copies it. PASS/FAIL
+3. Your friend presses + and types your code: you get "Wants to be friends" (within 2 minutes or when you open Home); Accept. PASS/FAIL
+4. Both show "In the launcher" with a blue dot, "1 online". PASS/FAIL
+5. Your friend joins a server: you see "Playing on <server>" (green dot) within ~2 minutes; JOIN puts you on the same server. PASS/FAIL
+6. Appear offline on your side: your friend sees you as "Offline"; untick it: you're back. PASS/FAIL
+7. Close Reminth: your friend sees "Last seen …". PASS/FAIL
+8. Hover a friend -> x -> Remove: they're gone on both sides. PASS/FAIL
 
 ---
 

@@ -45,7 +45,7 @@ Night design: what the owner asked, what is built, where it lives in the code, t
 | `src/renderer/styles-frost.css` | **Made, never edit**: `node tools/frost.js` (Blue). Run both tools after any styles.css edit. |
 | `src/main/tiers.js` | The player's own PvP tiers from MCTiers / PvPTiers / SubTiers (IPC `tiers:mine`, preload `myTiers`). |
 | `src/main/store.js` | `theme: "night"` default, `lookVersion: 2` (the one-time move of every player to Night), accent `night`. |
-| `test/theme-night.test.js`, `test/tiers.test.js` | Fail if the made stylesheet is stale, the Home markup loses an id, or the tiers logic breaks. |
+| `test/theme-night.test.js`, `test/tiers.test.js`, `test/presence.test.js`, `tools/friends-e2e.js` | Fail if the made stylesheet is stale, the Home markup loses an id, or the tiers logic breaks. |
 | `tools/preview/` | Hidden off-screen preview (never touches the owner's screen or data) - see its README. |
 
 ## 3. The look (tokens)
@@ -92,9 +92,12 @@ floating top bar (`mask-image` on `.pages`, Home only). Home always opens at the
   when Home opens, at most once a minute, never while a game runs), JOIN (the instance the picker shows; disabled
   while it installs/runs). Cards are built once; they cascade in every time Home opens (Lunar's news grid timing,
   motion.css `m-srv-in`).
-- **Right** (`.nh-side`): **Friends - Soon** fills the column (Reminth has no friends system; nothing fake), Discord
-  (its own navy) under it. **PvP tiers is hidden for now** (owner: "for now"; `#nhTiers hidden`, no look-ups while
-  hidden; the code and `src/main/tiers.js` stay).
+- **Right** (`.nh-side`): **Friends** (top half) - real since 15 Oct 2026 night: your friends (playing first, then online,
+  then offline, with "Playing on <server>" + JOIN, "In the launcher", "Last seen …"), requests (Accept/Decline) and sent
+  ones (Cancel), "+" to add by friend code, your code with Copy, "Appear offline", remove with a confirm. Needs a
+  Reminth account. Server: `functions/_friends.js` + `functions/api/friends/*`; launcher: `src/main/presence.js`
+  (every 2 min) and the "friends" section of renderer.js. **The bottom half is empty space for ads** (`#nhAdSlot`,
+  owner: "we need that space to put ads" - no fake ads). Discord (its own navy) under it. PvP tiers is hidden for now.
 
 ## 5. Status (15 Oct 2026, night)
 

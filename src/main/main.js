@@ -69,6 +69,7 @@ const showLinkPage = (link) => {
         if (r.error === "not_started") return;
         send("reminthAccount:changed", r);
         if (r.user && auth.current()) reminthAccount.reportMinecraft().catch(() => {});
+        if (r.user) presence.poke(); // friends see you online straight away
       })
       .catch(() => {});
     return;
@@ -293,6 +294,7 @@ app.whenReady().then(async () => {
     logCrash("loadAccount", err); // start signed out rather than not start
   }
   pageLoaded.then(async () => {
+    presence.start();
     pageReady = true;
     if (pendingLink) send("deeplink:open", pendingLink);
     pendingLink = null;
@@ -755,9 +757,37 @@ ipcMain.handle("reminthAccount:signIn", async (_e, provider) => {
 ipcMain.handle("reminthAccount:email", async (_e, form) => {
   const r = await reminthAccount.emailSignIn(form && typeof form === "object" ? form : {});
   if (r.user && auth.current()) reminthAccount.reportMinecraft().catch(() => {});
+  if (r.user) presence.poke();
   return r;
 });
-ipcMain.handle("reminthAccount:signOut", () => reminthAccount.signOut());
+ipcMain.handle("reminthAccount:signOut", async () => {
+  // say "offline" while the account is still signed in
+  await reminthAccount.friendsPresence({ state: "offline", list: false }).catch(() => {});
+  return reminthAccount.signOut();
+});
+
+// ---- friends (presence.js, functions/_friends.js) ----
+// What this launcher is doing goes to the Reminth server every 2 minutes (only accepted friends see it); the Friends
+// card that comes back is pushed to the window as "friends:update".
+const presence = require("./presence").createPresence({
+  account: reminthAccount,
+  games: () => [...running.values()].filter((c) => c && c.gameDir && (c.child || c.adopted)).map((c) => ({ gameDir: c.gameDir, startedAt: c.startedAt })),
+  mcName: () => (auth.current() && auth.current().username) || null,
+  privacy: () => Boolean(cachedSettings && cachedSettings.streamerMode && !(cachedSettings.streamer && cachedSettings.streamer.hidePersonalInfo === false)),
+  onList: (card) => send("friends:update", card),
+});
+ipcMain.handle("friends:list", () => reminthAccount.friendsList());
+ipcMain.handle("friends:request", (_e, code) => reminthAccount.friendRequest(code));
+ipcMain.handle("friends:respond", (_e, id, accept) => reminthAccount.friendRespond(id, accept === true));
+ipcMain.handle("friends:remove", (_e, id) => reminthAccount.friendRemove(id));
+ipcMain.handle("friends:appearOffline", async (_e, on) => {
+  const r = await reminthAccount.friendsPresence({ state: running.size ? "playing" : "online", appearOffline: on === true, mcName: (auth.current() && auth.current().username) || null });
+  presence.poke();
+  return r;
+});
+app.on("before-quit", () => {
+  presence.stop().catch(() => {});
+});
 ipcMain.handle("reminthAccount:openWebsite", () => openInBrowser(config.REMINTH_API_URL.replace(/\/+$/, "") + "/account.html"));
 
 ipcMain.handle("settings:get", async () => {
@@ -1665,6 +1695,10 @@ async function startGame(inst, join, claim, worldRequest, rulesAccepted = []) {
     return { launched: false };
   }
   claim.startedAt = Date.now();
+  claim.gameDir = inst.gameDir;
+  presence.poke();
+  // the server it joins shows up in its log a little later
+  setTimeout(() => presence.poke(), 60 * 1000).unref();
   streamer.gameStarted();
   // How the window is now, before a fullscreen game (or "launch minimized")
   // changes it. A second game keeps what the first one found.
@@ -1844,6 +1878,7 @@ function adoptProcess(inst, proc) {
     adopted: true,
     stopWatching: null,
   };
+  claim.gameDir = inst.gameDir;
   running.set(inst.id, claim);
   streamer.gameStarted();
   claim.stopWatching = runningGames.watchUntilGone(pid, () => finishSession(inst, true, claim));
@@ -1872,6 +1907,7 @@ async function adoptRunningGames() {
 function finishSession(inst, played, session) {
   if (!session || running.get(inst.id) !== session) return;
   running.delete(inst.id);
+  presence.poke();
   if (session.stopWatching) session.stopWatching();
   if (session.child) streamer.gameStopped();
   if (played) {

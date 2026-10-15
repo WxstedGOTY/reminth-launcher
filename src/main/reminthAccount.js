@@ -172,4 +172,40 @@ async function reportMinecraft() {
   }
 }
 
-module.exports = { status, get, startSignIn, emailSignIn, completeSignIn, signOut, reportMinecraft, _test: { setPending: (p) => (pending = p), FILE } };
+/* ---- friends (functions/api/friends/*, functions/_friends.js) ----
+ * Every call answers with the whole Friends card ({ code, appearOffline, friends, incoming, outgoing }) or
+ * { error, message }. Signed out of the Reminth account: { error: "signed_out" }. */
+async function friendsCall(pathname, body) {
+  const token = await readToken();
+  if (!token) return { error: "signed_out" };
+  try {
+    const r = await call(pathname, body === undefined ? { token, timeoutMs: 10000 } : { method: "POST", token, body, timeoutMs: 10000 });
+    if (r.status === 401) return { error: "signed_out" };
+    if (r.status !== 200 || !r.data) return { error: (r.data && r.data.error) || "failed", message: (r.data && r.data.message) || "That didn't work. Try again." };
+    return r.data;
+  } catch {
+    return { error: "offline", message: "Can't reach Reminth right now." };
+  }
+}
+const friendsList = () => friendsCall("/api/friends");
+const friendRequest = (code) => friendsCall("/api/friends/request", { code: String(code || "").slice(0, 20) });
+const friendRespond = (id, accept) => friendsCall("/api/friends/respond", { id: String(id || "").slice(0, 64), accept: accept === true });
+const friendRemove = (id) => friendsCall("/api/friends/remove", { id: String(id || "").slice(0, 64) });
+/** What this launcher is doing, for friends: { state, server, mcName, appearOffline?, list? }. */
+const friendsPresence = (p) => friendsCall("/api/friends/presence", p);
+
+module.exports = {
+  status,
+  get,
+  startSignIn,
+  emailSignIn,
+  completeSignIn,
+  signOut,
+  reportMinecraft,
+  friendsList,
+  friendRequest,
+  friendRespond,
+  friendRemove,
+  friendsPresence,
+  _test: { setPending: (p) => (pending = p), FILE },
+};

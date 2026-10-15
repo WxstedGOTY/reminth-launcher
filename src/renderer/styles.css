@@ -2840,7 +2840,9 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 }
 .nh-card { padding: 14px 14px 15px; border-radius: 10px; background: rgba(11, 11, 13, .8); border: 1px solid rgba(255, 255, 255, .1); backdrop-filter: blur(6px); }
 .nh-card[hidden] { display: none; }
-.nh-friends { flex: 1; min-height: 0; }
+/* Friends takes the top half of the column, the space for ads the bottom half (owner, 15 Oct 2026) */
+.nh-friends { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.nh-ad-slot { flex: 1 1 0; min-height: 0; padding: 14px 0 15px; border: 1px solid transparent; } /* the same box as the card, so the two halves are equal */
 .nh-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
 .nh-label { font-size: 10px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; color: #a7a7ac; }
 .nh-note { font-size: 11px; color: #85858a; margin-left: auto; }
@@ -2868,6 +2870,61 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-discord { background: #1c1e38; border: 1.5px solid rgba(196, 202, 255, .7); }
 .nh-discord .i { width: 17px; height: 17px; }
 .nh-discord:hover { background: #262a4d; border-color: rgba(214, 219, 255, .9); }
+
+/* ---- the Friends card (renderer.js "friends") ---- */
+.nh-friends .nh-card-head { margin-bottom: 10px; }
+.nh-friends .nh-note { margin-left: 2px; }
+.nh-fr-icon {
+  margin-left: auto; width: 24px; height: 24px; flex: none; display: grid; place-items: center; padding: 0; border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .04); color: #e4e4e7; cursor: pointer;
+}
+.nh-fr-icon .i { width: 13px; height: 13px; }
+.nh-fr-icon:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.nh-fr-icon[hidden] { display: none; }
+.nh-fr-add { display: flex; gap: 6px; margin-bottom: 10px; }
+.nh-fr-add[hidden] { display: none; }
+.nh-fr-add input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(0, 0, 0, .35); color: #fff; font: inherit; font-size: 12px; letter-spacing: .06em; text-transform: uppercase;
+}
+.nh-fr-add input::placeholder { text-transform: none; letter-spacing: 0; color: #85858a; }
+.nh-fr-msg { margin: 0 0 10px; font-size: 11.5px; color: #9ee6b8; line-height: 1.4; } /* keep-colour */
+.nh-fr-msg.bad { color: #ff9cb4; } /* keep-colour */
+.nh-fr-msg[hidden] { display: none; }
+.nh-fr-body { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 0 6px; scrollbar-width: thin; }
+.nh-fr-sec + .nh-fr-sec { margin-top: 10px; }
+.nh-fr-head { display: block; margin: 2px 0 6px; font-size: 9.5px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: #85858a; }
+.nh-fr-row { display: flex; align-items: center; gap: 9px; padding: 6px 6px; margin: 0 -6px; border-radius: 8px; }
+.nh-fr-row:hover { background: rgba(255, 255, 255, .04); }
+.nh-fr-av { position: relative; width: 30px; height: 30px; flex: none; border-radius: 8px; background: #1f2026; border: 1px solid rgba(255, 255, 255, .1); display: grid; place-items: center; }
+.nh-fr-av img { width: 100%; height: 100%; border-radius: 7px; object-fit: cover; display: block; }
+.nh-fr-av .avatar-letter { font-size: 13px; }
+.nh-fr-dot { position: absolute; right: -3px; bottom: -3px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #0b0b0d; background: #5c5c62; }
+.nh-fr-row.online .nh-fr-dot { background: #60a5fa; } /* keep-colour */
+.nh-fr-row.playing .nh-fr-dot { background: #4ade80; } /* keep-colour */
+.nh-fr-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.nh-fr-name { font-size: 12.5px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nh-fr-sub { font-size: 11px; color: #9a9a9f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nh-fr-row.playing .nh-fr-sub { color: #9ee6b8; } /* keep-colour */
+.nh-fr-row.offline .nh-fr-name { color: #c4c4c8; }
+.nh-fr-act { display: flex; align-items: center; gap: 5px; flex: none; }
+.nh-fr-btn {
+  height: 24px; padding: 0 9px; border-radius: 6px; font: inherit; font-size: 10.5px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; cursor: pointer; border: 1px solid rgba(255, 255, 255, .16); background: rgba(255, 255, 255, .05); color: #e4e4e7;
+}
+.nh-fr-btn.cream { background: var(--cream, #ece8de); color: #111113; border-color: rgba(255, 255, 255, .5); }
+.nh-fr-btn:hover:not(:disabled) { filter: brightness(1.08); }
+.nh-fr-btn:disabled { opacity: .45; cursor: default; }
+.nh-fr-add .nh-fr-btn { height: 30px; padding: 0 12px; }
+.nh-fr-remove { margin-left: 0; width: 22px; height: 22px; opacity: 0; transition: opacity .12s; }
+.nh-fr-row:hover .nh-fr-remove, .nh-fr-remove:focus-visible { opacity: 1; }
+.nh-fr-foot { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .08); display: flex; flex-direction: column; gap: 8px; }
+.nh-fr-foot[hidden] { display: none; }
+.nh-fr-code { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #9a9a9f; }
+.nh-fr-code b { color: #fff; font-weight: 800; letter-spacing: .1em; }
+.nh-fr-code .nh-fr-icon { margin-left: auto; }
+.nh-fr-hide { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: #b4b4b9; cursor: pointer; user-select: none; }
+.nh-fr-hide input { accent-color: #ece8de; margin: 0; }
 
 /* ---- smaller windows ---- */
 @media (max-width: 1180px) {

@@ -318,10 +318,28 @@
                 <div class="nh-card-head"><span class="nh-label">PvP tiers</span><span class="nh-note" id="nhTiersNote"></span></div>
                 <div class="nh-tiers" id="nhTierList"></div>
               </section>
-              <section class="nh-card nh-friends">
-                <div class="nh-card-head"><span class="nh-label">Friends</span><em class="soon">Soon</em></div>
-                <p class="nh-empty">Friends aren't in Reminth yet.</p>
+              <!-- Friends (renderer.js "friends" section, main.js presence, functions/_friends.js): half the column (owner,
+                   15 Oct 2026: "half its size ... we need that space to put ads") -->
+              <section class="nh-card nh-friends" id="nhFriends">
+                <div class="nh-card-head">
+                  <span class="nh-label">Friends</span><span class="nh-note" id="nhFriendsCount"></span>
+                  <button class="nh-fr-icon" id="nhFriendAddBtn" type="button" aria-label="Add a friend" data-tip="Add a friend" hidden><svg class="i"><use href="#i-plus"/></svg></button>
+                </div>
+                <form class="nh-fr-add" id="nhFriendAdd" hidden autocomplete="off">
+                  <input id="nhFriendCode" type="text" maxlength="12" spellcheck="false" placeholder="Their friend code" aria-label="Their friend code" />
+                  <button class="nh-fr-btn cream" type="submit">Add</button>
+                </form>
+                <p class="nh-fr-msg" id="nhFriendMsg" hidden></p>
+                <div class="nh-fr-body" id="nhFriendsBody"><p class="nh-empty">Loading…</p></div>
+                <div class="nh-fr-foot" id="nhFriendsFoot" hidden>
+                  <div class="nh-fr-code">Your code <b id="nhMyCode">—</b>
+                    <button class="nh-fr-icon" id="nhCopyCode" type="button" aria-label="Copy your friend code" data-tip="Copy your code"><svg class="i"><use href="#i-copy"/></svg></button>
+                  </div>
+                  <label class="nh-fr-hide"><input type="checkbox" id="nhAppearOffline" /> Appear offline</label>
+                </div>
               </section>
+              <!-- the space for ads (owner, 15 Oct 2026). Empty on purpose until there are real ads. -->
+              <div class="nh-ad-slot" id="nhAdSlot" aria-hidden="true"></div>
               <a class="nh-discord" href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener"><svg class="i"><use href="#i-chat"/></svg><span>Discord</span></a>
             </div>
           </div>

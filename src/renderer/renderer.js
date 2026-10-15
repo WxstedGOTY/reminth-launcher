@@ -765,6 +765,7 @@ function switchPage(page) {
     buildHomeServers();
     pingHomeServers();
     paintHomeName();
+    loadFriends();
   }
   // Announced before the page's own hook runs, so a hook that fails can't swallow it.
   document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
@@ -1062,7 +1063,13 @@ function paintTopChip() {
 
 function paintReminthAccount(r) {
   const user = (r && r.user) || null;
+  // another account (or none): the old Friends card isn't this one's
+  if ((state.rm.user && state.rm.user.id) !== (user && user.id) && typeof friends !== "undefined") {
+    friends.card = null;
+    friends.error = null;
+  }
   state.rm.user = user;
+  if (typeof loadFriends === "function") setTimeout(loadFriends, 0);
   if (r && "accounts" in r) {
     state.rm.accounts = Boolean(r.accounts);
     state.rm.providers = r.providers || [];
@@ -3108,8 +3115,9 @@ function paintRecentPlayButtons() {
     const id = b.dataset.instance;
     b.disabled = state.running.has(id) || state.installing.has(id) || state.stopping.has(id);
   });
-  // Home's server cards join with the instance Launch game starts
+  // Home's server cards and friends' Join buttons join with the instance Launch game starts
   paintHomeServerButtons();
+  paintFriendJoins();
 }
 
 function addInstanceTile() {
@@ -3718,6 +3726,228 @@ async function paintHomeName() {
   }
   tag.appendChild(el("span", "nh-me-font", name));
 }
+
+/* ---- friends (owner, 15 Oct 2026: "make the friends whole system work") ----
+ * Home's Friends card: your friends (playing first, then online, then offline) with where they play and a Join
+ * button, requests you got (Accept / Decline) and sent (Cancel), "+" to add someone by their friend code, your own
+ * code with Copy, and "Appear offline". Needs a Reminth account; the server is functions/_friends.js, the launcher's
+ * presence main/presence.js (it pushes a fresh card every 2 minutes, "friends:update"). Only accepted friends see
+ * anything about you; nothing here is made up - an empty list says so. */
+// var, not const: paintReminthAccount (higher up) may look at it before this line has run
+var friends = { card: null, error: null, loading: false, adding: false };
+
+function friendAvatar(p) {
+  const av = el("span", "nh-fr-av");
+  const src = typeof p.avatarUrl === "string" && /^https:\/\/(cdn\.discordapp\.com|lh3\.googleusercontent\.com)\//.test(p.avatarUrl) ? p.avatarUrl : null;
+  const letter = () => {
+    av.textContent = "";
+    av.appendChild(el("span", "avatar-letter", (p.name || "?").slice(0, 1).toUpperCase()));
+  };
+  if (!src) {
+    letter();
+    return av;
+  }
+  const img = new Image();
+  img.alt = "";
+  img.referrerPolicy = "no-referrer";
+  img.onerror = letter;
+  img.src = src;
+  av.appendChild(img);
+  return av;
+}
+
+function friendSeen(ms) {
+  if (!ms) return "Offline";
+  const min = Math.max(1, Math.round((Date.now() - ms) / 60000));
+  if (min < 60) return `Last seen ${min}m ago`;
+  const h = Math.round(min / 60);
+  if (h < 48) return `Last seen ${h}h ago`;
+  return `Last seen ${Math.round(h / 24)}d ago`;
+}
+
+function friendRow(p, kind) {
+  const row = el("div", "nh-fr-row " + kind + (p.status ? " " + p.status : ""));
+  const av = friendAvatar(p);
+  if (kind === "friend") av.appendChild(el("i", "nh-fr-dot"));
+  row.appendChild(av);
+  const txt = el("span", "nh-fr-txt");
+  txt.appendChild(el("b", "nh-fr-name", p.name || "Player"));
+  let line;
+  if (kind === "incoming") line = "Wants to be friends";
+  else if (kind === "outgoing") line = "Request sent";
+  else if (p.status === "playing") line = p.server ? `Playing on ${p.server}` : "Playing Minecraft";
+  else if (p.status === "online") line = "In the launcher";
+  else line = friendSeen(p.lastSeen);
+  const sub = el("span", "nh-fr-sub", line);
+  if (kind === "friend" && p.mcName) sub.title = `Minecraft: ${p.mcName}`;
+  txt.appendChild(sub);
+  row.appendChild(txt);
+  const act = el("span", "nh-fr-act");
+  const btn = (label, cls, onClick, tip) => {
+    const b = el("button", "nh-fr-btn " + cls, label);
+    b.type = "button";
+    if (tip) b.setAttribute("aria-label", tip);
+    b.onclick = (e) => {
+      e.stopPropagation();
+      onClick(b);
+    };
+    act.appendChild(b);
+    return b;
+  };
+  if (kind === "incoming") {
+    btn("Accept", "cream", () => friendAction(() => window.reminth.friendRespond(p.id, true)));
+    btn("Decline", "ghost", () => friendAction(() => window.reminth.friendRespond(p.id, false)));
+  } else if (kind === "outgoing") {
+    btn("Cancel", "ghost", () => friendAction(() => window.reminth.friendRemove(p.id)));
+  } else {
+    if (p.status === "playing" && p.server) {
+      const j = btn("Join", "cream join", () => joinHomeServer(p.server), `Join ${p.name} on ${p.server}`);
+      j.dataset.server = p.server;
+    }
+    const x = el("button", "nh-fr-icon nh-fr-remove");
+    x.type = "button";
+    x.setAttribute("aria-label", `Remove ${p.name}`);
+    x.dataset.tip = "Remove friend";
+    x.appendChild(icon("#i-x"));
+    bindTip(x);
+    x.onclick = async (e) => {
+      e.stopPropagation();
+      if (await confirmModal(`Remove ${p.name}?`, "You stop seeing each other online. You can add each other again with your codes.", "Remove", true)) {
+        friendAction(() => window.reminth.friendRemove(p.id));
+      }
+    };
+    act.appendChild(x);
+  }
+  row.appendChild(act);
+  return row;
+}
+
+function friendSection(title, list, kind) {
+  const wrap = el("div", "nh-fr-sec");
+  if (title) wrap.appendChild(el("span", "nh-fr-head", title));
+  for (const p of list) wrap.appendChild(friendRow(p, kind));
+  return wrap;
+}
+
+function paintFriends() {
+  const body = $("nhFriendsBody");
+  if (!body) return;
+  const signedIn = Boolean(state.rm && state.rm.user && !state.rm.user.offline);
+  const card = friends.card;
+  $("nhFriendAddBtn").hidden = !signedIn || !card;
+  $("nhFriendsFoot").hidden = !signedIn || !card;
+  if (!signedIn) $("nhFriendAdd").hidden = true;
+  body.textContent = "";
+  if (!signedIn) {
+    body.appendChild(el("p", "nh-empty", state.rm && state.rm.accounts === false ? "Friends need Reminth accounts, which aren't on right now." : "Sign in to your Reminth account to add friends."));
+    $("nhFriendsCount").textContent = "";
+    return;
+  }
+  if (!card) {
+    body.appendChild(el("p", "nh-empty", friends.error ? friends.error : "Loading…"));
+    return;
+  }
+  const online = card.friends.filter((p) => p.status !== "offline").length;
+  $("nhFriendsCount").textContent = card.friends.length ? `${online} online` : "";
+  $("nhMyCode").textContent = card.code || "—";
+  $("nhAppearOffline").checked = Boolean(card.appearOffline);
+  if (card.incoming.length) body.appendChild(friendSection(`Requests · ${card.incoming.length}`, card.incoming, "incoming"));
+  if (card.friends.length) body.appendChild(friendSection(card.incoming.length || card.outgoing.length ? "Friends" : null, card.friends, "friend"));
+  if (card.outgoing.length) body.appendChild(friendSection("Sent", card.outgoing, "outgoing"));
+  if (!card.friends.length && !card.incoming.length && !card.outgoing.length) {
+    body.appendChild(el("p", "nh-empty", "No friends yet. Send them your code below, or press + and type theirs."));
+  }
+  paintFriendJoins();
+}
+
+/** Join buttons follow Launch game: greyed while that instance installs or runs. */
+function paintFriendJoins() {
+  const inst = heroInstance();
+  const busy = !inst || state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id);
+  document.querySelectorAll(".nh-fr-btn.join").forEach((b) => (b.disabled = busy));
+}
+
+function friendsCard(r) {
+  if (r && !r.error && Array.isArray(r.friends)) {
+    friends.card = { ...r, incoming: r.incoming || [], outgoing: r.outgoing || [] };
+    friends.error = null;
+  } else if (r && r.error && r.error !== "signed_out") {
+    friends.error = r.message || "Can't reach Reminth right now.";
+  }
+  paintFriends();
+}
+
+async function loadFriends() {
+  if (friends.loading || !(state.rm && state.rm.user)) return paintFriends();
+  friends.loading = true;
+  try {
+    friendsCard(await window.reminth.friendsList());
+  } catch {
+    friendsCard({ error: "offline" });
+  } finally {
+    friends.loading = false;
+  }
+}
+
+function friendMessage(text, bad) {
+  const m = $("nhFriendMsg");
+  m.textContent = text || "";
+  m.hidden = !text;
+  m.classList.toggle("bad", Boolean(bad));
+}
+
+async function friendAction(run) {
+  try {
+    const r = await run();
+    if (r && r.error) friendMessage(r.message || "That didn't work. Try again.", true);
+    else friendMessage("");
+    friendsCard(r && !r.error ? r : null);
+    return r;
+  } catch {
+    friendMessage("Can't reach Reminth right now.", true);
+    return null;
+  }
+}
+
+$("nhFriendAddBtn").onclick = () => {
+  const form = $("nhFriendAdd");
+  form.hidden = !form.hidden;
+  friendMessage("");
+  if (!form.hidden) $("nhFriendCode").focus();
+};
+$("nhFriendAdd").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (friends.adding) return;
+  const code = $("nhFriendCode").value.trim();
+  if (!code) return $("nhFriendCode").focus();
+  friends.adding = true;
+  const sentBefore = friends.card ? friends.card.outgoing.length : 0;
+  const r = await friendAction(() => window.reminth.friendRequest(code));
+  friends.adding = false;
+  if (r && !r.error) {
+    $("nhFriendCode").value = "";
+    $("nhFriendAdd").hidden = true;
+    // they had already asked you: asking back made you friends at once
+    friendMessage(r.outgoing.length > sentBefore ? "Request sent. They'll see it on their Home." : "You're friends now.");
+  }
+});
+$("nhCopyCode").onclick = async () => {
+  const code = friends.card && friends.card.code;
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    toast("Friend code copied.");
+  } catch {
+    toast(code);
+  }
+};
+$("nhAppearOffline").addEventListener("change", async (e) => {
+  const on = e.target.checked;
+  const r = await friendAction(() => window.reminth.friendsAppearOffline(on));
+  if (!r || r.error) e.target.checked = !on;
+  else toast(on ? "Friends now see you as offline." : "Friends can see you again.");
+});
+window.reminth.onFriends((card) => friendsCard(card));
 
 /* ---- PvP tiers: the player's own tiers on MCTiers, PvPTiers and SubTiers (main/tiers.js) ---- */
 let tiersToken = 0;

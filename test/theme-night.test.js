@@ -72,8 +72,11 @@ test("the Night home page has everything the code paints", () => {
     assert.ok(!code.includes(`$("${gone}")`), `nothing uses #${gone}`);
   }
   assert.match(code, /if \(!grid\) return; \/\/ Home's Discover mods row/, "Discover's home row is skipped, not crashed on");
-  // no fake friends: the card says it's coming
-  assert.match(html, /Friends aren't in Reminth yet\./);
+  // Friends is real now (15 Oct 2026): the card's parts are there, and the space for ads under it is empty
+  for (const id of ["nhFriends", "nhFriendsBody", "nhFriendAdd", "nhFriendCode", "nhMyCode", "nhAppearOffline", "nhAdSlot"]) {
+    assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1, `#${id} exactly once`);
+  }
+  assert.ok(html.includes('<div class="nh-ad-slot" id="nhAdSlot" aria-hidden="true"></div>'), "no fake ads");
 });
 
 test("Home v2: LAUNCH GAME, tiers hidden for now, the 12 servers and their pictures", () => {

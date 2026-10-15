@@ -1,6 +1,7 @@
 // POST /api/account/delete {confirm: "DELETE"} - deletes the account, its sign-in methods and every session, for good.
 // A kept Discord permission is handed back to Discord too (best effort).
 import { configured, cookie, currentUser, db, json, notConfigured, sameOrigin, unseal } from "../../_lib.js";
+import { friendsDb } from "../../_friends.js";
 
 export async function onRequestPost({ request, env }) {
   if (!configured(env)) return notConfigured();
@@ -22,6 +23,13 @@ export async function onRequestPost({ request, env }) {
     DB.prepare("DELETE FROM login_codes WHERE user_id = ?").bind(id),
     DB.prepare("DELETE FROM identities WHERE account_id = ?").bind(id),
     DB.prepare("DELETE FROM accounts WHERE id = ?").bind(id),
+  ]);
+  // friends: the code, every friendship and request, the last presence (_friends.js)
+  const FDB = await friendsDb(env);
+  await FDB.batch([
+    FDB.prepare("DELETE FROM friend_codes WHERE account_id = ?").bind(id),
+    FDB.prepare("DELETE FROM friends WHERE a = ? OR b = ?").bind(id, id),
+    FDB.prepare("DELETE FROM presence WHERE account_id = ?").bind(id),
   ]);
   const refresh = discord && discord.secret ? await unseal(env, discord.secret) : null;
   if (refresh && env.DISCORD_CLIENT_ID && env.DISCORD_CLIENT_SECRET) {
