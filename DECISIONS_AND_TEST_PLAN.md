@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **15 Oct 2026 (13:40): Reminth 1.8.0 PUBLISHED (tag `1.8.0`) - checked: 3 assets, latest.yml identical, installer sha512 matches; GitHub feed shows 1.8.0 so the bot posts it in #updates by itself. Website: privacy v13 (launcher PvP tiers card) and the Moonrise icon (favicon, logo, apple-touch) live. The #announcements welcome text still announces 1.7.2 (`functions/_texts.js` RELEASE) - update it only if the owner asks.**
 - **15 Oct 2026 (day): every page and button of the Night look checked in a hidden test copy - PLAY, Stop, Quick join (joined a test server), picker, themes, sign out all work; pixel C fix; G panel on 8 older versions OK. Section 0000000000000000000000000000000000000.**
 - **15 Oct 2026 (day): black only - the Blue/Orange and accent pickers are gone from the sign-in screen and Settings; Night is always applied (owner: "black is our color here its not changeable at least for now"). `npm test` 692 pass.**
 - **15 Oct 2026 (night): Reminth 1.8.0 = the Night look + the owner's Night home page and Moonrise icon. NOT built, NOT installed, NOT published. Read `design/NIGHT_DESIGN.md`. Section 000000000000000000000000000000000000.**
