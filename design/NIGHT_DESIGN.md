@@ -81,9 +81,12 @@ v0idd were mock-ups, nothing fake is shown). Bottom: "Reminth <version> • What
   sign-in (both steps), Home, Discover, Library, Skins, Servers, Reminth+, Settings, Statistics, Instance, Streamer,
   the new-instance dialog, the PLAY picker menu, What's new, the Orange look with the new Home. No script errors
   on any page. `npm test` passes.
-- **Not tested yet**: real clicks in the installed app; PLAY/Stop/progress during a real launch; Quick join really
-  joining; the PvP tiers card with the owner's real account and the real tier sites; the window/taskbar icon and the
-  installer icon on Windows; the one-time move to Night on the owner's real settings.
+- **Tested for real on 15 Oct (code window, hidden test copy with a fake offline player)**: PLAY through a real
+  launch (downloads, progress, Playing, Stop), Quick join joining a local test server, the PLAY picker, What's new,
+  New instance, theme switching both ways, sign out, the tiers card reaching the tier sites. Details:
+  DECISIONS_AND_TEST_PLAN.md section 0000000000000000000000000000000000000.
+- **Not tested yet**: the installed 1.8.0; the window/taskbar and installer icon on Windows; the one-time move to
+  Night on the owner's real settings; the tiers card with an account that has tiers.
 
 ## 6. Left to do (not done on purpose)
 

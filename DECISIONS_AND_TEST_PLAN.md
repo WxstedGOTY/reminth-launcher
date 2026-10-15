@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **15 Oct 2026 (day): every page and button of the Night look checked in a hidden test copy - PLAY, Stop, Quick join (joined a test server), picker, themes, sign out all work; pixel C fix; G panel on 8 older versions OK. Section 0000000000000000000000000000000000000.**
 - **15 Oct 2026 (night): Reminth 1.8.0 = the Night look + the owner's Night home page and Moonrise icon. NOT built, NOT installed, NOT published. Read `design/NIGHT_DESIGN.md`. Section 000000000000000000000000000000000000.**
 - **14 Oct 2026: "Post the channel messages" now posts a NEW #announcements message for each new release (others still edit). Live on the website. Section 00000000000000000000000000000000000.**
 - **10 Oct 2026 (night): Reminth 1.7.2 PUBLISHED - assets checked (latest.yml identical, exe sha512 matches); website and Discord texts say "over 240 features" (owner presses "Post the channel messages" to update #announcements).** It is: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
@@ -21,6 +22,40 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000000000000000000. Night look checked for real + G panel on 8 older versions (15 Oct 2026) - desktop window (code chat)
+
+**Owner's ask (14 Oct, then asleep):** after the design window applies the new Home and icon, make every button work
+and test it all again; "dont ask me questions".
+
+**Fixed:** pixel headings of the Night look use Pixelify's regular weight (`night-extra.css`, rebuilt
+`styles-night.css`): in bold the C closes, so "INSTANCE" read "INSTANOE", "Create" "Oreate", "Bench" "Benoh". Home's
+big REMINTH stays bold. `design/screens/` retaken with the fix. `test/discord-texts.test.js` allows the next version
+in package.json (1.8.0) while #announcements still announces 1.7.2.
+
+**Tested for real** (hidden test copy of the launcher: own data in a fake home, fake offline player "Bench", never the
+owner's data or account):
+- Every page opens; a check of every visible button for a click handler found none missing (data-page buttons and the
+  Discover pager's current page are handled by shared code).
+- PLAY: downloaded Java 25, the game, libraries and assets with the progress showing under PLAY, the game started,
+  PLAY said "Playing", Stop appeared; Stop closed the game in ~5 s, PLAY came back, "Last played" updated.
+- PLAY picker menu (every instance, Open, New instance), What's new pop-up (7 items), New instance dialog, Sign out
+  (the sign-in card on the night sky).
+- Night / Blue / Orange switch both ways and are saved (theme + accent + stylesheet).
+- PvP tiers card reached the real tier sites ("No tiers yet" for the fake player).
+- Quick join: two saved servers became tiles DN and TH; clicking TH started the game with
+  `--quickPlayMultiplayer 127.0.0.1:25599` and the player joined a local 26.2 test server ("Bench joined the game").
+  Note: on a brand-new game folder Minecraft first shows its own Narrator/Accessibility welcome screen and the join
+  waits behind it (Mojang's screen, shown once; not changed).
+- ReminthHUD 1.6.0 in a world on 1.20.1, 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 26.1.2 and 26.2 (hidden games, 24
+  features on, HUD and G panel each): drawn, no errors, no crashes.
+
+**Not tested:** the installed 1.8.0 (no installer built), the window/taskbar icon on Windows, the one-time move to
+Night on real settings, the tiers card with a real account that has tiers.
+
+**`npm test`: 692 pass, 0 fail.**
 
 ---
 
