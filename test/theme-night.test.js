@@ -51,7 +51,10 @@ test("the Night pieces exist: icon, mark, window icon, packaged icon", () => {
   assert.match(renderer, /night: \["styles-night\.css", "reminth-mark-night\.svg"\]/);
   const html = read("src", "renderer", "index.html");
   assert.match(html, /href="styles-night\.css" id="themeCss"/, "the page starts in the Night look (no flash of another look)");
-  for (const theme of ["night", "frost", "ember"]) assert.equal((html.match(new RegExp(`data-theme="${theme}"`, "g")) || []).length, 2, `${theme} in both theme pickers`);
+  // Black is Reminth's look, not changeable for now (owner, 15 Oct 2026): no theme or accent pickers anywhere, Night forced.
+  assert.ok(!/data-theme=|class="theme-pick|id="accentPicker"/.test(html), "no Blue/Orange/accent pickers on the page");
+  assert.match(renderer, /applyTheme\("night"\);\s*applyAccent\("night"\);/, "the page always starts in Night");
+  assert.match(main, /const LOOK = "night";/, "the window icon is always the Night one");
 });
 
 test("the Night home page has everything the code paints", () => {

@@ -1,5 +1,10 @@
 # Reminth "Night" - the new look (owner, 14-15 Oct 2026)
 
+**15 Oct 2026, owner: "black is our color here its not changeable at least for now".** No Blue/Orange/accent pickers
+anywhere (sign-in and Settings); the page always applies Night (`renderer.js` boot) and the window icon is always the
+Moonrise one (`main.js` `LOOK`). The Blue/Orange stylesheets and code stay in the repo for later; saved settings are
+left as they are.
+
 **Read this first if you are a Claude Code window working on Reminth's look.** It is the source of truth for the
 Night design: what the owner asked, what is built, where it lives in the code, the rules, and what is left.
 
@@ -29,7 +34,7 @@ Night design: what the owner asked, what is built, where it lives in the code, t
 | `design/privacy-v13-draft.md` | Privacy text to put live **when 1.8.0 is published** (the PvP tiers card). |
 | `assets/icons/reminth-night.ico` | = `design/icon/reminth-moonrise.ico`: the .exe, installer, uninstaller and window icon (`package.json` build, `main.js` themeIcon). |
 | `assets/icons/source/reminth-mark-night.svg` | The see-through mark (the cube of the master SVG without tile, stars, hills): rail, loading screen, sign-in card, HUD mod card. |
-| `src/renderer/index.html` | `#homeMain.nh` (the Night home), `#nightScene` + `#nightMoon` canvases in `.backdrop`, the theme pickers (Night / Blue / Orange), the Moonlight accent. |
+| `src/renderer/index.html` | `#homeMain.nh` (the Night home), `#nightScene` + `#nightMoon` canvases in `.backdrop`, no theme or accent pickers (removed 15 Oct: black only). |
 | `src/renderer/renderer.js` | "the Night home page" section: `PX_ICONS`/`pxIcon`, `PX_DIGITS`/`pxNumber`/`setPxStat`, `loadMyTiers`/`paintTiers`, What's new pop-up, `paintNightMoon`, `paintNightScene`. Also `renderHero`, `paintHeroStats`, `openHeroPicker`, `showMenuBox`, Quick join (`quickInitials`, `quickTile`, `loadRecent`), `THEME_FILES`/`applyTheme`. |
 | `src/renderer/styles.css` | The Home layout at the end ("the Night home page" block) - every look gets it. |
 | `src/renderer/night-extra.css` | The Night look itself (everything that isn't just a colour). |

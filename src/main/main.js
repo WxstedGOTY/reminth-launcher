@@ -177,7 +177,7 @@ function createWindow() {
     frame: false, // custom title bar drawn in renderer, matches the brand's borderless look
     // Taskbar / alt-tab icon: the .ico carries the hand-tuned 16/24/32 px pictures, so Windows picks the right size
     // itself (a single big PNG would be scaled down by Windows and look soft).
-    icon: themeIcon(cachedSettings && cachedSettings.theme),
+    icon: themeIcon(LOOK),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -750,6 +750,8 @@ ipcMain.handle("settings:get", async () => {
   return cachedSettings;
 });
 
+// Black (Night) is Reminth's look, not changeable for now (owner, 15 Oct 2026) - the page forces it too (renderer.js boot).
+const LOOK = "night";
 /** The window's (taskbar) icon for a theme: the Night "Moonrise" icon (also the .exe's), the orange or the blue cube. */
 function themeIcon(theme) {
   const file = theme === "frost" ? "reminth-frost.ico" : theme === "ember" ? "reminth.ico" : "reminth-night.ico";
@@ -757,7 +759,7 @@ function themeIcon(theme) {
 }
 function applyThemeIcon() {
   try {
-    if (win && !win.isDestroyed()) win.setIcon(themeIcon(cachedSettings && cachedSettings.theme));
+    if (win && !win.isDestroyed()) win.setIcon(themeIcon(LOOK));
   } catch {
     // cosmetic
   }

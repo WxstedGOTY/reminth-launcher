@@ -3593,7 +3593,7 @@ paintNightScene();
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "A new look: Night - black and white under a pixel night sky, with the new Reminth icon. Blue and Orange are still in Settings.",
+  "A new look: Night - black and white under a pixel night sky, with the new Reminth icon.",
   "A new Home: one big PLAY with the instance it starts right under it, your stats, your own PvP tiers (MCTiers, PvPTiers, SubTiers) and Quick join for your last worlds and servers.",
   "New in the G panel: Tier Tagger - players' PvP tiers (MCTiers, PvPTiers, SubTiers) above their heads and in the tab list, every gamemode. Type /tiers <name> to see all of someone's tiers.",
   "Reminth accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
@@ -3973,8 +3973,9 @@ async function boot() {
     state.settings = await window.reminth.getSettings();
     const s = state.settings;
     state.activeId = s.activeInstance || "reminth";
-    applyTheme(s.theme);
-    applyAccent(s.accent || "night");
+    // Black (Night) is Reminth's look - not changeable for now (owner, 15 Oct 2026). The Blue/Orange code stays for later.
+    applyTheme("night");
+    applyAccent("night");
     setSwitch("toggleLaunchMinimized", s.launchMinimized);
     setSwitch("toggleHardwareAccel", s.hardwareAcceleration !== false);
     paintHwNote();

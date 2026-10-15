@@ -5,6 +5,7 @@ work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
 - **15 Oct 2026 (day): every page and button of the Night look checked in a hidden test copy - PLAY, Stop, Quick join (joined a test server), picker, themes, sign out all work; pixel C fix; G panel on 8 older versions OK. Section 0000000000000000000000000000000000000.**
+- **15 Oct 2026 (day): black only - the Blue/Orange and accent pickers are gone from the sign-in screen and Settings; Night is always applied (owner: "black is our color here its not changeable at least for now"). `npm test` 692 pass.**
 - **15 Oct 2026 (night): Reminth 1.8.0 = the Night look + the owner's Night home page and Moonrise icon. NOT built, NOT installed, NOT published. Read `design/NIGHT_DESIGN.md`. Section 000000000000000000000000000000000000.**
 - **14 Oct 2026: "Post the channel messages" now posts a NEW #announcements message for each new release (others still edit). Live on the website. Section 00000000000000000000000000000000000.**
 - **10 Oct 2026 (night): Reminth 1.7.2 PUBLISHED - assets checked (latest.yml identical, exe sha512 matches); website and Discord texts say "over 240 features" (owner presses "Post the channel messages" to update #announcements).** It is: the big G panel update (ReminthHUD 1.6.0) + the Discord sidebar card. Section 0000000000000000000000000000000000.**
@@ -85,7 +86,7 @@ and the website's icon in the Moonrise style.
 
 **Test plan (PASS/FAIL, all not tested in the real app yet):**
 1. Install 1.8.0: the installer, desktop shortcut, taskbar and window show the Moonrise icon.
-2. First start: the launcher is in the Night look (black/white, pixel sky); Settings -> Theme shows Night / Blue / Orange and switching works both ways (icon too).
+2. First start: the launcher is in the Night look (black/white, pixel sky). No Blue/Orange/accent choice on the sign-in screen or in Settings (owner, 15 Oct: black only); the taskbar icon is the Moonrise one.
 3. Home: stats show your real numbers in pixel digits; hover names them.
 4. PLAY starts the instance shown under it; the picker lists every instance, picking one changes PLAY; "Open ..." and "New instance" work.
 5. While the game runs: PLAY says Playing, Stop appears under it and works.
