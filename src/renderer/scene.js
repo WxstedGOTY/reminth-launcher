@@ -11,7 +11,7 @@
  *                                                                      *
  *  - the still sky is painted once per window size into an off-screen   *
  *    canvas;                                                             *
- *  - every frame (30 a second, only while Home is on screen, the window  *
+ *  - every frame (every frame, only while Home is on screen, the window  *
  *    is in front and no game runs) copies it and adds the twinkling and  *
  *    the clouds;                                                         *
  *  - prefers-reduced-motion: the still sky only.                        *
@@ -39,7 +39,10 @@
   let H = 0;
   let DPR = 1;
   let stars = [];
-  let clouds = [];
+  const cloudTile = document.createElement("canvas");
+  let cloudCell = 56;
+  let cloudW = 1;
+  let cloudH = 1;
 
   function paintStill() {
     W = window.innerWidth;
@@ -75,19 +78,30 @@
       });
     }
 
-    // clouds: flat blocky shapes like the game's, made once and drifting every frame
-    clouds = [];
-    for (let i = 0; i < 9; i++) {
-      const cw = 6 + Math.floor(rnd() * 12);
-      const ch = 2 + Math.floor(rnd() * 2);
-      const cells = [];
-      for (let y = 0; y < ch; y++) {
-        const inset = y === 0 ? Math.floor(rnd() * 3) : 0;
-        const end = cw - (y === ch - 1 ? Math.floor(rnd() * 3) : 0);
-        for (let x = inset; x < end; x++) if (!(y === 0 && rnd() < 0.15)) cells.push([x, y]);
-      }
-      clouds.push({ cells, x: rnd() * (W + 600) - 300, y: H * (0.04 + rnd() * 0.88), speed: 3 + rnd() * 5, a: 0.1 + rnd() * 0.08 });
+    // clouds, the way the game has them: one big grid of flat square cells (some filled, some not, in clumps with
+    // square edges) that repeats in every direction and drifts steadily one way
+    const COLS = 36;
+    const ROWS = 24;
+    let grid = Array.from({ length: ROWS }, () => Array.from({ length: COLS }, () => rnd() < 0.44));
+    for (let pass = 0; pass < 3; pass++) {
+      // clump neighbours together (wrapping round the edges, so the tile joins up)
+      grid = grid.map((row, y) =>
+        row.map((_, x) => {
+          let n = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (grid[(y + dy + ROWS) % ROWS][(x + dx + COLS) % COLS]) n++;
+          return n >= 5;
+        }),
+      );
     }
+    cloudCell = 56;
+    cloudW = COLS * cloudCell;
+    cloudH = ROWS * cloudCell;
+    cloudTile.width = Math.round(cloudW * DPR);
+    cloudTile.height = Math.round(cloudH * DPR);
+    const cg = cloudTile.getContext("2d");
+    cg.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cg.fillStyle = "rgb(196, 200, 214)"; // the strength is set when it is drawn
+    grid.forEach((row, y) => row.forEach((on, x) => on && cg.fillRect(x * cloudCell - 0.5, y * cloudCell - 0.5, cloudCell + 1, cloudCell + 1)));
 
     paintMoon();
     drawFrame(performance.now());
@@ -147,13 +161,12 @@
       ctx.fillRect(s.x, s.y, s.s, s.s);
     }
 
-    const cell = 14;
-    for (const c of clouds) {
-      const span = W + 700;
-      const x = ((((c.x + t * c.speed) % span) + span) % span) - 350;
-      ctx.fillStyle = `rgba(150, 156, 175, ${c.a.toFixed(2)})`;
-      for (const [cx, cy] of c.cells) ctx.fillRect(Math.round(x + cx * cell), Math.round(c.y + cy * cell), cell, cell);
-    }
+    // clouds: one steady drift (a wrap-around of the tile, so it never jumps), about 12 px a second
+    ctx.globalAlpha = 0.085;
+    const ox = (t * 12) % cloudW;
+    const oy = -cloudH * 0.2; // the tile never starts exactly at the top
+    for (let x = -ox; x < W; x += cloudW) for (let y = oy; y < H; y += cloudH) ctx.drawImage(cloudTile, x, y, cloudW, cloudH);
+    ctx.globalAlpha = 1;
   }
 
   /* ---- the loop: only while someone can see Home move ---- */
@@ -165,23 +178,18 @@
     !document.body.classList.contains("unfocused") &&
     !document.body.classList.contains("game-running");
 
-  let last = 0;
   let running = false;
   function loop(now) {
     if (!moving()) {
       running = false;
       return;
     }
-    if (now - last >= 33) {
-      last = now;
-      drawFrame(now);
-    }
+    drawFrame(now);
     requestAnimationFrame(loop);
   }
   function wake() {
     if (running || !moving()) return;
     running = true;
-    last = performance.now();
     requestAnimationFrame(loop);
   }
   document.addEventListener("reminth:page", () => setTimeout(wake, 0));
