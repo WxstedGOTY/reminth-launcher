@@ -1,13 +1,14 @@
 // The channel messages of the Reminth Discord server (approved texts: discord/texts.md). Posted through a webhook
-// called "Reminth" with the Reminth logo, one message per channel. Posting again EDITS the message that is already
-// there (so a fixed typo doesn't make a second message) - except a message with `release`: when that changes, it is
-// posted as a NEW message so people see the new version (owner's rule). Owner tools -> "Post the channel messages".
+// called "Reminth" with the Reminth logo, one message per channel. Owner tools -> "Post the channel messages".
+// Messages are NEVER edited (owner, 15 Oct 2026: no "(edited)" on any of them, always new messages):
+//  - rules, faq, socials, #read-first: the old message is deleted and the same info posted again as a new one;
+//  - #announcements and #updates (`keep`): old messages stay; a new message is posted only when the text changed.
 import { dapi, getConfig, setConfig } from "./_bot.js";
 import { findJobs } from "./_setup.js";
 
 const SITE = "https://reminth.pages.dev";
 // The version the #announcements text is about. Change it together with that text on each release.
-export const RELEASE = "1.7.2";
+export const RELEASE = "1.8.0";
 const RED = 0xe53935;
 const ch = (jobs, j, fallback) => (jobs[j] ? `<#${jobs[j].id}>` : fallback);
 
@@ -35,6 +36,7 @@ export function messages(jobs) {
     },
     {
       job: "announcements",
+      keep: true,
       release: RELEASE,
       embeds: [
         {
@@ -42,10 +44,10 @@ export function messages(jobs) {
           color: RED,
           description:
             "Reminth is a free Minecraft launcher for Windows, built for PvP and performance. This is its home on Discord: news, support, and the people who use it.\n\n" +
-            "**Reminth 1.7.2 is out now: the big G panel update**\n" +
-            "- **See-through panel:** see your game behind it, walk while it's open, press E to close it.\n" +
-            "- **Streamer category:** type your own text on screen in any size, colour and animation, plus a LIVE badge, Be Right Back screen, facecam frame, goal bar and more.\n" +
-            "- **Over 120 new features** and many more options on every display.\n\n" +
+            `**Reminth ${RELEASE} is out now: the Night update**\n` +
+            "- **A whole new look:** black and white under a pixel night sky, with the new Reminth icon.\n" +
+            "- **A new Home:** one big PLAY, your stats, your own PvP tiers and Quick join for your last worlds and servers.\n" +
+            "- **Every page redone** in the same style.\n\n" +
             "**What you get with Reminth**\n" +
             "- Press **G** in game for the Reminth Mods Panel: over 240 built-in features like FPS, keystrokes, armor status, potion timers, zoom, a custom crosshair and on-screen text for streamers\n" +
             "- Sodium, Lithium and other performance mods set up for you on Fabric and Quilt\n" +
@@ -57,6 +59,7 @@ export function messages(jobs) {
     },
     {
       job: "updates",
+      keep: true,
       embeds: [
         {
           title: "Reminth updates",
@@ -122,14 +125,33 @@ export function messages(jobs) {
   ];
 }
 
-/** saved = "hookId:msgId[:release]" -> edit that message, or post a new one (other webhook, or a new release). */
-export function savedPlan(saved, currentHookId, release) {
-  const [hookId, msgId, savedRelease] = (saved || "").split(":");
-  const newRelease = Boolean(release) && savedRelease !== release;
-  return { msgId, newRelease, edit: Boolean(saved) && hookId === currentHookId && !newRelease };
+
+/** A short fingerprint of a message's content, to tell whether it changed since it was posted. */
+export function fingerprint(body) {
+  let h = 0x811c9dc5;
+  for (const c of JSON.stringify(body)) h = Math.imul(h ^ c.charCodeAt(0), 0x01000193) >>> 0;
+  return "f" + h.toString(36);
 }
 
-/** Posts (or edits) one message per call. -> {done, log[], next} */
+/**
+ * What to do with one channel's message. saved = "webhookId:messageId:fingerprint" of the last post (before 15 Oct
+ * 2026 it was "webhookId:messageId" or "webhookId:messageId:<release>"). ->
+ *  "post"    post a new message (nothing posted yet, or a keep-message whose text changed - the old one stays)
+ *  "skip"    a keep-message whose text hasn't changed: it is already there, unedited
+ *  "adopt"   a keep-message saved the old way and not about a new release: treat it as up to date (no post)
+ *  "replace" delete the old message, then post the same info as a new one
+ */
+export function savedPlan(saved, m, print) {
+  const [hookId, msgId, third] = (saved || "").split(":");
+  if (!saved || !msgId) return { action: "post" };
+  if (!m.keep) return { action: "replace", hookId, msgId };
+  if (third === print) return { action: "skip" };
+  if (third && third.startsWith("f")) return { action: "post" };
+  // saved before fingerprints: only a new release is worth a new post
+  return m.release && third !== m.release ? { action: "post" } : { action: "adopt", hookId, msgId };
+}
+
+/** Posts one channel's message per call. -> {done, log[], next} */
 export async function postMessages(env, index = 0) {
   const g = String(env.DISCORD_GUILD_ID);
   const chans = await dapi(env, "GET", `/guilds/${g}/channels`);
@@ -141,6 +163,15 @@ export async function postMessages(env, index = 0) {
   const next = index + 1 < list.length ? index + 1 : null;
   const channel = jobs[m.job];
   if (!channel) return { next, log: [`#${m.job}: channel not found - skipped`] };
+  const body = { username: "Reminth", avatar_url: `${SITE}/favicon.png`, embeds: m.embeds, allowed_mentions: { parse: [] } };
+  const print = fingerprint(body);
+  const key = `msg:${m.job}`;
+  const plan = savedPlan(await getConfig(env, key), m, print);
+  if (plan.action === "skip") return { next, log: [`#${channel.name}: no change - the message stays as it is`] };
+  if (plan.action === "adopt") {
+    await setConfig(env, key, `${plan.hookId}:${plan.msgId}:${print}`);
+    return { next, log: [`#${channel.name}: no change - the message stays as it is`] };
+  }
   // the "Reminth" webhook of this channel (made once, reused)
   const hooks = await dapi(env, "GET", `/channels/${channel.id}/webhooks`);
   let hook = hooks.ok ? (hooks.data || []).find((h) => h.name === "Reminth" && h.token) : null;
@@ -149,18 +180,21 @@ export async function postMessages(env, index = 0) {
     if (!r.ok) return { next: null, log: [], problem: `Making the webhook in #${channel.name}: ${r.status}${r.data && r.data.message ? " " + r.data.message : ""}` };
     hook = r.data;
   }
-  const body = { username: "Reminth", avatar_url: `${SITE}/favicon.png`, embeds: m.embeds, allowed_mentions: { parse: [] } };
-  const key = `msg:${m.job}`;
-  const saved = await getConfig(env, key);
-  const { msgId, newRelease, edit } = savedPlan(saved, hook.id, m.release);
-  if (edit) {
-    const e = await dapi(env, "PATCH", `/webhooks/${hook.id}/${hook.token}/messages/${msgId}`, body);
-    if (e.ok) return { next, log: [`#${channel.name}: message updated`] };
-    // deleted by hand - post it again below
+  if (plan.action === "replace") {
+    // the webhook's own message; one from an older webhook is deleted by the bot (404 = already gone)
+    const d =
+      plan.hookId === hook.id
+        ? await dapi(env, "DELETE", `/webhooks/${hook.id}/${hook.token}/messages/${plan.msgId}`)
+        : await dapi(env, "DELETE", `/channels/${channel.id}/messages/${plan.msgId}`, undefined, "Reminth: channel message posted again");
+    if (d.status === 429) return { next: index, log: [], waitSeconds: Math.ceil(Number((d.data && d.data.retry_after) || 5)) };
+    if (!d.ok && d.status !== 404) return { next: null, log: [], problem: `Deleting the old message in #${channel.name}: ${d.status}${d.data && d.data.message ? " " + d.data.message : ""}` };
+    // gone: forget it, so a retry after a failed post below just posts
+    await setConfig(env, key, "");
   }
   const r = await dapi(env, "POST", `/webhooks/${hook.id}/${hook.token}?wait=true`, body);
   if (r.status === 429) return { next: index, log: [], waitSeconds: Math.ceil(Number((r.data && r.data.retry_after) || 5)) };
   if (!r.ok) return { next: null, log: [], problem: `Posting in #${channel.name}: ${r.status}${r.data && r.data.message ? " " + r.data.message : ""}` };
-  await setConfig(env, key, `${hook.id}:${r.data.id}${m.release ? ":" + m.release : ""}`);
-  return { next, log: [`#${channel.name}: ${newRelease && saved ? `new message posted for ${m.release}` : "message posted"}`] };
+  await setConfig(env, key, `${hook.id}:${r.data.id}:${print}`);
+  const what = plan.action === "replace" ? "old message deleted, the same info posted as a new message" : m.keep ? "new message posted (the old ones stay)" : "message posted";
+  return { next, log: [`#${channel.name}: ${what}`] };
 }

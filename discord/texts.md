@@ -31,10 +31,10 @@ Breaking the rules can lead to a warning, a timeout, a kick or a ban, depending 
 
 Reminth is a free Minecraft launcher for Windows, built for PvP and performance. This is its home on Discord: news, support, and the people who use it.
 
-**Reminth 1.7.2 is out now: the big G panel update**
-- **See-through panel:** see your game behind it, walk while it's open, press E to close it.
-- **Streamer category:** type your own text on screen in any size, colour and animation, plus a LIVE badge, Be Right Back screen, facecam frame, goal bar and more.
-- **Over 120 new features** and many more options on every display.
+**Reminth 1.8.0 is out now: the Night update**
+- **A whole new look:** black and white under a pixel night sky, with the new Reminth icon.
+- **A new Home:** one big PLAY, your stats, your own PvP tiers and Quick join for your last worlds and servers.
+- **Every page redone** in the same style.
 
 **What you get with Reminth**
 - Press **G** in game for the Reminth Mods Panel: over 240 built-in features like FPS, keystrokes, armor status, potion timers, zoom, a custom crosshair and on-screen text for streamers
