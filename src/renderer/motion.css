@@ -43,6 +43,11 @@
 /* a server's picture zooms in a little under the pointer (and while its Join button has keyboard focus) */
 .nh-srv-pic img { transition: transform .45s var(--m-ease), filter .45s ease; }
 .nh-srv-pic:hover img, .nh-srv:has(.nh-srv-join:focus-visible) img { transform: scale(1.06); filter: brightness(1.06); will-change: transform; }
+/* the launch panel's picture zooms too, a bit more than the servers' (owner, 15 Oct 2026); isolation keeps the zoomed
+   picture inside the panel's round corners */
+.nh-panel { isolation: isolate; }
+.nh-panel-art { transition: transform .5s var(--m-ease), filter .5s ease; }
+.nh-panel:hover .nh-panel-art { transform: scale(1.09); filter: brightness(1.06); will-change: transform; }
 #home.entering #rmGate, #home.entering #signInHero { animation: m-pop .32s var(--m-ease) both; }
 @keyframes m-from-left { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
 @keyframes m-from-right { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
@@ -110,6 +115,7 @@
 @media (prefers-reduced-motion: reduce) {
   .page > *, #home .nh-stats li, #home .nh-play, #home .nh-panel, #home .nh-panel-art, #home .nh-side > *, #home .nh-version, #home .nh-me, #home .nh-srv, #home .nh-quick-in, #home .nh-quick, .topbar-title .eyebrow,
   .topbar-title .topbar-sub, .mod-row, .content-row, .skin-tile, .card, .nh-tile, .nh-tier, .tab-pane, .modal-root .modal { animation: none !important; }
-  #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile, .nh-srv-pic img { transition: none !important; }
+  #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile, .nh-srv-pic img, .nh-panel-art { transition: none !important; }
+  .nh-panel:hover .nh-panel-art { transform: none; filter: none; }
   .nh-srv-pic:hover img, .nh-srv:has(.nh-srv-join:focus-visible) img { transform: none; filter: none; }
 }
