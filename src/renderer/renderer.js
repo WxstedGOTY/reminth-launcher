@@ -3140,7 +3140,16 @@ function quickInitials(name, taken) {
 function quickTile(entry, taken) {
   const b = el("button", "nh-tile recent-play " + entry.type);
   b.type = "button";
-  if (entry.type === "server") {
+  // the server's own logo (servers.dat) or the world's own picture (its icon.png), when there is one
+  const pic = typeof entry.icon === "string" && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(entry.icon) ? entry.icon : null;
+  if (pic) {
+    const img = el("img", "nh-tile-pic");
+    img.src = pic;
+    img.alt = "";
+    img.draggable = false;
+    b.classList.add("has-pic");
+    b.appendChild(img);
+  } else if (entry.type === "server") {
     b.textContent = quickInitials(entry.name || entry.address, taken);
     let h = 0;
     for (const c of String(entry.name || entry.address)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -3169,6 +3178,22 @@ function quickTile(entry, taken) {
   return b;
 }
 
+/**
+ * Quick join: the last servers AND the last worlds (owner, 15 Oct 2026: "must show the last worlds but also last
+ * servers you played"). Up to 3 servers (the ones joined most recently first - main/gameData.js reads that from the
+ * game's logs - then the rest of the saved list), the newest worlds fill the rest; newest first overall.
+ */
+function quickJoinEntries(data, max = 6) {
+  const servers = (data.servers || []).slice(0, 3);
+  const worlds = (data.worlds || []).slice(0, max - servers.length);
+  return [...servers, ...worlds].sort((a, b) => {
+    if (a.lastPlayed && b.lastPlayed) return b.lastPlayed - a.lastPlayed;
+    if (a.lastPlayed) return -1;
+    if (b.lastPlayed) return 1;
+    return 0;
+  });
+}
+
 async function loadRecent() {
   let data;
   try {
@@ -3179,7 +3204,7 @@ async function loadRecent() {
   state.recent = data;
   const row = $("quickJoin");
   row.textContent = "";
-  const entries = data.error ? [] : disambiguate(data.recent || []).slice(0, 6);
+  const entries = data.error ? [] : disambiguate(quickJoinEntries(data));
   const taken = new Set();
   entries.forEach((entry) => row.appendChild(quickTile(entry, taken)));
   $("nhQuickWrap").hidden = !entries.length;
