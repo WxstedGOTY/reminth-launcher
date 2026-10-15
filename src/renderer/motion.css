@@ -23,8 +23,13 @@
 /* ---- Home: stats from the left one by one, PLAY pops, the side cards from the right, the bottom row rises ---- */
 #home.enter-down > *, #home.enter-up > * { animation: none; }
 #home.entering .nh-stats li { animation: m-from-left .46s var(--m-ease) both; animation-delay: calc(80ms + var(--i, 0) * 60ms); }
-#home.entering .nh-play { animation: m-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: 120ms; }
-#home.entering .nh-row, #home.entering .nh-meta { animation: m-in-down .42s var(--m-ease) both; animation-delay: 220ms; }
+/* the launch panel rises in with its space picture drifting into place, then PLAY pops in its middle */
+#home.entering .nh-panel { animation: m-panel .55s var(--m-ease) both; animation-delay: 60ms; }
+#home.entering .nh-panel-art { animation: m-art .9s var(--m-ease) both; animation-delay: 60ms; }
+#home.entering .nh-play { animation: m-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: 260ms; }
+@keyframes m-panel { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes m-art { from { transform: scale(1.08); } to { transform: none; } }
+#home.entering .nh-row, #home.entering .nh-meta { animation: m-in-down .42s var(--m-ease) both; animation-delay: 340ms; }
 #home.entering .nh-side > * { animation: m-from-right .48s var(--m-ease) both; animation-delay: calc(160ms + var(--i, 0) * 80ms); }
 #home.entering .nh-foot > * { animation: m-in-down .42s var(--m-ease) both; animation-delay: calc(260ms + var(--i, 0) * 60ms); }
 #home.entering #rmGate, #home.entering #signInHero { animation: m-pop .5s var(--m-ease) both; }
@@ -92,7 +97,7 @@
 
 /* players who ask Windows for less motion get the plain switch */
 @media (prefers-reduced-motion: reduce) {
-  .page > *, #home .nh-stats li, #home .nh-play, #home .nh-side > *, #home .nh-foot > *, .topbar-title .eyebrow,
+  .page > *, #home .nh-stats li, #home .nh-play, #home .nh-panel, #home .nh-panel-art, #home .nh-side > *, #home .nh-foot > *, .topbar-title .eyebrow,
   .topbar-title .topbar-sub, .mod-row, .content-row, .skin-tile, .card, .nh-tile, .nh-tier, .tab-pane, .modal-root .modal { animation: none !important; }
   #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile { transition: none !important; }
 }
