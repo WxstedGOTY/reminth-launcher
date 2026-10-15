@@ -88,8 +88,6 @@
 
 <div id="app">
   <div class="backdrop">
-    <canvas class="night-scene" id="nightScene" aria-hidden="true"></canvas>
-    <canvas class="night-moon" id="nightMoon" aria-hidden="true"></canvas>
     <div class="grid-bg"></div>
     <div class="aurora a1"></div>
     <div class="aurora a2"></div>
@@ -242,7 +240,7 @@
           </div>
 
           <!-- signed in: the Night home page (owner's design "Home · Night", 14 Oct 2026 - design/home-night.png).
-               The Minecraft night behind it is the canvas in .backdrop (scene.js). -->
+               The space picture behind it is .backdrop::before (styles.css). -->
           <div id="homeMain" class="nh" hidden>
             <!-- left: what you've done, in pixel icons (renderer.js updateHomeStatRow) -->
             <ul class="nh-stats" aria-label="Your stats">
@@ -1017,6 +1015,5 @@
 <script src="renderer.js"></script>
 <script src="skinview.js"></script>
 <script src="features.js"></script>
-<script src="scene.js"></script>
 </body>
 </html>

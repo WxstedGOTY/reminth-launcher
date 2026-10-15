@@ -34,15 +34,13 @@
 html, body { background: var(--bg); }
 
 /* ── the night sky behind every page: dim everywhere, the whole scene on Home and the sign-in screen ── */
-.night-scene { display: block; opacity: .34; }
-body[data-page="home"] #app:not(.signed-out) .night-scene,
-#app.signed-out .night-scene { opacity: 1; }
 .aurora, .grid-bg { display: none; }
 .backdrop::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(180deg, rgba(8, 8, 10, 0) 0%, rgba(8, 8, 10, .35) 100%);
 }
-body[data-page="home"] .backdrop::after, #app.signed-out .backdrop::after { display: none; }
+/* Home and sign-in: the picture shows in full, only the bottom darkens so Quick join and Discord read */
+body[data-page="home"] .backdrop::after, #app.signed-out .backdrop::after { background: linear-gradient(180deg, rgba(8, 8, 10, .18) 0%, rgba(8, 8, 10, 0) 30%, rgba(8, 8, 10, .55) 100%); }
 
 /* ── rail: solid black, grey squares, the active one lit with a white bar on its left ── */
 .rail { background: #0a0a0c; border-right: 1px solid rgba(255, 255, 255, .07); backdrop-filter: none; }
@@ -139,8 +137,6 @@ input, select, textarea { border-radius: 8px; }
 .signin-card { background: rgba(10, 10, 13, .86); border-color: rgba(255, 255, 255, .12); backdrop-filter: blur(10px); }
 .signin-mark img { filter: none; }
 
-/* the moon shows with the whole scene: Home and the sign-in screen */
-#app.signed-out .night-moon { display: block; }
 
 /* the top bar already names the page in pixel letters - the page's own small label would say it twice */
 .page-head .eyebrow { display: none; }

@@ -3495,7 +3495,6 @@ $("nhNews").onclick = () => {
   openModal({ title: "What's new in " + $("nhVersion").textContent, body });
 };
 
-/* ---- the night scene behind the app: scene.js ---- */
 
 /* ================================================================== *
  * what's new                                                          *

@@ -61,7 +61,7 @@ test("the Night home page has everything the code paints", () => {
   const html = read("src", "renderer", "index.html");
   const ids = ["homeMain", "playBtn", "stopBtn", "heroPick", "heroLoader", "heroVersion", "heroInstance", "heroMeta", "heroLast", "heroPlaytime", "heroLede", "heroSyncBtn", "heroInstanceBtn",
     "progressWrap", "progressStage", "progressPct", "progressFill", "progressDismiss", "log", "statPlayerKills", "statDeaths", "statDeathsRow", "statMobKills", "statBroken", "statPlaced",
-    "nhTierList", "nhTiersNote", "quickJoin", "nhQuickWrap", "nhVersion", "nhNews", "nightScene", "nightMoon", "livePill"];
+    "nhTierList", "nhTiersNote", "quickJoin", "nhQuickWrap", "nhVersion", "nhNews", "livePill"];
   for (const id of ids) assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1, `#${id} exactly once`);
   // the old Home's pieces are gone and no code still reaches for them
   const code = read("src", "renderer", "renderer.js") + read("src", "renderer", "features.js");

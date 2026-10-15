@@ -2636,11 +2636,16 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 
 /* ── the Night home page (owner's design "Home · Night", 14 Oct 2026 - design/home-night.png) ──────────────
    Every look gets this layout; styles-night.css (tools/night.js) adds the black-and-white look around it.
-   The pixel scene is a canvas in .backdrop (renderer.js paintNightScene): on Home it covers the whole window. */
-.night-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: none; image-rendering: pixelated; transition: opacity .2s; }
-.night-moon { position: absolute; top: 0; right: 0; display: none; image-rendering: pixelated; }
-body[data-page="home"] #app:not(.signed-out) .night-scene,
-body[data-page="home"] #app:not(.signed-out) .night-moon { display: block; }
+   The background behind it is .backdrop::before (below). */
+/* the whole launcher's background: the owner's space picture (assets/img/launch-panel.webp, 15 Oct 2026: "use it for the
+   whole launchers background"). Bright on Home and the sign-in screen, a dim sky behind the other pages. */
+.backdrop::before {
+  content: ""; position: absolute; inset: 0; background: url("../../assets/img/launch-panel.webp") center / cover no-repeat;
+  opacity: .3; transition: opacity .2s;
+}
+body[data-page="home"] .backdrop::before, #app.signed-out .backdrop::before { opacity: 1; }
+body[data-page="home"] #app:not(.signed-out) .aurora,
+body[data-page="home"] #app:not(.signed-out) .grid-bg { display: none; }
 body[data-page="home"] #app:not(.signed-out) .aurora,
 body[data-page="home"] #app:not(.signed-out) .grid-bg { display: none; }
 
@@ -2812,12 +2817,12 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 /* the launch panel (owner's design "launch game panel/reminth-launch-panel@2x.webp", 15 Oct 2026): the space art in a
    rounded panel with a white outline, PLAY in the empty middle of the picture. The panel is wider than the middle
    column (it may reach over the free space beside it); the stats and cards above stay clickable. */
-.nh-center { grid-column: 1 / -1; max-width: none; width: 100%; pointer-events: none; }
+.nh-center { grid-column: 1 / -1; align-self: start; margin-top: -16px; max-width: none; width: 100%; pointer-events: none; }
 .nh-center > * { pointer-events: auto; }
 .nh-panel {
   position: relative; width: min(720px, 94%); aspect-ratio: 2704 / 636; overflow: hidden;
-  border-radius: 22px; border: 2px solid rgba(255, 255, 255, .92); background: #05060b;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 0 40px rgba(255, 255, 255, .08), 0 18px 44px rgba(0, 0, 0, .5);
+  border-radius: 22px; border: 2px solid #8a8d95; background: #05060b; /* the icon's cube-edge grey */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .55);
   display: grid; place-items: center;
 }
 .nh-panel-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; pointer-events: none; user-select: none; }
