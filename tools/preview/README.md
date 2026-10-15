@@ -30,3 +30,15 @@ Notes:
   directly (`updateHomeStatRow`, `paintTiers`, `quickTile`). Run it again after ~1 s if a real look-up repainted.
 - Stop it afterwards: find the `electron.exe` whose command line has `-r ...hidden-hook.js` and end that process
   tree. The installed app is `Reminth.exe` - never touch it.
+
+## The owner's LIVE preview (visible, refreshes by itself)
+
+Desktop shortcut **"Reminth Live Preview"** -> `tools/preview/live.cmd` -> `electron -r tools/preview/live-hook.js .`
+- A normal window titled "Reminth - LIVE PREVIEW" that runs the code in this folder, next to the installed Reminth.
+- Its own data: `%USERPROFILE%\Downloads\reminth-live-preview` (home + Chromium profile). The first start copies only
+  the small files Home's stats need from the real `%APPDATA%\Reminth` (`live-copy.ps1`: settings.json, servers.dat,
+  options.txt, each world's level.dat/icon/stats, server stats) - never writes to the real folder. Delete that folder
+  to start the preview fresh.
+- Any change under `src/renderer` reloads it; a change under `src/main` or `assets/icons` restarts it.
+- DevTools port 9440 (`CDP_PORT=9440 node local-notes/cdpx.js eval ...`) to check what it shows.
+- The owner signs in there himself once (Reminth account + Microsoft); its sign-in is separate from the real Reminth.
