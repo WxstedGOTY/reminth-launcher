@@ -127,6 +127,11 @@ function statusFromJson(json, latencyMs, latencyKind = "ping") {
     // What the server says it runs, for showing next to the listing.
     versionName,
     protocol: v && Number.isInteger(v.protocol) ? v.protocol : null,
+    // the server's own icon (a 64x64 PNG it sends with its status), for Home's server cards
+    favicon:
+      json && typeof json.favicon === "string" && json.favicon.length < 65536 && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(json.favicon)
+        ? json.favicon
+        : null,
   };
 }
 

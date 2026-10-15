@@ -61,7 +61,9 @@ test("the Night home page has everything the code paints", () => {
   const html = read("src", "renderer", "index.html");
   const ids = ["homeMain", "playBtn", "stopBtn", "heroPick", "heroLoader", "heroVersion", "heroInstance", "heroMeta", "heroLast", "heroPlaytime", "heroLede", "heroSyncBtn", "heroInstanceBtn",
     "progressWrap", "progressStage", "progressPct", "progressFill", "progressDismiss", "log", "statPlayerKills", "statDeaths", "statDeathsRow", "statMobKills", "statBroken", "statPlaced",
-    "nhTierList", "nhTiersNote", "quickJoin", "nhQuickWrap", "nhVersion", "nhNews", "livePill"];
+    "nhTierList", "nhTiersNote", "quickJoin", "nhQuickWrap", "nhVersion", "nhNews", "livePill",
+    // Home v2 (15 Oct 2026): your character and name, the recent tiles under the picker, the servers
+    "nhTiers", "nhMe", "nhMeName", "nhSkinView", "quickJoinBelow", "nhServers"];
   for (const id of ids) assert.equal((html.match(new RegExp(`id="${id}"`, "g")) || []).length, 1, `#${id} exactly once`);
   // the old Home's pieces are gone and no code still reaches for them
   const code = read("src", "renderer", "renderer.js") + read("src", "renderer", "features.js");
@@ -72,4 +74,24 @@ test("the Night home page has everything the code paints", () => {
   assert.match(code, /if \(!grid\) return; \/\/ Home's Discover mods row/, "Discover's home row is skipped, not crashed on");
   // no fake friends: the card says it's coming
   assert.match(html, /Friends aren't in Reminth yet\./);
+});
+
+test("Home v2: LAUNCH GAME, tiers hidden for now, the 12 servers and their pictures", () => {
+  const html = read("src", "renderer", "index.html");
+  const renderer = read("src", "renderer", "renderer.js");
+  assert.match(html, /<b>Launch game<\/b><\/span>\s*<span class="nh-play-sub">Launch Reminth<\/span>/, "the button says LAUNCH GAME, Launch Reminth under it");
+  assert.ok(renderer.includes('btn.querySelector(".nh-play-title b")'), "progress text goes into the title, not over the whole button");
+  assert.ok(html.includes('<section class="nh-card" id="nhTiers" hidden>'), "PvP tiers is hidden, not deleted");
+  assert.ok(!html.includes('class="nh-foot"'), "the old bottom row is gone");
+  // every server in the list has its picture and its bundled icon
+  const start = renderer.indexOf("const HOME_SERVERS = [");
+  const list = renderer.slice(start, renderer.indexOf("];", start));
+  const ids = [...list.matchAll(/id: "([a-z0-9-]+)"/g)].map((m) => m[1]);
+  assert.equal(ids.length, 12);
+  const root = path.join(__dirname, "..");
+  for (const id of ids) {
+    assert.ok(fs.existsSync(path.join(root, "assets", "img", "servers", id + ".webp")), id + ".webp");
+    assert.ok(fs.existsSync(path.join(root, "assets", "img", "servers", "icons", id + ".png")), id + ".png");
+  }
+  assert.ok(fs.existsSync(path.join(root, "assets", "img", "new background reminth.webp")), "the background picture");
 });

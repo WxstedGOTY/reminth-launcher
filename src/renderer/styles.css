@@ -2597,7 +2597,6 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 .rules-list { margin: 0 0 8px; padding-left: 18px; }
 .rules-list li { margin: 3px 0; }
 .rules-list span { color: var(--text-2); }
-*, *::before, *::after { background-origin: border-box !important; }
 
 /* "Join our Discord" in the sidebar (under What's new) - Discord's own colour in both themes */
 .side-discord { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-decoration: none; color: #fff; background: #5865f2; border-color: #5865f2; transition: filter .15s; } /* data-accent: Discord's colour */
@@ -2636,47 +2635,59 @@ body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation:
 /* ── the Night home page (owner's design "Home · Night", 14 Oct 2026 - design/home-night.png) ──────────────
    Every look gets this layout; styles-night.css (tools/night.js) adds the black-and-white look around it.
    The background behind it is .backdrop::before (below). */
-/* the whole launcher's background: the owner's space picture (assets/img/launch-panel.webp, 15 Oct 2026: "use it for the
-   whole launchers background"). Bright on Home and the sign-in screen, a dim sky behind the other pages. */
+/* the whole launcher's background (owner, 15 Oct 2026: "new background reminth" - a 4K night sky with crisp, evenly
+   spread stars and no models; design: "launch game panel/CLAUDE_CODE_HOME_UPDATE.md" section 1). Only ever scaled down,
+   so it stays sharp. Bright on Home and the sign-in screen, a dim sky behind the other pages. .backdrop is outside the
+   scrolling .pages, so the sky stays put while Home scrolls. */
 .backdrop::before {
-  content: ""; position: absolute; inset: 0; background: url("../../assets/img/launch-panel.webp") center / cover no-repeat;
+  content: ""; position: absolute; inset: 0; background: url("../../assets/img/new background reminth.webp") center / cover no-repeat;
   opacity: .3; transition: opacity .2s;
 }
 body[data-page="home"] .backdrop::before, #app.signed-out .backdrop::before { opacity: 1; }
 body[data-page="home"] #app:not(.signed-out) .aurora,
 body[data-page="home"] #app:not(.signed-out) .grid-bg { display: none; }
-body[data-page="home"] #app:not(.signed-out) .aurora,
-body[data-page="home"] #app:not(.signed-out) .grid-bg { display: none; }
-
-/* the top bar floats over the scene: the page title is the big REMINTH, the buttons stay where they were */
+/* the top bar floats over Home: the page title is the big REMINTH, the buttons stay where they were */
 .main { position: relative; }
 body[data-page="home"] #app:not(.signed-out) .topbar {
   position: absolute; top: 0; left: 0; right: 0; height: 104px; align-items: flex-start;
   padding: 12px 12px 0 48px; background: transparent; border-bottom-color: transparent; backdrop-filter: none;
 }
-body[data-page="home"] #app:not(.signed-out) .topbar-title { margin-top: 30px; }
+body[data-page="home"] #app:not(.signed-out) .topbar-title { margin-top: 14px; }
 body[data-page="home"] #app:not(.signed-out) .topbar .eyebrow {
   font-family: "Pixelify Sans", "Inter", sans-serif; font-size: 27px; line-height: 1; font-weight: 700;
   letter-spacing: .14em; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .5);
 }
 body[data-page="home"] #app:not(.signed-out) .topbar-sub { font-size: 13.5px; color: #b9b9bd; margin-top: 9px; font-weight: 500; }
-body[data-page="home"] #app:not(.signed-out) .pages { padding: 0; overflow-x: hidden; }
-body[data-page="home"] #app:not(.signed-out) #home.page { height: 100%; animation: none; }
+/* Home scrolls (the middle column); what scrolls up fades out under the floating top bar instead of sliding under
+   REMINTH and the top buttons. At the top nothing is masked: the panel starts at 104px. */
+body[data-page="home"] #app:not(.signed-out) .pages {
+  padding: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0 70px, #000 100px);
+  mask-image: linear-gradient(to bottom, transparent 0 70px, #000 100px);
+}
+body[data-page="home"] #app:not(.signed-out) .pages::-webkit-scrollbar { display: none; }
+body[data-page="home"] #app:not(.signed-out) #home.page { min-height: 100%; animation: none; }
 
 /* the streamer mode button: always in the top bar; red only while streamer mode is on */
 .live-pill:not(.on) { border-color: var(--line); background: rgba(255, 255, 255, .03); color: var(--text-2); }
 .live-pill:not(.on) .live-dot { background: #8a8a90; animation: none; }
 .live-pill:not(.on):hover { background: rgba(255, 255, 255, .07); color: var(--text); }
 
+/* three columns: stats + your character (left, stays put) | the launch panel and the servers (middle, scrolls) |
+   Friends + Discord (right, stays put) */
 .nh {
-  position: relative; height: 100%; min-height: 600px;
-  display: grid; grid-template-columns: minmax(170px, 1fr) minmax(300px, 420px) minmax(170px, 1fr); grid-template-rows: 1fr auto;
-  column-gap: 24px; padding: 128px 40px 26px 48px;
+  position: relative; min-height: 100%;
+  display: grid; grid-template-columns: 200px minmax(0, 1fr) 264px; column-gap: 24px; align-items: start;
+  padding: 104px 40px 40px 48px;
 }
 .nh[hidden] { display: none; }
 
-/* left: the stats */
-.nh-stats { grid-column: 1; grid-row: 1; align-self: start; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+/* ---- left: the stats on top; your character, the version and What's new at the bottom ---- */
+.nh-left {
+  grid-column: 1; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 26px);
+  display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
+}
+.nh-stats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
 .nh-stats li { display: flex; align-items: center; gap: 14px; height: 34px; width: max-content; cursor: default; }
 /* the Minecraft-style 16x16 sprites at exactly 2 screen pixels per pixel, with an inventory-like shadow; a small hop on hover */
 .px-icon { display: grid; place-items: center; width: 32px; height: 32px; color: #e9e9ec; flex: none; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .55)); transition: transform .16s ease; }
@@ -2686,28 +2697,84 @@ body[data-page="home"] #app:not(.signed-out) #home.page { height: 100%; animatio
 /* the numbers are pixel digits drawn by renderer.js pxNumber (sharp at 3 screen pixels per pixel) */
 svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .6)); }
 .nh-stats svg.px-num { margin-top: 3px; } /* the comma hangs below the line */
+.nh-left-bottom { display: flex; flex-direction: column; gap: 22px; }
+/* your character: the Skins page's 3D viewer with your own skin; one button that opens Skins (a drag spins it) */
+.nh-me {
+  display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.nh-me-tag { display: block; min-height: 27px; margin-bottom: 14px; line-height: 0; }
+.nh-me-tag[hidden] { display: block; visibility: hidden; }
+.nh-me-tag canvas { display: block; image-rendering: pixelated; }
+.nh-me-tag .nh-me-font { display: block; font: 800 18px/27px "Inter", sans-serif; color: #fff; text-shadow: 2px 2px 0 #3f3f3f; white-space: nowrap; }
+.nh-me-view { position: relative; width: 200px; height: 340px; }
+.nh-me-sub { margin-top: 18px; font-size: 12px; font-weight: 600; color: var(--cream, #ece8de); text-decoration: underline; text-underline-offset: 3px; }
+.nh-me:hover .nh-me-sub { color: #fff; }
+.nh-version { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #a1a1a6; white-space: nowrap; }
+.nh-news { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 4px 2px; color: #e4e4e7; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.nh-news i { width: 6px; height: 6px; border-radius: 50%; background: #f2f2f2; box-shadow: 0 0 8px rgba(255, 255, 255, .5); }
+.nh-news:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
 
-/* middle: PLAY */
-.nh-center { grid-column: 2; grid-row: 1; align-self: center; justify-self: center; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 420px; margin-top: -40px; }
+/* ---- middle: the launch panel (never cropped), the picker, then the servers ---- */
+.nh-center { grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; container-type: inline-size; }
+.nh-panel {
+  position: relative; width: 100%; height: auto; aspect-ratio: 2704 / 636; overflow: hidden;
+  border-radius: 22px; border: 2px solid #8a8d95; background: #05060b; /* the icon's cube-edge grey */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .55);
+  display: grid; place-items: center;
+}
+/* the picture has the panel's own shape, so all of it shows: planet, astronaut, rocket, moon, satellite */
+.nh-panel-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; pointer-events: none; user-select: none; }
+/* LAUNCH GAME stays in the exact middle; the recent tiles hang 12px under it without moving it */
+.nh-panel-col { position: relative; display: grid; place-items: center; }
 .nh-play {
   position: relative; overflow: hidden;
   width: 300px; max-width: 100%; height: 76px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .6);
-  display: flex; align-items: center; justify-content: center; gap: 18px;
-  background: var(--play-bg, #ece8de); color: var(--play-ink, #111113);
-  font-family: "Inter", sans-serif; font-size: 21px; font-weight: 800; letter-spacing: .32em; text-transform: uppercase;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  background: var(--play-bg, #ece8de); color: var(--play-ink, #111113); font-family: "Inter", sans-serif;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 46px rgba(236, 232, 222, .16), 0 14px 34px rgba(0, 0, 0, .45);
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
-.nh-play span { margin-right: -.32em; position: relative; }
-.nh-play .i { width: 16px; height: 16px; position: relative; }
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-size: 19px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title b { font-weight: 800; margin-right: -.22em; }
+.nh-play .i { width: 14px; height: 14px; position: relative; flex: none; }
+.nh-play-sub { position: relative; font-size: 12px; font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 60px rgba(236, 232, 222, .24), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
 .nh-play:disabled { cursor: default; filter: saturate(.6) brightness(.82); }
-/* while it installs, the button fills up like a progress bar (renderer.js paintPlayButtons sets --p) */
-.nh-play.progressing { letter-spacing: .08em; font-size: 15px; }
-.nh-play.progressing span { margin-right: 0; }
+/* while it installs, the button fills up like a progress bar (renderer.js paintPlayButtons sets --p); the line under the
+   title makes room for the progress text and for "Playing" */
+.nh-play.progressing .nh-play-title { letter-spacing: .06em; font-size: 13px; }
+.nh-play.progressing .nh-play-title b { margin-right: 0; }
+.nh-play.no-sub .nh-play-sub { display: none; }
 .nh-play.progressing::before { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: rgba(0, 0, 0, .14); transition: width .3s; }
-
+.nh-quick-row { display: flex; gap: 12px; }
+.nh-quick-row[hidden], .nh-quick[hidden] { display: none !important; }
+.nh-quick-in {
+  position: absolute; top: calc(100% + 12px); left: 50%; transform: translateX(-50%); white-space: nowrap; gap: 10px;
+  padding: 6px 8px; border-radius: 14px; background: rgba(8, 8, 10, .55); border: 1px solid rgba(255, 255, 255, .12); backdrop-filter: blur(6px);
+}
+.nh-quick-in .nh-tile { width: 46px; height: 46px; }
+/* the panel is too short for the tiles under the button (middle column under ~1070px): they move under the picker */
+.nh-quick { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 22px; }
+.nh-quick .nh-label { letter-spacing: .3em; color: #9a9aa0; }
+@container (min-width: 1071px) { .nh-quick { display: none; } }
+@container (max-width: 1070px) { .nh-quick-in { display: none; } .nh-center .nh-servers { margin-top: 30px; } }
+.nh-tile {
+  width: 52px; height: 52px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  border: 1px solid rgba(255, 255, 255, .14); background: var(--tint, #1d2742);
+  color: #f1f1f3; font: inherit; font-size: 12.5px; font-weight: 800; letter-spacing: .02em; cursor: pointer;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .07), 0 6px 16px rgba(0, 0, 0, .4); transition: transform .15s, border-color .15s, filter .15s;
+}
+.nh-tile.world { --tint: #1d3020; border-color: rgba(140, 200, 140, .3); }
+.nh-tile .px { width: 32px; height: 32px; color: #e8efe6; }
+/* a server's logo / a world's picture fills the tile, pixel-sharp like in Minecraft's own lists */
+.nh-tile.has-pic { padding: 0; overflow: hidden; background: #0d0d10; }
+.nh-tile-pic { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; pointer-events: none; }
+.nh-tile.server.has-pic { border-color: rgba(255, 255, 255, .22); }
+.nh-tile.world.has-pic { border-color: rgba(140, 200, 140, .4); }
+.nh-tile:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(255, 255, 255, .35); filter: brightness(1.12); }
+.nh-tile:disabled { opacity: .5; cursor: default; }
 .nh-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
 .nh-pick {
   display: flex; align-items: center; gap: 7px; height: 40px; max-width: 340px; padding: 0 14px 0 18px; border-radius: 20px;
@@ -2735,9 +2802,42 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-progress { width: 100%; max-width: 380px; margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: rgba(12, 12, 14, .82); border: 1px solid rgba(255, 255, 255, .1); }
 .nh-log { width: 100%; max-width: 420px; }
 
-/* right: PvP tiers and friends */
-.nh-side { grid-column: 3; grid-row: 1; align-self: start; justify-self: end; width: 264px; margin-top: 84px; display: flex; flex-direction: column; gap: 10px; }
+/* ---- the servers: 12 cards, 3 a row (2 when the middle column is narrow) ---- */
+.nh-servers { align-self: stretch; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.nh-srv-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+@container (max-width: 1100px) { .nh-srv-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.nh-srv { display: flex; flex-direction: column; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .1); background: rgba(12, 12, 15, .82); overflow: hidden; min-width: 0; transition: border-color .18s ease; }
+.nh-srv:hover { border-color: rgba(255, 255, 255, .2); }
+/* isolation keeps the zooming picture clipped to the card's round top corners */
+.nh-srv-pic { position: relative; overflow: hidden; aspect-ratio: 1320 / 600; isolation: isolate; background: #0b0b0e; }
+.nh-srv-pic img { display: block; width: 100%; height: 100%; object-fit: cover; transform: scale(1); }
+.nh-srv-info { display: flex; align-items: center; gap: 12px; padding: 12px 14px 13px; min-width: 0; }
+.nh-srv-ico {
+  width: 40px; height: 40px; flex: none; border-radius: 8px; overflow: hidden; border: 1px solid rgba(255, 255, 255, .14);
+  background: var(--tint, #15151a); display: grid; place-items: center; color: #f1f1f3; font-size: 12.5px; font-weight: 800;
+}
+.nh-srv-ico img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.nh-srv-txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.nh-srv-name { font-size: 14.5px; font-weight: 750; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nh-srv-ip { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #a3a3a9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nh-srv-on { display: inline-flex; align-items: center; gap: 5px; font-style: normal; color: #9ee6b8; } /* keep-colour */
+.nh-srv-on[hidden] { display: none; }
+.nh-srv-on::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #4ade80; } /* keep-colour */
+.nh-srv-join {
+  flex: none; height: 30px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .5);
+  background: var(--cream, #ece8de); color: #111113; font: inherit; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; cursor: pointer;
+}
+.nh-srv-join:hover:not(:disabled) { filter: brightness(1.06); }
+.nh-srv-join:disabled { opacity: .45; cursor: default; }
+
+/* ---- right: Friends fills the column, Discord under it (PvP tiers hidden for now) ---- */
+.nh-side {
+  grid-column: 3; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 26px);
+  display: flex; flex-direction: column; gap: 12px; min-width: 0;
+}
 .nh-card { padding: 14px 14px 15px; border-radius: 10px; background: rgba(11, 11, 13, .8); border: 1px solid rgba(255, 255, 255, .1); backdrop-filter: blur(6px); }
+.nh-card[hidden] { display: none; }
+.nh-friends { flex: 1; min-height: 0; }
 .nh-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
 .nh-label { font-size: 10px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; color: #a7a7ac; }
 .nh-note { font-size: 11px; color: #85858a; margin-left: auto; }
@@ -2756,77 +2856,35 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-tier[data-tier="4"] { --tc: #7fc8ff; } /* keep-colour */
 .nh-tier[data-tier="5"] { --tc: #b4b4b4; }
 .nh-tier.retired { --tc: #8a8a8a; opacity: .75; }
-
-/* bottom: version and What's new, Quick join, Discord */
-.nh-foot { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 20px; }
-.nh-version { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #a1a1a6; padding-bottom: 10px; white-space: nowrap; }
-.nh-news { display: inline-flex; align-items: center; gap: 7px; border: 0; background: none; padding: 4px 2px; color: #e4e4e7; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
-.nh-news i { width: 6px; height: 6px; border-radius: 50%; background: #f2f2f2; box-shadow: 0 0 8px rgba(255, 255, 255, .5); }
-.nh-news:hover { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
-.nh-quick { grid-column: 2; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.nh-quick[hidden] { display: none; }
-.nh-quick .nh-label { letter-spacing: .3em; color: #9a9aa0; }
-.nh-quick-row { display: flex; gap: 12px; }
-.nh-tile {
-  width: 52px; height: 52px; border-radius: 9px; display: grid; place-items: center;
-  border: 1px solid rgba(255, 255, 255, .14); background: var(--tint, #1d2742);
-  color: #f1f1f3; font: inherit; font-size: 12.5px; font-weight: 800; letter-spacing: .02em; cursor: pointer;
-  box-shadow: inset 0 1px rgba(255, 255, 255, .07), 0 6px 16px rgba(0, 0, 0, .4); transition: transform .15s, border-color .15s, filter .15s;
-}
-.nh-tile.world { --tint: #1d3020; border-color: rgba(140, 200, 140, .3); }
-.nh-tile .px { width: 32px; height: 32px; color: #e8efe6; }
-/* a server's logo / a world's picture fills the tile, pixel-sharp like in Minecraft's own lists */
-.nh-tile.has-pic { padding: 0; overflow: hidden; background: #0d0d10; }
-.nh-tile-pic { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; display: block; pointer-events: none; }
-.nh-tile.server.has-pic { border-color: rgba(255, 255, 255, .22); }
-.nh-tile.world.has-pic { border-color: rgba(140, 200, 140, .4); }
-.nh-tile:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(255, 255, 255, .35); filter: brightness(1.12); }
-.nh-tile:disabled { opacity: .5; cursor: default; }
 .nh-discord {
-  grid-column: 3; justify-self: end; display: inline-flex; align-items: center; gap: 9px; height: 46px; padding: 0 20px; border-radius: 10px;
-  background: #1c1e38; border: 1px solid rgba(140, 150, 255, .28); color: #fff; font-size: 13.5px; font-weight: 700; text-decoration: none;
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 9px; height: 54px; padding: 0 20px; border-radius: 10px;
+  color: #fff; font-size: 13.5px; font-weight: 700; text-decoration: none;
   box-shadow: 0 8px 22px rgba(0, 0, 0, .4); transition: background .15s, border-color .15s;
 }
+/* Discord keeps its own navy in every look (tools/night.js keeps lines that name discord) */
+.nh-discord { background: #1c1e38; border: 1.5px solid rgba(196, 202, 255, .7); }
 .nh-discord .i { width: 17px; height: 17px; }
-.nh-discord:hover { background: #262a4d; border-color: rgba(160, 170, 255, .45); }
+.nh-discord:hover { background: #262a4d; border-color: rgba(214, 219, 255, .9); }
 
-/* smaller windows: the side cards go narrower, then below the stats; the center stays in the middle */
+/* ---- smaller windows ---- */
 @media (max-width: 1180px) {
-  .nh { grid-template-columns: minmax(150px, 1fr) minmax(280px, 380px) minmax(150px, 1fr); padding-right: 24px; padding-left: 36px; }
-  .nh-side { width: 228px; }
+  .nh { grid-template-columns: 170px minmax(0, 1fr) 228px; padding-right: 24px; padding-left: 36px; }
+  .nh-me-view { width: 170px; }
 }
+/* short windows: a smaller character (renderer picks scale 8), then none - it must never reach the stats */
+@media (max-height: 840px) { .nh-me-view { width: 170px; height: 272px; } }
+@media (max-height: 770px) { .nh-me { display: none; } }
+/* one column: stats and the side cards in a row on top, the panel and servers under them; nothing sticky */
 @media (max-width: 940px) {
-  .nh { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto 1fr auto; row-gap: 22px; padding-top: 118px; }
-  .nh-stats { grid-column: 1; grid-row: 1; }
-  .nh-side { grid-column: 2; grid-row: 1; margin-top: 0; }
-  .nh-center { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
-  .nh-foot { grid-row: 4; }
-}
-@media (max-height: 760px) {
-  .nh { padding-top: 112px; }
-  .nh-stats { gap: 8px; }
-  .nh-side { margin-top: 56px; }
-  .nh-friends { display: none; }
+  .nh { grid-template-columns: 1fr 1fr; row-gap: 22px; padding-top: 118px; }
+  .nh-left { grid-column: 1; grid-row: 1; position: static; height: auto; gap: 18px; justify-content: flex-start; }
+  .nh-me { display: none; }
+  .nh-side { grid-column: 2; grid-row: 1; position: static; height: auto; }
+  .nh-friends { flex: none; }
+  .nh-center { grid-column: 1 / -1; grid-row: 2; }
 }
 .hero-menu { min-width: 250px; }
 .hero-menu .dd-item.picked { color: var(--text); }
 .hero-menu .dd-item.picked .i { color: var(--accent); }
 .news-body .change-list li { font-size: 13px; }
-
-/* the launch panel (owner's design "launch game panel/reminth-launch-panel@2x.webp", 15 Oct 2026): the space art in a
-   rounded panel with a white outline, PLAY in the empty middle of the picture. The panel is wider than the middle
-   column (it may reach over the free space beside it); the stats and cards above stay clickable. */
-.nh-center { grid-column: 1 / -1; justify-self: stretch; align-self: start; margin: -16px 300px 0 200px; max-width: none; width: auto; pointer-events: none; }
-.nh-center > * { pointer-events: auto; }
-.nh-panel {
-  position: relative; align-self: stretch; width: auto; height: clamp(230px, 30vh, 340px); overflow: hidden;
-  border-radius: 22px; border: 2px solid #8a8d95; background: #05060b; /* the icon's cube-edge grey */
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .55);
-  display: grid; place-items: center;
-}
-.nh-panel-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; pointer-events: none; user-select: none; }
-.nh-panel .nh-play { position: relative; width: min(280px, 28%); min-width: 190px; height: 72px; font-size: 20px; border-radius: 14px; gap: 16px; letter-spacing: .3em; }
-.nh-panel .nh-play span { margin-right: -.28em; }
-.nh-panel .nh-play.progressing { font-size: 14px; letter-spacing: .06em; }
-@media (max-width: 1180px) { .nh-center { margin: -16px 250px 0 170px; } }
-@media (max-width: 940px) { .nh-center { margin: 0; } .nh-panel { height: 200px; } .nh-panel .nh-play { height: 56px; font-size: 16px; } }
+*, *::before, *::after { background-origin: border-box !important; }

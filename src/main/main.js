@@ -296,7 +296,10 @@ app.whenReady().then(async () => {
     pageReady = true;
     if (pendingLink) send("deeplink:open", pendingLink);
     pendingLink = null;
-    if (restored) send("auth:restored", { username: restored.username });
+    if (restored) {
+      shownUsername = restored.username;
+      send("auth:restored", { username: restored.username });
+    }
     if (restored) reminthAccount.reportMinecraft().catch(() => {}); // counted for the owner: a yes, no name
     streamer.configure(cachedSettings);
     // A game started before Reminth was closed, restarted or updated is still running.
@@ -335,11 +338,23 @@ ipcMain.handle("window:isMaximized", () => Boolean(win && !win.isDestroyed() && 
 // sign-in, sign-out and token refresh can't trip over each other: a double
 // click shares one device-code flow, and anything still in flight when the
 // player signs out is thrown away instead of signing them back in.
+// The Minecraft name the window shows. A token refresh re-reads the profile; when the name changed (a rename on
+// minecraft.net), the window hears it the same way as a restored sign-in, so Home's nametag, the top bar and Skins
+// switch to the new name without a restart (owner, 15 Oct 2026).
+let shownUsername = null;
 const auth = msAuth.createSession({
   signIn: msAuth.signIn,
   refresh: msAuth.refreshSession,
-  save: store.saveAccount,
-  clear: store.clearAccount,
+  save: async (account) => {
+    await store.saveAccount(account);
+    const name = account && account.username;
+    if (name && shownUsername && name !== shownUsername) send("auth:restored", { username: name });
+    if (name) shownUsername = name;
+  },
+  clear: async () => {
+    shownUsername = null;
+    return store.clearAccount();
+  },
   log: logAuth,
 });
 
@@ -1295,6 +1310,46 @@ ipcMain.handle("captures:openFolder", async () => {
 // ---- logs ----
 ipcMain.handle("logs:list", async (_e, id) => logs.listLogs(await instances.require(id)));
 ipcMain.handle("logs:read", async (_e, id, logId) => logs.readLog(await instances.require(id), logId));
+
+// ---- Minecraft's own font (Home's nametag) ----
+// The game's bitmap font, read from a client jar Reminth already downloaded - never shipped with Reminth (it's
+// Mojang's file). Cached in Reminth's data folder after the first read. null until any game jar exists.
+const MC_FONT_CACHE = path.join(paths.ROOT, "cache", "mc-font-ascii.png");
+ipcMain.handle("font:mcAscii", async () => {
+  try {
+    const buf = await fs.promises.readFile(MC_FONT_CACHE);
+    if (buf.length > 100) return "data:image/png;base64," + buf.toString("base64");
+  } catch {
+    // not cached yet
+  }
+  let jars = [];
+  try {
+    for (const v of await fs.promises.readdir(paths.VERSIONS_DIR)) {
+      const jar = path.join(paths.VERSIONS_DIR, v, v + ".jar");
+      try {
+        jars.push({ jar, at: (await fs.promises.stat(jar)).mtimeMs });
+      } catch {
+        // no client jar in this folder
+      }
+    }
+  } catch {
+    return null;
+  }
+  jars.sort((a, b) => b.at - a.at);
+  const NAME = "assets/minecraft/textures/font/ascii.png";
+  for (const { jar } of jars.slice(0, 6)) {
+    try {
+      const { [NAME]: png } = await require("./zipread").readEntries(jar, [NAME]);
+      if (!png || png.length < 100 || png.length > 512 * 1024 || png.readUInt32BE(0) !== 0x89504e47) continue;
+      await fs.promises.mkdir(path.dirname(MC_FONT_CACHE), { recursive: true });
+      await fs.promises.writeFile(MC_FONT_CACHE, png).catch(() => {});
+      return "data:image/png;base64," + png.toString("base64");
+    } catch {
+      // an unreadable jar: try the next one
+    }
+  }
+  return null;
+});
 
 // ---- servers ----
 ipcMain.handle("servers:search", async (_e, params) => modrinth.searchServers(params || {}));

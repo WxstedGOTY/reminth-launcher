@@ -762,6 +762,9 @@ function switchPage(page) {
   if (page === "home") {
     loadRecent();
     loadMyTiers();
+    buildHomeServers();
+    pingHomeServers();
+    paintHomeName();
   }
   // Announced before the page's own hook runs, so a hook that fails can't swallow it.
   document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
@@ -777,12 +780,13 @@ let enterTimer = null;
 function playPageEnter(prevPage, page) {
   const node = $(page);
   placeRailInd();
+  if (page === "home") $("pages").scrollTop = 0;
   if (!node || prevPage === page) return;
   const down = PAGE_ORDER.indexOf(page) >= PAGE_ORDER.indexOf(prevPage);
   for (const p of document.querySelectorAll(".page.enter-down, .page.enter-up, .page.entering")) p.classList.remove("enter-down", "enter-up", "entering");
   [...node.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
   if (page === "home") {
-    node.querySelectorAll(".nh-stats li, .nh-side > *, .nh-foot > *").forEach((c) => c.style.setProperty("--i", Math.min([...c.parentNode.children].indexOf(c), 8)));
+    node.querySelectorAll(".nh-stats li, .nh-side > *").forEach((c) => c.style.setProperty("--i", Math.min([...c.parentNode.children].indexOf(c), 8)));
   }
   void node.offsetWidth; // start the animation again even when the class was just removed
   node.classList.add(down ? "enter-down" : "enter-up", "entering");
@@ -796,7 +800,7 @@ function playPageEnter(prevPage, page) {
   enterTimer = setTimeout(() => {
     node.classList.remove("enter-down", "enter-up", "entering");
     if (title) title.classList.remove("swap");
-  }, 1100);
+  }, 1700); // the 12th server card starts at 1100ms (motion.css)
 }
 
 /** The rail's white marker, next to the lit tab (hidden when the page has no tab on the rail, like Statistics). */
@@ -1000,6 +1004,12 @@ function applyAccountUI() {
   // Home's PvP tiers are the signed-in player's: looked up again for a new account, gone when signed out.
   $("nhTierList").textContent = "";
   if (signedIn) loadMyTiers();
+  // Home's nametag, and the server cards (built once, then live counts)
+  paintHomeName();
+  if (signedIn) {
+    buildHomeServers();
+    pingHomeServers();
+  }
   if ((!signedIn || needRm) && currentPage !== "home") switchPage("home");
   paintTopChip();
   refreshSkin();
@@ -1500,10 +1510,13 @@ function paintPlayButtons() {
     const btn = $(playId);
     if (btn) {
       btn.disabled = busy || runningNow;
-      const label = btn.querySelector("span");
+      // Home's button has a title and a line under it ("LAUNCH GAME" / "Launch Reminth"): only the title changes,
+      // and the line hides while the progress text or "Playing" needs the room.
+      const label = btn.querySelector(".nh-play-title b") || btn.querySelector("span");
       btn.classList.toggle("progressing", busy);
+      btn.classList.toggle("no-sub", busy || runningNow);
       btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
-      label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : "Play";
+      label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : playId === "playBtn" ? "Launch game" : "Play";
     }
     // Only shows up once something is actually (or stuck) "running" - lets a
     // player unstick the Play button themselves instead of relaunching
@@ -3095,6 +3108,8 @@ function paintRecentPlayButtons() {
     const id = b.dataset.instance;
     b.disabled = state.running.has(id) || state.installing.has(id) || state.stopping.has(id);
   });
+  // Home's server cards join with the instance Launch game starts
+  paintHomeServerButtons();
 }
 
 function addInstanceTile() {
@@ -3202,11 +3217,16 @@ async function loadRecent() {
     data = { recent: [], worlds: [], servers: [], worldCount: 0, serverCount: 0, totalPlayTimeTicks: 0, error: err.message };
   }
   state.recent = data;
-  const row = $("quickJoin");
-  row.textContent = "";
   const entries = data.error ? [] : disambiguate(quickJoinEntries(data));
-  const taken = new Set();
-  entries.forEach((entry) => row.appendChild(quickTile(entry, taken)));
+  // the same tiles twice: inside the launch panel, and under the picker for windows where the panel is too short
+  // (styles.css @container shows one of them)
+  for (const id of ["quickJoin", "quickJoinBelow"]) {
+    const row = $(id);
+    row.textContent = "";
+    const taken = new Set();
+    entries.forEach((entry) => row.appendChild(quickTile(entry, taken)));
+  }
+  $("quickJoin").hidden = !entries.length;
   $("nhQuickWrap").hidden = !entries.length;
   paintRecentPlayButtons();
 
@@ -3442,10 +3462,269 @@ function setPxStat(node, text) {
   node.setAttribute("aria-label", text);
   node.appendChild(pxNumber(text));
 }
+/* ---- Home's servers (owner, 15 Oct 2026; design "launch game panel/CLAUDE_CODE_HOME_UPDATE.md" section 5) ----
+ * 12 cards, 3 a row: a picture made for each server (assets/img/servers/<id>.webp), the server's official icon (bundled
+ * copy, then the newest one it sends with its status), its name and address, the live player count when it answers,
+ * and Join (the instance Launch game would start). Built once; a ping only changes the icon and the count in place,
+ * so the entrance cascade (motion.css) never replays on its own and hover never flickers. */
+const HOME_SERVERS = [
+  { id: "hypixel", name: "Hypixel", address: "mc.hypixel.net" },
+  { id: "donutsmp", name: "DonutSMP", address: "donutsmp.net" },
+  { id: "pvphq", name: "PvPHQ", address: "pvphq.com" },
+  { id: "pvpclub", name: "PvP Club", address: "mcpvp.club" },
+  { id: "pvphub", name: "PvP Hub", address: "play.pvphub.me" },
+  { id: "lifesteal", name: "Lifesteal", address: "lifesteal.net" },
+  { id: "minemen-club", name: "Minemen Club", address: "minemen.club" },
+  { id: "mcpvp", name: "MCPVP", address: "mcpvp.com" },
+  { id: "pikanetwork", name: "PikaNetwork", address: "play.pika-network.net" },
+  { id: "2b2t", name: "2b2t", address: "2b2t.org" },
+  { id: "manacube", name: "ManaCube", address: "play.manacube.com" },
+  { id: "jartexnetwork", name: "JartexNetwork", address: "jartexnetwork.com" },
+];
+const SRV_ICONS_KEY = "reminth.homeServerIcons"; // the newest icon each server sent (data URLs, 4-12 KB each)
+const PNG_DATA_URL = /^data:image\/png;base64,[A-Za-z0-9+/=]+$/;
+let homeServersBuilt = false;
+let homeServersPingedAt = 0;
+
+function savedServerIcons() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SRV_ICONS_KEY) || "{}");
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+/** The card's icon box: the picture, or (no picture at all) the two-letter tile Quick join uses. */
+function paintServerIcon(box, src, srv) {
+  box.textContent = "";
+  box.style.removeProperty("--tint");
+  const initials = () => {
+    box.textContent = quickInitials(srv.name, new Set());
+    let h = 0;
+    for (const c of srv.name) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    box.style.setProperty("--tint", QUICK_TINTS[h % QUICK_TINTS.length]);
+  };
+  if (!src) return initials();
+  const img = el("img");
+  img.alt = "";
+  img.draggable = false;
+  img.onerror = initials;
+  img.src = src;
+  box.appendChild(img);
+}
+
+function buildHomeServers() {
+  if (homeServersBuilt) return;
+  const grid = $("nhServers");
+  if (!grid) return;
+  homeServersBuilt = true;
+  const saved = savedServerIcons();
+  HOME_SERVERS.forEach((srv, i) => {
+    const card = el("article", "nh-srv");
+    card.style.setProperty("--i", i);
+    card.dataset.address = srv.address;
+    const pic = el("div", "nh-srv-pic");
+    const img = el("img");
+    img.alt = "";
+    img.draggable = false;
+    img.decoding = "async";
+    if (i >= 6) img.loading = "lazy"; // the bottom two rows
+    img.src = `../../assets/img/servers/${srv.id}.webp`;
+    pic.appendChild(img);
+    const info = el("div", "nh-srv-info");
+    const ico = el("span", "nh-srv-ico");
+    const remembered = typeof saved[srv.address] === "string" && PNG_DATA_URL.test(saved[srv.address]) ? saved[srv.address] : null;
+    paintServerIcon(ico, remembered || `../../assets/img/servers/icons/${srv.id}.png`, srv);
+    const txt = el("span", "nh-srv-txt");
+    txt.appendChild(el("b", "nh-srv-name", srv.name));
+    const ip = el("span", "nh-srv-ip", srv.address);
+    const online = el("em", "nh-srv-on");
+    online.hidden = true;
+    ip.appendChild(online);
+    txt.appendChild(ip);
+    const join = el("button", "nh-srv-join", "Join");
+    join.type = "button";
+    join.setAttribute("aria-label", `Join ${srv.name}`);
+    join.onclick = () => joinHomeServer(srv.address);
+    info.append(ico, txt, join);
+    card.append(pic, info);
+    grid.appendChild(card);
+  });
+  paintHomeServerButtons();
+}
+
+/** Join from a card: the same path as Quick join, with the instance Launch game would start. */
+function joinHomeServer(address) {
+  const inst = heroInstance();
+  const join = window.ReminthPure.parseServerAddress(address);
+  if (!inst || !join) return;
+  if (state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id)) return;
+  runPlay({ instanceId: inst.id, join: { host: join.host, port: join.port } });
+}
+
+function paintHomeServerButtons() {
+  const inst = heroInstance();
+  const busy = !inst || state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id);
+  document.querySelectorAll(".nh-srv-join").forEach((b) => (b.disabled = busy));
+}
+
+/** Live player counts and the newest icons: when Home opens, at most once a minute, never while a game runs. */
+async function pingHomeServers() {
+  if (!homeServersBuilt || state.running.size || Date.now() - homeServersPingedAt < 60 * 1000) return;
+  homeServersPingedAt = Date.now();
+  let res;
+  try {
+    res = await window.reminth.pingServers(HOME_SERVERS.map((s) => s.address));
+  } catch {
+    return;
+  }
+  const saved = savedServerIcons();
+  for (const card of $("nhServers").children) {
+    const srv = HOME_SERVERS.find((s) => s.address === card.dataset.address);
+    const r = res && res[card.dataset.address];
+    const online = card.querySelector(".nh-srv-on");
+    // no answer, no number (Night rule: nothing made up)
+    const count = r && r.online && typeof r.playersOnline === "number" ? r.playersOnline : null;
+    online.hidden = count === null;
+    if (count !== null) online.textContent = `${count.toLocaleString()} online`;
+    if (srv && r && typeof r.favicon === "string" && PNG_DATA_URL.test(r.favicon) && r.favicon !== saved[srv.address]) {
+      saved[srv.address] = r.favicon;
+      paintServerIcon(card.querySelector(".nh-srv-ico"), r.favicon, srv);
+    }
+  }
+  try {
+    localStorage.setItem(SRV_ICONS_KEY, JSON.stringify(saved));
+  } catch {
+    // storage full or off: the bundled icons still show next time
+  }
+}
+
+/* ---- your name above your character, in Minecraft's own font (design section 3b) ----
+ * The font is the game's bitmap (assets/minecraft/textures/font/ascii.png), read by main.js from a client jar Reminth
+ * already downloaded - never shipped with Reminth. 16x16 glyphs; a glyph's width is its last column with any pixel + 1,
+ * the advance is that + 1, a space is 4. Drawn like the game draws names: a shadow one font pixel right and down in a
+ * quarter of the colour (#3F3F3F), then white, 3 screen pixels per font pixel. Before any game jar exists: Inter. */
+let mcFontPromise = null;
+function loadMcFont() {
+  if (!mcFontPromise) {
+    mcFontPromise = (window.reminth.mcFontAscii ? window.reminth.mcFontAscii() : Promise.resolve(null))
+      .then((url) => (url && PNG_DATA_URL.test(url) ? new Promise((res) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = () => res(null);
+        img.src = url;
+      }) : null))
+      .catch(() => null);
+    // no game jar yet: ask again next time (the first game install brings one)
+    mcFontPromise.then((img) => {
+      if (!img) mcFontPromise = null;
+    });
+  }
+  return mcFontPromise;
+}
+
+function mcNameCanvas(text, font) {
+  const cell = font.width / 16;
+  const sheet = document.createElement("canvas");
+  sheet.width = font.width;
+  sheet.height = font.height;
+  const sg = sheet.getContext("2d", { willReadFrequently: true });
+  sg.drawImage(font, 0, 0);
+  const px = sg.getImageData(0, 0, sheet.width, sheet.height).data;
+  const glyphs = [];
+  let w = 0;
+  for (const ch of String(text)) {
+    let code = ch.charCodeAt(0);
+    if (code > 255) code = 63; // "?"
+    if (code === 32) {
+      glyphs.push({ code, width: 0, advance: 4 });
+      w += 4;
+      continue;
+    }
+    const gx = (code % 16) * cell;
+    const gy = Math.floor(code / 16) * cell;
+    let last = -1;
+    for (let x = 0; x < cell; x++) {
+      for (let y = 0; y < cell; y++) {
+        if (px[((gy + y) * sheet.width + gx + x) * 4 + 3] > 0) last = x;
+      }
+    }
+    const width = last + 1; // font pixels of this sheet
+    glyphs.push({ code, gx, gy, width });
+    w += Math.round((width * 8) / cell) + 1;
+  }
+  const UNIT = 3; // screen pixels per font pixel (8 font pixels a line, like the game's)
+  const dpr = window.devicePixelRatio || 1;
+  const fw = Math.max(1, w + 1); // every advance (the last gap holds the shadow), plus the shadow of a full-width glyph
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(fw * UNIT * dpr);
+  canvas.height = Math.round(9 * UNIT * dpr);
+  canvas.style.width = fw * UNIT + "px";
+  canvas.style.height = 9 * UNIT + "px";
+  const g = canvas.getContext("2d");
+  g.imageSmoothingEnabled = false;
+  const s = UNIT * dpr; // canvas pixels per font pixel
+  // the glyphs once in white on a strip, then a #3F3F3F copy for the shadow
+  const strip = document.createElement("canvas");
+  strip.width = Math.max(1, Math.round((w * cell) / 8));
+  strip.height = cell;
+  const tg = strip.getContext("2d");
+  tg.imageSmoothingEnabled = false;
+  let x = 0;
+  for (const gl of glyphs) {
+    if (gl.code !== 32 && gl.width > 0) tg.drawImage(sheet, gl.gx, gl.gy, gl.width, cell, x, 0, gl.width, cell);
+    x += gl.code === 32 ? (4 * cell) / 8 : gl.width + cell / 8;
+  }
+  const shadow = document.createElement("canvas");
+  shadow.width = strip.width;
+  shadow.height = strip.height;
+  const hg = shadow.getContext("2d");
+  hg.drawImage(strip, 0, 0);
+  hg.globalCompositeOperation = "source-in";
+  hg.fillStyle = "#3f3f3f";
+  hg.fillRect(0, 0, shadow.width, shadow.height);
+  const dw = (strip.width * 8) / cell;
+  g.drawImage(shadow, 0, 0, strip.width, cell, s, s, dw * s, 8 * s);
+  g.drawImage(strip, 0, 0, strip.width, cell, 0, 0, dw * s, 8 * s);
+  return canvas;
+}
+
+async function paintHomeName() {
+  const tag = $("nhMeName");
+  if (!tag) return;
+  const name = state.signedIn && state.username ? String(state.username) : "";
+  // streamer mode hides the player's name everywhere else: here too
+  tag.hidden = !name || Boolean(state.privacy);
+  if (!name) {
+    tag.textContent = "";
+    delete tag.dataset.name;
+    return;
+  }
+  if (tag.dataset.name === name && tag.dataset.font === "mc") return;
+  tag.dataset.name = name;
+  const font = await loadMcFont();
+  if (tag.dataset.name !== name) return; // the name changed meanwhile
+  tag.textContent = "";
+  tag.dataset.font = font ? "mc" : "inter";
+  tag.setAttribute("aria-label", name);
+  if (font) {
+    try {
+      tag.appendChild(mcNameCanvas(name, font));
+      return;
+    } catch {
+      tag.dataset.font = "inter";
+    }
+  }
+  tag.appendChild(el("span", "nh-me-font", name));
+}
+
 /* ---- PvP tiers: the player's own tiers on MCTiers, PvPTiers and SubTiers (main/tiers.js) ---- */
 let tiersToken = 0;
 async function loadMyTiers() {
   if (!state.signedIn) return;
+  // the PvP tiers card is hidden on Home for now (owner, 15 Oct 2026): no point asking three sites for it
+  if ($("nhTiers") && $("nhTiers").hidden) return;
   const token = ++tiersToken;
   const list = $("nhTierList");
   if (!list.childElementCount) list.appendChild(el("p", "nh-empty", "Looking up your tiers…"));

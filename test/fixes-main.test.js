@@ -320,12 +320,22 @@ test("serverPing: a bad address resolves offline instead of rejecting", async ()
 
 test("serverPing: status JSON exposes the server's version name and protocol", () => {
   const s = serverPing.statusFromJson({ version: { name: "Paper 1.21.4", protocol: 769 }, players: { online: 3, max: 20 } }, 12);
-  assert.deepEqual(s, { online: true, latencyMs: 12, latencyKind: "ping", playersOnline: 3, playersMax: 20, version: "Paper 1.21.4", versionName: "Paper 1.21.4", protocol: 769 });
+  assert.deepEqual(s, { online: true, latencyMs: 12, latencyKind: "ping", playersOnline: 3, playersMax: 20, version: "Paper 1.21.4", versionName: "Paper 1.21.4", protocol: 769, favicon: null });
   const bare = serverPing.statusFromJson({}, 5);
   assert.equal(bare.versionName, null);
   assert.equal(bare.protocol, null);
   assert.equal(bare.playersOnline, null);
   assert.equal(serverPing.statusFromJson({ version: { name: 7, protocol: "x" } }, 5).protocol, null);
+});
+
+test("serverPing: the server's own icon comes back only as a small PNG data URL", () => {
+  const good = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAH0Kb9QAAAABJRU5ErkJggg==";
+  assert.equal(serverPing.statusFromJson({ favicon: good }, 5).favicon, good);
+  assert.equal(serverPing.statusFromJson({ favicon: "data:image/jpeg;base64,AAAA" }, 5).favicon, null);
+  assert.equal(serverPing.statusFromJson({ favicon: "data:image/png;base64," + "A".repeat(70000) }, 5).favicon, null);
+  assert.equal(serverPing.statusFromJson({ favicon: "data:image/png;base64,<script>" }, 5).favicon, null);
+  assert.equal(serverPing.statusFromJson({ favicon: 42 }, 5).favicon, null);
+  assert.equal(serverPing.statusFromJson({}, 5).favicon, null);
 });
 
 function listen(onConnection) {

@@ -3063,10 +3063,12 @@ window.onAccountSkin = (skin) => {
     $("skinName").textContent = "Not signed in";
     $("skinModel").textContent = "Sign in to change your skin";
     show(fallbackSkinTexture(), "classic");
+    paintHomeSkin();
     return;
   }
   const t = currentSkinTexture();
   show(t.dataUrl, t.model);
+  paintHomeSkin(); // Home's character wears the same skin
   $("skinName").textContent = state.username || "—";
   $("skinModel").textContent = skin && skin.dataUrl ? (skin.model === "slim" ? "Slim arms" : "Wide arms") : skin && skin.none ? "Default skin" : (skin && skin.error) || "—";
   // Keep the skin you're wearing in "Your skins", so changing it never loses it.
@@ -3079,6 +3081,91 @@ window.onAccountSkin = (skin) => {
   }
 };
 
+/* ---- your character on Home (owner, 15 Oct 2026; design "launch game panel/CLAUDE_CODE_HOME_UPDATE.md" 3b) ----
+ * The Skins page's viewer with the same skin and cape, idling. One button that opens Skins; a drag spins it instead.
+ * No animation frames while Home isn't showing, while Reminth isn't in front, while a game runs, or when the window
+ * is too short for it (styles.css hides it). Scale 10, or 8 in windows under 840px tall. */
+const homeSkin = { viewer: null, scale: 0, key: null, capeKey: null, profileAsked: false, downAt: null, dragged: false };
+const homeSkinScale = () => (window.innerHeight < 840 ? 8 : 10);
+
+function homeSkinViewer() {
+  const box = $("nhSkinView");
+  if (!box || typeof SkinViewer === "undefined") return null;
+  const scale = homeSkinScale();
+  if (homeSkin.viewer && homeSkin.scale !== scale) {
+    homeSkin.viewer.destroy();
+    homeSkin.viewer = null;
+    homeSkin.key = homeSkin.capeKey = null;
+    box.textContent = "";
+  }
+  if (!homeSkin.viewer) {
+    const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    homeSkin.viewer = new SkinViewer(box, { scale, yaw: -24, pitch: -6, animate: !still });
+    homeSkin.scale = scale;
+    paintHomeSkinRunning();
+  }
+  return homeSkin.viewer;
+}
+
+function paintHomeSkin() {
+  const v = homeSkinViewer();
+  if (!v) return;
+  const t = state.signedIn ? currentSkinTexture() : { dataUrl: fallbackSkinTexture(), model: "classic" };
+  const key = `${t.model}|${t.dataUrl}`;
+  if (homeSkin.key !== key) {
+    homeSkin.key = key;
+    v.setSkin(t.dataUrl, t.model);
+  }
+  const cape = state.signedIn && skins.profile && Array.isArray(skins.profile.capes) ? skins.profile.capes.find((c) => c.active && c.dataUrl) : null;
+  const capeKey = cape ? cape.dataUrl : "";
+  if (homeSkin.capeKey !== capeKey) {
+    homeSkin.capeKey = capeKey;
+    v.setCape(cape ? cape.dataUrl : null);
+  }
+  // the cape comes from the profile the Skins page loads; Home asks for it once itself
+  if (state.signedIn && !skins.profile && !homeSkin.profileAsked) {
+    homeSkin.profileAsked = true;
+    loadSkinProfile().catch(() => {});
+  }
+}
+
+function paintHomeSkinRunning() {
+  const v = homeSkin.viewer;
+  if (!v) return;
+  const me = $("nhMe");
+  const shown =
+    currentPage === "home" && !document.body.classList.contains("unfocused") && !document.body.classList.contains("game-running") && me && me.offsetParent !== null;
+  if (shown) v.resume();
+  else v.pause();
+}
+document.addEventListener("reminth:page", (e) => {
+  if (e.detail === "home") paintHomeSkin();
+  paintHomeSkinRunning();
+});
+new MutationObserver(paintHomeSkinRunning).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+let homeSkinResize = null;
+window.addEventListener("resize", () => {
+  clearTimeout(homeSkinResize);
+  homeSkinResize = setTimeout(() => {
+    if (homeSkin.viewer && homeSkin.scale !== homeSkinScale()) paintHomeSkin();
+    paintHomeSkinRunning();
+  }, 200);
+});
+// a click opens Skins; a drag (spinning the model) doesn't
+$("nhMe").addEventListener("pointerdown", (e) => {
+  homeSkin.downAt = { x: e.clientX, y: e.clientY };
+  homeSkin.dragged = false;
+});
+$("nhMe").addEventListener("pointermove", (e) => {
+  if (homeSkin.downAt && Math.hypot(e.clientX - homeSkin.downAt.x, e.clientY - homeSkin.downAt.y) > 5) homeSkin.dragged = true;
+});
+$("nhMe").addEventListener("click", () => {
+  const dragged = homeSkin.dragged;
+  homeSkin.downAt = null;
+  homeSkin.dragged = false;
+  if (!dragged) switchPage("skins");
+});
+
 async function loadSkinProfile() {
   return skinsTimed("profile", loadSkinProfileNow);
 }
@@ -3088,6 +3175,7 @@ async function loadSkinProfileNow() {
     skins.profile = await window.reminth.skinProfile();
     const active = skins.profile.capes.find((c) => c.active && c.dataUrl);
     ensureViewer().setCape(active ? active.dataUrl : null);
+    paintHomeSkin(); // and the same cape
   } catch {
     skins.profile = null;
   }
@@ -3660,6 +3748,7 @@ function applyStreamerUi(settings, problems) {
     document.body.classList.toggle("privacy", privacy);
     veilLogs();
     refreshSkin();
+    paintHomeName(); // Home's nametag hides too
   }
   setSwitch("toggleStreamerMode", on);
   // Without streamer mode the Library only lists screenshots taken in game (F2) and old captures.

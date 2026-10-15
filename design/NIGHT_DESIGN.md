@@ -36,8 +36,9 @@ Night design: what the owner asked, what is built, where it lives in the code, t
 | `assets/icons/source/reminth-mark-night.svg` | The see-through mark (the cube of the master SVG without tile, stars, hills): rail, loading screen, sign-in card, HUD mod card. |
 | `src/renderer/index.html` | `#homeMain.nh` (the Night home), no theme or accent pickers (removed 15 Oct: black only). |
 | `src/renderer/renderer.js` | "the Night home page" section: `PX_ICONS`/`pxIcon`, `PX_DIGITS`/`pxNumber`/`setPxStat`, `loadMyTiers`/`paintTiers`, What's new pop-up. Also `renderHero`, `paintHeroStats`, `openHeroPicker`, `showMenuBox`, Quick join (`quickInitials`, `quickTile`, `loadRecent`), `THEME_FILES`/`applyTheme`. |
-| `assets/img/launch-panel.webp`, `launch game panel/` | The launch panel (owner, 15 Oct, designed in a Claude design window): the space art (planet, astronaut, rocket, moon) in a rounded panel with a 2px white outline, as wide as the space between the stats and the PvP tiers (about 1260 px at 1920, 230-340 px tall), with the PLAY button (`.nh-panel` in index.html / styles.css) in the empty middle of the picture. It sits at the top of Home, between the stats and the PvP tiers/Friends; its outline is the icon's grey `#8a8d95` (owner: "a different color so it matches the launcher more"). Originals (PNG 1x/2x, WebP) are in `launch game panel/`. |
-| `src/renderer/styles.css` (`.backdrop::before`) | The whole launcher's background is the owner's space picture `assets/img/launch-panel.webp` (15 Oct: "use it for the whole launchers background"): full on Home and the sign-in screen, dimmed (30%) behind the other pages. The earlier Minecraft-night canvas (scene.js: stars, clouds, moon, trees) was removed - it is in git history (dc9492b..1bc66d4). |
+| `assets/img/launch-panel.webp`, `launch game panel/` | The launch panel: the owner's space art (planet, astronaut, rocket, moon, satellite) in a rounded panel (22px, 2px `#8a8d95` outline) as wide as the middle column and **exactly the picture's shape** (`aspect-ratio: 2704 / 636`, never cropped; 1248x294 at 1916 wide). LAUNCH GAME sits in its exact middle and the recent servers/worlds hang 12px under it (`.nh-panel-col`, `#quickJoin`). Home v2 spec and mockups: `launch game panel/CLAUDE_CODE_HOME_UPDATE.md`, `design/home-v2-top.png`, `design/home-v2-scrolled.png`. |
+| `assets/img/new background reminth.webp` (`.backdrop::before`) | The whole launcher's background (owner's name for the file): a 3840x2160 night sky, crisp evenly spread stars, a faint haze top-right, no 3D models - only ever scaled down, so sharp at any Windows scaling. Full on Home and the sign-in screen, 30% behind the other pages. (Before 15 Oct evening the panel picture was cover-scaled as the background: that made the blurry giant models and dots.) |
+| `assets/img/servers/<id>.webp`, `assets/img/servers/icons/<id>.png` | Home's 12 server cards: a 1320x600 picture made for each server, and its official 64x64 icon (bundled; replaced live by the icon the server sends with its status and remembered in `localStorage` `reminth.homeServerIcons`). The list is `HOME_SERVERS` in renderer.js. |
 | `src/renderer/styles.css` | The Home layout at the end ("the Night home page" block) - every look gets it. |
 | `src/renderer/night-extra.css` | The Night look itself (everything that isn't just a colour). |
 | `src/renderer/styles-night.css` | **Made, never edit**: `node tools/night.js` = styles.css with every non-status colour grey + night-extra.css. |
@@ -70,17 +71,30 @@ Night design: what the owner asked, what is built, where it lives in the code, t
   Discord keeps its blurple. PvP tier chips keep the in-game Tier Tagger colours (`/* keep-colour */` lines).
 - **Motion**: CSS transitions under 200 ms; no animated background (the scene is drawn once per resize).
 
-## 4. Home (the owner's design, built)
+## 4. Home (the owner's design, built) - v2, 15 Oct 2026 evening
 
-Left: stats as pixel icon + pixel number (player kills = sword, deaths = skull, mob kills = mob face, blocks broken =
-pickaxe, blocks placed = block), hover names them. Middle: PLAY (starts the shown instance), under it the picker
-pill "Fabric 26.2 · Reminth ⌄" (menu: every instance, "Open <name>", "New instance"; the pick lasts until a game
-starts), then "Last played … · … played". Stop / Update mods / progress / log appear under it when needed. Right:
-PvP tiers (the signed-in player's real tiers, best per gamemode across the three lists; "No tiers yet…" or
-"Couldn't reach…" otherwise) and **Friends - Soon** (Reminth has no friends system; the design's kxlo / nyxpvp /
-v0idd were mock-ups, nothing fake is shown). Bottom: "Reminth <version> • What's new" (opens the list), Quick join
-(the last 5 worlds/servers: servers as two-letter tiles - "pvp hub" → PH, "mcpvp.club" → MC, "mcpvp.com" → MP,
-"donut" → DN - worlds as a block tile; click = play it), Discord.
+Three columns; the middle one scrolls, the side ones stay put (`position: sticky`), what scrolls up fades out under the
+floating top bar (`mask-image` on `.pages`, Home only). Home always opens at the top.
+- **Left** (`.nh-left`): stats as pixel icon + pixel number (player kills = diamond sword, deaths = skeleton skull,
+  mob kills = creeper, blocks broken = iron pickaxe, blocks placed = grass block), hover names them. At the bottom:
+  **your character** - the Skins page's 3D viewer with your skin and cape (features.js `paintHomeSkin`, scale 10,
+  8 under 840px tall, hidden under 770px tall or 940px wide; paused when Home isn't shown, the window isn't in front or
+  a game runs), your Minecraft name above it in **Minecraft's own font** (renderer.js `paintHomeName`/`mcNameCanvas`:
+  the game's `font/ascii.png` read from a downloaded client jar by main.js `font:mcAscii`, cached in
+  `%APPDATA%Reminthcache`; never shipped; Inter until a jar exists; hidden in streamer privacy; a rename on
+  minecraft.net shows after the next token refresh), "Change skin" (the whole block opens Skins, a drag spins it);
+  then "Reminth <version> • What's new".
+- **Middle** (`.nh-center`, a size container): the launch panel with **LAUNCH GAME / Launch Reminth** and the recent
+  servers/worlds under it (up to 3 servers + newest worlds, 6 tiles, servers' own logos, worlds' own pictures); when the
+  middle column is under 1070px the tiles move under the picker as "Jump back in". Then the picker pill, "Last played …",
+  Stop / Update mods / progress / log when needed, and **SERVERS**: 12 cards, 3 a row (2 under 1100px): picture
+  (zooms 6% under the pointer), official icon, name, address + live "N online" (only when the server answered; pinged
+  when Home opens, at most once a minute, never while a game runs), JOIN (the instance the picker shows; disabled
+  while it installs/runs). Cards are built once; they cascade in every time Home opens (Lunar's news grid timing,
+  motion.css `m-srv-in`).
+- **Right** (`.nh-side`): **Friends - Soon** fills the column (Reminth has no friends system; nothing fake), Discord
+  (its own navy) under it. **PvP tiers is hidden for now** (owner: "for now"; `#nhTiers hidden`, no look-ups while
+  hidden; the code and `src/main/tiers.js` stay).
 
 ## 5. Status (15 Oct 2026, night)
 

@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **15 Oct 2026 (evening): Home v2 built from `launch game panel/CLAUDE_CODE_HOME_UPDATE.md` (new background, LAUNCH GAME, your skin + Minecraft-font name, recent tiles in the panel, 12 live servers). Seen in the preview at 1280/1920/2560 wide; not released. Section 00000000000000000000000000000000000000.**
 - **15 Oct 2026 (15:20): tab motion + Minecraft stat icons (commit 3d01e61, not released - 1.8.0 is the published one). `src/renderer/motion.css` (new): pages slide in from the side of the rail you moved towards, parts one after another; one gliding rail marker `#railInd` (renderer.js `placeRailInd`); top bar title slides in; Home stats/PLAY/side cards arrive in turn; rows/tiles cascade in; hover lift, button press; dialogs rise. All off while a game runs, while Reminth is not in front (body.unfocused) and for reduced motion. Home stats: 16x16 colour sprites in Minecraft style drawn in code (`PX_PAL`/`PX_ICONS` in renderer.js: diamond sword, skeleton skull, creeper, iron pickaxe, grass block; Quick join worlds use the grass block). Checked in the hidden test copy (focus faked, since a hidden window is "unfocused"): animations run, nothing left faded after any switch. Not seen on the owner's screen yet. The design window made the Minecraft night background (`scene.js`, dc9492b). `npm test` 693.**
 - **15 Oct 2026 (14:30): "Post the channel messages" never edits any more (`functions/_texts.js` savedPlan/postMessages, test `test/discord-texts.test.js`): rules, FAQ, socials, #read-first = old message deleted, same info posted new; #announcements and #updates = old messages stay, a new one only when the text changed (fingerprint saved in `msg:<job>`). #announcements text now announces 1.8.0 (`RELEASE`). Live; not pressed yet in the real server. Note: after Tickets v2 puts its panel in #read-first, a press moves the Reminth text below that panel. `npm test` 693.**
 - **15 Oct 2026 (13:40): Reminth 1.8.0 PUBLISHED (tag `1.8.0`) - checked: 3 assets, latest.yml identical, installer sha512 matches; GitHub feed shows 1.8.0 so the bot posts it in #updates by itself. Website: privacy v13 (launcher PvP tiers card) and the Moonrise icon (favicon, logo, apple-touch) live. The #announcements welcome text still announces 1.7.2 (`functions/_texts.js` RELEASE) - update it only if the owner asks.**
@@ -26,6 +27,63 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000000000000000000. Home v2: new background, LAUNCH GAME, your skin, recent tiles in the panel, 12 servers (15 Oct 2026, evening) - desktop window (code chat)
+
+**Owner's ask:** build `launch game panel/CLAUDE_CODE_HOME_UPDATE.md` exactly (made by a Claude design session); the two
+mockups (`design/home-v2-top.png`, `design/home-v2-scrolled.png`) are the target. Everything in it is built:
+- **Background** `assets/img/new background reminth.webp` (4K sky, no models, crisp stars) instead of the cover-scaled
+  panel picture (the cause of the blurry side models and dots). `styles.css` `.backdrop::before`.
+- **Layout** (`index.html` `#homeMain`, `styles.css` Home block rewritten): three columns, the middle scrolls, the sides
+  stay put (sticky), cards fade out under the top bar (mask), REMINTH 16px higher, Home opens at the top. The old
+  `.nh-foot` row is gone. Small windows: 170/228px sides under 1180px wide, 2 servers a row and the recent tiles under
+  the picker when the middle column is narrow (@container), one column under 940px.
+- **PvP tiers hidden for now** (`#nhTiers hidden`, `loadMyTiers` skips while hidden); **Friends fills the right column**,
+  Discord (navy) under it.
+- **Launch panel** never cropped (the picture's own shape). **LAUNCH GAME / Launch Reminth** (`paintPlayButtons` writes
+  only the title; the line hides during progress/"Playing"). Recent servers/worlds hang under it inside the panel.
+- **Your character** (`features.js` `paintHomeSkin` etc.): the Skins viewer with your skin + cape, follows skin changes
+  (`window.onAccountSkin`), click opens Skins, drag spins, paused when not visible / not in front / in game.
+- **Your name above it in Minecraft's font**: `main.js` IPC `font:mcAscii` reads `assets/minecraft/textures/font/ascii.png`
+  from a downloaded client jar (never shipped), caches it in `%APPDATA%Reminthcachemc-font-ascii.png`; `renderer.js`
+  `mcNameCanvas` draws it (3px per font pixel, #3F3F3F shadow, devicePixelRatio-sharp). Inter until a jar exists. Hidden
+  in streamer privacy. **Renames**: `main.js` sends `auth:restored` when a token refresh brings a different name.
+- **12 servers** (`renderer.js` `HOME_SERVERS`, `buildHomeServers`, `pingHomeServers`, `joinHomeServer`): pictures and
+  bundled icons in `assets/img/servers/`; live counts + newest icons from `servers:ping` (`serverPing.statusFromJson`
+  now returns `favicon`, small PNG data URLs only; test added), remembered in localStorage; JOIN uses the picker's
+  instance, disabled while it installs/runs.
+- **Motion** (`motion.css`): cards cascade in on every open (fade up 32px, 480ms, 60ms apart from 440ms; `.entering` now
+  kept 1700ms), character fades in at 380ms, picture zoom on hover (corners stay round), all off for reduced motion.
+- Docs: `design/NIGHT_DESIGN.md` sections 2 and 4. Tests: `test/theme-night.test.js` (new ids, LAUNCH GAME, tiers
+  hidden, every server has its picture + icon), `test/fixes-main.test.js` (favicon).
+
+**Seen working in the hidden preview / the owner's live preview:** 1920x1032 (matches the top mockup), 1280x720 (panel
+whole, tiles under the picker, 2 a row, no character), 2560x1440 (3 a row, tiles in the panel, scrolled end matches the
+scrolled mockup); side columns stay at the top while the middle scrolls; Home reopens at the top; the 12 cards start
+invisible and all are in by 2s; all 12 servers answered with counts; the name drawn in the real Minecraft font
+(117x27 for "Preview" as the spec says); no script errors.
+
+**Not tested for real:** JOIN into a real server from a card; a server that doesn't answer (initials/no count); Join
+disabled while a game runs; the character spinning with a real mouse and the click opening Skins; a real rename; 125/150%
+Windows scaling.
+
+**`npm test`: 695 pass, 0 fail.** Nothing installed, built or published.
+
+**Test plan (owner, in the Live Preview; PASS/FAIL):**
+1. The background is a sharp night sky, no blurry models or dots at the sides. PASS/FAIL
+2. Your skin stands on the left (same as the Skins page); drag it - it spins; click it - Skins opens. PASS/FAIL
+3. Change your skin on the Skins page, go back to Home - the character wears the new one. PASS/FAIL
+4. Your Minecraft name above the head, in the game's own letters with a shadow. PASS/FAIL
+5. The panel shows the whole picture; LAUNCH GAME with "Launch Reminth" under it; your recent servers/worlds under the button; clicking one joins/opens it. PASS/FAIL
+6. Press LAUNCH GAME: progress text in the button (no "Launch Reminth" line), then "Playing"; the JOIN buttons are greyed while the game runs; the character stops moving while in game. PASS/FAIL
+7. Scroll Home: stats, character, Friends and Discord stay put; cards fade out under REMINTH. PASS/FAIL
+8. Go to another tab and back: Home is at the top and the server cards slide in one by one. PASS/FAIL
+9. Hover a server picture: it zooms a little, corners stay round. PASS/FAIL
+10. JOIN on DonutSMP and on PvP Club: the game starts and joins that server (with the instance shown in the picker). PASS/FAIL
+11. Pull the network cable / Wi-Fi, open Home: no player counts, icons still show. PASS/FAIL
+12. Make the window small: the recent tiles move under the picker ("Jump back in"), servers go 2 a row; very small: one column. PASS/FAIL
 
 ---
 

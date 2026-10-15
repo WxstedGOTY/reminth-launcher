@@ -107,6 +107,7 @@ contextBridge.exposeInMainWorld("reminth", {
   // servers
   searchServers: (params) => ipcRenderer.invoke("servers:search", params),
   pingServers: (addresses) => ipcRenderer.invoke("servers:ping", addresses),
+  mcFontAscii: () => ipcRenderer.invoke("font:mcAscii"),
   addServer: (instanceId, server) => ipcRenderer.invoke("servers:add", instanceId, server),
 
   // performance help (main.js "perf:*")

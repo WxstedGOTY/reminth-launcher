@@ -31,7 +31,17 @@
 @keyframes m-art { from { transform: scale(1.08); } to { transform: none; } }
 #home.entering .nh-row, #home.entering .nh-meta { animation: m-in-down .42s var(--m-ease) both; animation-delay: 340ms; }
 #home.entering .nh-side > * { animation: m-from-right .48s var(--m-ease) both; animation-delay: calc(160ms + var(--i, 0) * 80ms); }
-#home.entering .nh-foot > * { animation: m-in-down .42s var(--m-ease) both; animation-delay: calc(260ms + var(--i, 0) * 60ms); }
+#home.entering .nh-version { animation: m-in-down .42s var(--m-ease) both; animation-delay: 300ms; }
+/* your character fades up with the stats; the recent tiles in the panel cascade in under LAUNCH GAME */
+#home.entering .nh-me { animation: m-from-left .46s var(--m-ease) both; animation-delay: 380ms; }
+#home.entering .nh-quick-in, #home.entering .nh-quick { animation: m-fade .3s ease both; animation-delay: 380ms; }
+/* the servers: Lunar's news grid, measured from the owner's recording - each card fades in from 32px lower, ~480ms with
+   a strong ease-out, one after another in reading order 60ms apart, from 440ms (playPageEnter keeps .entering 1700ms) */
+#home.entering .nh-srv { animation: m-srv-in .48s var(--m-ease) both; animation-delay: calc(440ms + var(--i, 0) * 60ms); }
+@keyframes m-srv-in { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
+/* a server's picture zooms in a little under the pointer (and while its Join button has keyboard focus) */
+.nh-srv-pic img { transition: transform .45s var(--m-ease), filter .45s ease; }
+.nh-srv-pic:hover img, .nh-srv:has(.nh-srv-join:focus-visible) img { transform: scale(1.06); filter: brightness(1.06); will-change: transform; }
 #home.entering #rmGate, #home.entering #signInHero { animation: m-pop .5s var(--m-ease) both; }
 @keyframes m-from-left { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
 @keyframes m-from-right { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
@@ -97,7 +107,8 @@
 
 /* players who ask Windows for less motion get the plain switch */
 @media (prefers-reduced-motion: reduce) {
-  .page > *, #home .nh-stats li, #home .nh-play, #home .nh-panel, #home .nh-panel-art, #home .nh-side > *, #home .nh-foot > *, .topbar-title .eyebrow,
+  .page > *, #home .nh-stats li, #home .nh-play, #home .nh-panel, #home .nh-panel-art, #home .nh-side > *, #home .nh-version, #home .nh-me, #home .nh-srv, #home .nh-quick-in, #home .nh-quick, .topbar-title .eyebrow,
   .topbar-title .topbar-sub, .mod-row, .content-row, .skin-tile, .card, .nh-tile, .nh-tier, .tab-pane, .modal-root .modal { animation: none !important; }
-  #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile { transition: none !important; }
+  #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile, .nh-srv-pic img { transition: none !important; }
+  .nh-srv-pic:hover img, .nh-srv:has(.nh-srv-join:focus-visible) img { transform: none; filter: none; }
 }

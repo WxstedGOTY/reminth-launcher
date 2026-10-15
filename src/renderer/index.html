@@ -242,24 +242,45 @@
           <!-- signed in: the Night home page (owner's design "Home · Night", 14 Oct 2026 - design/home-night.png).
                The space picture behind it is .backdrop::before (styles.css). -->
           <div id="homeMain" class="nh" hidden>
-            <!-- left: what you've done, in pixel icons (renderer.js updateHomeStatRow) -->
-            <ul class="nh-stats" aria-label="Your stats">
-              <li data-tip="Player kills"><i class="px-icon" data-px="sword"></i><b class="display" id="statPlayerKills">—</b></li>
-              <li data-tip="Deaths" id="statDeathsRow"><i class="px-icon" data-px="skull"></i><b class="display" id="statDeaths">—</b></li>
-              <li data-tip="Mob kills"><i class="px-icon" data-px="mob"></i><b class="display" id="statMobKills">—</b></li>
-              <li data-tip="Blocks broken"><i class="px-icon" data-px="pickaxe"></i><b class="display" id="statBroken">—</b></li>
-              <li data-tip="Blocks placed"><i class="px-icon" data-px="block"></i><b class="display" id="statPlaced">—</b></li>
-            </ul>
+            <!-- left (stays put while the middle scrolls): stats on top; your character, the version and What's new at the bottom -->
+            <div class="nh-left">
+              <ul class="nh-stats" aria-label="Your stats">
+                <li data-tip="Player kills"><i class="px-icon" data-px="sword"></i><b class="display" id="statPlayerKills">—</b></li>
+                <li data-tip="Deaths" id="statDeathsRow"><i class="px-icon" data-px="skull"></i><b class="display" id="statDeaths">—</b></li>
+                <li data-tip="Mob kills"><i class="px-icon" data-px="mob"></i><b class="display" id="statMobKills">—</b></li>
+                <li data-tip="Blocks broken"><i class="px-icon" data-px="pickaxe"></i><b class="display" id="statBroken">—</b></li>
+                <li data-tip="Blocks placed"><i class="px-icon" data-px="block"></i><b class="display" id="statPlaced">—</b></li>
+              </ul>
+              <div class="nh-left-bottom">
+                <!-- your own skin, standing in 3D (features.js paintHomeSkin), your Minecraft name above it in the game's font -->
+                <button class="nh-me" id="nhMe" type="button" aria-label="Your character - open Skins">
+                  <span class="nh-me-tag" id="nhMeName"></span>
+                  <div class="nh-me-view" id="nhSkinView"></div>
+                  <span class="nh-me-sub">Change skin</span>
+                </button>
+                <div class="nh-version">
+                  <span id="nhVersion">Reminth</span>
+                  <button class="nh-news" id="nhNews" type="button"><i></i>What's new</button>
+                </div>
+              </div>
+            </div>
 
-            <!-- middle: PLAY, the instance it plays, when you last played -->
+            <!-- middle (scrolls): the launch panel, the instance it plays, then the servers -->
             <div class="nh-center">
-              <!-- the launch panel: the owner's space art (assets/img/launch-panel.webp, design: "launch game panel/") with PLAY in its empty middle -->
+              <!-- the launch panel: the owner's space art (assets/img/launch-panel.webp) with LAUNCH GAME in its middle and
+                   your last servers and worlds right under it (design: "launch game panel/CLAUDE_CODE_HOME_UPDATE.md") -->
               <div class="nh-panel">
                 <img class="nh-panel-art" src="../../assets/img/launch-panel.webp" alt="" draggable="false" />
-                <button class="nh-play" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+                <div class="nh-panel-col">
+                  <button class="nh-play" id="playBtn">
+                    <span class="nh-play-title"><svg class="i"><use href="#i-play"/></svg><b>Launch game</b></span>
+                    <span class="nh-play-sub">Launch Reminth</span>
+                  </button>
+                  <div class="nh-quick-row nh-quick-in" id="quickJoin" hidden></div>
+                </div>
               </div>
               <div class="nh-row">
-                <button class="nh-pick" id="heroPick" type="button" aria-haspopup="menu" title="Pick the instance Play starts">
+                <button class="nh-pick" id="heroPick" type="button" aria-haspopup="menu" title="Pick the instance Launch game starts">
                   <b id="heroLoader">Fabric</b><b id="heroVersion">—</b><i class="nh-dot"></i><span id="heroInstance">—</span><svg class="i"><use href="#i-chevron"/></svg>
                 </button>
                 <button class="nh-stop" id="stopBtn" type="button" hidden><svg class="i"><use href="#i-x"/></svg><span>Stop</span></button>
@@ -280,11 +301,20 @@
                 <div class="track"><div class="fill" id="progressFill"></div></div>
               </div>
               <pre class="log nh-log" id="log" hidden></pre>
+              <!-- narrow windows: the recent tiles sit here instead of in the panel (styles.css @container) -->
+              <div class="nh-quick" id="nhQuickWrap" hidden>
+                <span class="nh-label">Jump back in</span>
+                <div class="nh-quick-row" id="quickJoinBelow"></div>
+              </div>
+              <section class="nh-servers" aria-label="Servers">
+                <span class="nh-label">Servers</span>
+                <div class="nh-srv-grid" id="nhServers"></div>
+              </section>
             </div>
 
-            <!-- right: PvP tiers and friends -->
+            <!-- right (stays put): Friends fills the column, Discord under it. PvP tiers is hidden for now (owner, 15 Oct 2026). -->
             <div class="nh-side">
-              <section class="nh-card" id="nhTiers">
+              <section class="nh-card" id="nhTiers" hidden>
                 <div class="nh-card-head"><span class="nh-label">PvP tiers</span><span class="nh-note" id="nhTiersNote"></span></div>
                 <div class="nh-tiers" id="nhTierList"></div>
               </section>
@@ -292,18 +322,6 @@
                 <div class="nh-card-head"><span class="nh-label">Friends</span><em class="soon">Soon</em></div>
                 <p class="nh-empty">Friends aren't in Reminth yet.</p>
               </section>
-            </div>
-
-            <!-- bottom: the version and What's new, Quick join, Discord -->
-            <div class="nh-foot">
-              <div class="nh-version">
-                <span id="nhVersion">Reminth</span>
-                <button class="nh-news" id="nhNews" type="button"><i></i>What's new</button>
-              </div>
-              <div class="nh-quick" id="nhQuickWrap" hidden>
-                <span class="nh-label">Quick join</span>
-                <div class="nh-quick-row" id="quickJoin"></div>
-              </div>
               <a class="nh-discord" href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener"><svg class="i"><use href="#i-chat"/></svg><span>Discord</span></a>
             </div>
           </div>
