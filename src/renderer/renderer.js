@@ -800,7 +800,7 @@ function playPageEnter(prevPage, page) {
   enterTimer = setTimeout(() => {
     node.classList.remove("enter-down", "enter-up", "entering");
     if (title) title.classList.remove("swap");
-  }, 1700); // the 12th server card starts at 1100ms (motion.css)
+  }, 1100); // the 12th server card ends at ~965ms (motion.css)
 }
 
 /** The rail's white marker, next to the lit tab (hidden when the page has no tab on the rail, like Statistics). */
