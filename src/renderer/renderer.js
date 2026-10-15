@@ -729,6 +729,7 @@ function switchPage(page) {
   // funnels through here, so this one check keeps a shared PC's next user
   // out of the last player's instances, worlds, mods and servers.
   if ((!state.signedIn || rmGateNeeded()) && page !== "home") return;
+  const prevPage = currentPage;
   currentPage = page;
   // The Night look styles the shell per page (Home: the full night scene, a see-through top bar).
   document.body.dataset.page = page;
@@ -755,6 +756,7 @@ function switchPage(page) {
   $("topEyebrow").textContent = PAGE_META[page][0];
   $("topTitle").textContent = PAGE_META[page][1];
   $("pages").scrollTop = 0;
+  playPageEnter(prevPage, page);
   if (page === "stats") loadStats();
   if (page === "instance") renderInstancePage();
   if (page === "home") {
@@ -765,6 +767,64 @@ function switchPage(page) {
   document.dispatchEvent(new CustomEvent("reminth:page", { detail: page }));
   if (pageHooks[page]) pageHooks[page]();
 }
+
+/* ---- motion (owner, 15 Oct 2026: "no animation when switching tabs ... take ideas from lunar"; CSS in motion.css) ----
+ * A page slides in from the side of the rail you moved towards, its parts one after another; the rail's marker glides
+ * to the new tab; the top bar's page name slides in. Classes are taken off again afterwards, so a list that is drawn
+ * again later doesn't replay the whole entrance. */
+const PAGE_ORDER = ["home", "discover", "library", "skins", "hosting", "plus", "instance", "streamer", "stats", "settings"];
+let enterTimer = null;
+function playPageEnter(prevPage, page) {
+  const node = $(page);
+  placeRailInd();
+  if (!node || prevPage === page) return;
+  const down = PAGE_ORDER.indexOf(page) >= PAGE_ORDER.indexOf(prevPage);
+  for (const p of document.querySelectorAll(".page.enter-down, .page.enter-up, .page.entering")) p.classList.remove("enter-down", "enter-up", "entering");
+  [...node.children].forEach((c, i) => c.style.setProperty("--i", Math.min(i, 8)));
+  if (page === "home") {
+    node.querySelectorAll(".nh-stats li, .nh-side > *, .nh-foot > *").forEach((c) => c.style.setProperty("--i", Math.min([...c.parentNode.children].indexOf(c), 8)));
+  }
+  void node.offsetWidth; // start the animation again even when the class was just removed
+  node.classList.add(down ? "enter-down" : "enter-up", "entering");
+  const title = document.querySelector(".topbar-title");
+  if (title) {
+    title.classList.remove("swap");
+    void title.offsetWidth;
+    title.classList.add("swap");
+  }
+  clearTimeout(enterTimer);
+  enterTimer = setTimeout(() => {
+    node.classList.remove("enter-down", "enter-up", "entering");
+    if (title) title.classList.remove("swap");
+  }, 1100);
+}
+
+/** The rail's white marker, next to the lit tab (hidden when the page has no tab on the rail, like Statistics). */
+function placeRailInd() {
+  const rail = document.querySelector(".rail");
+  if (!rail) return;
+  let ind = $("railInd");
+  if (!ind) {
+    ind = el("div");
+    ind.id = "railInd";
+    rail.appendChild(ind);
+  }
+  const btn = rail.querySelector(".rail-btn.active");
+  if (!btn || !btn.offsetParent) {
+    if (ind.classList.contains("on")) ind.classList.remove("on");
+    return;
+  }
+  const r = btn.getBoundingClientRect();
+  const top = r.top - rail.getBoundingClientRect().top + rail.scrollTop + r.height / 2 - 11;
+  const move = `translateY(${Math.round(top)}px)`;
+  if (ind.style.transform !== move) ind.style.transform = move;
+  if (!ind.classList.contains("on")) ind.classList.add("on");
+}
+window.addEventListener("resize", () => placeRailInd());
+// instance buttons come and go on the rail: keep the marker on the lit one
+new MutationObserver((changes) => {
+  if (changes.some((c) => c.target.id !== "railInd")) placeRailInd();
+}).observe(document.querySelector(".rail"), { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
 
 function wireTabs(navId, onChange) {
   const nav = $(navId);
@@ -3158,93 +3218,108 @@ paintFocus();
  * the Night home page (owner's "Home · Night" design, 14 Oct 2026):   *
  * pixel icons, the PvP tiers card, What's new, the night scene        *
  * ================================================================== */
-// Small pixel pictures, one string per row: "#" a full pixel, "+" a half-bright one. Drawn as SVG rectangles.
+// Small pixel pictures in the style of Minecraft's own item and block textures (owner, 15 Oct 2026: "make them better and
+// to remind more of minecraft"), 16x16, drawn here by hand - not Mojang's files. One string per row, one letter per
+// pixel: "." empty, any other letter a colour from PX_PAL. Drawn as SVG rectangles, crisp at any size.
+const PX_PAL = { k: "#121214", D: "#0f7d74", d: "#2cc5b6", l: "#9df5e6", L: "#e6fffa", W: "#4a3418", w: "#7a5a2e", v: "#a37c47", J: "#5d5d63", I: "#a9a9b0", i: "#dcdce2", B: "#8f8d82", b: "#c9c6b6", a: "#ecead9", e: "#2b2a27", C: "#2f7a28", c: "#4fa83f", m: "#7fd06a", x: "#0c140c", G: "#3f7f2a", g: "#5ea63b", h: "#86c95a", E: "#5a3a20", f: "#7a5232", F: "#9a6b44", s: "#8c8c8c" };
 const PX_ICONS = {
+  // player kills: a diamond sword
   sword: [
-    "...........###",
-    "..........####",
-    ".........####.",
-    "........####..",
-    ".......####...",
-    "......####....",
-    "..#..####.....",
-    "..##.###......",
-    "...####.......",
-    "...+##........",
-    "..##+##.......",
-    ".##...#.......",
-    "##............",
-    "#.............",
+    ".............kkk",
+    "............kLlk",
+    "...........kldDk",
+    "..........kldDk.",
+    ".........kldDk..",
+    "........kldDk...",
+    ".......kldDk....",
+    "..kk..kldDk.....",
+    "..kdkkldDk......",
+    "...kddDDk.......",
+    "...kdDDk........",
+    "..kwkkdDk.......",
+    ".kwvk..kdk......",
+    "kwvk....kk......",
+    "kWk.............",
+    ".k..............",
   ],
+  // deaths: a skeleton skull
   skull: [
-    "...########...",
-    ".############.",
-    "##############",
-    "##############",
-    "###...##...###",
-    "###...##...###",
-    "###...##...###",
-    "######..######",
-    ".############.",
-    "..##########..",
-    "..#.##.##.#...",
-    "..##########..",
+    "................",
+    "..kkkkkkkkkkkk..",
+    ".kaaaaaaaaaaaak.",
+    ".kaabbaaaabbaak.",
+    ".kabbbbbbbbbbak.",
+    ".kbbbbbbbbbbbbk.",
+    ".kbeeeebbeeeebk.",
+    ".kbeeeebbeeeebk.",
+    ".kbbbbbeebbbbbk.",
+    ".kBbbbbeebbbbBk.",
+    ".kBBbbbbbbbbBBk.",
+    ".kBbeaeaeaeabBk.",
+    ".kBBeBeBeBeBBBk.",
+    "..kBBBBBBBBBBk..",
+    "...kkkkkkkkkk...",
+    "................",
   ],
+  // mob kills: a creeper's face
   mob: [
-    "##..........##",
-    "##############",
-    "##############",
-    "##...####...##",
-    "##...####...##",
-    "##############",
-    "#####....#####",
-    "####......####",
-    "####......####",
-    "####..##..####",
-    "##############",
+    "kkkkkkkkkkkkkkkk",
+    "kcmccCcmcccmcCck",
+    "kcCcmccccCcccmck",
+    "kmcxxxxccxxxxcck",
+    "kccxxxxCcxxxxcCk",
+    "kcCxxxxccxxxxmck",
+    "kccxxxxcmxxxxcck",
+    "kmcccCcxxccmcCck",
+    "kcccmcxxxxcccmck",
+    "kcCcccxxxxccCcck",
+    "kccmcxxxxxxcmcck",
+    "kcmccxxxxxxccCck",
+    "kcCccxxccxxcmcck",
+    "kccmcxxcCxxcccmk",
+    "kcmcccCcccmccCck",
+    "kkkkkkkkkkkkkkkk",
   ],
+  // blocks broken: an iron pickaxe
   pickaxe: [
-    "....######....",
-    "..##########..",
-    ".####....####.",
-    "###.......###.",
-    "##.......####.",
-    "........##+##.",
-    ".......##...#.",
-    "......##......",
-    ".....##.......",
-    "....##........",
-    "...##.........",
-    "..##..........",
-    ".##...........",
-    "##............",
+    "................",
+    "...kkkkkkkk.....",
+    "..kiiiiiiiikk...",
+    "..kJJIIIIiiiik..",
+    "...kkkkkJIIiiik.",
+    "........kwkJIik.",
+    ".......kwvkkJIik",
+    "......kwvk.kJIik",
+    ".....kwvk..kJIik",
+    "....kwvk...kJIk.",
+    "...kwvk.....kk..",
+    "..kwvk..........",
+    ".kwvk...........",
+    "kwvk............",
+    "kWk.............",
+    ".k..............",
   ],
+  // blocks placed (and worlds in Quick join): a grass block
   block: [
-    "##############",
-    "#............#",
-    "#.#..+..#..+.#",
-    "#............#",
-    "#..+..#..+..##",
-    "#............#",
-    "#.#..+..#..+.#",
-    "#............#",
-    "#..+..#..+..##",
-    "#............#",
-    "##############",
-  ],
-  world: [
-    "##############",
-    "#+#+#+#+#+#+##",
-    "##############",
-    "#............#",
-    "#.+..#..+..#.#",
-    "#............#",
-    "#..#..+..#...#",
-    "#............#",
-    "#.+..#..+..#.#",
-    "##############",
+    "kkkkkkkkkkkkkkkk",
+    "khghhgghghhghggk",
+    "kgGgghgGggggGgGk",
+    "kGgGgGGgGgGggGgk",
+    "kGfGGEGGfGGGEGfk",
+    "kfFfEffFffEfFffk",
+    "kffEfFfffFffEfFk",
+    "kFffffEfFfffffEk",
+    "kfEfFffffEfFfffk",
+    "kffffsfEfffffFfk",
+    "kfFEfffffFfEfffk",
+    "kffffFfEffffsffk",
+    "kEfFffffffFfffEk",
+    "kffffEfFfEfffFfk",
+    "kfFffffffffEfffk",
+    "kkkkkkkkkkkkkkkk",
   ],
 };
+PX_ICONS.world = PX_ICONS.block;
 
 function pxIcon(name) {
   const rows = PX_ICONS[name] || PX_ICONS.block;
@@ -3256,18 +3331,18 @@ function pxIcon(name) {
   svg.setAttribute("shape-rendering", "crispEdges");
   svg.setAttribute("aria-hidden", "true");
   rows.forEach((row, y) => {
-    // One rectangle per run of the same pixel, not one per pixel.
+    // One rectangle per run of the same colour, not one per pixel.
     for (let x = 0; x < row.length; ) {
-      const c = row[x];
+      const ch = row[x];
       let end = x;
-      while (end < row.length && row[end] === c) end++;
-      if (c === "#" || c === "+") {
+      while (end < row.length && row[end] === ch) end++;
+      if (PX_PAL[ch]) {
         const r = document.createElementNS(NS, "rect");
         r.setAttribute("x", x);
         r.setAttribute("y", y);
         r.setAttribute("width", end - x);
         r.setAttribute("height", 1);
-        if (c === "+") r.setAttribute("opacity", "0.5");
+        r.setAttribute("fill", PX_PAL[ch]);
         svg.appendChild(r);
       }
       x = end;

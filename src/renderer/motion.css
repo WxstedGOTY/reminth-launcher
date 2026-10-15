@@ -1,0 +1,98 @@
+/* Reminth's motion (owner, 15 Oct 2026: "there is no animation when switching through tabs, it looks so boring empty
+   and dry - take some ideas from other launchers like Lunar"). Loaded after the theme stylesheet, for every look.
+   - a page slides in from the side of the rail you moved towards (down the rail: from below; up: from above), its
+     parts one after another (renderer.js playPageEnter sets .enter-down / .enter-up and --i per part);
+   - the rail's white marker glides to the tab you picked (#railInd, renderer.js placeRailInd);
+   - the page name in the top bar slides in; Home's stats, PLAY and side cards arrive in turn;
+   - rows and tiles appear in a quick cascade; cards lift a little under the pointer; buttons press in.
+   Only transform and opacity move (no layout work). All of it stops while a game runs or Reminth isn't the window in
+   front (body.game-running / body.unfocused in styles.css), and for players who ask Windows for less motion. */
+
+:root { --m-ease: cubic-bezier(.2, .8, .2, 1); }
+
+/* ---- pages ---- */
+.page { animation: none; }
+.page.enter-down > *, .page.enter-up > * { animation: m-in-down .42s var(--m-ease) both; animation-delay: calc(var(--i, 0) * 55ms); }
+.page.enter-up > * { animation-name: m-in-up; }
+@keyframes m-in-down { from { opacity: 0; transform: translateY(22px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes m-in-up { from { opacity: 0; transform: translateY(-22px) scale(.985); } to { opacity: 1; transform: none; } }
+/* the skin viewer's canvas keeps its own warm-up; only its column fades */
+#skins.page.enter-down > *, #skins.page.enter-up > * { animation-name: m-fade; }
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---- Home: stats from the left one by one, PLAY pops, the side cards from the right, the bottom row rises ---- */
+#home.enter-down > *, #home.enter-up > * { animation: none; }
+#home.entering .nh-stats li { animation: m-from-left .46s var(--m-ease) both; animation-delay: calc(80ms + var(--i, 0) * 60ms); }
+#home.entering .nh-play { animation: m-pop .5s cubic-bezier(.2, 1.4, .4, 1) both; animation-delay: 120ms; }
+#home.entering .nh-row, #home.entering .nh-meta { animation: m-in-down .42s var(--m-ease) both; animation-delay: 220ms; }
+#home.entering .nh-side > * { animation: m-from-right .48s var(--m-ease) both; animation-delay: calc(160ms + var(--i, 0) * 80ms); }
+#home.entering .nh-foot > * { animation: m-in-down .42s var(--m-ease) both; animation-delay: calc(260ms + var(--i, 0) * 60ms); }
+#home.entering #rmGate, #home.entering #signInHero { animation: m-pop .5s var(--m-ease) both; }
+@keyframes m-from-left { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
+@keyframes m-from-right { from { opacity: 0; transform: translateX(26px); } to { opacity: 1; transform: none; } }
+@keyframes m-pop { from { opacity: 0; transform: scale(.9); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+
+/* PLAY: a soft lift under the pointer, a press when clicked */
+.nh-play { transition: transform .16s var(--m-ease), box-shadow .2s ease, background-color .2s ease; }
+.nh-play:hover:not(:disabled) { transform: translateY(-2px) scale(1.015); }
+.nh-play:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
+
+/* ---- the top bar's page name ---- */
+.topbar-title.swap .eyebrow { animation: m-title .36s var(--m-ease) both; }
+.topbar-title.swap .topbar-sub { animation: m-title .36s var(--m-ease) both; animation-delay: 60ms; }
+@keyframes m-title { from { opacity: 0; transform: translateX(-12px); letter-spacing: .3em; } to { opacity: 1; transform: none; } }
+/* letter-spacing only for the pixel name; the line under it just slides */
+.topbar-title.swap .topbar-sub { animation-name: m-title-sub; }
+@keyframes m-title-sub { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+
+/* ---- the rail: the white marker glides between tabs (it replaces each button's own bar) ---- */
+.rail { position: relative; }
+.rail-btn.active::before { display: none; }
+#railInd {
+  position: absolute; left: 0; top: 0; width: 3px; height: 22px; border-radius: 0 3px 3px 0; background: #f2f2f2;
+  pointer-events: none; opacity: 0; z-index: 2;
+  transition: transform .34s var(--m-ease), opacity .2s ease, height .2s ease;
+}
+#railInd.on { opacity: 1; }
+#app.signed-out #railInd { opacity: 0; }
+.rail-btn { transition: background-color .16s ease, color .16s ease, border-color .16s ease, transform .16s var(--m-ease); }
+.rail-btn svg { transition: transform .2s var(--m-ease); }
+.rail-btn:hover svg { transform: scale(1.12); }
+.rail-btn:active { transform: scale(.92); transition-duration: .06s; }
+
+/* ---- lists: rows and tiles arrive in a quick cascade when they're drawn ---- */
+.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier {
+  animation: m-row .32s var(--m-ease) both;
+}
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(2) { animation-delay: 25ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(3) { animation-delay: 50ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(4) { animation-delay: 75ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(5) { animation-delay: 100ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(6) { animation-delay: 125ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(7) { animation-delay: 150ms; }
+:is(.mod-row, .content-row, .skin-tile, .card.dcard, .card.mod, .nh-tile, .nh-tier):nth-child(n+8) { animation-delay: 175ms; }
+@keyframes m-row { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---- hover and press ---- */
+.mod-row, .card.dcard, .card.mod, .skin-tile, .nh-tile, .nh-card, .set-card, .card.stat {
+  transition: transform .18s var(--m-ease), border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+.mod-row:hover, .card.dcard:hover, .card.mod:hover, .skin-tile:hover { transform: translateY(-2px); border-color: rgba(255, 255, 255, .2); }
+.nh-tile:hover { transform: translateY(-3px) scale(1.05); }
+.nh-tile:active { transform: scale(.95); transition-duration: .06s; }
+.btn { transition: transform .14s var(--m-ease), background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease; }
+.btn:active:not(:disabled) { transform: scale(.96); transition-duration: .06s; }
+
+/* tabs inside a page (Mods / Resource packs..., Discover's types): the content fades up */
+.tab-pane { animation: m-in-down .3s var(--m-ease) both; }
+
+/* dialogs: rise and settle */
+.modal-root .modal { animation: m-modal .3s var(--m-ease) both; }
+@keyframes m-modal { from { opacity: 0; transform: translateY(16px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* players who ask Windows for less motion get the plain switch */
+@media (prefers-reduced-motion: reduce) {
+  .page > *, #home .nh-stats li, #home .nh-play, #home .nh-side > *, #home .nh-foot > *, .topbar-title .eyebrow,
+  .topbar-title .topbar-sub, .mod-row, .content-row, .skin-tile, .card, .nh-tile, .nh-tier, .tab-pane, .modal-root .modal { animation: none !important; }
+  #railInd, .rail-btn, .rail-btn svg, .btn, .nh-play, .nh-tile, .mod-row, .skin-tile { transition: none !important; }
+}
