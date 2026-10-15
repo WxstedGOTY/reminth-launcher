@@ -2808,3 +2808,20 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .hero-menu .dd-item.picked { color: var(--text); }
 .hero-menu .dd-item.picked .i { color: var(--accent); }
 .news-body .change-list li { font-size: 13px; }
+
+/* the launch panel (owner's design "launch game panel/reminth-launch-panel@2x.webp", 15 Oct 2026): the space art in a
+   rounded panel with a white outline, PLAY in the empty middle of the picture. The panel is wider than the middle
+   column (it may reach over the free space beside it); the stats and cards above stay clickable. */
+.nh-center { grid-column: 1 / -1; max-width: none; width: 100%; pointer-events: none; }
+.nh-center > * { pointer-events: auto; }
+.nh-panel {
+  position: relative; width: min(720px, 94%); aspect-ratio: 2704 / 636; overflow: hidden;
+  border-radius: 22px; border: 2px solid rgba(255, 255, 255, .92); background: #05060b;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 0 40px rgba(255, 255, 255, .08), 0 18px 44px rgba(0, 0, 0, .5);
+  display: grid; place-items: center;
+}
+.nh-panel-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: auto; pointer-events: none; user-select: none; }
+.nh-panel .nh-play { position: relative; width: min(206px, 30%); height: 60px; font-size: 17px; border-radius: 12px; gap: 14px; letter-spacing: .28em; }
+.nh-panel .nh-play span { margin-right: -.28em; }
+.nh-panel .nh-play.progressing { font-size: 13px; letter-spacing: .06em; }
+@media (max-width: 760px) { .nh-panel .nh-play { height: 48px; font-size: 14px; } }

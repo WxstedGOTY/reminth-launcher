@@ -255,7 +255,11 @@
 
             <!-- middle: PLAY, the instance it plays, when you last played -->
             <div class="nh-center">
-              <button class="nh-play" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+              <!-- the launch panel: the owner's space art (assets/img/launch-panel.webp, design: "launch game panel/") with PLAY in its empty middle -->
+              <div class="nh-panel">
+                <img class="nh-panel-art" src="../../assets/img/launch-panel.webp" alt="" draggable="false" />
+                <button class="nh-play" id="playBtn"><svg class="i"><use href="#i-play"/></svg><span>Play</span></button>
+              </div>
               <div class="nh-row">
                 <button class="nh-pick" id="heroPick" type="button" aria-haspopup="menu" title="Pick the instance Play starts">
                   <b id="heroLoader">Fabric</b><b id="heroVersion">—</b><i class="nh-dot"></i><span id="heroInstance">—</span><svg class="i"><use href="#i-chevron"/></svg>
