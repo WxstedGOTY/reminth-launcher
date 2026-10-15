@@ -24,6 +24,26 @@ app.on("browser-window-created", (_e, win) => {
   });
 });
 
+// Look-only: when nobody is signed in to the preview, it pretends to be (owner: he opened it, saw only the sign-in card
+// and thought nothing had changed). Every page then shows; Play and look-ups that need a real account just fail.
+// Signing in for real in the preview still works and replaces this.
+const LOOK_ONLY = `(() => {
+  if (typeof state === "undefined" || typeof applyAccountUI !== "function") return;
+  if (state.signedIn && !(typeof rmGateNeeded === "function" && rmGateNeeded())) return;
+  state.rm = state.rm || {};
+  state.rm.user = state.rm.user || { name: "Preview", id: "preview", offline: true };
+  state.rm.checked = true;
+  state.signedIn = true;
+  state.username = state.username || "Preview";
+  applyAccountUI();
+  if (typeof loadRecent === "function") loadRecent();
+})();`;
+app.on("web-contents-created", (_e, wc) => {
+  wc.on("did-finish-load", () => {
+    for (const ms of [2500, 6000]) setTimeout(() => wc.executeJavaScript(LOOK_ONLY).catch(() => {}), ms);
+  });
+});
+
 const ROOT = path.join(__dirname, "..", "..");
 let timer = null;
 let restart = false;

@@ -6,6 +6,8 @@ $realGame = Join-Path $Real "instance\game"
 $fakeGame = Join-Path $Fake "instance\game"
 New-Item -ItemType Directory -Force $fakeGame | Out-Null
 Copy-Item (Join-Path $Real "settings.json") (Join-Path $Fake "settings.json")
+# streamer mode off in the preview: it would record the screen a second time
+$sf = Join-Path $Fake "settings.json"; try { $j = Get-Content $sf -Raw | ConvertFrom-Json; $j.streamerMode = $false; [IO.File]::WriteAllText($sf, ($j | ConvertTo-Json -Depth 20), (New-Object Text.UTF8Encoding $false)) } catch {}
 foreach ($f in "servers.dat", "options.txt") { Copy-Item (Join-Path $realGame $f) (Join-Path $fakeGame $f) }
 $ss = Join-Path $realGame ".reminth\server-stats"
 if (Test-Path $ss) { New-Item -ItemType Directory -Force (Join-Path $fakeGame ".reminth") | Out-Null; Copy-Item $ss (Join-Path $fakeGame ".reminth") -Recurse }
