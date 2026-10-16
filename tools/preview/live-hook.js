@@ -38,9 +38,18 @@ const LOOK_ONLY = `(() => {
   applyAccountUI();
   if (typeof loadRecent === "function") loadRecent();
 })();`;
+// Applied at once and then every 150ms for 10 seconds, so it's in place long before the loading screen fades (~2s) -
+// applied only at 2.5s, the sign-in card flashed for a moment after the loading screen (owner, 16 Oct 2026). Later
+// account checks that come back empty are covered by the repeats.
 app.on("web-contents-created", (_e, wc) => {
   wc.on("did-finish-load", () => {
-    for (const ms of [2500, 6000]) setTimeout(() => wc.executeJavaScript(LOOK_ONLY).catch(() => {}), ms);
+    const started = Date.now();
+    const tick = () => {
+      if (wc.isDestroyed()) return;
+      wc.executeJavaScript(LOOK_ONLY).catch(() => {});
+      if (Date.now() - started < 10000) setTimeout(tick, 150);
+    };
+    tick();
   });
 });
 
