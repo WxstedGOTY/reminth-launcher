@@ -1,8 +1,8 @@
-# Reminth Launcher
+# Spaceport Launcher
 
 An independent Minecraft: Java Edition launcher for Windows. Sign in with
 your own Microsoft account, pick a version and a mod loader, press Play:
-Reminth downloads the game, the loader and the right Java for you, and keeps
+Spaceport downloads the game, the loader and the right Java for you, and keeps
 each setup in its own instance.
 
 NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG
@@ -20,7 +20,7 @@ OR MICROSOFT. You need your own Minecraft: Java Edition licence.
 - **Discover**: browse and install mods, modpacks (`.mrpack`), resource
   packs, data packs and shaders from Modrinth; see and install updates;
   browse and ping servers.
-- **Compatibility check**: before the game starts, Reminth works out which
+- **Compatibility check**: before the game starts, Spaceport works out which
   mods won't load on the instance's version/loader and why, offers a
   one-click fix ("Fix and play"), and can suggest the Minecraft version that
   fits all the mods (and a server), making a copy of the instance on that
@@ -42,7 +42,7 @@ OR MICROSOFT. You need your own Minecraft: Java Edition licence.
   (never over an existing file; `graphicsPreset:"custom"` from 1.21.11 on).
   Java flags are chosen per Java version (`buildJvmFlags`), Minecraft runs at
   above-normal priority (setting), and Settings can open Windows' graphics page.
-- **ReminthHUD**: Reminth's own HUD mod, per-instance switch, bundled in
+- **Spaceport HUD**: Spaceport's own HUD mod, per-instance switch, bundled in
   `assets/mods/`.
 - **Skins and capes**: view, change, keep a library of skins.
 - **Logs**: game logs and crash reports per instance, archived.
@@ -52,7 +52,7 @@ OR MICROSOFT. You need your own Minecraft: Java Edition licence.
   downloads in the background, installs on restart/quit.
 
 No telemetry, analytics or crash reporting. No cheats of any kind.
-Reminth+ and server hosting are previews only; nothing is sold.
+Spaceport+ and server hosting are previews only; nothing is sold.
 
 ## Run, test, build
 
@@ -60,7 +60,7 @@ Reminth+ and server hosting are previews only; nothing is sold.
 npm install
 npm start          # run the launcher (Electron)
 npm test           # node --test, a few hundred pure-logic tests, no extra packages
-build-dist.bat     # builds the installer -> dist\Reminth-Setup.exe
+build-dist.bat     # builds the installer -> dist\Spaceport-Launcher-Setup.exe
 ```
 
 The build is electron-builder (NSIS target); `npm run dist` is the
@@ -73,10 +73,10 @@ Sign-in uses the Azure app registration in `src/main/config.js`
 ## Publishing
 
 - **App**: bump `version` in `package.json`, build, and attach
-  `Reminth-Setup.exe`, its `.blockmap` and `latest.yml` to a new GitHub
+  `Spaceport-Launcher-Setup.exe`, its `.blockmap` and `latest.yml` to a new GitHub
   release. Installed launchers update themselves from the latest release,
   and the website's download button points at
-  `releases/latest/download/Reminth-Setup.exe`.
+  `releases/latest/download/Spaceport-Launcher-Setup.exe`.
 - **Website**: the `site/` folder, uploaded to Cloudflare Pages by GitHub (`.github/workflows/cloudflare.yml`, needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets)
   (https://reminth.pages.dev). It is static and must not load anything from
   a third party. `site/privacy.html` and `site/terms.html` are the legal
@@ -96,27 +96,27 @@ src/main/        Electron main process
   compat.js        mod compatibility check and version advice
   skin.js skinLibrary.js   skins and capes              logs.js gameData.js nbt.js   logs, worlds, stats
   serverPing.js    server list ping                     streamer.js webm.js   screenshots and clips
-  updater.js       auto-update                          entitlements.js   RAM cap, Reminth+ stub
+  updater.js       auto-update                          entitlements.js   RAM cap, Spaceport+ stub
   paths.js config.js atomic.js zip.js zipread.js preload.js
 src/renderer/    UI (index.html, renderer.js, features.js, styles.css, skinview.js)
 site/            public website and legal pages
 test/            node --test suites
-assets/          icons and the bundled ReminthHUD jars (not in every checkout)
+assets/          icons and the bundled Spaceport HUD jars (not in every checkout)
 REMINTH_STATE.md working notes and history
 ```
 
 ## Where data lives
 
-Everything is on the player's PC, under `%APPDATA%\Reminth`:
+Everything is on the player's PC, under `%APPDATA%\Reminth` (the folder keeps the launcher's first name, Reminth, so updates keep every player's data):
 
 - `account.json` (encrypted sign-in tokens), `settings.json`, `instances.json`
 - `instance\` (the original instance and the shared game files) and
   `instances\<id>\` (every other instance: `mods`, `saves`, `logs`, …);
-  each has a `.reminth\` folder recording what Reminth installed there
+  each has a `.reminth\` folder recording what Spaceport installed there
 - `java\`, `runtimes\` (Java), `skins\`, `skin-cache\`, `catalog-cache\`,
   `creators-cache.json`
 - `updater.log`, `auth.log`, `main-errors.log`, `launch-logs\` (last game
   output per instance), `log-archive\`
-- `replay-buffer\` (temporary); clips and screenshots go to `Videos\Reminth`
+- `replay-buffer\` (temporary); clips and screenshots go to `Videos\Spaceport Launcher` (`Videos\Reminth` for players who had it before the rename)
 
-Reminth never touches the official `.minecraft` folder.
+Spaceport never touches the official `.minecraft` folder.

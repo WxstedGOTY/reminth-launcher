@@ -1,6 +1,6 @@
 // The owner's LIVE preview (15 Oct 2026: "how can i see live each time i tell you to change something"). Loaded with
 // `electron -r tools/preview/live-hook.js .` by tools/preview/live.cmd (the "Reminth Live Preview" desktop shortcut):
-// - a normal, visible window titled "Reminth - LIVE PREVIEW", next to (never instead of) the installed Reminth: its own
+// - a normal, visible window titled "Spaceport - LIVE PREVIEW", next to (never instead of) the installed Reminth: its own
 //   Chromium profile, no single-instance lock, no reminth:// registration, its own Reminth data (USERPROFILE, set by
 //   live.cmd - never the real %APPDATA%\Reminth);
 // - a change under src/renderer reloads the window by itself; a change under src/main or assets restarts the preview.
@@ -15,7 +15,7 @@ app.setPath("userData", path.join(dir, "userdata"));
 app.requestSingleInstanceLock = () => true;
 app.setAsDefaultProtocolClient = () => true;
 
-const TITLE = "Reminth - LIVE PREVIEW";
+const TITLE = "Spaceport - LIVE PREVIEW";
 app.on("browser-window-created", (_e, win) => {
   win.setTitle(TITLE);
   win.on("page-title-updated", (e) => {
