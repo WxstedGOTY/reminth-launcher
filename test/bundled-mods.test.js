@@ -66,8 +66,8 @@ test("bundled mods: the registry has exactly ReminthHUD and the home screen", ()
   assert.deepEqual(
     config.BUNDLED_MODS.map((e) => [e.mod, e.filePrefix, e.flag, e.label]),
     [
-      ["reminthhud", "reminthhud-", "hud", "ReminthHUD"],
-      ["reminthhome", "reminthhome-", "homeScreen", "Reminth home screen"],
+      ["reminthhud", "reminthhud-", "hud", "Spaceport HUD"],
+      ["reminthhome", "reminthhome-", "homeScreen", "Spaceport home screen"],
     ]
   );
 });
@@ -197,8 +197,8 @@ test("writeHudBar: the HUD switch shows/hides the bar; older HUD builds get thei
 test("bundled mods: the home screen is never a performance-pack mod and never steps aside for the player's copy", () => {
   assert.equal(minecraft.managedModFromName("reminthhome-1.0.0+26.2.jar"), "reminthhome");
   assert.equal(minecraft.managedModFromName("reminthhud-1.2.2+26.2.jar"), "reminthhud");
-  assert.equal(minecraft.managedModLabel("reminthhome"), "Reminth home screen");
-  assert.equal(minecraft.managedModLabel("reminthhud"), "ReminthHUD");
+  assert.equal(minecraft.managedModLabel("reminthhome"), "Spaceport home screen");
+  assert.equal(minecraft.managedModLabel("reminthhud"), "Spaceport HUD");
   // A jar of the player's carrying the same mod id: like the HUD, Reminth's copy stays.
   const mods = [
     { file: "reminthhome-1.0.0+26.2.jar", modId: "reminthhome", enabled: true, valid: true },

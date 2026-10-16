@@ -255,7 +255,7 @@ function friendlyError(message) {
       : clean;
   }
   if (/Invalid app registration/i.test(clean)) {
-    return "Sign-in almost worked, but Microsoft hasn't finished approving Reminth's app yet. Nothing's wrong with your account — try again later.";
+    return "Sign-in almost worked, but Microsoft hasn't finished approving Spaceport's app yet. Nothing's wrong with your account — try again later.";
   }
   if (/Checksum mismatch/i.test(clean)) {
     return "A downloaded file didn't match what was expected. Try again — if it keeps happening, something between you and the server (VPN, proxy or firewall) is altering downloads.";
@@ -612,7 +612,7 @@ const upd = { last: null, checking: false, installing: false };
 function paintUpdate(next) {
   if (next) upd.last = next;
   const s = upd.last || { state: "idle" };
-  const v = s.version ? `Reminth ${s.version}` : "The update";
+  const v = s.version ? `Spaceport Launcher ${s.version}` : "The update";
   const playing = state.running.size > 0;
   // top bar: only a download and a ready update
   const bar = s.state === "downloading" || s.state === "ready";
@@ -628,7 +628,7 @@ function paintUpdate(next) {
   $("updateRestartBtn").hidden = s.state !== "ready";
   // Settings
   const text = {
-    idle: "Updates download by themselves and install when you restart Reminth.",
+    idle: "Updates download by themselves and install when you restart Spaceport.",
     dev: s.message || "Updates only work in the installed app.",
     checking: "Checking…",
     "up-to-date": `You're on the latest version (${s.currentVersion || s.version || (state.info && state.info.appVersion) || ""}).`,
@@ -666,7 +666,7 @@ $("updCheckBtn").onclick = async () => {
 
 async function installLauncherUpdate() {
   if (upd.installing) return;
-  if (state.running.size) return toast("Close Minecraft first — the update needs Reminth to restart.");
+  if (state.running.size) return toast("Close Minecraft first — the update needs Spaceport to restart.");
   upd.installing = true;
   paintUpdate();
   try {
@@ -707,16 +707,16 @@ window.reminth.isMaximized().then(paintMaxButton).catch(() => {});
  * navigation                                                          *
  * ================================================================== */
 const PAGE_META = {
-  home: ["Reminth", "Your Minecraft, your way."],
+  home: ["Spaceport", "Your Minecraft, your way."],
   instance: ["Instance", "Its version, its mods, its worlds."],
   library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
   hosting: ["Host a server", "Your own server, free, with your friends."],
-  plus: ["Reminth+", "Your own server, minus the landlord."],
+  plus: ["Spaceport+", "Your own server, minus the landlord."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
-  settings: ["Configuration", "Make Reminth work the way you want."],
+  settings: ["Configuration", "Make Spaceport work the way you want."],
 };
 let currentPage = "home";
 const pageHooks = {}; // page -> fn run when it opens (features.js adds its own)
@@ -1064,7 +1064,7 @@ function paintTopChip() {
   $("topState").textContent = state.signedIn ? `Playing as ${state.username}` : "Minecraft not connected";
   $("topState").classList.toggle("online", state.signedIn);
   rmAvatarInto($("topAvatar"), user);
-  $("accountBtn").title = "Reminth account" + (state.signedIn ? ` - Minecraft: ${state.username}` : "");
+  $("accountBtn").title = "Spaceport account" + (state.signedIn ? ` - Minecraft: ${state.username}` : "");
 }
 
 function paintReminthAccount(r) {
@@ -1083,13 +1083,13 @@ function paintReminthAccount(r) {
   }
   if (user) state.rm.checked = true;
   rmAvatarInto($("rmAvatar"), user);
-  $("rmName").textContent = user ? user.name : "Reminth account";
+  $("rmName").textContent = user ? user.name : "Spaceport account";
   $("rmSignInBtn").hidden = Boolean(user) || !state.rm.accounts;
   $("rmSignOutBtn").hidden = !user;
   $("rmManageBtn").hidden = !user;
   const via = user && (user.providers || [user.provider]).filter(Boolean).map((p) => RM_NAMES[p] || p).join(" + ");
   if (user) $("rmState").textContent = (via ? `Signed in with ${via}` : "Signed in") + (r && r.offline ? " - offline right now" : "");
-  else if (!state.rm.accounts) $("rmState").textContent = r && r.offline ? "Can't reach Reminth right now" : "Reminth accounts are coming soon";
+  else if (!state.rm.accounts) $("rmState").textContent = r && r.offline ? "Can't reach Spaceport right now" : "Spaceport accounts are coming soon";
   else $("rmState").textContent = "One account for the launcher and the website.";
   // the gate's buttons follow what the server has switched on
   $("rmGateDiscord").hidden = !state.rm.providers.includes("discord");
@@ -1172,7 +1172,7 @@ $("rmEmailForm").onsubmit = async (e) => {
     if (r && r.user) {
       $("rmFPass").value = "";
       paintReminthAccount({ user: r.user });
-      toast(rmMode === "signup" ? `Welcome to Reminth, ${r.user.name}!` : `Signed in to Reminth as ${r.user.name}.`);
+      toast(rmMode === "signup" ? `Welcome to Spaceport Launcher, ${r.user.name}!` : `Signed in to Spaceport as ${r.user.name}.`);
     } else {
       rmGateMessage((r && r.message) || "That didn't work. Try again.");
     }
@@ -1190,7 +1190,7 @@ $("rmSignInBtn").onclick = () => {
 $("rmSignOutBtn").onclick = async () => {
   const r = await window.reminth.reminthAccount.signOut().catch(() => ({ user: null }));
   paintReminthAccount(r);
-  toast("Signed out of your Reminth account.");
+  toast("Signed out of your Spaceport account.");
   if (rmGateNeeded()) switchPage("home");
 };
 $("rmManageBtn").onclick = () => window.reminth.reminthAccount.openWebsite().catch(() => {});
@@ -1198,7 +1198,7 @@ window.reminth.reminthAccount.onChanged((r) => {
   rmGateBusy(false);
   if (r && r.user) {
     paintReminthAccount(r);
-    toast(`Signed in to Reminth as ${r.user.name}.`);
+    toast(`Signed in to Spaceport as ${r.user.name}.`);
   } else {
     const why = (r && r.message) || "That sign-in didn't work. Try again.";
     rmGateMessage(why);
@@ -1433,7 +1433,7 @@ function renderHero() {
     $("heroMeta").hidden = true;
     $("heroLede").hidden = false;
     $("heroLede").textContent = state.instancesError
-      ? "Reminth couldn't read your instances. Restart Reminth — your worlds and mods are not touched."
+      ? "Spaceport couldn't read your instances. Restart Spaceport — your worlds and mods are not touched."
       : "No instance yet. Make one with the + on the left.";
     for (const id of ["playBtn", "instPlayBtn", "heroInstanceBtn"]) $(id).disabled = true;
     return;
@@ -1457,7 +1457,7 @@ function paintHeroStats() {
   const inst = heroInstance();
   const total = window.ReminthPure.homePlayTime(state.settings, state.instances);
   $("heroPlaytime").textContent = total ? formatPlaytime(msToTicks(total)) : "0m";
-  $("heroPlaytime").title = "All your time in Minecraft through Reminth, across every instance - including ones you deleted.";
+  $("heroPlaytime").title = "All your time in Minecraft through Spaceport, across every instance - including ones you deleted.";
   $("heroLast").textContent = inst && inst.lastPlayed ? formatWhen(inst.lastPlayed) : "never";
 }
 
@@ -1570,7 +1570,7 @@ const LOADER_CHOICES = [
 
 // Shown until window.reminth.perfProfiles() answers (and if it can't).
 const PERF_PROFILES_FALLBACK = [
-  { id: "balanced", title: "Balanced", description: ["Reminth's performance pack and Java settings, with Minecraft's own video settings.", "Nothing about how the game looks or plays is changed."] },
+  { id: "balanced", title: "Balanced", description: ["Spaceport's performance pack and Java settings, with Minecraft's own video settings.", "Nothing about how the game looks or plays is changed."] },
   { id: "max-fps", title: "Max FPS", description: ["Lower view and simulation distance, fewer particles, V-Sync off for a brand-new instance.", "Applied to new instances only; for one you already play, use \"Boost FPS…\" in its menu."] },
   { id: "far-view", title: "Far view", description: ["A longer render distance picked for this PC, and more memory.", "Applied to new instances only; your existing settings are never changed."] },
 ];
@@ -1609,7 +1609,7 @@ function packOnByDefault(loader, existing) {
 /** Why the pack is off by default here, in one sentence - or "" when it isn't. */
 function packOffReason(loader, existing, touched) {
   if (!existing || touched !== null || loader === "vanilla") return "";
-  if (existing.modpack && existing.performanceMods === false) return "Off for modpacks: the pack's author chose its mods. Switch it on if you want Reminth's as well.";
+  if (existing.modpack && existing.performanceMods === false) return "Off for modpacks: the pack's author chose its mods. Switch it on if you want Spaceport's as well.";
   if ((loader === "forge" || loader === "neoforge") && existing.performanceMods !== true) {
     return "Off by default for an instance that already exists: Forge and NeoForge won't start when two mods carry the same id, and this instance's mods were picked without the pack.";
   }
@@ -1724,7 +1724,7 @@ function openInstanceModal(existing) {
   buildField.appendChild(buildDd);
   extras.appendChild(buildField);
   const hudField = el("div", "field hud-field");
-  hudField.appendChild(el("label", null, "ReminthHUD"));
+  hudField.appendChild(el("label", null, "Spaceport HUD"));
   const hudRow = el("div", "toggle-row compact");
   const hudText = el("div");
   const hudTitle = el("b", null, "FPS, graphics card, processor and ping in game");
@@ -1734,24 +1734,24 @@ function openInstanceModal(existing) {
   const hudSwitch = el("button", "switch");
   hudSwitch.type = "button";
   hudSwitch.setAttribute("role", "switch");
-  hudSwitch.setAttribute("aria-label", "ReminthHUD");
+  hudSwitch.setAttribute("aria-label", "Spaceport HUD");
   hudRow.appendChild(hudText);
   hudRow.appendChild(hudSwitch);
   hudField.appendChild(hudRow);
   extras.appendChild(hudField);
   // The Reminth home screen (the game's own title screen), next to the HUD.
   const homeField = el("div", "field hud-field home-field");
-  homeField.appendChild(el("label", null, "Reminth home screen"));
+  homeField.appendChild(el("label", null, "Spaceport home screen"));
   const homeRow = el("div", "toggle-row compact");
   const homeText = el("div");
-  const homeTitle = el("b", null, "Reminth's title screen in game");
+  const homeTitle = el("b", null, "Spaceport's title screen in game");
   const homeSub = el("span", null, "");
   homeText.appendChild(homeTitle);
   homeText.appendChild(homeSub);
   const homeSwitch = el("button", "switch");
   homeSwitch.type = "button";
   homeSwitch.setAttribute("role", "switch");
-  homeSwitch.setAttribute("aria-label", "Reminth home screen");
+  homeSwitch.setAttribute("aria-label", "Spaceport home screen");
   homeRow.appendChild(homeText);
   homeRow.appendChild(homeSwitch);
   homeField.appendChild(homeRow);
@@ -1762,7 +1762,7 @@ function openInstanceModal(existing) {
   const perfRow = el("div", "toggle-row compact");
   const perfText = el("div");
   const perfTitle = el("b");
-  const perfSub = el("span", null, "Stable builds only. Reminth leaves a mod out when you have your own copy or one that conflicts.");
+  const perfSub = el("span", null, "Stable builds only. Spaceport leaves a mod out when you have your own copy or one that conflicts.");
   perfText.appendChild(perfTitle);
   perfText.appendChild(perfSub);
   const perfSwitch = el("button", "switch");
@@ -1954,8 +1954,8 @@ function openInstanceModal(existing) {
     hudSub.textContent = !pick.version
       ? "Pick a version to see if there's a HUD build for it."
       : available
-      ? "A small bar at the top right. H shows or hides it in game. (The Reminth panel, G, is always there.)"
-      : `No ReminthHUD build for ${pick.version} yet — it's built per version.`;
+      ? "A small bar at the top right. H shows or hides it in game. (The Spaceport panel, G, is always there.)"
+      : `No Spaceport HUD build for ${pick.version} yet — it's built per version.`;
   }
   hudSwitch.onclick = () => {
     if (hudSwitch.disabled) return;
@@ -1988,8 +1988,8 @@ function openInstanceModal(existing) {
     homeSub.textContent = !pick.version
       ? "Pick a version to see if there's a home screen build for it."
       : available
-      ? "Reminth installs it and keeps it updated."
-      : `No Reminth home screen build for ${pick.version} yet — it's built per version.`;
+      ? "Spaceport installs it and keeps it updated."
+      : `No Spaceport home screen build for ${pick.version} yet — it's built per version.`;
   }
   homeSwitch.onclick = () => {
     if (homeSwitch.disabled) return;
@@ -2074,7 +2074,7 @@ function openInstanceModal(existing) {
             if (editing) {
               await window.reminth.updateInstance(existing.id, { name, mcVersion: pick.version, loader: pick.loader, loaderVersion: pick.build, hud, ...home, ...perf, ...profile });
               const perfOff = perfEligible() && !perfShown() && packOnByDefault(existing.loader, existing);
-              toast(perfOff ? "Performance pack off — Reminth removes its copies the next time you press Play." : `${name} saved. Anything new downloads next time you press Play.`);
+              toast(perfOff ? "Performance pack off — Spaceport removes its copies the next time you press Play." : `${name} saved. Anything new downloads next time you press Play.`);
               await loadInstances();
               // A different version or loader can leave every mod on the wrong
               // build: look straight away and say so (features.js, section 7).
@@ -2316,11 +2316,11 @@ async function boostFpsFlow(id) {
     body.appendChild(list);
     body.appendChild(el("p", "set-note", "Nothing else in your settings is touched. Your current values are saved - this menu can put them back any time."));
   } else if (plan && plan.reason === "not-installed") {
-    body.appendChild(el("p", null, "Play this instance once first - Reminth needs the game's files to know which settings it has."));
+    body.appendChild(el("p", null, "Play this instance once first - Spaceport needs the game's files to know which settings it has."));
   } else if (plan && plan.reason === "no-options") {
     body.appendChild(el("p", null, "This instance hasn't saved any video settings yet. Play it once, then come back."));
   } else if (plan && plan.reason === "error") {
-    body.appendChild(el("p", null, "Reminth couldn't read this instance's video settings. Close the game if it's running and try again."));
+    body.appendChild(el("p", null, "Spaceport couldn't read this instance's video settings. Close the game if it's running and try again."));
   } else {
     body.appendChild(el("p", null, `${inst.name} already has the fast settings.`));
   }
@@ -2437,7 +2437,7 @@ function deleteInstanceFlow(id) {
   const what = el("p", "del-what", `${inst.name} - counting what's in it…`);
   body.appendChild(what);
   body.appendChild(el("p", null, "Everything inside it is deleted for good (worlds, mods, screenshots). There's no undo. Your other instances are not touched."));
-  body.appendChild(el("p", "set-note", "Your saved logs stay in Reminth's archive."));
+  body.appendChild(el("p", "set-note", "Your saved logs stay in Spaceport's archive."));
   let deleting = false;
   const handle = openModal({
     title: `Delete ${inst.name}?`,
@@ -2785,7 +2785,7 @@ async function runInstall(instanceId) {
   try {
     const result = await window.reminth.install(inst.id);
     if (result && result.removedMods && result.removedMods.length) {
-      appendLog("Removed mods Reminth no longer installs for you: " + result.removedMods.join(", "), false, progressSuffix());
+      appendLog("Removed mods Spaceport no longer installs for you: " + result.removedMods.join(", "), false, progressSuffix());
     }
     toast(`${inst.name} is up to date.`);
     scheduleHideProgress();
@@ -3155,7 +3155,7 @@ function quickTile(entry, taken) {
   }
   const inst = recentTarget(entry);
   if (inst) b.dataset.instance = inst.id;
-  const where = entry.type === "server" ? entry.address : `World · ${entry.instanceName || (inst && inst.name) || "Reminth"}`;
+  const where = entry.type === "server" ? entry.address : `World · ${entry.instanceName || (inst && inst.name) || "Spaceport"}`;
   b.dataset.tip = `${entry.name}${where ? " · " + where : ""}`;
   b.setAttribute("aria-label", `${entry.type === "server" ? "Join" : "Open"} ${entry.name}`);
   bindTip(b);
@@ -4149,7 +4149,7 @@ function paintFriends() {
   if (!signedIn) $("nhFriendAdd").hidden = true;
   body.textContent = "";
   if (!signedIn) {
-    body.appendChild(el("p", "nh-empty", state.rm && state.rm.accounts === false ? "Friends need Reminth accounts, which aren't on right now." : "Sign in to your Reminth account to add friends."));
+    body.appendChild(el("p", "nh-empty", state.rm && state.rm.accounts === false ? "Friends need Spaceport accounts, which aren't on right now." : "Sign in to your Spaceport account to add friends."));
     $("nhFriendsCount").textContent = "";
     return;
   }
@@ -4182,7 +4182,7 @@ function friendsCard(r) {
     friends.card = { ...r, incoming: r.incoming || [], outgoing: r.outgoing || [] };
     friends.error = null;
   } else if (r && r.error && r.error !== "signed_out") {
-    friends.error = r.message || "Can't reach Reminth right now.";
+    friends.error = r.message || "Can't reach Spaceport right now.";
   }
   paintFriends();
 }
@@ -4214,7 +4214,7 @@ async function friendAction(run) {
     friendsCard(r && !r.error ? r : null);
     return r;
   } catch {
-    friendMessage("Can't reach Reminth right now.", true);
+    friendMessage("Can't reach Spaceport right now.", true);
     return null;
   }
 }
@@ -4320,20 +4320,20 @@ $("nhNews").onclick = () => {
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "A new look: Night - black and white under a pixel night sky, with the new Reminth icon.",
+  "A new look: Night - black and white under a pixel night sky, with the new Spaceport icon.",
   "A new Home: one big PLAY with the instance it starts right under it, your stats, your own PvP tiers (MCTiers, PvPTiers, SubTiers) and Quick join for your last worlds and servers.",
   "New in the G panel: Tier Tagger - players' PvP tiers (MCTiers, PvPTiers, SubTiers) above their heads and in the tab list, every gamemode. Type /tiers <name> to see all of someone's tiers.",
-  "Reminth accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
-  "The Reminth Mods Panel: press G in game for 140+ of Reminth's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
+  "Spaceport accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
+  "The Spaceport Mods Panel: press G in game for 140+ of Spaceport's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
   "A pointer that never vanishes in full screen, a new title screen, and a heads-up when a server's rules ban one of your mods.",
   "Pick what an instance is for (PvP, survival and more) and get a matching set of mods and packs.",
 ];
 
 function renderChangelog() {
-  $("nhVersion").textContent = "Reminth " + (state.info ? state.info.appVersion : "");
+  $("nhVersion").textContent = "Spaceport Launcher " + (state.info ? state.info.appVersion : "");
   const box = $("changelog");
   box.textContent = "";
-  $("changelogVersion").textContent = "Reminth " + (state.info ? state.info.appVersion : "");
+  $("changelogVersion").textContent = "Spaceport Launcher " + (state.info ? state.info.appVersion : "");
   const list = el("ul", "change-list");
   CHANGELOG.forEach((item) => list.appendChild(el("li", null, item)));
   const wrap = el("div", "changelog-body");
@@ -4443,8 +4443,8 @@ async function loadStats() {
       "p",
       "set-note",
       stats.serverCount
-        ? "Server numbers are what each server reports for you, saved by the Reminth HUD while you play on it (updated about every 90 seconds)."
-        : "These numbers come from your own worlds. Servers keep your stats themselves: with the Reminth HUD on, Reminth asks the server for yours while you play and adds them here. Servers that don't keep normal Minecraft statistics can't be counted."
+        ? "Server numbers are what each server reports for you, saved by the Spaceport HUD while you play on it (updated about every 90 seconds)."
+        : "These numbers come from your own worlds. Servers keep your stats themselves: with the Spaceport HUD on, Spaceport asks the server for yours while you play and adds them here. Servers that don't keep normal Minecraft statistics can't be counted."
     )
   );
 }
@@ -4489,13 +4489,13 @@ function wireSwitch(id, key, note) {
     if (!saved) setSwitch(id, !on);
   };
 }
-wireSwitch("toggleLaunchMinimized", "launchMinimized", (on) => (on ? "Reminth will minimize when the game starts." : "Reminth will stay open when the game starts."));
+wireSwitch("toggleLaunchMinimized", "launchMinimized", (on) => (on ? "Spaceport will minimize when the game starts." : "Spaceport will stay open when the game starts."));
 $("toggleHardwareAccel").onclick = async () => {
   const on = !$("toggleHardwareAccel").classList.contains("on");
   if (!on) {
     const ok = await confirmModal(
       "Turn off hardware acceleration?",
-      ["Reminth will be drawn by your processor instead of your graphics card, and it will feel slow and laggy when you scroll or change tabs.", "Only do this if the Reminth window is black or flickering. You can turn it back on here at any time."],
+      ["Spaceport will be drawn by your processor instead of your graphics card, and it will feel slow and laggy when you scroll or change tabs.", "Only do this if the Spaceport window is black or flickering. You can turn it back on here at any time."],
       "Turn it off",
       true
     );
@@ -4503,7 +4503,7 @@ $("toggleHardwareAccel").onclick = async () => {
   }
   setSwitch("toggleHardwareAccel", on);
   paintHwNote();
-  const saved = await saveSetting({ hardwareAcceleration: on }, "Restart Reminth for that to take effect.");
+  const saved = await saveSetting({ hardwareAcceleration: on }, "Restart Spaceport for that to take effect.");
   if (!saved) {
     setSwitch("toggleHardwareAccel", !on);
     paintHwNote();
@@ -4547,7 +4547,7 @@ function paintRam(gb) {
   const left = totalGb - gb;
   if (left < 3) note += ` Leaves only ${left.toFixed(1)} GB for Windows and everything else you have open.`;
   // Reminth's ceiling, not the PC, is the limit when the PC could spare more.
-  else if (gb >= capGb) note += capGb < spareGb ? ` That's the most Reminth allows on this PC.` : ` That's the most this PC can spare (${Math.round(totalGb)} GB installed).`;
+  else if (gb >= capGb) note += capGb < spareGb ? ` That's the most Spaceport allows on this PC.` : ` That's the most this PC can spare (${Math.round(totalGb)} GB installed).`;
   $("ramNote").textContent = note;
 }
 
@@ -4689,7 +4689,7 @@ async function boot() {
 
   try {
     state.info = await window.reminth.appInfo();
-    $("aboutVersion").textContent = "Reminth " + state.info.appVersion;
+    $("aboutVersion").textContent = "Spaceport Launcher " + state.info.appVersion;
     $("aboutBuild").textContent = `Default instance: Minecraft ${state.info.minecraftVersion} · Fabric ${state.info.fabricLoaderVersion}`;
     renderChangelog();
   } catch {
@@ -4722,7 +4722,7 @@ async function boot() {
 
   await loadInstances();
   applyAccountUI();
-  if (state.instancesError) toast("Reminth couldn't read your instances — restart it and try again.");
+  if (state.instancesError) toast("Spaceport couldn't read your instances — restart it and try again.");
   loadRecent();
   loadStats();
   if (window.bootFeatures) window.bootFeatures();

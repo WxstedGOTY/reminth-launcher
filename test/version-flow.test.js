@@ -72,7 +72,7 @@ test("modGroups: every mod in one plain group, saying exactly what happens - per
   assert.deepEqual(sw.map((g) => [g.key, g.title, g.names.length]), [
     ["works", "Will work (23)", 23],
     ["nobuild", "No build for 1.21.4 (3)", 3],
-    ["unknown", "Not in the catalog, Reminth can't check these (2)", 2],
+    ["unknown", "Not in the catalog, Spaceport can't check these (2)", 2],
     ["failed", "Couldn't be checked just now (1)", 1],
   ]);
   assert.deepEqual(sw[1].names, ["Mod 1", "Mod 2", "Mod 3"]);

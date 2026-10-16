@@ -101,7 +101,7 @@ async function fetchSite(site, ids, fetchImpl) {
   try {
     const res = await fetchImpl(site.url + (site.dashed ? ids.dashed : ids.plain), {
       signal: controller.signal,
-      headers: { "User-Agent": "Reminth (https://reminth.pages.dev)", Accept: "application/json" },
+      headers: { "User-Agent": "Spaceport (https://reminth.pages.dev)", Accept: "application/json" },
     });
     if (res.status === 200) return { site: site.title, reached: true, ranks: parseRankings(await res.json()) };
     if (res.status === 404) return { site: site.title, reached: true, ranks: [] }; // not on this list

@@ -1,9 +1,9 @@
 {
   "name": "reminth-launcher",
   "version": "1.8.0",
-  "description": "Reminth - a custom Minecraft launcher",
+  "description": "Spaceport Launcher - a custom Minecraft launcher",
   "main": "src/main/main.js",
-  "author": "Reminth",
+  "author": "Spaceport Launcher",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "build": {
     "appId": "com.reminth.launcher",
-    "productName": "Reminth",
+    "productName": "Spaceport Launcher",
     "directories": {
       "output": "dist"
     },
@@ -41,10 +41,10 @@
       "target": "nsis",
       "icon": "assets/icons/reminth-night.ico"
     },
-    "artifactName": "Reminth-Setup.exe",
+    "artifactName": "Spaceport-Launcher-Setup.exe",
     "protocols": [
       {
-        "name": "Reminth",
+        "name": "Spaceport Launcher",
         "schemes": [
           "reminth"
         ]
@@ -62,7 +62,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Reminth",
+      "shortcutName": "Spaceport Launcher",
       "installerIcon": "assets/icons/reminth-night.ico",
       "uninstallerIcon": "assets/icons/reminth-night.ico",
       "installerHeaderIcon": "assets/icons/reminth-night.ico",

@@ -71,10 +71,10 @@ const SERVERS = [
   // ".invalid" addresses never exist (RFC 2606), so even "Join anyway" can't connect anywhere.
   {
     id: "reminth-test",
-    name: "Reminth ban-warning test",
+    name: "Spaceport ban-warning test",
     hosts: ["bantest.reminth.invalid"],
     banned: ["inventory", "mouse", "health", "radar", "minimap", "freecam", "freelook", "otherStatus", "noChatReports", "inventoryWalk", "movement", "crystalOptimizer"],
-    source: "Reminth's own test entry - not a real server, this address leads nowhere",
+    source: "Spaceport's own test entry - not a real server, this address leads nowhere",
     url: "https://github.com/WxstedGOTY/reminth-launcher",
   },
 ];

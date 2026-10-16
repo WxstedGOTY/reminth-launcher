@@ -151,7 +151,7 @@
   /** The one sentence before Reminth makes an instance by itself. */
   function createSentence({ name, mcVersion, loader }) {
     const names = { fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge", vanilla: "vanilla" };
-    return `Reminth will make a new instance: ${name} - Minecraft ${mcVersion} ${names[loader] || loader || ""}`.trim() + ". Your other instances are not changed.";
+    return `Spaceport will make a new instance: ${name} - Minecraft ${mcVersion} ${names[loader] || loader || ""}`.trim() + ". Your other instances are not changed.";
   }
 
   /**
@@ -197,7 +197,7 @@
    */
   function versionChoices({ from, to, worlds = 0, modpack = false, running = false } = {}) {
     let why = null;
-    if (modpack) why = "Its mods belong to the modpack it came from, so Reminth doesn't change them here.";
+    if (modpack) why = "Its mods belong to the modpack it came from, so Spaceport doesn't change them here.";
     else if (running) why = "Close the game first — Windows won't let files in use be replaced.";
     else if (compareMc(to, from) === -1 && worlds > 0) {
       why = `Your worlds were saved in Minecraft ${from}. Opening them in the older ${to} can damage them, so they stay here and a new instance is made instead.`;
@@ -317,7 +317,7 @@
     if (unknown.length) {
       out.push({
         key: "unknown",
-        title: `Not in the catalog, Reminth can't check these (${unknown.length})`,
+        title: `Not in the catalog, Spaceport can't check these (${unknown.length})`,
         names: unknown,
         sentence: copy ? "They will be left out of the copy. Add them by hand if they have a version for this Minecraft." : `They will be kept as they are, unless the file itself says it can't run on ${v} — then it is turned off.`,
       });

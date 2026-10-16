@@ -146,7 +146,7 @@ test("planSync: stable builds become updates; no stable build goes to the 'no bu
     plan.noBuild.map((n) => [n.file, n.why]),
     [
       ["b-1.jar", "No stable build for 26.3 yet"],
-      ["c-1.jar", "Not in the catalog, so Reminth can't look for another build"],
+      ["c-1.jar", "Not in the catalog, so Spaceport can't look for another build"],
       ["e-1.jar", "The newest stable build for 26.3 is the one you have"],
     ]
   );

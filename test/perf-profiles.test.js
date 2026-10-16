@@ -1040,7 +1040,7 @@ test("main: Undo after Reminth made an instance only while it was never played a
     assert.deepEqual(await call("instances:undoCreate", "i1"), { ok: true });
     assert.deepEqual(removed, ["i1"]);
     INSTANCE = { ...saved, id: "reminth", gameDir, lastPlayed: null };
-    await assert.rejects(call("instances:undoCreate", "reminth"), /main Reminth instance can't be deleted/);
+    await assert.rejects(call("instances:undoCreate", "reminth"), /main Spaceport instance can't be deleted/);
     assert.deepEqual(removed, ["i1"]);
   } finally {
     instances.remove = realRemove;

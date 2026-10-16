@@ -81,7 +81,7 @@ test("summaryText: worlds and size, 'about' when the count stopped early", () =>
 /* ---------------- making instances by itself ---------------- */
 
 test("createSentence / reusableInstance: the one confirmation, and an instance to use instead", () => {
-  assert.equal(pure.createSentence({ name: "Hypixel", mcVersion: "1.21.4", loader: "vanilla" }), "Reminth will make a new instance: Hypixel - Minecraft 1.21.4 vanilla. Your other instances are not changed.");
+  assert.equal(pure.createSentence({ name: "Hypixel", mcVersion: "1.21.4", loader: "vanilla" }), "Spaceport will make a new instance: Hypixel - Minecraft 1.21.4 vanilla. Your other instances are not changed.");
   const list = [
     { id: "a", mcVersion: "1.21.4", loader: "fabric" },
     { id: "b", mcVersion: "1.21.4", loader: "vanilla" },
@@ -183,7 +183,7 @@ test("every place that makes an instance asks first (an audit of the renderer's 
       const body = text.slice(fn.index, m.index);
       const ok = allowed[fn[1]] || /confirmNewInstance\(/.test(body);
       assert.ok(ok, `${file}: ${fn[1]}() calls ${m[1]} without asking first (confirmNewInstance)`);
-      if (fn[1] === "openVersionAdvisor") assert.match(text.slice(fn.index), /createSentence|Reminth will make a new instance/, "the picker's card says what will be made");
+      if (fn[1] === "openVersionAdvisor") assert.match(text.slice(fn.index), /createSentence|Spaceport will make a new instance/, "the picker's card says what will be made");
     }
   }
   assert.ok(calls >= 3, `found ${calls} creation calls - the audit is looking at the wrong files`);

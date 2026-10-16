@@ -343,12 +343,12 @@ function contentRow(item, ctx) {
     sub.appendChild(el("span", "c-by", author));
   }
   if (item.problem) sub.appendChild(el("span", "c-note warn", item.problem));
-  else if (!item.enabled && item.offReason) sub.appendChild(el("span", "c-note", `Turned off by Reminth: ${item.offReason}`));
+  else if (!item.enabled && item.offReason) sub.appendChild(el("span", "c-note", `Turned off by Spaceport: ${item.offReason}`));
   else if (item.world && item.kind === "datapack") sub.appendChild(el("span", "c-note", item.world));
-  if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Added by Reminth"));
+  if (item.kind === "mod" && ctx.managed && MANAGED_JAR.test(item.file)) sub.appendChild(el("span", "c-badge", "Added by Spaceport"));
   else if (item.kind === "mod" && isPackFile(content.instanceId, item.file)) {
     const badge = el("span", "c-badge", "Performance pack");
-    badge.title = "Kept up to date by Reminth. Switch it off here and Reminth leaves it off.";
+    badge.title = "Kept up to date by Spaceport. Switch it off here and Spaceport leaves it off.";
     sub.appendChild(badge);
   }
   const needers = creator && ctx.neededBy.get(creator.projectId);
@@ -644,7 +644,7 @@ function managedModCard(mod) {
   const head = el("div", "mod-head");
   const mark = el("div", "mcard-ico", mod.name.slice(0, 1));
   mark.style.setProperty("--mc", MOD_COLOURS[mod.tag] || "var(--accent)");
-  if (mod.name === "ReminthHUD") {
+  if (mod.name === "Spaceport HUD") {
     mark.textContent = "";
     const img = el("img", "mcard-ico");
     img.src = "../../assets/icons/source/" + (THEME_FILES[document.documentElement.dataset.theme] || THEME_FILES.night)[1];
@@ -658,7 +658,7 @@ function managedModCard(mod) {
   card.appendChild(head);
   card.appendChild(el("p", null, mod.note));
   const foot = el("div", "mod-foot");
-  foot.appendChild(el("span", "ok", "Installed and kept up to date by Reminth"));
+  foot.appendChild(el("span", "ok", "Installed and kept up to date by Spaceport"));
   foot.appendChild(el("span", "tag dim", mod.required ? "Required" : "Core"));
   card.appendChild(foot);
   return card;
@@ -2107,7 +2107,7 @@ async function renderFilterPanel() {
             filtersChanged();
           }
         ),
-        el("div", "fp-note", "Reminth installs packs for every loader — each gets its own instance with the right version set up."),
+        el("div", "fp-note", "Spaceport installs packs for every loader — each gets its own instance with the right version set up."),
       ])
     );
   }
@@ -2621,7 +2621,7 @@ function serverRow(s) {
     const mine = activeInstance();
     if (s.content.kind !== "modpack" && instanceFitsServer(mine, s) === false) {
       const hint = el("span", "srv-note", `Not ${mine.mcVersion}`);
-      hint.title = `${mine.name} is on ${mine.mcVersion} — this server takes ${takes.label}. Play still works: Reminth finds or makes an instance that fits.`;
+      hint.title = `${mine.name} is on ${mine.mcVersion} — this server takes ${takes.label}. Play still works: Spaceport finds or makes an instance that fits.`;
       stats.appendChild(hint);
     }
   }
@@ -3573,7 +3573,7 @@ async function openSkinEditor({ dataUrl, variant, name, source, defaultSkin, isC
         onClick: async (handle) => {
           if (saving) return false;
           if (draft.dataUrl === fallbackSkinTexture()) {
-            toast("Pick a skin first — that's Reminth's placeholder figure.");
+            toast("Pick a skin first — that's Spaceport's placeholder figure.");
             return false;
           }
           saving = true;
@@ -4622,7 +4622,7 @@ async function compatBeforePlay(inst) {
     const n = blocked.length;
     const body = el("div");
     body.appendChild(
-      el("p", null, `${n} ${plural(n, "mod")} in ${inst.name} ${n === 1 ? "stops" : "stop"} the game from starting. Reminth can fix ${n === 1 ? "it" : "them"} now, then start the game.`)
+      el("p", null, `${n} ${plural(n, "mod")} in ${inst.name} ${n === 1 ? "stops" : "stop"} the game from starting. Spaceport can fix ${n === 1 ? "it" : "them"} now, then start the game.`)
     );
     const list = el("div", "cp-list");
     blocked.forEach((issue) => list.appendChild(compatIssueRow(issue, { showFixText: true })));
@@ -5480,7 +5480,7 @@ function openVersionAdvisor(instanceId, options = {}) {
     }
     if (unknown.length) {
       const d = section(`Not checked (${unknown.length})`, unknown.length <= 6);
-      d.appendChild(el("p", "adv-group-what", doing === "switch" ? "Not in the catalog (or it didn't answer), so Reminth left them as they were." : "Not in the catalog, so they weren't copied. Add them by hand if they have a version for this Minecraft."));
+      d.appendChild(el("p", "adv-group-what", doing === "switch" ? "Not in the catalog (or it didn't answer), so Spaceport left them as they were." : "Not in the catalog, so they weren't copied. Add them by hand if they have a version for this Minecraft."));
       const ul = el("ul", "adv-group-names");
       unknown.forEach((t) => ul.appendChild(el("li", null, t)));
       d.appendChild(ul);
@@ -5586,7 +5586,7 @@ async function explainNoBuild(inst, projectId, title) {
   const others = support.otherLoaders || [];
   if (others.length) body.appendChild(el("p", null, `For ${mc} it only exists for ${sentenceList(others)}.`));
   closeCardMenu(); // the "which instance?" panel this install came from
-  if (here.length) body.appendChild(el("p", "set-note", `Reminth can show which Minecraft version fits all the mods in ${inst.name}, then switch it to that version or make a new instance on it.`));
+  if (here.length) body.appendChild(el("p", "set-note", `Spaceport can show which Minecraft version fits all the mods in ${inst.name}, then switch it to that version or make a new instance on it.`));
   openModal({
     title: `No ${mc} build of ${name}`,
     body,
@@ -5706,8 +5706,8 @@ const PACK_STATE_NOTES = {
   "no-build": "No stable build for this Minecraft version and loader yet.",
   "stepped-aside": "You have your own copy, or a mod it can't run next to.",
   "held-back": "One of your mods needs the version that's installed.",
-  "switched-off-by-you": "Reminth leaves it off. Restore puts it back.",
-  failed: "Reminth tries again the next time you press Play.",
+  "switched-off-by-you": "Spaceport leaves it off. Restore puts it back.",
+  failed: "Spaceport tries again the next time you press Play.",
 };
 
 /** Fills `box` with the pack's per-mod state for one instance. onPainted runs after each paint. */
@@ -6153,7 +6153,7 @@ window.openPurposeSetup = openPurposeSetup;
 window.reminth.onSafeMode(({ instanceId, reason }) => {
   perfUi.safeMode.set(instanceId, String(reason || "").slice(0, 200));
   const inst = instanceById(instanceId);
-  toast(`${inst ? inst.name : "Minecraft"}: Minecraft refused the Java settings, so Reminth started it with basic ones. The instance page says why.`);
+  toast(`${inst ? inst.name : "Minecraft"}: Minecraft refused the Java settings, so Spaceport started it with basic ones. The instance page says why.`);
   if (currentPage === "instance" && state.activeId === instanceId && inst) paintSafeModeNotice(inst);
 });
 
@@ -6164,7 +6164,7 @@ function paintSafeModeNotice(inst) {
   box.hidden = reason === undefined;
   if (reason === undefined) return;
   const text = el("div", "sn-text");
-  text.appendChild(el("b", null, "Minecraft refused the Java settings, so Reminth started it with basic ones."));
+  text.appendChild(el("b", null, "Minecraft refused the Java settings, so Spaceport started it with basic ones."));
   if (reason) {
     const why = el("span", null, "Reason: ");
     why.appendChild(el("span", "mono pii", reason));
@@ -6191,7 +6191,7 @@ const GC_CHOICES = [
   ["zgc", "Low-pause (ZGC)"],
 ];
 const GC_NOTES = {
-  auto: "Reminth picks per Java version: low-pause ZGC on Java 25 and newer when this PC has the memory and cores for it, otherwise G1.",
+  auto: "Spaceport picks per Java version: low-pause ZGC on Java 25 and newer when this PC has the memory and cores for it, otherwise G1.",
   g1: "G1 on every version. Pick this if the game stutters or won't start with Automatic.",
   zgc: "ZGC where Java 21 or newer runs the game (Minecraft 1.20.5 and up) on Windows 10 1803 or newer; older versions stay on G1.",
 };
@@ -6250,8 +6250,8 @@ $("gpuHelpBtn").onclick = async () => {
       "p",
       null,
       help.opened
-        ? "Windows decides which graphics card runs each program. Reminth doesn't change that setting itself — it opened Windows' graphics settings for you."
-        : "Windows decides which graphics card runs each program. Reminth doesn't change that setting itself. Open Settings → System → Display → Graphics."
+        ? "Windows decides which graphics card runs each program. Spaceport doesn't change that setting itself — it opened Windows' graphics settings for you."
+        : "Windows decides which graphics card runs each program. Spaceport doesn't change that setting itself. Open Settings → System → Display → Graphics."
     )
   );
   const steps = el("ol", "gpu-steps");
@@ -6260,9 +6260,9 @@ $("gpuHelpBtn").onclick = async () => {
   steps.appendChild(el("li", null, "Choose High performance and Save. It applies the next time Minecraft starts."));
   body.appendChild(steps);
   const paths = (help && help.javaPaths) || [];
-  if (!paths.length) body.appendChild(el("p", "set-note", "Reminth hasn't installed Java yet — press Play once, then come back here."));
+  if (!paths.length) body.appendChild(el("p", "set-note", "Spaceport hasn't installed Java yet — press Play once, then come back here."));
   else {
-    body.appendChild(el("p", "set-note", paths.length > 1 ? "Reminth's Java programs (different Minecraft versions use different ones — add each):" : "Reminth's Java program:"));
+    body.appendChild(el("p", "set-note", paths.length > 1 ? "Spaceport's Java programs (different Minecraft versions use different ones — add each):" : "Spaceport's Java program:"));
     const list = el("div", "gpu-paths");
     for (const p of paths) {
       const row = el("div", "gpu-path");
@@ -6409,7 +6409,7 @@ function paintSyncButtons() {
   if (!showNotice) return;
   const text = el("div", "sn-text");
   text.appendChild(el("b", null, `${n} ${plural(n, "mod")} ${n === 1 ? "is" : "are"} built for another Minecraft version.`));
-  text.appendChild(el("span", null, `They won't load on ${inst.mcVersion}, or may crash it. Reminth can swap them to their newest stable ${inst.mcVersion} builds; anything without one is listed, not removed.`));
+  text.appendChild(el("span", null, `They won't load on ${inst.mcVersion}, or may crash it. Spaceport can swap them to their newest stable ${inst.mcVersion} builds; anything without one is listed, not removed.`));
   box.appendChild(text);
   const go = button("btn sync-btn sm", `Update mods to fit ${inst.mcVersion}`, "#i-refresh");
   go.disabled = Boolean(syncBlocked(id));
@@ -6579,7 +6579,7 @@ function paintCrashNotice() {
   // build of this version exists; otherwise switching it off.
   const swap = Boolean(issue && issue.fix && issue.fix.type === "update" && issue.reason === "wrong-mc");
   text.appendChild(
-    el("span", null, swap ? `Reminth can switch it to its stable ${inst.mcVersion} build (the old file is kept in .reminth/replaced-mods).` : "Switching it off stops it from loading; switch it back on in the Mods tab any time.")
+    el("span", null, swap ? `Spaceport can switch it to its stable ${inst.mcVersion} build (the old file is kept in .reminth/replaced-mods).` : "Switching it off stops it from loading; switch it back on in the Mods tab any time.")
   );
   box.appendChild(text);
   const go = button("btn sync-btn sm", swap ? "Fix it" : "Switch it off", swap ? "#i-refresh" : null);

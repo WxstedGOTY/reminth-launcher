@@ -66,7 +66,7 @@ test("playerTiers: asks each list once with the right id form, a 404 means 'not 
   assert.equal(log.length, 3);
   assert.ok(log.some((l) => l.url === "https://mctiers.com/api/v2/profile/01234567-89ab-cdef-0123-456789abcdef"));
   assert.ok(log.some((l) => l.url === "https://pvptiers.com/api/profile/" + UUID));
-  assert.ok(log.every((l) => /Reminth/.test(l.opts.headers["User-Agent"])), "says who's asking");
+  assert.ok(log.every((l) => /Spaceport/.test(l.opts.headers["User-Agent"])), "says who's asking");
   assert.ok(log.every((l) => !JSON.stringify(l.opts).toLowerCase().includes("token")), "no token is sent");
 });
 

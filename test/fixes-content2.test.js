@@ -261,7 +261,7 @@ test("mrpack: file paths into Reminth's own folder are recognised however they a
   for (const fine of ["mods/a.jar", "config/.reminth/x", ".reminthx/y", "mods/.reminth", "", null]) {
     assert.equal(mrpack.isReminthPath(fine), false, String(fine));
   }
-  assert.throws(() => mrpack.assertNoReminthPaths([{ path: "mods/a.jar" }, { path: ".reminth/content.json" }]), /This modpack tries to write into Reminth's own folder/);
+  assert.throws(() => mrpack.assertNoReminthPaths([{ path: "mods/a.jar" }, { path: ".reminth/content.json" }]), /This modpack tries to write into Spaceport's own folder/);
   assert.doesNotThrow(() => mrpack.assertNoReminthPaths([{ path: "mods/a.jar" }, null]));
   assert.doesNotThrow(() => mrpack.assertNoReminthPaths(undefined));
 });
@@ -288,7 +288,7 @@ test("mrpack: such a pack is refused before an instance is made or any of its fi
     return new Response(planted, { status: 200 });
   });
   const before = (await instances.list()).length;
-  await assert.rejects(mrpack.installModpack({ projectId: "PACK" }), /This modpack tries to write into Reminth's own folder/);
+  await assert.rejects(mrpack.installModpack({ projectId: "PACK" }), /This modpack tries to write into Spaceport's own folder/);
   assert.deepEqual(fetched, [packUrl], "only the pack itself was downloaded");
   assert.equal((await instances.list()).length, before, "no instance was created");
 });
@@ -413,7 +413,7 @@ test("instances: a registry saved with a byte-order mark is read, not treated as
   await fsp.writeFile(paths.INSTANCES_FILE, "﻿" + text);
 
   instances = await freshInstances({ wipe: false });
-  assert.deepEqual((await instances.list()).map((i) => i.name), ["Reminth", "Kept"]);
+  assert.deepEqual((await instances.list()).map((i) => i.name), ["Spaceport", "Kept"]);
   assert.deepEqual((await fsp.readdir(paths.ROOT)).filter((n) => n.includes("corrupt")), []);
 });
 

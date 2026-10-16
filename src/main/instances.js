@@ -35,7 +35,7 @@ const COLOURS = ["cyan", "violet", "emerald", "amber", "rose", "sky"];
 function defaultInstance() {
   return {
     id: DEFAULT_ID,
-    name: "Reminth",
+    name: "Spaceport",
     mcVersion: config.MINECRAFT_VERSION,
     loader: "fabric",
     loaderVersion: config.FABRIC_LOADER_VERSION,
@@ -142,7 +142,12 @@ const META_FILE = path.join(".reminth", "instance.json");
 const ID_PATTERN = /^[a-z0-9-]{1,64}$/;
 
 /** The original instance always exists and comes first; ids are unique, first one wins. */
+// The main instance's name from before the launcher was renamed Spaceport Launcher (16 Oct 2026): still the old default
+// means the player never renamed it, so it takes the new default. A name the player chose stays.
+const OLD_DEFAULT_NAME = "Reminth";
+
 function normalise(list, { keepOrder = false } = {}) {
+  list = list.map((i) => (i.id === DEFAULT_ID && i.name === OLD_DEFAULT_NAME ? { ...i, name: defaultInstance().name } : i));
   // Its version is allowed to be changed by the player like any other instance's.
   const existingDefault = list.find((i) => i.id === DEFAULT_ID);
   // The player's own order (instances:reorder) keeps the original instance
@@ -603,7 +608,7 @@ async function updateLocked(id, patch) {
 }
 
 async function remove(id) {
-  if (id === DEFAULT_ID) throw new Error("The main Reminth instance can't be deleted.");
+  if (id === DEFAULT_ID) throw new Error("The main Spaceport instance can't be deleted.");
   return mutate(async () => {
     const all = await readAll();
     const inst = all.find((i) => i.id === id);

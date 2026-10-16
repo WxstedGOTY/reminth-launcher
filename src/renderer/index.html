@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Reminth</title>
+  <title>Spaceport Launcher</title>
   <!-- Everything this window loads is local file:// content with no remote
        page, inline script, or network fetch from the renderer itself.
        data: is allowed for images (world/server icons, skins and mod icons
@@ -20,7 +20,7 @@
 <!-- Loading screen: removed by renderer.js once the app's pages are ready (3 seconds at most). -->
 <div class="boot-splash" id="bootSplash" aria-hidden="true">
   <div class="boot-glow"></div>
-  <div class="boot-brand"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /><span>Reminth</span></div>
+  <div class="boot-brand"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /><span>Spaceport</span></div>
   <div class="boot-bar"><i id="bootFill"></i></div>
   <div class="boot-note" id="bootNote">Getting everything ready</div>
 </div>
@@ -99,7 +99,7 @@
     <!-- ── icon rail ─────────────────────────────────────────── -->
     <aside class="rail">
       <div class="rail-brand" id="railBrand">
-        <img src="../../assets/icons/source/reminth-mark-night.svg" alt="Reminth" />
+        <img src="../../assets/icons/source/reminth-mark-night.svg" alt="Spaceport" />
       </div>
 
       <nav class="rail-group" id="railNav">
@@ -108,7 +108,7 @@
         <button class="rail-btn" data-page="library" data-tip="Library"><svg><use href="#i-library"/></svg></button>
         <button class="rail-btn" data-page="skins" data-tip="Skins"><svg><use href="#i-skin"/></svg></button>
         <button class="rail-btn" data-page="hosting" data-tip="Host a server"><svg><use href="#i-hosting"/></svg></button>
-        <button class="rail-btn rail-plus" data-page="plus" data-tip="Reminth+"><svg><use href="#i-gem"/></svg></button>
+        <button class="rail-btn rail-plus" data-page="plus" data-tip="Spaceport+"><svg><use href="#i-gem"/></svg></button>
       </nav>
 
       <div class="rail-divider"></div>
@@ -135,7 +135,7 @@
     <main class="main">
       <header class="topbar">
         <div class="topbar-title">
-          <div class="eyebrow" id="topEyebrow">Reminth</div>
+          <div class="eyebrow" id="topEyebrow">Spaceport</div>
           <div class="topbar-sub" id="topTitle">Your Minecraft, your way.</div>
         </div>
 
@@ -176,8 +176,8 @@
           <div class="signin-wrap" id="rmGate" hidden>
             <div class="card signin-card rm-gate">
               <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /></div>
-              <div class="stepper" aria-label="Step 1 of 2"><div class="st now"><b>1</b><span>Reminth account</span></div><i class="st-line"></i><div class="st"><b>2</b><span>Minecraft</span></div></div>
-              <h1 class="display">Create your Reminth account</h1>
+              <div class="stepper" aria-label="Step 1 of 2"><div class="st now"><b>1</b><span>Spaceport account</span></div><i class="st-line"></i><div class="st"><b>2</b><span>Minecraft</span></div></div>
+              <h1 class="display">Create your Spaceport account</h1>
               <p class="lede">One account for the launcher and the website. Already have one? Sign in the same way.</p>
               <div class="rm-msg" id="rmGateMsg" hidden></div>
               <div id="rmGateWait" class="rm-wait" hidden>
@@ -200,7 +200,7 @@
                 </form>
                 <button class="rm-back" id="rmEmailBack" type="button">&larr; Other ways to sign in</button>
               </div>
-              <p class="hint">Discord and Google only give Reminth your name and picture. <a href="#" id="rmGatePrivacy">Privacy</a></p>
+              <p class="hint">Discord and Google only give Spaceport your name and picture. <a href="#" id="rmGatePrivacy">Privacy</a></p>
             </div>
           </div>
 
@@ -208,9 +208,9 @@
           <div class="signin-wrap" id="signInHero" hidden>
             <div class="card signin-card">
               <div class="signin-mark"><img src="../../assets/icons/source/reminth-mark-night.svg" alt="" /></div>
-              <div class="stepper" id="mcSteps" aria-label="Step 2 of 2" hidden><div class="st done"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span>Reminth account</span></div><i class="st-line full"></i><div class="st now"><b>2</b><span>Minecraft</span></div></div>
+              <div class="stepper" id="mcSteps" aria-label="Step 2 of 2" hidden><div class="st done"><b><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></b><span>Spaceport account</span></div><i class="st-line full"></i><div class="st now"><b>2</b><span>Minecraft</span></div></div>
               <h1 class="display">Sign in to play</h1>
-              <p class="lede">Reminth signs you in through Microsoft's own page and never sees your password.</p>
+              <p class="lede">Spaceport signs you in through Microsoft's own page and never sees your password.</p>
               <button class="btn primary lg" id="signInBtn">Sign in with Microsoft</button>
 
               <div class="code-panel" id="codePanel" hidden>
@@ -259,7 +259,7 @@
                   <span class="nh-me-sub">Change skin</span>
                 </button>
                 <div class="nh-version">
-                  <span id="nhVersion">Reminth</span>
+                  <span id="nhVersion">Spaceport</span>
                   <button class="nh-news" id="nhNews" type="button"><i></i>What's new</button>
                 </div>
               </div>
@@ -274,7 +274,7 @@
                 <div class="nh-panel-col">
                   <button class="nh-play" id="playBtn">
                     <span class="nh-play-title"><svg class="i"><use href="#i-play"/></svg><b>Launch game</b></span>
-                    <span class="nh-play-sub">Launch Reminth</span>
+                    <span class="nh-play-sub">Launch Spaceport</span>
                   </button>
                   <div class="nh-quick-row nh-quick-in" id="quickJoin" hidden></div>
                 </div>
@@ -350,7 +350,7 @@
           <div class="instance-bar">
             <div class="instance-art" id="instArt"><span class="instance-chip">R</span></div>
             <div class="ib-info">
-              <h2 id="instName">Reminth</h2>
+              <h2 id="instName">Spaceport</h2>
               <div class="inst-made-for" id="instMadeFor" hidden></div>
               <div class="ib-meta sep-list">
                 <span class="ib-m"><svg class="i"><use href="#i-cube"/></svg><span id="instLoader">Fabric</span><span id="instVersion">—</span></span>
@@ -576,7 +576,7 @@
             <div class="hv-copy">
               <div class="hv-eyebrow"><span>Host a server</span><em class="hv-free">Free</em></div>
               <h1 class="display">Your own Minecraft server, free</h1>
-              <p class="lede">Reminth doesn't run servers itself. The easy free way is <b>Aternos</b>, a free Minecraft server host. Make a server there in a few minutes, then join it from here with your friends.</p>
+              <p class="lede">Spaceport doesn't run servers itself. The easy free way is <b>Aternos</b>, a free Minecraft server host. Make a server there in a few minutes, then join it from here with your friends.</p>
               <ol class="hv-steps">
                 <li><b>Open Aternos</b>, make a free account and press <b>Create</b>.</li>
                 <li><b>Pick the same game as your instance</b> under Software and Version: <span class="hv-match" id="hostMatch">your instance's loader and version</span>.</li>
@@ -607,11 +607,11 @@
           <div class="card plus-hero">
             <div class="plus-glow"></div>
             <div class="plus-copy">
-              <div class="plus-badge"><svg class="i"><use href="#i-gem"/></svg>Reminth+</div>
+              <div class="plus-badge"><svg class="i"><use href="#i-gem"/></svg>Spaceport+</div>
               <h1 class="display">Your own server, minus the landlord.</h1>
               <p class="lede">The launcher is free and stays that way — every version, every loader, as much memory as your PC can spare, up to 16&nbsp;GB. Plus is for when you want a server for you and your friends without renting one somewhere else.</p>
               <div class="row-actions">
-                <button class="btn primary lg is-soon" disabled>Get Reminth+<em class="soon">Soon</em></button>
+                <button class="btn primary lg is-soon" disabled>Get Spaceport+<em class="soon">Soon</em></button>
                 <span class="set-note" id="plusStatus">Not on sale yet — nothing's being charged for.</span>
               </div>
             </div>
@@ -621,7 +621,7 @@
             <div class="card plus-perk">
               <span class="perk-ico perk-tile t-cyan"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
               <b>A server, included</b>
-              <p>When Reminth Hosting launches, Plus comes with one. It stays up when you log off, so your friends can keep playing without you.</p>
+              <p>When Spaceport Hosting launches, Plus comes with one. It stays up when you log off, so your friends can keep playing without you.</p>
             </div>
             <div class="card plus-perk">
               <span class="perk-ico perk-tile t-amber"><img class="perk-art" src="../../assets/hosting/bolt-icon.svg" alt="" /></span>
@@ -631,12 +631,12 @@
             <div class="card plus-perk">
               <span class="perk-ico perk-tile t-violet"><img class="perk-art" src="../../assets/hosting/anvil-icon.svg" alt="" /></span>
               <b>You're funding the next update</b>
-              <p>No ads, no tracking, no selling your data — ever. Plus is how this gets paid for instead.</p>
+              <p>No tracking, no selling your data — ever. Plus is how this gets paid for instead.</p>
             </div>
           </div>
 
           <div class="card plus-compare">
-            <div class="cmp-row head"><span></span><b>Free</b><b class="plus-col">Reminth+</b></div>
+            <div class="cmp-row head"><span></span><b>Free</b><b class="plus-col">Spaceport+</b></div>
             <div class="cmp-row"><span>Every instance, version and modpack</span><b class="yes">✓</b><b class="yes">✓</b></div>
             <div class="cmp-row"><span>Mods, packs, shaders, servers from Discover</span><b class="yes">✓</b><b class="yes">✓</b></div>
             <div class="cmp-row"><span>Streamer mode, clips and screenshots</span><b class="yes">✓</b><b class="yes">✓</b></div>
@@ -651,7 +651,7 @@
             <div>
               <div class="eyebrow">Streamer mode</div>
               <h1 class="display">Streamer settings</h1>
-              <p class="lede">While Minecraft runs, Reminth keeps recording the last few minutes of the game window. Hit your clip key and they're saved — nothing else ever is.</p>
+              <p class="lede">While Minecraft runs, Spaceport keeps recording the last few minutes of the game window. Hit your clip key and they're saved — nothing else ever is.</p>
             </div>
           </div>
           <div class="settings-stack">
@@ -703,7 +703,7 @@
             <div>
               <div class="eyebrow">Configuration</div>
               <h1 class="display">Settings</h1>
-              <p class="lede">The things that actually change how Reminth runs.</p>
+              <p class="lede">The things that actually change how Spaceport runs.</p>
             </div>
           </div>
 
@@ -722,7 +722,7 @@
               <div class="account-row rm-account" id="rmAccountRow">
                 <span class="avatar lg" id="rmAvatar"><span class="avatar-letter">R</span></span>
                 <div class="account-meta">
-                  <b id="rmName">Reminth account</b>
+                  <b id="rmName">Spaceport account</b>
                   <span id="rmState">Checking&hellip;</span>
                 </div>
                 <button class="btn outline" id="rmSignInBtn" hidden>Sign in</button>
@@ -753,7 +753,7 @@
             <div class="card set">
               <div class="set-head">
                 <h2>Performance</h2>
-                <p>How Reminth starts Java for Minecraft. The defaults suit almost every PC.</p>
+                <p>How Spaceport starts Java for Minecraft. The defaults suit almost every PC.</p>
               </div>
               <div class="toggle-row stack">
                 <div><b>Garbage collector</b><span id="gcNote"></span></div>
@@ -764,7 +764,7 @@
                 <button class="switch" id="togglePriority" role="switch" aria-checked="true" aria-label="Give Minecraft priority"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Graphics card</b><span>On a laptop with two graphics cards, Windows can run Minecraft on the slower one. Reminth shows you how to change that; it doesn't change it itself.</span></div>
+                <div><b>Graphics card</b><span>On a laptop with two graphics cards, Windows can run Minecraft on the slower one. Spaceport shows you how to change that; it doesn't change it itself.</span></div>
                 <button class="btn outline sm" id="gpuHelpBtn">Choose graphics card…</button>
               </div>
             </div>
@@ -789,11 +789,11 @@
             <div class="card set">
               <div class="set-head"><h2>Launcher</h2></div>
               <div class="toggle-row">
-                <div><b>Minimize when the game starts</b><span>Get Reminth out of the way once Minecraft opens.</span></div>
+                <div><b>Minimize when the game starts</b><span>Get Spaceport out of the way once Minecraft opens.</span></div>
                 <button class="switch" id="toggleLaunchMinimized" role="switch" aria-checked="false"></button>
               </div>
               <div class="toggle-row">
-                <div><b>Hardware acceleration</b><span class="hw-keep">Keep this on.</span><span>Uses your GPU to draw the launcher. Only turn it off if the Reminth window shows up black or flickering - otherwise the launcher gets very slow and laggy. Restart Reminth to apply.</span><span class="hw-off-note" id="hwOffNote" hidden>It is off right now, so Reminth is drawn by your processor and will feel laggy. Turn it on and restart Reminth.</span></div>
+                <div><b>Hardware acceleration</b><span class="hw-keep">Keep this on.</span><span>Uses your GPU to draw the launcher. Only turn it off if the Spaceport window shows up black or flickering - otherwise the launcher gets very slow and laggy. Restart Spaceport to apply.</span><span class="hw-off-note" id="hwOffNote" hidden>It is off right now, so Spaceport is drawn by your processor and will feel laggy. Turn it on and restart Spaceport.</span></div>
                 <button class="switch" id="toggleHardwareAccel" role="switch" aria-checked="true"></button>
               </div>
             </div>
@@ -826,8 +826,8 @@
                  has to change with it. -->
             <div class="card set">
               <div class="set-head"><h2>Privacy &amp; terms</h2></div>
-              <p class="set-note">The short version: Reminth collects no analytics, the Reminth account (Discord) is optional and only keeps your Discord name, id and picture, and Reminth
-                shows no third-party ads. Reminth is just a launcher — it is not responsible for any ban from Mojang,
+              <p class="set-note">The short version: Spaceport collects no analytics, the Spaceport account (Discord) is optional and only keeps your Discord name, id and picture, and Spaceport
+                shows no tracking or personalised ads (Home's Sponsored box is one Minecraft server, the same for everyone, and nothing about you is sent for it). Spaceport is just a launcher — it is not responsible for any ban from Mojang,
                 Microsoft, Minecraft or any server. Paid features (when they launch) are not refundable, except where
                 the law gives you a right we can't take away.</p>
               <p class="set-note"><b>NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR
@@ -840,31 +840,31 @@
                     <a href="https://reminth.pages.dev/privacy.html" target="_blank">reminth.pages.dev/privacy.html</a>
                     and is what applies.</p>
 
-                  <p><b>Who's responsible.</b> Reminth is run by Lefteris Psilopanagiotis, an individual developer in
+                  <p><b>Who's responsible.</b> Spaceport is run by Lefteris Psilopanagiotis, an individual developer in
                     Greece, who is the data controller under the GDPR. Contact: reminthsupport@gmail.com.</p>
 
                   <p><b>What stays on your computer.</b> Your Microsoft sign-in tokens are stored encrypted by
                     Windows, with your Windows account's own key. If Windows encryption isn't available, they are not
-                    saved at all and you sign in again next time. Reminth keeps its files in
+                    saved at all and you sign in again next time. Spaceport keeps its files in
                     <span class="mono">%APPDATA%\Reminth</span>: your settings, instances, saved skins, caches of
                     public Modrinth information, and logs (<span class="mono">updater.log</span>,
                     <span class="mono">auth.log</span>, <span class="mono">main-errors.log</span>, the last game
                     log and the archive of your older game logs). Streamer mode's recording captures the Minecraft
                     window's picture and, when sound is on, everything the PC plays; it keeps a short rolling
-                    recording there and saves clips and screenshots to <span class="mono">Videos\Reminth</span>.
-                    None of this is ever sent to us. When it starts, Reminth also looks at the list of running Java
+                    recording there and saves clips and screenshots to <span class="mono">Videos\Spaceport Launcher</span> (<span class="mono">Videos\Reminth</span> if you used the launcher before it was renamed).
+                    None of this is ever sent to us. When it starts, Spaceport also looks at the list of running Java
                     programs on your PC (only their process number, start time and game folder, never the sign-in
                     token in their start command) so it can recognise a game it started earlier; that stays in memory.
-                    The in-game bar (ReminthHUD) reads your CPU and graphics load from Windows' own counters and
+                    The in-game bar (Spaceport HUD) reads your CPU and graphics load from Windows' own counters and
                     sends nothing to us. On a multiplayer server it also asks that server for your own statistics (the
                     same request the game's Statistics screen makes) and saves the answer on your PC, so Player
-                    Statistics can include your server numbers. The Reminth title screen in the game stores and sends
+                    Statistics can include your server numbers. The Spaceport title screen in the game stores and sends
                     nothing.</p>
 
-                  <p><b>What Reminth sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
+                  <p><b>What Spaceport sends, and to whom.</b> No backend, analytics, telemetry, crash reporting or
                     tracking. The launcher talks directly to: Microsoft and Xbox Live (sign-in); Mojang and Minecraft
                     Services (licence check, game and Java downloads, skins and capes); Fabric, Quilt, Forge and
-                    NeoForge (the loader you pick, and Fabric API); GitHub (Reminth updates, and Sodium, Lithium and
+                    NeoForge (the loader you pick, and Fabric API); GitHub (Spaceport updates, and Sodium, Lithium and
                     ScalableLux from their own releases only if Modrinth can't be reached); Modrinth (Discover, installs,
                     the performance pack,
                     updates and the compatibility check, which sends the <b>SHA-1 file fingerprints</b> of your mods —
@@ -872,7 +872,7 @@
                     cdn.modrinth.com and avatars.githubusercontent.com (icons, creator pictures, and pictures in project
                     descriptions and galleries; pictures from any other host are never loaded); and Minecraft
                     servers you look at (status and ping). Each can see your IP address, as with any internet request.
-                    Links on a project page open in your own web browser, not in Reminth.</p>
+                    Links on a project page open in your own web browser, not in Spaceport.</p>
 
                   <p><b>What reaches us.</b> Only what you choose to send, such as an email. We delete support
                     conversations 12 months after they end.</p>
@@ -880,8 +880,8 @@
                   <p><b>Your rights.</b> You can ask to access, correct or delete your data, or object to how it's used,
                     by emailing reminthsupport@gmail.com. You can complain to the Hellenic Data Protection Authority
                     (<a href="https://www.dpa.gr" target="_blank">dpa.gr</a>) or your own country's authority. To remove
-                    everything the launcher stored, sign out, then delete <span class="mono">%APPDATA%\Reminth</span>
-                    (and <span class="mono">Videos\Reminth</span>). Back up your worlds first.</p>
+                    everything the launcher stored, sign out, then delete <span class="mono">%APPDATA%\Reminth</span> (the folder keeps the launcher's old name, so nothing is lost)
+                    (and <span class="mono">Videos\Spaceport Launcher</span> or <span class="mono">Videos\Reminth</span>). Back up your worlds first.</p>
                 </div>
               </details>
 
@@ -892,30 +892,30 @@
                     <a href="https://reminth.pages.dev/terms.html" target="_blank">reminth.pages.dev/terms.html</a>
                     and are what applies. Contact: reminthsupport@gmail.com.</p>
 
-                  <p><b>What this is.</b> Reminth is an independent launcher for Minecraft: Java Edition, run by
+                  <p><b>What this is.</b> Spaceport is an independent launcher for Minecraft: Java Edition, run by
                     Lefteris Psilopanagiotis (Greece). You need your own legitimate Minecraft licence, and you must
                     follow the Minecraft EULA, the Minecraft Usage Guidelines and the Microsoft Services Agreement.
                     Under 18? You need a parent or guardian's permission.</p>
 
-                  <p><b>Bans and server rules: Reminth is just a launcher.</b> We have no control over Mojang,
+                  <p><b>Bans and server rules: Spaceport is just a launcher.</b> We have no control over Mojang,
                     Microsoft, Xbox, Minecraft, mod authors, or any server, its staff or its anti-cheat. <b>We are not
                     responsible or liable for any ban, suspension, kick, mute, account restriction or other penalty</b>
-                    from any of them, including ones related to a mod, pack, shader or setting you used through Reminth
-                    or a mod Reminth installed for you. Check and follow every server's rules. We won't appeal, reverse
+                    from any of them, including ones related to a mod, pack, shader or setting you used through Spaceport
+                    or a mod Spaceport installed for you. Check and follow every server's rules. We won't appeal, reverse
                     or compensate for any ban, and a ban is never grounds for a refund.</p>
 
-                  <p><b>Fair play.</b> No cheats, hacks, exploits or ban evasion. Don't use Reminth to break any
-                    server's rules or the EULA. Don't resell Reminth or distribute modified copies of it.</p>
+                  <p><b>Fair play.</b> No cheats, hacks, exploits or ban evasion. Don't use Spaceport to break any
+                    server's rules or the EULA. Don't resell Spaceport or distribute modified copies of it.</p>
 
-                  <p><b>Mods Reminth installs.</b> On Fabric and Quilt instances: Fabric API (from Fabric), ReminthHUD
+                  <p><b>Mods Spaceport installs.</b> On Fabric and Quilt instances: Fabric API (from Fabric), Spaceport HUD
                     if you switch it on, and a performance pack (Sodium, Lithium, FerriteCore, ImmediatelyFast,
                     Entity Culling and ScalableLux; stable releases from Modrinth; on Forge and NeoForge only if you
                     switch it on). You can switch the performance pack off for any instance in its
                     settings; mods you switch off or delete yourself are not put back. Third-party content from Discover is made by other people and hosted by Modrinth;
-                    Reminth checks each file's checksum but doesn't vouch for it. A modpack may fetch files from the
+                    Spaceport checks each file's checksum but doesn't vouch for it. A modpack may fetch files from the
                     hosts it lists (Modrinth, GitHub or GitLab).</p>
 
-                  <p><b>Paid features and refunds.</b> Reminth+ and Reminth Hosting aren't available yet; previews may
+                  <p><b>Paid features and refunds.</b> Spaceport+ and Spaceport Hosting aren't available yet; previews may
                     change and show made-up names. When they launch, they start immediately and <b>we don't give
                     refunds</b>. Your legal rights still apply: in the EU, EEA and UK you can withdraw from a
                     subscription within 14 days of your first purchase and get a refund minus the time you used, and
@@ -931,14 +931,14 @@
             <div class="card set about-card">
               <div class="about">
                 <div>
-                  <b class="display" id="aboutVersion">Reminth</b>
+                  <b class="display" id="aboutVersion">Spaceport</b>
                   <span id="aboutBuild">—</span>
                 </div>
                 <span class="about-note">Built for people who just want to play.</span>
               </div>
               <!-- The launcher's own updates (main/updater.js). The link is the one fixed address it may open. -->
               <div class="upd-row">
-                <span class="upd-state" id="updState" role="status">Updates download by themselves and install when you restart Reminth.</span>
+                <span class="upd-state" id="updState" role="status">Updates download by themselves and install when you restart Spaceport.</span>
                 <a class="upd-link" id="updManual" href="https://github.com/WxstedGOTY/reminth-launcher/releases/latest" target="_blank" rel="noopener" hidden>Download it manually</a>
                 <button class="btn primary sm" id="updRestartBtn" hidden>Restart and update</button>
                 <button class="btn outline sm" id="updCheckBtn"><svg class="i"><use href="#i-refresh"/></svg><span>Check for updates</span></button>
@@ -968,7 +968,7 @@
         </div>
 
         <div class="card side-card side-plus" data-page="plus">
-          <div class="side-head"><span class="eyebrow">Reminth+</span><svg class="i gem"><use href="#i-gem"/></svg></div>
+          <div class="side-head"><span class="eyebrow">Spaceport+</span><svg class="i gem"><use href="#i-gem"/></svg></div>
           <p>A server for you and your friends, included when hosting launches.</p>
           <span class="link-btn">See what's in it<svg class="i"><use href="#i-chevron"/></svg></span>
         </div>
@@ -983,7 +983,7 @@
 
         <a class="card side-card side-discord" href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
-          <span><b>Join our Discord</b><small>News, help and the Reminth community</small></span>
+          <span><b>Join our Discord</b><small>News, help and the Spaceport community</small></span>
         </a>
       </aside>
       </div><!-- /main-body -->

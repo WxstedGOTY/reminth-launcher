@@ -768,8 +768,8 @@ test("instances: a failed write doesn't leave the launcher believing in an unsav
   });
   await assert.rejects(instances.create({ name: "Lost", mcVersion: "1.20.1" }), /ENOSPC/);
   fsp.rename = realRename;
-  assert.deepEqual((await instances.list()).map((i) => i.name), ["Reminth", "Kept"]);
-  assert.deepEqual((await registryOnDisk()).map((i) => i.name), ["Reminth", "Kept"]);
+  assert.deepEqual((await instances.list()).map((i) => i.name), ["Spaceport", "Kept"]);
+  assert.deepEqual((await registryOnDisk()).map((i) => i.name), ["Spaceport", "Kept"]);
 });
 
 test("instances: a corrupt registry is recovered from its .bak plus the folders on disk, never replaced by defaults", async () => {

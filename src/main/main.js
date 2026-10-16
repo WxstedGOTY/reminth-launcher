@@ -106,7 +106,18 @@ try {
   // no settings file yet, or unreadable - acceleration stays on (the default)
 }
 
-// One Reminth at a time. A second process has its own `running` map (so the
+// The installed launcher's own browser data (and with it the key that unlocks the saved sign-ins) has always been in
+// %APPDATA%\reminth-launcher. Pinned here so the shown name (Spaceport Launcher since 16 Oct 2026) can never move it.
+// Only the installed app: the previews and tests set their own folder before this runs.
+if (app.isPackaged) {
+  try {
+    app.setPath("userData", path.join(app.getPath("appData"), "reminth-launcher"));
+  } catch {
+    // keep Electron's own choice
+  }
+}
+
+// One launcher at a time. A second process has its own `running` map (so the
 // same instance could be launched twice onto the same worlds), and the two
 // race each other writing account.json / settings.json and registering the
 // global hotkeys. The second copy quits and the first comes to the front.
@@ -549,9 +560,9 @@ ipcMain.handle("app:info", () => ({
     ["fabric", "quilt", "forge", "neoforge"].map((l) => [l, (config.PERFORMANCE_PACK || []).filter((e) => (e.loaders || []).includes(l)).map((e) => e.label)])
   ),
   managedMods: [
-    { name: "ReminthHUD", tag: "HUD", note: "Reminth's own in-game bar: FPS, GPU, CPU and latency. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
-    { name: "Reminth home screen", tag: "Home", note: "Reminth's own title screen for the game. Switch it on or off per instance in Edit.", required: false },
-    { name: "Fabric API", tag: "Library", note: "ReminthHUD can't load without it, so Reminth installs it alongside.", required: true },
+    { name: "Spaceport HUD", tag: "HUD", note: "Spaceport's own in-game bar: FPS, GPU, CPU and latency. Press H in game to toggle it. Switch it on or off per instance in Edit.", required: false },
+    { name: "Spaceport home screen", tag: "Home", note: "Spaceport's own title screen for the game. Switch it on or off per instance in Edit.", required: false },
+    { name: "Fabric API", tag: "Library", note: "Spaceport HUD can't load without it, so Spaceport installs it alongside.", required: true },
   ],
 }));
 
@@ -962,7 +973,7 @@ ipcMain.handle("instances:summary", async (_e, id) => instances.summary(id));
 // was never played and holds no world (checked here again, whatever the page thought).
 ipcMain.handle("instances:undoCreate", async (_e, id) => {
   const inst = await instances.require(id);
-  if (inst.id === instances.DEFAULT_ID) throw new Error("The main Reminth instance can't be deleted.");
+  if (inst.id === instances.DEFAULT_ID) throw new Error("The main Spaceport instance can't be deleted.");
   if (running.has(id)) throw new Error("Close the game first - that instance is running.");
   let worldNames = [];
   try {
@@ -1543,7 +1554,7 @@ ipcMain.handle("play:run", async (_e, options = {}) => {
     await adoptionDone;
     const current = running.get(inst.id);
     if (current && current !== claim && current.adopted) {
-      throw new Error("Minecraft is already running for this instance - Reminth found it and is keeping track of it again.");
+      throw new Error("Minecraft is already running for this instance - Spaceport found it and is keeping track of it again.");
     }
     const accepted = Array.isArray(options.serverRulesAccepted) ? options.serverRulesAccepted.filter((x) => typeof x === "string").slice(0, 20) : [];
     return await startGame(inst, options.join, claim, options.world, accepted);
@@ -1621,7 +1632,7 @@ async function sweepRunning() {
       const verdict = runningGames.checkGame(session.watch, alive, title);
       if (verdict === "ok") continue;
       if (verdict === "hung") killSessionProcess(session);
-      logCrash("game", verdict === "hung" ? "The game window was closed but Java kept running; Reminth ended it." : "The game had ended without telling Reminth; Playing cleared.");
+      logCrash("game", verdict === "hung" ? "The game window was closed but Java kept running; Spaceport ended it." : "The game had ended without telling Spaceport; Playing cleared.");
       let inst = null;
       try {
         inst = await instances.require(id);

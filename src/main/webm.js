@@ -378,7 +378,7 @@ async function joinSegments(segments, fromMs, outFile) {
         // Info with a Duration placeholder we can patch (float64, fixed size).
         const info = el(
           ID.Info,
-          Buffer.concat([uintEl(ID.TimecodeScale, 1000000), strEl(ID.MuxingApp, "Reminth"), strEl(ID.WritingApp, "Reminth"), floatEl(ID.Duration, 0)])
+          Buffer.concat([uintEl(ID.TimecodeScale, 1000000), strEl(ID.MuxingApp, "Spaceport"), strEl(ID.WritingApp, "Spaceport"), floatEl(ID.Duration, 0)])
         );
         header.durationPos = written + info.length - 8;
         await write(info);

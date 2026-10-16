@@ -91,7 +91,7 @@ function isReminthPath(rel) {
  */
 function assertNoReminthPaths(files) {
   const bad = (Array.isArray(files) ? files : []).find((f) => f && isReminthPath(f.path));
-  if (bad) throw new Error(`This modpack tries to write into Reminth's own folder (${String(bad.path).slice(0, 80)}). Refusing to install it.`);
+  if (bad) throw new Error(`This modpack tries to write into Spaceport's own folder (${String(bad.path).slice(0, 80)}). Refusing to install it.`);
 }
 
 function assertPackUrl(url) {

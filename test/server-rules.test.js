@@ -138,5 +138,5 @@ test("the pretend test server: an address that can never exist, matched like a r
   assert.equal(t.id, "reminth-test");
   assert.ok(t.hosts.every((h) => h.endsWith(".invalid")), ".invalid never resolves, so nothing can connect");
   const hit = rules.findBanned([{ file: "mt.jar", title: "Mouse Tweaks", modId: "mousetweaks", enabled: true }], [{ address: "bantest.reminth.invalid", why: "list" }]);
-  assert.equal(hit[0].server.name, "Reminth ban-warning test");
+  assert.equal(hit[0].server.name, "Spaceport ban-warning test");
 });

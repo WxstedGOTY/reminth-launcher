@@ -83,7 +83,7 @@ test("Audit 16: two screenshots in the same second are both kept (the second one
     const dir = path.join(paths.CAPTURES_DIR, "Screenshots");
     const names = (await fsp.readdir(dir)).sort();
     assert.equal(names.length, 2, names.join(", "));
-    assert.deepEqual(names, ["Reminth-2026-10-04_12-00-00-2.png", "Reminth-2026-10-04_12-00-00.png"]);
+    assert.deepEqual(names, ["Spaceport-2026-10-04_12-00-00-2.png", "Spaceport-2026-10-04_12-00-00.png"]);
   } finally {
     global.Date = RealDate;
     Date.now = realNow;

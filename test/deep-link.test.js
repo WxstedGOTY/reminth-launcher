@@ -170,6 +170,6 @@ test("deep links: the page only switches pages, and only to allow-listed ones", 
 
 test("deep links: the installer registers reminth:// for the current user (no admin prompt)", () => {
   const build = require("../package.json").build;
-  assert.deepEqual(build.protocols, [{ name: "Reminth", schemes: ["reminth"] }]);
+  assert.deepEqual(build.protocols, [{ name: "Spaceport Launcher", schemes: ["reminth"] }]);
   assert.equal(build.nsis.perMachine, false, "a per-user install writes the scheme under HKCU");
 });

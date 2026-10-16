@@ -82,7 +82,7 @@ test("the Night home page has everything the code paints", () => {
 test("Home v2: LAUNCH GAME, tiers hidden for now, the 12 servers and their pictures", () => {
   const html = read("src", "renderer", "index.html");
   const renderer = read("src", "renderer", "renderer.js");
-  assert.match(html, /<b>Launch game<\/b><\/span>\s*<span class="nh-play-sub">Launch Reminth<\/span>/, "the button says LAUNCH GAME, Launch Reminth under it");
+  assert.match(html, /<b>Launch game<\/b><\/span>\s*<span class="nh-play-sub">Launch Spaceport<\/span>/, "the button says LAUNCH GAME, Launch Spaceport under it");
   assert.ok(renderer.includes('btn.querySelector(".nh-play-title b")'), "progress text goes into the title, not over the whole button");
   assert.ok(html.includes('<section class="nh-card" id="nhTiers" hidden>'), "PvP tiers is hidden, not deleted");
   assert.ok(!html.includes('class="nh-foot"'), "the old bottom row is gone");

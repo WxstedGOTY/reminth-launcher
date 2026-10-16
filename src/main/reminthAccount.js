@@ -121,7 +121,7 @@ async function emailSignIn({ mode, email, password, name } = {}) {
     cached = { user: r.data.user, at: Date.now() };
     return { user: r.data.user };
   } catch {
-    return { error: "offline", message: "Can't reach Reminth right now. Check your internet and try again." };
+    return { error: "offline", message: "Can't reach Spaceport right now. Check your internet and try again." };
   }
 }
 
@@ -184,7 +184,7 @@ async function friendsCall(pathname, body) {
     if (r.status !== 200 || !r.data) return { error: (r.data && r.data.error) || "failed", message: (r.data && r.data.message) || "That didn't work. Try again." };
     return r.data;
   } catch {
-    return { error: "offline", message: "Can't reach Reminth right now." };
+    return { error: "offline", message: "Can't reach Spaceport right now." };
   }
 }
 const friendsList = () => friendsCall("/api/friends");

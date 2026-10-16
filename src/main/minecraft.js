@@ -93,7 +93,7 @@ async function ensureInstalled(instance, onProgress) {
       forgeInstall = await forge.prepare({ installer, assertUrl: assertDownloadUrl, report });
       profile = mergeLoaderProfile(vanilla, forgeInstall.versionJson);
     } else {
-      throw new Error(`Reminth doesn't know the ${loader} loader.`);
+      throw new Error(`Spaceport doesn't know the ${loader} loader.`);
     }
     profile.loader = loader;
     profile.loaderVersion = loaderVersion;
@@ -197,7 +197,7 @@ async function ensureInstalled(instance, onProgress) {
   // as the player's own copies and are never updated again.
   if (fabricLike) {
     const adopted = await adoptLegacyManagedMods(gameDir, { perf: wantsPerfMods, usedBefore: Boolean(instance.lastPlayed) }).catch(() => []);
-    if (adopted.length) modLog.push(`Took over ${adopted.length} mod file(s) an older Reminth installed: ${adopted.join(", ")}`);
+    if (adopted.length) modLog.push(`Took over ${adopted.length} mod file(s) an older Spaceport installed: ${adopted.join(", ")}`);
   }
   if (wantsHud || wantsPerfMods || bundled.length) {
     await fsp.mkdir(modsDir, { recursive: true });
@@ -316,7 +316,7 @@ async function ensureInstalled(instance, onProgress) {
       // to have installed (see tidyManagedMods).
       dropPerf: !wantsPerfMods,
     });
-    if (removed.length) report(`Removed ${removed.length} mod(s) Reminth no longer installs`, 0, 1);
+    if (removed.length) report(`Removed ${removed.length} mod(s) Spaceport no longer installs`, 0, 1);
   }
   removed = [...misfits, ...removed];
 
@@ -617,7 +617,7 @@ function launch(installResult, account, onCrash, settings = {}, instance = {}, o
     "${user_type}": "msa",
     "${version_type}": versionType || "release",
     "${natives_directory}": nativesDir || paths.NATIVES_DIR,
-    "${launcher_name}": "Reminth",
+    "${launcher_name}": "Spaceport",
     "${launcher_version}": settings.appVersion || "1.0.0",
     "${classpath}": classpath,
     "${classpath_separator}": ";",
@@ -1991,7 +1991,7 @@ function planStepAside({ mods, managed, tracked, mcVersion = null }) {
   if (tracked === null) return plan; // can't tell whose is whose - change nothing
   const { ours, disown, loaded, reminth, playerUsable } = splitLoadedMods({ mods, managed, tracked, mcVersion });
   plan.disown = disown;
-  for (const file of disown) plan.lines.push(`${file} is yours now: you installed it through the mod browser, so Reminth won't update or remove it`);
+  for (const file of disown) plan.lines.push(`${file} is yours now: you installed it through the mod browser, so Spaceport won't update or remove it`);
 
   const going = new Set(); // lower-cased files already in plan.remove
   const drop = (item, reason, because, problem = null) => {
@@ -2713,10 +2713,10 @@ async function downloadPerformancePack(instance, modsDir, options = {}) {
         manifest.files[prior.file] = { mod: key };
         present.push(prior.file);
         manifestChanged = true;
-        logLines.push(`${label} is switched on again - Reminth keeps it up to date from now on`);
+        logLines.push(`${label} is switched on again - Spaceport keeps it up to date from now on`);
       } else {
         states[key] = { state: "switched-off-by-you", file: null, version: null, detail: prior.by === "disabled" ? "You switched it off" : "You removed it" };
-        logLines.push(`Left ${label} out: you ${prior.by === "disabled" ? "switched it off" : "removed it"}, so Reminth doesn't put it back (Restore on the instance page brings it back)`);
+        logLines.push(`Left ${label} out: you ${prior.by === "disabled" ? "switched it off" : "removed it"}, so Spaceport doesn't put it back (Restore on the instance page brings it back)`);
         continue;
       }
     } else if (managedFiles.length && !present.length) {
@@ -2726,7 +2726,7 @@ async function downloadPerformancePack(instance, modsDir, options = {}) {
       manifest.optedOut[key] = { by: disabled ? "disabled" : "deleted", file: disabled || managedFiles[0], at: new Date(now).toISOString() };
       manifestChanged = true;
       states[key] = { state: "switched-off-by-you", file: null, version: null, detail: disabled ? "You switched it off" : "You removed it" };
-      logLines.push(`Left ${label} out: you ${disabled ? "switched it off" : "removed it"}, so Reminth doesn't put it back (Restore on the instance page brings it back)`);
+      logLines.push(`Left ${label} out: you ${disabled ? "switched it off" : "removed it"}, so Spaceport doesn't put it back (Restore on the instance page brings it back)`);
       continue;
     }
     queue.push({ entry, key, hasManagedCopy: present.length > 0, present });

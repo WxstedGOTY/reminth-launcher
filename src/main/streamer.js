@@ -305,7 +305,7 @@ async function takeScreenshot() {
   await fsp.mkdir(dir, { recursive: true });
   // The name is to the second: a second shot in the same second gets "-2"
   // instead of replacing the first ("wx" refuses a name that's taken).
-  const base = `Reminth-${stamp()}`;
+  const base = `Spaceport-${stamp()}`;
   const png = game.thumbnail.toPNG();
   let file;
   for (let n = 1; ; n++) {
@@ -342,7 +342,7 @@ async function saveClip() {
     await Promise.all(closed.map((s) => writeQueues.get(s.n) || Promise.resolve()));
     const dir = captureDirs().clips;
     await fsp.mkdir(dir, { recursive: true });
-    const file = path.join(dir, `Reminth-clip-${stamp(new Date(requestedAt))}.webm`);
+    const file = path.join(dir, `Spaceport-clip-${stamp(new Date(requestedAt))}.webm`);
     const { durationMs } = await webm.joinSegments(closed, requestedAt - config.clipSeconds * 1000, file);
     const secs = Math.round(durationMs / 1000);
     toast("Clip saved", `Last ${secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`} · ${path.basename(file)}`);

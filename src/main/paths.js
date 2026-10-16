@@ -8,10 +8,18 @@ const os = require("os");
 // third-party launcher required or referenced. Everything lives under
 // %APPDATA%\Reminth, separate from the real .minecraft folder so Reminth
 // never touches a player's existing vanilla installation.
+// The folder keeps the launcher's first name (it was renamed Spaceport Launcher on 16 Oct 2026): moving it would lose
+// every player's instances, settings and sign-in.
 const ROOT = path.join(os.homedir(), "AppData", "Roaming", "Reminth");
 const INSTANCE_DIR = path.join(ROOT, "instance");
 
+function capturesDir(home = os.homedir(), exists = (p) => require("fs").existsSync(p)) {
+  const old = path.join(home, "Videos", "Reminth");
+  return exists(old) ? old : path.join(home, "Videos", "Spaceport Launcher");
+}
+
 module.exports = {
+  capturesDir, // for tests
   ROOT,
   INSTANCE_DIR,
   VERSIONS_DIR: path.join(INSTANCE_DIR, "versions"),
@@ -53,7 +61,8 @@ module.exports = {
   // Streamer mode: rolling replay buffer segments (temporary, pruned
   // continuously) and where finished screenshots/clips are saved.
   REPLAY_BUFFER_DIR: path.join(ROOT, "replay-buffer"),
-  CAPTURES_DIR: path.join(os.homedir(), "Videos", "Reminth"),
+  // Players who already have clips in VideosReminth keep that folder; everyone else gets the new name.
+  CAPTURES_DIR: capturesDir(),
   ACCOUNTS_FILE: path.join(ROOT, "account.json"),
   SETTINGS_FILE: path.join(ROOT, "settings.json"),
   SKIN_CACHE_DIR: path.join(ROOT, "skin-cache"),

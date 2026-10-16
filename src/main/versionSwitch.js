@@ -148,7 +148,7 @@ async function switchVersion(id, mcVersion, deps = {}) {
 
   // --- 1. allowed at all?
   if (running()) throw new Error("Close the game first - that instance is running.");
-  if (before.modpack) throw new Error(`${before.name}'s mods belong to its modpack, so Reminth doesn't change them here. Make a new instance instead.`);
+  if (before.modpack) throw new Error(`${before.name}'s mods belong to its modpack, so Spaceport doesn't change them here. Make a new instance instead.`);
   if (before.loader === "vanilla") throw new Error(`${before.name} is a vanilla instance - it has no mods to update.`);
   if (before.mcVersion === mcVersion) throw new Error(`${before.name} is already on Minecraft ${mcVersion}.`);
   if (compareMc(mcVersion, before.mcVersion) === -1 && (await d.countWorlds(before.gameDir)) > 0) {

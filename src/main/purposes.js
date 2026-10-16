@@ -29,7 +29,7 @@ const FABRIC_LIKE = ["fabric", "quilt"];
 const ALL_LOADERS = ["fabric", "quilt", "forge", "neoforge", "vanilla"];
 
 const MINIMAP =
-  "Reminth switches its radar (dots for players and mobs) and cave view off - most servers only ban those. Hypixel and MCC Island ban every minimap.";
+  "Spaceport switches its radar (dots for players and mobs) and cave view off - most servers only ban those. Hypixel and MCC Island ban every minimap.";
 const WORLD_MAP = "A map of where you have been - no radar. Fine on most servers; check the rules of the server you play on.";
 
 // Ready-made settings (the mod's own file format, as the mods write it themselves).
@@ -83,7 +83,7 @@ function pack(slug, title, why, extra = {}) {
 /* Performance: its own card (it used to be a tab under every playstyle) */
 /* ------------------------------------------------------------------ */
 const PERFORMANCE_NOTE =
-  "Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux come with Reminth's own performance pack (Settings, or the Performance pack switch of the instance). These are on top of that.";
+  "Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux come with Spaceport's own performance pack (Settings, or the Performance pack switch of the instance). These are on top of that.";
 
 const PERFORMANCE = {
   core: [
@@ -144,7 +144,7 @@ const GOALS = {
       pack("clearer-slot-highlight", "Clearer Slot Highlight", "Makes the slot under your mouse easier to see."),
     ],
     more: [
-      mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Reminth starts it early, so the first inventory open doesn't freeze."),
+      mod("jei", "Just Enough Items", "Look up any item's recipe and uses. Spaceport starts it early, so the first inventory open doesn't freeze."),
       mod("continuity", "Continuity", "Connected glass and bookshelves, like in the trailers."),
       mod("ambientsounds", "AmbientSounds", "Wind, birds, water and caves sound alive."),
       mod("sound-physics-remastered", "Sound Physics Remastered", "Sound gets muffled behind walls and echoes in caves."),

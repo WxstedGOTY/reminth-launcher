@@ -30,7 +30,7 @@ const PROFILES = {
     id: "balanced",
     title: "Balanced",
     description: [
-      "Reminth's performance pack and Java settings, with Minecraft's own video settings.",
+      "Spaceport's performance pack and Java settings, with Minecraft's own video settings.",
       "Nothing about how the game looks or plays is changed.",
     ],
     extras: [],
