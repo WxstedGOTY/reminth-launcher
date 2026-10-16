@@ -138,27 +138,27 @@ const durationChoices = Object.keys(DURATIONS).map((k) => ({ name: DURATION_NAME
 const HELP_TOPICS = {
   signin: {
     title: "Signing in with Microsoft",
-    text: "Reminth shows a short code and opens **microsoft.com/link**. Enter the code there and sign in with the Microsoft account that owns Minecraft: Java Edition. Your password only ever goes to Microsoft. If the code runs out, press **Get a new code**.",
+    text: "Spaceport shows a short code and opens **microsoft.com/link**. Enter the code there and sign in with the Microsoft account that owns Minecraft: Java Edition. Your password only ever goes to Microsoft. If the code runs out, press **Get a new code**.",
   },
   account: {
-    title: "Your Reminth account",
-    text: `Reminth asks for a Reminth account the first time you open it - Discord or email. The same account works on the website: ${SITE}/account (sign out, connect another way, delete it). Signed in with Discord? Use **/verify** here for the Reminth Player role.`,
+    title: "Your Spaceport account",
+    text: `Spaceport asks for a Spaceport account the first time you open it - Discord or email. The same account works on the website: ${SITE}/account (sign out, connect another way, delete it). Signed in with Discord? Use **/verify** here for the Spaceport Player role.`,
   },
   mods: {
     title: "Mods that won't load",
-    text: "Reminth checks your mods before the game starts, tells you which ones won't load and why, and can fix them in one click. It can also work out which Minecraft version fits all your mods. Still stuck? Use **/bug** and say which mods.",
+    text: "Spaceport checks your mods before the game starts, tells you which ones won't load and why, and can fix them in one click. It can also work out which Minecraft version fits all your mods. Still stuck? Use **/bug** and say which mods.",
   },
   performance: {
     title: "Performance mods",
-    text: "On Fabric and Quilt instances Reminth adds Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux for you (plus Fabric API), stable builds from Modrinth only. It leaves out any that clash with your mods, and you can switch the pack off per instance.",
+    text: "On Fabric and Quilt instances Spaceport adds Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux for you (plus Fabric API), stable builds from Modrinth only. It leaves out any that clash with your mods, and you can switch the pack off per instance.",
   },
   panel: {
-    title: "The Reminth Mods Panel",
-    text: "Press **G** in Minecraft (1.20.1 to 26.3) for about 145 of Reminth's own features - FPS, keystrokes, armor status, potion timers, zoom, hit markers, chat timestamps, a combo counter and more - with profiles and a HUD layout editor.",
+    title: "The Spaceport Mods Panel",
+    text: "Press **G** in Minecraft (1.20.1 to 26.3) for about 145 of Spaceport's own features - FPS, keystrokes, armor status, potion timers, zoom, hit markers, chat timestamps, a combo counter and more - with profiles and a HUD layout editor.",
   },
   install: {
-    title: "Installing Reminth",
-    text: `Download it from ${SITE} (Windows 10/11, needs Minecraft: Java Edition), run the installer, sign in and press Play. Reminth sets up Minecraft, Fabric and Java by itself. Updates install themselves.`,
+    title: "Installing Spaceport",
+    text: `Download it from ${SITE} (Windows 10/11, needs Minecraft: Java Edition), run the installer, sign in and press Play. Spaceport sets up Minecraft, Fabric and Java by itself. Updates install themselves.`,
   },
 };
 
@@ -181,50 +181,55 @@ export const COMMANDS = [
     options: [
       { type: 1, name: "setup", description: "Turn on: spam, mass pings (10 min timeout), invite links, slurs", options: [{ type: 5, name: "swearing", description: "Also block swear words", required: false }] },
       { type: 1, name: "status", description: "Show what's on" },
-      { type: 1, name: "off", description: "Turn Reminth's rules off" },
+      { type: 1, name: "off", description: "Turn Spaceport's rules off" },
     ] },
   { name: "config", description: "Set the bot up", default_member_permissions: String(P.MANAGE_GUILD), dm_permission: false,
     options: [
       { type: 1, name: "modlog", description: "Where the mod log goes", options: [{ type: 7, name: "channel", description: "Channel", required: true, channel_types: [0] }] },
       { type: 1, name: "bugs", description: "Where /bug reports go", options: [{ type: 7, name: "channel", description: "Channel", required: true, channel_types: [0, 15] }] },
-      { type: 1, name: "player-role", description: "The role for people with a Reminth account", options: [{ type: 8, name: "role", description: "Role", required: true }] },
+      { type: 1, name: "player-role", description: "The role for people with a Spaceport account", options: [{ type: 8, name: "role", description: "Role", required: true }] },
       { type: 1, name: "show", description: "Show the bot's settings" },
     ] },
-  { name: "download", description: "Get Reminth" },
-  { name: "changelog", description: "What's new in the latest Reminth" },
+  { name: "download", description: "Get Spaceport" },
+  { name: "changelog", description: "What's new in the latest Spaceport" },
   { name: "help", description: "Answers to common questions", options: [s("topic", "What about", true, { choices: Object.keys(HELP_TOPICS).map((k) => ({ name: HELP_TOPICS[k].title, value: k })) })] },
-  { name: "bug", description: "Report a bug in Reminth" },
-  { name: "account", description: "Your Reminth account (only you see this)" },
-  { name: "verify", description: "Get the Reminth Player role (needs a Reminth account with this Discord)" },
-  { name: "pull", description: "Owner: add everyone who signed in to Reminth with Discord", default_member_permissions: String(P.ADMIN), dm_permission: false },
-  { name: "stats", description: "Owner: Reminth account numbers", default_member_permissions: String(P.ADMIN), dm_permission: false },
+  { name: "bug", description: "Report a bug in Spaceport" },
+  { name: "account", description: "Your Spaceport account (only you see this)" },
+  { name: "verify", description: "Get the Spaceport Player role (needs a Spaceport account with this Discord)" },
+  { name: "pull", description: "Owner: add everyone who signed in to Spaceport with Discord", default_member_permissions: String(P.ADMIN), dm_permission: false },
+  { name: "stats", description: "Owner: Spaceport account numbers", default_member_permissions: String(P.ADMIN), dm_permission: false },
 ];
 
-/** Turns on (or updates) Reminth's AutoMod rules. `existing`: the server's current rules. Used by /automod and the server builder. */
+// Our AutoMod rules' names start with "Spaceport: " - or "Reminth: ", the launcher's name until 16 Oct 2026. Rules made under
+// the old name are found and renamed (PATCH below), never made a second time.
+const OUR_RULE = /^(?:Spaceport|Reminth): /;
+const ruleKind = (name) => String(name).replace(OUR_RULE, "");
+
+/** Turns on (or updates) Spaceport's AutoMod rules. `existing`: the server's current rules. Used by /automod and the server builder. */
 export async function setupAutomod(env, g, swearing, by, existing) {
   const log = await getConfig(env, "modlog_channel");
-  const ours = existing.filter((r) => String(r.name).startsWith("Reminth: "));
+  const ours = existing.filter((r) => OUR_RULE.test(String(r.name)));
   const alert = log ? [{ type: 2, metadata: { channel_id: log } }] : [];
   const block = (msg) => ({ type: 1, metadata: { custom_message: msg } });
   const rules = [
-    { name: "Reminth: spam", event_type: 1, trigger_type: 3, actions: [block("That looked like spam, so it was blocked."), ...alert] },
-    { name: "Reminth: mass pings", event_type: 1, trigger_type: 5, trigger_metadata: { mention_total_limit: 5, mention_raid_protection_enabled: true },
+    { name: "Spaceport: spam", event_type: 1, trigger_type: 3, actions: [block("That looked like spam, so it was blocked."), ...alert] },
+    { name: "Spaceport: mass pings", event_type: 1, trigger_type: 5, trigger_metadata: { mention_total_limit: 5, mention_raid_protection_enabled: true },
       actions: [block("Too many pings in one message."), { type: 3, metadata: { duration_seconds: 600 } }, ...alert] },
-    { name: "Reminth: invite links", event_type: 1, trigger_type: 1,
+    { name: "Spaceport: invite links", event_type: 1, trigger_type: 1,
       trigger_metadata: { regex_patterns: ["(?:discord\\.gg|discord(?:app)?\\.com/invite)/[a-z0-9-]+"] },
       actions: [block("Invite links to other servers aren't allowed here."), ...alert] },
-    { name: "Reminth: bad words", event_type: 1, trigger_type: 4, trigger_metadata: { presets: swearing ? [1, 2, 3] : [2, 3] },
+    { name: "Spaceport: bad words", event_type: 1, trigger_type: 4, trigger_metadata: { presets: swearing ? [1, 2, 3] : [2, 3] },
       actions: [block("That message was blocked by the server's filter."), ...alert] },
   ];
   const done = [];
   const problems = [];
   for (const rule of rules) {
-    const have = ours.find((r) => r.name === rule.name) || ([3, 4, 5].includes(rule.trigger_type) && existing.find((r) => r.trigger_type === rule.trigger_type));
+    const have = ours.find((r) => ruleKind(r.name) === ruleKind(rule.name)) || ([3, 4, 5].includes(rule.trigger_type) && existing.find((r) => r.trigger_type === rule.trigger_type));
     const r = have
       ? await dapi(env, "PATCH", `/guilds/${g}/auto-moderation/rules/${have.id}`, { name: rule.name, actions: rule.actions, enabled: true, ...(rule.trigger_metadata ? { trigger_metadata: rule.trigger_metadata } : {}) }, `automod setup by ${by}`)
       : await dapi(env, "POST", `/guilds/${g}/auto-moderation/rules`, { ...rule, enabled: true }, `automod setup by ${by}`);
-    if (r.ok) done.push(rule.name.slice(9));
-    else problems.push(`${rule.name.slice(9)}: ${(r.data && r.data.message) || r.status}`);
+    if (r.ok) done.push(ruleKind(rule.name));
+    else problems.push(`${ruleKind(rule.name)}: ${(r.data && r.data.message) || r.status}`);
   }
   return { done, problems, log };
 }
@@ -237,7 +242,7 @@ const HANDLERS = {
     if (why) return say(why);
     const reason = opt(i, "reason") || "No reason given";
     const target = userOf(i, id);
-    await dm(env, id, `You were banned from the Reminth Discord server. Reason: ${reason}`);
+    await dm(env, id, `You were banned from the Spaceport Discord server. Reason: ${reason}`);
     const r = await dapi(env, "PUT", `/guilds/${i.guild_id}/bans/${id}`, { delete_message_seconds: Number(opt(i, "delete_messages") || 0) }, `${tag(invoker(i))}: ${reason}`);
     if (!r.ok) return say(botError(r, "ban"));
     await modLog(env, { title: "Banned", color: RED, fields: [{ name: "Who", value: tag(target) }, { name: "By", value: tag(invoker(i)) }, { name: "Reason", value: clip(reason, 1000) }] });
@@ -260,7 +265,7 @@ const HANDLERS = {
     const why = await canActOn(env, i, id);
     if (why) return say(why);
     const reason = opt(i, "reason") || "No reason given";
-    await dm(env, id, `You were kicked from the Reminth Discord server. Reason: ${reason}`);
+    await dm(env, id, `You were kicked from the Spaceport Discord server. Reason: ${reason}`);
     const r = await dapi(env, "DELETE", `/guilds/${i.guild_id}/members/${id}`, undefined, `${tag(invoker(i))}: ${reason}`);
     if (!r.ok) return say(botError(r, "kick"));
     await modLog(env, { title: "Kicked", color: RED, fields: [{ name: "Who", value: tag(userOf(i, id)) }, { name: "By", value: tag(invoker(i)) }, { name: "Reason", value: clip(reason, 1000) }] });
@@ -279,7 +284,7 @@ const HANDLERS = {
     const until = new Date(Date.now() + secs * 1000).toISOString();
     const r = await dapi(env, "PATCH", `/guilds/${i.guild_id}/members/${id}`, { communication_disabled_until: until }, `${tag(invoker(i))}: ${reason}`);
     if (!r.ok) return say(botError(r, "time out"));
-    await dm(env, id, `You were timed out in the Reminth Discord server for ${DURATION_NAMES[d]}. Reason: ${reason}`);
+    await dm(env, id, `You were timed out in the Spaceport Discord server for ${DURATION_NAMES[d]}. Reason: ${reason}`);
     await modLog(env, { title: `Timed out (${DURATION_NAMES[d]})`, color: RED, fields: [{ name: "Who", value: tag(userOf(i, id)) }, { name: "By", value: tag(invoker(i)) }, { name: "Reason", value: clip(reason, 1000) }] });
     return say(`Timed out for ${DURATION_NAMES[d]}.`);
   },
@@ -300,7 +305,7 @@ const HANDLERS = {
     const DB = await db(env);
     await DB.prepare("INSERT INTO warnings (user_id, mod_id, reason, created_at) VALUES (?, ?, ?, ?)").bind(id, invoker(i).id, reason, now()).run();
     const n = ((await DB.prepare("SELECT COUNT(*) AS n FROM warnings WHERE user_id = ?").bind(id).first()) || {}).n || 1;
-    const told = await dm(env, id, `You got a warning in the Reminth Discord server: ${reason}`);
+    const told = await dm(env, id, `You got a warning in the Spaceport Discord server: ${reason}`);
     await modLog(env, { title: `Warning #${n}`, color: 0xfbbf24, fields: [{ name: "Who", value: tag(userOf(i, id)) }, { name: "By", value: tag(invoker(i)) }, { name: "Reason", value: reason }] });
     return say(`Warned. That's warning #${n} for them.${told ? "" : " (Their DMs are closed, so they weren't told.)"}`);
   },
@@ -344,7 +349,7 @@ const HANDLERS = {
     const g = i.guild_id;
     const existing = await dapi(env, "GET", `/guilds/${g}/auto-moderation/rules`);
     if (!existing.ok) return say(botError(existing, "read AutoMod"));
-    const ours = (existing.data || []).filter((r) => String(r.name).startsWith("Reminth: "));
+    const ours = (existing.data || []).filter((r) => OUR_RULE.test(String(r.name)));
     const mode = sub(i);
     if (mode === "status") {
       if (!(existing.data || []).length) return say("AutoMod is off. Turn it on with `/automod setup`.");
@@ -352,7 +357,7 @@ const HANDLERS = {
     }
     if (mode === "off") {
       for (const r of ours) await dapi(env, "DELETE", `/guilds/${g}/auto-moderation/rules/${r.id}`, undefined, `automod off by ${tag(invoker(i))}`);
-      return say(ours.length ? `Turned off ${ours.length} rule${ours.length === 1 ? "" : "s"}.` : "None of Reminth's rules were on.");
+      return say(ours.length ? `Turned off ${ours.length} rule${ours.length === 1 ? "" : "s"}.` : "None of Spaceport's rules were on.");
     }
     // setup
     const out = await setupAutomod(env, g, Boolean(opt(i, "swearing")), tag(invoker(i)), existing.data || []);
@@ -375,20 +380,20 @@ const HANDLERS = {
     }
     if (mode === "player-role") {
       await setConfig(env, "player_role", opt(i, "role"));
-      return say(`Reminth players get <@&${opt(i, "role")}>. My own role must be **above** it in Server Settings -> Roles, or I can't give it.`);
+      return say(`Spaceport players get <@&${opt(i, "role")}>. My own role must be **above** it in Server Settings -> Roles, or I can't give it.`);
     }
     const [m, b, r] = [await getConfig(env, "modlog_channel"), await getConfig(env, "bugs_channel"), await getConfig(env, "player_role")];
     return say(`Mod log: ${m ? `<#${m}>` : "not set"}\nBug reports: ${b ? `<#${b}>` : "not set"}\nPlayer role: ${r ? `<@&${r}>` : "not set"}\nRelease posts: a GitHub webhook (not set here)`);
   },
   async download(env) {
     const rel = await latestRelease(env);
-    return sayEmbed({ title: "Get Reminth", url: SITE, color: COLOR,
-      description: `Free Minecraft launcher for Windows 10/11 - press G in game for the Reminth Mods Panel, performance mods set up for you, mods checked before you play.\n\n**Download:** ${SITE}${rel ? `\nLatest version: **${rel.tag}**` : ""}\nAlready have it? Reminth updates itself.` }, false);
+    return sayEmbed({ title: "Get Spaceport", url: SITE, color: COLOR,
+      description: `Free Minecraft launcher for Windows 10/11 - press G in game for the Spaceport Mods Panel, performance mods set up for you, mods checked before you play.\n\n**Download:** ${SITE}${rel ? `\nLatest version: **${rel.tag}**` : ""}\nAlready have it? Spaceport updates itself.` }, false);
   },
   async changelog(env) {
     const rel = await latestRelease(env);
     if (!rel) return say(`Couldn't reach GitHub right now. The latest changes are at ${SITE}.`);
-    return sayEmbed({ title: `What's new in Reminth ${rel.tag}`, url: rel.url, color: COLOR, description: clip(rel.body.replace(/\r\n/g, "\n").replace(/^\s*#*\s*Reminth\s+v?[\d.]+\s*\n+/i, "").trim(), 3500) || "No notes." }, false);
+    return sayEmbed({ title: `What's new in Spaceport Launcher ${rel.tag}`, url: rel.url, color: COLOR, description: clip(rel.body.replace(/\r\n/g, "\n").replace(/^\s*#*\s*Reminth\s+v?[\d.]+\s*\n+/i, "").trim(), 3500) || "No notes." }, false);
   },
   async help(env, i) {
     const t = HELP_TOPICS[opt(i, "topic")];
@@ -401,7 +406,7 @@ const HANDLERS = {
       type: 9,
       data: {
         custom_id: "bug",
-        title: "Report a bug in Reminth",
+        title: "Report a bug in Spaceport",
         components: [
           row({ type: 4, custom_id: "what", label: "What happened?", style: 2, required: true, max_length: 1000, placeholder: "The game crashes when I open the G panel on 1.21.4" }),
           row({ type: 4, custom_id: "steps", label: "How can we make it happen again?", style: 2, required: false, max_length: 1000 }),
@@ -413,7 +418,7 @@ const HANDLERS = {
   async account(env, i) {
     const me = invoker(i);
     const row = await (await db(env)).prepare("SELECT account_id FROM identities WHERE provider = 'discord' AND subject = ?").bind(String(me.id)).first();
-    if (!row) return say(`This Discord isn't linked to a Reminth account yet. Sign in with Discord in Reminth, or at ${SITE}/account.`);
+    if (!row) return say(`This Discord isn't linked to a Spaceport account yet. Sign in with Discord in Spaceport, or at ${SITE}/account.`);
     const a = await accountView(env, row.account_id);
     const names = { discord: "Discord", google: "Google", email: "email" };
     return sayEmbed({ title: a.name, color: COLOR, thumbnail: a.avatarUrl ? { url: a.avatarUrl } : undefined,
@@ -423,10 +428,10 @@ const HANDLERS = {
   async verify(env, i) {
     const me = invoker(i);
     const row = await (await db(env)).prepare("SELECT account_id FROM identities WHERE provider = 'discord' AND subject = ?").bind(String(me.id)).first();
-    if (!row) return say(`No Reminth account with this Discord yet. Sign in with Discord in Reminth (or at ${SITE}/account), then run /verify again.`);
+    if (!row) return say(`No Spaceport account with this Discord yet. Sign in with Discord in Spaceport (or at ${SITE}/account), then run /verify again.`);
     const role = await getConfig(env, "player_role");
-    if (!role) return say("You have a Reminth account ✅ (the server hasn't set up the Player role yet).");
-    const r = await dapi(env, "PUT", `/guilds/${i.guild_id}/members/${me.id}/roles/${role}`, undefined, "Reminth account verified");
+    if (!role) return say("You have a Spaceport account ✅ (the server hasn't set up the Player role yet).");
+    const r = await dapi(env, "PUT", `/guilds/${i.guild_id}/members/${me.id}/roles/${role}`, undefined, "Spaceport account verified");
     if (!r.ok) return say(botError(r, "give you the role"));
     return say(`Verified ✅ You have <@&${role}> now.`);
   },
@@ -453,7 +458,7 @@ const HANDLERS = {
     const DB = await db(env);
     const one = async (sql) => ((await DB.prepare(sql).first()) || {}).n || 0;
     const day = now() - 86400;
-    return sayEmbed({ title: "Reminth accounts", color: COLOR, fields: [
+    return sayEmbed({ title: "Spaceport accounts", color: COLOR, fields: [
       { name: "Accounts", value: String(await one("SELECT COUNT(*) AS n FROM accounts")), inline: true },
       { name: "New today", value: String(await one(`SELECT COUNT(*) AS n FROM accounts WHERE created_at > ${day}`)), inline: true },
       { name: "Active today", value: String(await one(`SELECT COUNT(*) AS n FROM accounts WHERE last_login > ${day}`)), inline: true },
@@ -533,8 +538,8 @@ async function bugSubmitted(env, i) {
 /** Everything Discord sends. Returns the answer (Discord waits 3 seconds at most - slow work is deferred). */
 export async function handleInteraction(env, i, ctx) {
   if (i.type === 1) return { type: 1 }; // Discord checking the address
-  if (!i.guild_id) return say("Use me in the Reminth server.");
-  if (env.DISCORD_GUILD_ID && i.guild_id !== String(env.DISCORD_GUILD_ID)) return say("I only work in the Reminth server.");
+  if (!i.guild_id) return say("Use me in the Spaceport server.");
+  if (env.DISCORD_GUILD_ID && i.guild_id !== String(env.DISCORD_GUILD_ID)) return say("I only work in the Spaceport server.");
   if (i.type === 2) {
     const h = HANDLERS[i.data && i.data.name];
     if (!h) return say("I don't know that command (the commands may need setting up again on the website).");

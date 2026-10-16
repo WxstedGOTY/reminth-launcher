@@ -9,6 +9,7 @@ const members = new Set();
 const revoked = [];
 const log = [];
 let rules = [];
+let hookMsgSeq = 0; // webhook message ids, never reused after a delete
 let ruleId = 1;
 // the owner's real server layout (10 Oct 2026), for "Set up my server"
 const ALL = String((1n << 51n) - 1n & ~(1n << 3n)); // every permission except Administrator
@@ -97,6 +98,13 @@ http
         newMembers = JSON.parse(body);
         return send(200, {});
       }
+      // what a server set up before the launcher was renamed (16 Oct 2026) has: two AutoMod rules and a webhook under the old name
+      if (req.method === "POST" && req.url === "/_test/old-names") {
+        rules.push({ id: String(ruleId++), name: "Reminth: spam", event_type: 1, trigger_type: 3, actions: [], enabled: true });
+        rules.push({ id: String(ruleId++), name: "Reminth: invite links", event_type: 1, trigger_type: 1, actions: [], enabled: true });
+        (hooks["c-rules"] = hooks["c-rules"] || []).push({ id: "wh-c-rules", token: "tok-c-rules", name: "Reminth", channel_id: "c-rules" });
+        return send(200, {});
+      }
       if (req.method === "POST" && req.url === "/_test/release") {
         releaseTag = JSON.parse(body).tag;
         return send(200, {});
@@ -119,10 +127,16 @@ http
       const wurl = req.url.replace(/^\/v10/, "");
       let wm;
       if (req.method === "POST" && (wm = /^\/webhooks\/(wh-[\w-]+)\/(tok-[\w-]+)\?wait=true$/.exec(wurl))) {
-        const id = "hm-" + Object.keys(hookMsgs).length;
+        const id = "hm-" + hookMsgSeq++;
         hookMsgs[id] = JSON.parse(body);
         log.push({ method: "POST", url: wurl, body: JSON.parse(body) });
         return send(200, { id });
+      }
+      if (req.method === "DELETE" && (wm = /^\/webhooks\/(wh-[\w-]+)\/(tok-[\w-]+)\/messages\/([\w-]+)$/.exec(wurl))) {
+        if (!hookMsgs[wm[3]]) return send(404, { message: "Unknown Message" });
+        delete hookMsgs[wm[3]];
+        log.push({ method: "DELETE", url: wurl });
+        return send(204);
       }
       if (req.method === "PATCH" && (wm = /^\/webhooks\/(wh-[\w-]+)\/(tok-[\w-]+)\/messages\/([\w-]+)$/.exec(wurl))) {
         if (!hookMsgs[wm[3]]) return send(404, { message: "Unknown Message" });

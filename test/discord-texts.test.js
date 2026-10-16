@@ -32,7 +32,7 @@ test("channel texts: the announcement carries the release it is about", async ()
   const list = messages({});
   const ann = list.find((m) => m.job === "announcements");
   assert.equal(ann.release, RELEASE);
-  assert.match(ann.embeds[0].description, new RegExp(`Reminth ${RELEASE.replace(/\./g, "\\.")} is out`));
+  assert.match(ann.embeds[0].description, new RegExp(`Spaceport Launcher ${RELEASE.replace(/\./g, "\\.")} is out`));
   assert.deepEqual(list.filter((m) => m.keep).map((m) => m.job).sort(), ["announcements", "updates"]);
   // the announced release is never newer than the app (between releases package.json is already the next one)
   const num = (v) => v.split(".").map(Number).reduce((t, x) => t * 1000 + x, 0);

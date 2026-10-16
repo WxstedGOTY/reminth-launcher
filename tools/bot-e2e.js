@@ -66,7 +66,7 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   step("unsigned and forged requests are refused; Discord's PING gets PONG");
 
   let r = await interact({ ...cmd("download"), guild_id: "999" });
-  assert.match(content(r), /only work in the Reminth server/);
+  assert.match(content(r), /only work in the Spaceport server/);
   step("other servers are refused");
 
   // --- setup
@@ -148,24 +148,27 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   assert.ok((await log()).some((x) => x.method === "DELETE" && x.url === "/channels/chan1/messages/m4"), "one person's single message: a normal delete");
   step("/purge deletes the right messages (not pinned, not older than 14 days, only that person's)");
 
-  // --- automod
+  // --- automod (the server already has two rules and a webhook from before the rename)
+  await fetch(`${MOCK}/_test/old-names`, { method: "POST", body: "{}" });
   r = await interact(cmd("automod", [subcmd("setup", [o("swearing", false, 5)])]));
   assert.match(content(r), /AutoMod is on: spam, mass pings, invite links, bad words/);
   r = await interact(cmd("automod", [subcmd("setup", [o("swearing", true, 5)])]));
   assert.match(content(r), /AutoMod is on/);
   assert.doesNotMatch(content(r), /Couldn't/);
   L = await log();
-  assert.equal(L.filter((x) => x.method === "POST" && x.url === "/guilds/555/auto-moderation/rules").length, 4, "the second setup updates, it doesn't duplicate");
-  const words = L.reverse().find((x) => x.method === "PATCH" && x.body && x.body.name === "Reminth: bad words");
+  assert.equal(L.filter((x) => x.method === "POST" && x.url === "/guilds/555/auto-moderation/rules").length, 2, "the two old-named rules are reused; the second setup updates, it doesn't duplicate");
+  assert.ok(L.some((x) => x.method === "PATCH" && x.body && x.body.name === "Spaceport: spam"), "the old 'Reminth: spam' is renamed");
+  assert.ok(L.some((x) => x.method === "PATCH" && x.body && x.body.name === "Spaceport: invite links"), "the old 'Reminth: invite links' is renamed");
+  const words = L.reverse().find((x) => x.method === "PATCH" && x.body && x.body.name === "Spaceport: bad words");
   assert.deepEqual(words.body.trigger_metadata.presets, [1, 2, 3]);
-  const pings = L.find((x) => x.body && x.body.name === "Reminth: mass pings");
+  const pings = L.find((x) => x.body && x.body.name === "Spaceport: mass pings");
   assert.ok(pings.body.actions.some((a) => a.type === 3 && a.metadata.duration_seconds === 600), "mass pings: 10 minute timeout");
   assert.ok(pings.body.actions.some((a) => a.type === 2 && a.metadata.channel_id === "modlog-ch"), "reported in the mod log");
   r = await interact(cmd("automod", [subcmd("status")]));
-  assert.match(content(r), /Reminth: spam[\s\S]*Reminth: bad words/);
+  assert.match(content(r), /Spaceport: spam[\s\S]*Spaceport: bad words/);
   r = await interact(cmd("automod", [subcmd("off")]));
   assert.match(content(r), /Turned off 4 rules/);
-  step("/automod setup (spam, mass pings + timeout, invite links, bad words), again without duplicates, status, off");
+  step("/automod setup (spam, mass pings + timeout, invite links, bad words) - rules from before the rename renamed, not doubled - again without duplicates, status, off");
 
   // --- everyone's commands
   r = await interact(cmd("download", [], member("50", [], "0")));
@@ -302,11 +305,12 @@ const content = (r) => (r.data && r.data.data && (r.data.data.content || (r.data
   assert.ok(/Support & Applications/.test(all) && /Server Rules/.test(all) && /Frequently asked questions/.test(all) && /x\.com\/reminthsupport/.test(all), "rules, faq, socials");
   assert.ok(!/@everyone/.test(all), "no @everyone ping");
   assert.ok(/<#c-cmd>/.test(all) && /<#c-sup>/.test(all), "mentions his real #commands and #support");
-  assert.ok(Object.values(G.hookMsgs).every((b) => b.username === "Reminth"), "sent as 'Reminth'");
+  assert.ok(Object.values(G.hookMsgs).every((b) => b.username === "Spaceport Launcher"), "sent as 'Spaceport Launcher'");
+  assert.equal(G.hooks["c-rules"].length, 1, "#rules reuses its webhook from before the rename");
   await run("messages");
   G = await MOCKG();
-  assert.equal(Object.keys(G.hookMsgs).length, 6, "the second time edits, no new messages");
-  step("channel messages: 6 posted by the Reminth webhook (rules, announcement, updates, socials, faq, read-first), the second time edited");
+  assert.equal(Object.keys(G.hookMsgs).length, 6, "the second time: rules, faq, socials and read-first deleted and posted again, announcements and updates unchanged - still 6");
+  step("channel messages: 6 posted by the launcher's webhook (rules, announcement, updates, socials, faq, read-first), the second time posted again in place of the old ones (never edited, never doubled)");
 
   // --- the every-minute check
   const tick = async () => (await fetch(`${BASE}/api/discord/tick`, { method: "POST" })).json();

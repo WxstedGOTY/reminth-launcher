@@ -208,7 +208,7 @@ async function release(env) {
   const notes = String(rel.body || "").replace(/\r\n/g, "\n").replace(/^\s*#*\s*Reminth\s+v?[\d.]+\s*\n+/i, "").trim().slice(0, 3500);
   const res = await dapi(env, "POST", `/channels/${ch}/messages`, {
     content: role ? `<@&${role}>` : undefined,
-    embeds: [{ title: `Reminth ${tag} is out`, url: SITE, color: 0xff4a1c, description: `${notes}\n\n**Download:** ${SITE}\nAlready have Reminth? It updates by itself.`, timestamp: rel.published || undefined }],
+    embeds: [{ title: `Spaceport Launcher ${tag} is out`, url: SITE, color: 0xff4a1c, description: `${notes}\n\n**Download:** ${SITE}\nAlready have Spaceport? It updates by itself.`, timestamp: rel.published || undefined }],
     allowed_mentions: { roles: role ? [role] : [] },
   });
   return { tag, posted: res.ok };

@@ -130,7 +130,7 @@ export async function setupStep(env, step) {
         // staff roles get exactly the owner's permissions; the others keep none (in case something was added)
         if (BigInt(have.permissions) !== plan.perms) {
           if (calls >= 12) return { step, next: step, log };
-          const r = await dapi(env, "PATCH", `/guilds/${g}/roles/${have.id}`, { permissions: s(plan.perms) }, "Reminth setup: permissions");
+          const r = await dapi(env, "PATCH", `/guilds/${g}/roles/${have.id}`, { permissions: s(plan.perms) }, "Spaceport setup: permissions");
           calls++;
           if (retry(r)) return wait(r);
           if (!r.ok) return stop(`Changing the role ${plan.name}`, r);
@@ -139,7 +139,7 @@ export async function setupStep(env, step) {
         continue;
       }
       if (calls >= 12) return { step, next: step, log }; // the rest in the next call
-      const r = await dapi(env, "POST", `/guilds/${g}/roles`, { name: plan.name, color: plan.color || 0, hoist: Boolean(plan.hoist), permissions: s(plan.perms), mentionable: false }, "Reminth setup");
+      const r = await dapi(env, "POST", `/guilds/${g}/roles`, { name: plan.name, color: plan.color || 0, hoist: Boolean(plan.hoist), permissions: s(plan.perms), mentionable: false }, "Spaceport setup");
       calls++;
       if (retry(r)) return wait(r);
       if (!r.ok) return stop(`Making the role ${plan.name}`, r);
@@ -153,7 +153,7 @@ export async function setupStep(env, step) {
     // our roles in order, right under the bot's own role; other roles (other bots) keep their places above ours
     const ours = ROLE_PLAN.map((p) => role(p.name)).filter(Boolean);
     const positions = ours.map((r, i) => ({ id: r.id, position: ours.length - i }));
-    const r = await dapi(env, "PATCH", `/guilds/${g}/roles`, positions, "Reminth setup: role order");
+    const r = await dapi(env, "PATCH", `/guilds/${g}/roles`, positions, "Spaceport setup: role order");
     if (retry(r)) return wait(r);
     if (!r.ok) return stop("Ordering the roles (is the bot's role at the very top?)", r);
     log.push("Roles ordered: Owner, Co-Owner, Admin, Moderator, Helper, Launcher Player, Member, then the pick-your-own roles");
@@ -163,7 +163,7 @@ export async function setupStep(env, step) {
       const now = BigInt(everyone.permissions);
       const want = now & ~NEVER_FOR_EVERYONE;
       if (want !== now) {
-        const e = await dapi(env, "PATCH", `/guilds/${g}/roles/${g}`, { permissions: s(want) }, "Reminth setup: @everyone");
+        const e = await dapi(env, "PATCH", `/guilds/${g}/roles/${g}`, { permissions: s(want) }, "Spaceport setup: @everyone");
         if (!e.ok) return stop("Changing @everyone", e);
       }
       log.push("@everyone: no threads, no external apps, slash commands only in #commands");
@@ -171,7 +171,7 @@ export async function setupStep(env, step) {
     const guild = await dapi(env, "GET", `/guilds/${g}`);
     const owner = role("Owner");
     if (guild.ok && owner) {
-      const a = await dapi(env, "PUT", `/guilds/${g}/members/${guild.data.owner_id}/roles/${owner.id}`, undefined, "Reminth setup: the server owner");
+      const a = await dapi(env, "PUT", `/guilds/${g}/members/${guild.data.owner_id}/roles/${owner.id}`, undefined, "Spaceport setup: the server owner");
       log.push(a.ok ? "You have the Owner role" : `Couldn't give you the Owner role (${a.status})`);
     }
   }
@@ -218,7 +218,7 @@ export async function setupStep(env, step) {
       if (inCommunity && mod) allow(get(mod.id, 0), PERM.MANAGE_MESSAGES);
       const body = { permission_overwrites: ow.map((o) => ({ id: o.id, type: o.type, allow: s(o.allow), deny: s(o.deny) })) };
       if (job === "general") body.rate_limit_per_user = 2;
-      const r = await dapi(env, "PATCH", `/channels/${c.id}`, body, "Reminth setup: permissions");
+      const r = await dapi(env, "PATCH", `/channels/${c.id}`, body, "Spaceport setup: permissions");
       calls++;
       if (retry(r)) return wait(r);
       if (!r.ok) return stop(`Changing #${c.name}`, r);
@@ -239,7 +239,7 @@ export async function setupStep(env, step) {
       if (mod) ow.push({ id: mod.id, type: 0, allow: s(PERM.MANAGE_MESSAGES), deny: "0" });
       const sep = (jobs.general && /([│｜|])/.exec(jobs.general.name)) || null; // the owner's own "emoji｜name" style
       const chName = sep ? `💭${sep[1]}off-topic` : "off-topic";
-      const made = await dapi(env, "POST", `/guilds/${g}/channels`, { name: chName, type: 0, parent_id: jobs.communityCategory.id, topic: "Everything else.", permission_overwrites: ow }, "Reminth setup: onboarding needs 5 chat channels");
+      const made = await dapi(env, "POST", `/guilds/${g}/channels`, { name: chName, type: 0, parent_id: jobs.communityCategory.id, topic: "Everything else.", permission_overwrites: ow }, "Spaceport setup: onboarding needs 5 chat channels");
       if (retry(made)) return wait(made);
       if (made.ok) {
         channels.push(made.data);
@@ -255,7 +255,7 @@ export async function setupStep(env, step) {
         opt("Europe (EU)", "🇪🇺", "Europe"), opt("North America (NA)", "🗽", "North America"), opt("South America (SA)", "🌴", "South America"),
         opt("Asia (AS)", "🏯", "Asia"), opt("Middle East (ME)", "🏜️", "Middle East"), opt("Africa (AF)", "🦁", "Africa"), opt("Oceania (OC)", "🦘", "Oceania")] },
       { id: fakeId(n++), type: 0, title: "⭐ What are you interested in?", single_select: false, required: false, in_onboarding: true, options: [
-        opt("Launcher Updates", "🚀", "Launcher Updates", "Get pinged when a new version of Reminth comes out"),
+        opt("Launcher Updates", "🚀", "Launcher Updates", "Get pinged when a new version of Spaceport comes out"),
         opt("Announcements", "📢", "Announcements", "Get pinged for news"),
         opt("Giveaways & Events", "🎁", "Giveaways & Events", "Get pinged for giveaways and events")] },
       { id: fakeId(n++), type: 0, title: "📱 Which socials do you want to hear from?", single_select: false, required: false, in_onboarding: true, options: [
@@ -264,7 +264,7 @@ export async function setupStep(env, step) {
         opt("I accept the rules", "✅", "Member", "Be respectful, no spam, no NSFW, no cheating, use the right channels. Full rules in #rules.")] },
     ];
     const visible = channels.filter((c) => [0, 5, 15].includes(c.type) && !(jobs.modlog && c.id === jobs.modlog.id)).map((c) => c.id);
-    const r = await dapi(env, "PUT", `/guilds/${g}/onboarding`, { prompts, default_channel_ids: visible, enabled: true, mode: 0 }, "Reminth setup: onboarding");
+    const r = await dapi(env, "PUT", `/guilds/${g}/onboarding`, { prompts, default_channel_ids: visible, enabled: true, mode: 0 }, "Spaceport setup: onboarding");
     if (retry(r)) return wait(r);
     if (!r.ok) {
       // usually: Discord wants 7 default channels with 5 where everyone can write - keep going, say why
@@ -290,7 +290,7 @@ export async function setupStep(env, step) {
     await set("youtube_role", (role("YouTube") || {}).id, "YouTube role");
     const existing = await dapi(env, "GET", `/guilds/${g}/auto-moderation/rules`);
     if (existing.ok) {
-      const a = await setupAutomod(env, g, false, "Reminth setup", existing.data || []);
+      const a = await setupAutomod(env, g, false, "Spaceport setup", existing.data || []);
       if (a.done.length) log.push(`AutoMod on: ${a.done.join(", ")}`);
       if (a.problems.length) log.push(`AutoMod couldn't set: ${a.problems.join("; ")}`);
     }
@@ -299,7 +299,7 @@ export async function setupStep(env, step) {
       const body = {};
       if ((guild.data.verification_level || 0) < 1) body.verification_level = 1; // a verified email
       if ((guild.data.explicit_content_filter || 0) < 2) body.explicit_content_filter = 2;
-      if (Object.keys(body).length) await dapi(env, "PATCH", `/guilds/${g}`, body, "Reminth setup");
+      if (Object.keys(body).length) await dapi(env, "PATCH", `/guilds/${g}`, body, "Spaceport setup");
       log.push("Members need a verified email; images are checked for explicit content");
     }
   }

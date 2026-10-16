@@ -11,7 +11,7 @@ const clearState = cookie("rm_state", "", 0);
 const page = (title, body) =>
   new Response(
     `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
-<title>${title} - Reminth</title><link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<title>${title} - Spaceport</title><link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;text-align:center;background:radial-gradient(60% 60% at 50% 40%,#2a0f08,#0c0909 70%);color:#fbf3ef;font-family:"Segoe UI",system-ui,Arial,sans-serif}
 img{width:88px;filter:drop-shadow(0 0 22px rgba(255,74,28,.45))}h1{font-size:30px;margin:22px 0 8px}p{color:#b9a9a3;margin:0 auto 22px;max-width:440px;line-height:1.5}.small{font-size:13px;margin-top:18px}
 a.btn{display:inline-block;padding:12px 22px;border-radius:12px;background:linear-gradient(180deg,#ff7a4a,#ff4a1c);color:#1c0600;font-weight:600;text-decoration:none}</style></head>
@@ -54,10 +54,10 @@ export async function onRequestGet({ request, env, params }) {
     const appLink = `reminth://auth/${appCode}`;
     return page(
       "Sign-in complete",
-      `<p>You're signed in to Reminth as <b>${escapeHtml(name)}</b>.<br>If your browser asks to open Reminth, click <b>Open</b>.</p>
-<p><b style="color:#fbf3ef">You can close this tab now and go back to Reminth.</b></p>
-<a class="btn" href="${appLink}">Open Reminth</a>
-<p class="small">Reminth didn't switch over? Press the button above.</p>
+      `<p>You're signed in to Spaceport as <b>${escapeHtml(name)}</b>.<br>If your browser asks to open Spaceport, click <b>Open</b>.</p>
+<p><b style="color:#fbf3ef">You can close this tab now and go back to Spaceport.</b></p>
+<a class="btn" href="${appLink}">Open Spaceport</a>
+<p class="small">Spaceport didn't switch over? Press the button above.</p>
 <script>setTimeout(function(){location.href=${JSON.stringify(appLink)}},300)</script>`
     );
   }

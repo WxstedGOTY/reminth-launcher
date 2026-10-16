@@ -6,7 +6,7 @@ import { handleInteraction, verifyDiscordRequest } from "../../_bot.js";
 
 export async function onRequestPost(context) {
   const { request, env } = context;
-  if (!env.DISCORD_PUBLIC_KEY) return new Response("The Reminth bot isn't set up yet.", { status: 503 });
+  if (!env.DISCORD_PUBLIC_KEY) return new Response("The Spaceport bot isn't set up yet.", { status: 503 });
   const body = await request.text();
   const ok = await verifyDiscordRequest(env.DISCORD_PUBLIC_KEY, request.headers.get("x-signature-ed25519"), request.headers.get("x-signature-timestamp"), body);
   if (!ok) return new Response("Bad signature.", { status: 401 });

@@ -51,7 +51,7 @@ export function configured(env) {
 }
 
 export function notConfigured() {
-  return json({ error: "not_configured", message: "Reminth accounts aren't switched on yet." }, 503);
+  return json({ error: "not_configured", message: "Spaceport accounts aren't switched on yet." }, 503);
 }
 
 export function randomToken(bytes = 32) {
