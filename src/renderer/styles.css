@@ -2865,13 +2865,13 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-tier[data-tier="5"] { --tc: #b4b4b4; }
 .nh-tier.retired { --tc: #8a8a8a; opacity: .75; }
 .nh-discord {
-  flex: none; display: flex; align-items: center; justify-content: center; gap: 9px; height: 54px; padding: 0 20px; border-radius: 10px;
-  color: #fff; font-size: 13.5px; font-weight: 700; text-decoration: none;
+  flex: none; display: flex; align-items: center; justify-content: center; gap: 12px; height: 70px; padding: 0 26px; border-radius: 12px; /* 30% bigger (owner, 16 Oct 2026) */
+  color: #fff; font-size: 17.5px; font-weight: 700; text-decoration: none;
   box-shadow: 0 8px 22px rgba(0, 0, 0, .4); transition: background .15s, border-color .15s;
 }
 /* Discord's own blurple and logo in every look (tools/night.js keeps lines that name discord) */
 .nh-discord { background: #5865f2; border: 1px solid #5865f2; }
-.nh-discord .nh-discord-logo { width: 22px; height: 22px; flex: none; fill: #fff; }
+.nh-discord .nh-discord-logo { width: 29px; height: 29px; flex: none; fill: #fff; }
 .nh-discord:hover { background: #4752c4; border-color: #4752c4; }
 
 /* ---- the Friends card (renderer.js "friends") ---- */
