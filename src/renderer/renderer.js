@@ -764,6 +764,7 @@ function switchPage(page) {
     buildHomeServers();
     pingHomeServers();
     loadSponsor();
+    paintMcStatIcons();
     paintHomeName();
     loadFriends();
   }
@@ -1014,6 +1015,7 @@ function applyAccountUI() {
     buildHomeServers();
     pingHomeServers();
     loadSponsor();
+    paintMcStatIcons();
   }
   if ((!signedIn || needRm) && currentPage !== "home") switchPage("home");
   paintTopChip();
@@ -3245,7 +3247,7 @@ paintFocus();
 // Small pixel pictures in the style of Minecraft's own item and block textures (owner, 15 Oct 2026: "make them better and
 // to remind more of minecraft"), 16x16, drawn here by hand - not Mojang's files. One string per row, one letter per
 // pixel: "." empty, any other letter a colour from PX_PAL. Drawn as SVG rectangles, crisp at any size.
-const PX_PAL = { k: "#121214", D: "#0f7d74", d: "#2cc5b6", l: "#9df5e6", L: "#e6fffa", W: "#4a3418", w: "#7a5a2e", v: "#a37c47", J: "#5d5d63", I: "#a9a9b0", i: "#dcdce2", B: "#8f8d82", b: "#c9c6b6", a: "#ecead9", e: "#2b2a27", C: "#2f7a28", c: "#4fa83f", m: "#7fd06a", x: "#0c140c", G: "#3f7f2a", g: "#5ea63b", h: "#86c95a", E: "#5a3a20", f: "#7a5232", F: "#9a6b44", s: "#8c8c8c" };
+const PX_PAL = { k: "#121214", D: "#0f7d74", d: "#2cc5b6", l: "#9df5e6", L: "#e6fffa", W: "#4a3418", w: "#7a5a2e", v: "#a37c47", J: "#5d5d63", I: "#a9a9b0", i: "#dcdce2", B: "#8f8d82", b: "#c9c6b6", a: "#ecead9", e: "#2b2a27", C: "#2f7a28", c: "#4fa83f", m: "#7fd06a", x: "#0c140c", G: "#3f7f2a", g: "#5ea63b", h: "#86c95a", E: "#5a3a20", f: "#7a5232", F: "#9a6b44", s: "#8c8c8c", P: "#f0a8a4", p: "#e3918e", S: "#e48f8d", n: "#8f4f4f" };
 const PX_ICONS = {
   // player kills: a diamond sword
   sword: [
@@ -3285,23 +3287,23 @@ const PX_ICONS = {
     "...kkkkkkkkkk...",
     "................",
   ],
-  // mob kills: a creeper's face
-  mob: [
+  // mob kills: a pig's face (owner, 16 Oct 2026: a pig instead of the creeper)
+  pig: [
     "kkkkkkkkkkkkkkkk",
-    "kcmccCcmcccmcCck",
-    "kcCcmccccCcccmck",
-    "kmcxxxxccxxxxcck",
-    "kccxxxxCcxxxxcCk",
-    "kcCxxxxccxxxxmck",
-    "kccxxxxcmxxxxcck",
-    "kmcccCcxxccmcCck",
-    "kcccmcxxxxcccmck",
-    "kcCcccxxxxccCcck",
-    "kccmcxxxxxxcmcck",
-    "kcmccxxxxxxccCck",
-    "kcCccxxccxxcmcck",
-    "kccmcxxcCxxcccmk",
-    "kcmcccCcccmccCck",
+    "kPPPpPPPPPPpPPPk",
+    "kPpPPPPPPPPPPpPk",
+    "kPPPPPPPPPPPPPPk",
+    "kPPPPPPPPPPPPPPk",
+    "kPaakPPPPPPkaaPk",
+    "kPaakPPPPPPkaaPk",
+    "kPPPPPPPPPPPPPPk",
+    "kPPPPSSSSSSPPPPk",
+    "kPPPPSnSSnSPPPPk",
+    "kPPPPSnSSnSPPPPk",
+    "kPpPPSSSSSSPPpPk",
+    "kPPPPPPPPPPPPPPk",
+    "kPPpPPPPPPPPPPPk",
+    "kPPPPPPPPpPPPPPk",
     "kkkkkkkkkkkkkkkk",
   ],
   // blocks broken: an iron pickaxe
@@ -3375,6 +3377,169 @@ function pxIcon(name) {
   return svg;
 }
 document.querySelectorAll("i.px-icon[data-px]").forEach((i) => i.appendChild(pxIcon(i.dataset.px)));
+
+/* ---- Home's stat icons in Minecraft's own pictures (owner, 16 Oct 2026: "exactly how they are in minecraft") ----
+ * main.js mc:textures hands over the game's diamond sword and iron pickaxe, the skeleton's and the pig's skins and the
+ * grass block, from a client jar already downloaded (never shipped with Reminth). The sword and the pickaxe are drawn
+ * flat, pixel for pixel, like in the inventory. The skeleton skull, the pig's head (its snout sticking out) and the
+ * grass block are drawn the way the inventory draws heads and blocks: a small cube seen from above, the top fully lit,
+ * the left face at 80 %, the right one at 60 %. Until a game is downloaded, the hand-drawn icons above stay. */
+const GRASS_ITEM_TINT = [145, 189, 89]; // #91BD59: the green Minecraft gives the grass block item
+const MC_SHADE = { top: 1, front: 0.8, side: 0.6 };
+
+function texPixels(img) {
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth;
+  c.height = img.naturalHeight;
+  const x = c.getContext("2d");
+  x.drawImage(img, 0, 0);
+  return { w: c.width, h: c.height, d: x.getImageData(0, 0, c.width, c.height).data };
+}
+/** A rectangle of a texture as rows of [r, g, b, a]; `tint` multiplies the colour (the grey grass top turns green). */
+function texRect(tex, x0, y0, w, h, tint) {
+  const rows = [];
+  for (let y = 0; y < h; y++) {
+    const row = [];
+    for (let x = 0; x < w; x++) {
+      const i = ((y0 + y) * tex.w + (x0 + x)) * 4;
+      const p = [tex.d[i], tex.d[i + 1], tex.d[i + 2], tex.d[i + 3]];
+      row.push(tint ? [(p[0] * tint[0]) / 255, (p[1] * tint[1]) / 255, (p[2] * tint[2]) / 255, p[3]] : p);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+/** A Minecraft model box's three visible faces from its texture (the usual box layout: u, v, width, height, depth). */
+function boxFaces(tex, u, v, w, h, d) {
+  return { top: texRect(tex, u + d, v, w, d), front: texRect(tex, u + d, v + d, w, h), side: texRect(tex, u + d + w, v + d, d, h) };
+}
+
+/**
+ * Cubes seen like in the inventory: +z comes towards the viewer on the left, +x on the right, y is up. `boxes`:
+ * [{ x, y, z, w, h, d, faces }], drawn in order (back to front). Each texture pixel is a small filled shape, grown a
+ * hair so no seams show between them.
+ */
+function drawIsoBoxes(canvas, boxes) {
+  const C = Math.cos(Math.PI / 6);
+  const at = (x, y, z) => [(x - z) * C, (x + z) * 0.5 - y];
+  const quads = [];
+  for (const b of boxes) {
+    const X = b.x + b.w, Y = b.y + b.h, Z = b.z + b.d;
+    const { top, front, side } = b.faces;
+    // top: u along x, v from the back (z = b.z) to the front
+    top.forEach((row, j) => row.forEach((p, i) => quads.push({ p, shade: MC_SHADE.top, pts: [at(b.x + i, Y, b.z + j), at(b.x + i + 1, Y, b.z + j), at(b.x + i + 1, Y, b.z + j + 1), at(b.x + i, Y, b.z + j + 1)] })));
+    // front (z = Z): u along x, rows from the top down
+    front.forEach((row, j) => row.forEach((p, i) => quads.push({ p, shade: MC_SHADE.front, pts: [at(b.x + i, Y - j, Z), at(b.x + i + 1, Y - j, Z), at(b.x + i + 1, Y - j - 1, Z), at(b.x + i, Y - j - 1, Z)] })));
+    // side (x = X): u from the front edge backwards
+    side.forEach((row, j) => row.forEach((p, i) => quads.push({ p, shade: MC_SHADE.side, pts: [at(X, Y - j, Z - i), at(X, Y - j, Z - i - 1), at(X, Y - j - 1, Z - i - 1), at(X, Y - j - 1, Z - i)] })));
+  }
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const q of quads) for (const [x, y] of q.pts) {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const N = canvas.width;
+  const pad = N * 0.03;
+  const k = Math.min((N - 2 * pad) / (maxX - minX), (N - 2 * pad) / (maxY - minY));
+  const ox = (N - (maxX - minX) * k) / 2 - minX * k;
+  const oy = (N - (maxY - minY) * k) / 2 - minY * k;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, N, N);
+  const grow = 0.35; // screen pixels
+  for (const q of quads) {
+    if (q.p[3] < 8) continue;
+    const pts = q.pts.map(([x, y]) => [x * k + ox, y * k + oy]);
+    const cx = (pts[0][0] + pts[2][0]) / 2, cy = (pts[0][1] + pts[2][1]) / 2;
+    ctx.beginPath();
+    pts.forEach(([x, y], n) => {
+      const dx = x - cx, dy = y - cy, len = Math.hypot(dx, dy) || 1;
+      const gx = x + (dx / len) * grow, gy = y + (dy / len) * grow;
+      n ? ctx.lineTo(gx, gy) : ctx.moveTo(gx, gy);
+    });
+    ctx.closePath();
+    const [r, g, bl, al] = q.p;
+    ctx.fillStyle = `rgba(${Math.round(r * q.shade)}, ${Math.round(g * q.shade)}, ${Math.round(bl * q.shade)}, ${al / 255})`;
+    ctx.fill();
+  }
+}
+
+/** An item drawn flat, one texture pixel = a whole number of screen pixels where it can, never blurred. */
+function drawFlatItem(canvas, img) {
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+}
+
+let mcIconsPromise = null;
+function loadMcIconTextures() {
+  if (!mcIconsPromise) {
+    mcIconsPromise = (window.reminth.mcTextures ? window.reminth.mcTextures() : Promise.resolve(null))
+      .then(async (urls) => {
+        if (!urls) return null;
+        const out = {};
+        for (const [key, url] of Object.entries(urls)) {
+          if (!PNG_DATA_URL.test(url)) return null;
+          out[key] = await new Promise((res) => {
+            const img = new Image();
+            img.onload = () => res(img);
+            img.onerror = () => res(null);
+            img.src = url;
+          });
+          if (!out[key]) return null;
+        }
+        return out;
+      })
+      .catch(() => null);
+    // no game jar yet: ask again next time Home opens (the first game install brings one)
+    mcIconsPromise.then((t) => {
+      if (!t) mcIconsPromise = null;
+    });
+  }
+  return mcIconsPromise;
+}
+
+/** Puts Minecraft's own icons into Home's stat rows (once they can be had). */
+let mcIconsPainted = false;
+async function paintMcStatIcons() {
+  if (mcIconsPainted) return;
+  const t = await loadMcIconTextures();
+  if (!t || mcIconsPainted) return;
+  mcIconsPainted = true;
+  const N = Math.max(32, Math.round(32 * (window.devicePixelRatio || 1)));
+  const make = (draw) => {
+    const c = el("canvas", "px-mc");
+    c.width = c.height = N;
+    c.setAttribute("aria-hidden", "true");
+    draw(c);
+    return c;
+  };
+  const skel = texPixels(t.skeleton);
+  const pig = texPixels(t.pig);
+  const top = texPixels(t.grassTop);
+  const side = texPixels(t.grassSide);
+  const head = (tex) => ({ x: 0, y: 0, z: 0, w: 8, h: 8, d: 8, faces: boxFaces(tex, 0, 0, 8, 8, 8) });
+  const draw = {
+    sword: (c) => drawFlatItem(c, t.sword),
+    pickaxe: (c) => drawFlatItem(c, t.pickaxe),
+    skull: (c) => drawIsoBoxes(c, [head(skel)]),
+    // the pig's head with its snout (a 4x3x1 box in front of the lower half of the face, like the pig model)
+    pig: (c) => drawIsoBoxes(c, [head(pig), { x: 2, y: 1, z: 8, w: 4, h: 3, d: 1, faces: boxFaces(pig, 16, 16, 4, 3, 1) }]),
+    block: (c) =>
+      drawIsoBoxes(c, [{ x: 0, y: 0, z: 0, w: 16, h: 16, d: 16, faces: { top: texRect(top, 0, 0, 16, 16, GRASS_ITEM_TINT), front: texRect(side, 0, 0, 16, 16), side: texRect(side, 0, 0, 16, 16) } }]),
+  };
+  document.querySelectorAll(".nh-stats i.px-icon[data-px]").forEach((i) => {
+    const fn = draw[i.dataset.px];
+    if (!fn) return;
+    try {
+      const c = make(fn);
+      i.textContent = "";
+      i.appendChild(c);
+      i.classList.add("mc");
+    } catch {
+      // keep the hand-drawn one
+    }
+  });
+}
 
 
 // Pixel digits for the big numbers on Home: Pixelify Sans' own digits are hard to tell apart (a 5 reads as an 8, a 7

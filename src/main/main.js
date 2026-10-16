@@ -1407,6 +1407,12 @@ ipcMain.handle("font:mcAscii", async () => {
   return null;
 });
 
+// Home's stat icons in Minecraft's own pictures (mcTextures.js), from a client jar already downloaded; null before
+// the first game install (the page then draws its own).
+ipcMain.handle("mc:textures", () =>
+  require("./mcTextures").load({ versionsDir: paths.VERSIONS_DIR, cacheDir: path.join(paths.ROOT, "cache") }).catch(() => null)
+);
+
 // ---- servers ----
 ipcMain.handle("servers:search", async (_e, params) => modrinth.searchServers(params || {}));
 ipcMain.handle("servers:ping", async (_e, addresses) => {

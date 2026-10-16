@@ -76,7 +76,11 @@ Night design: what the owner asked, what is built, where it lives in the code, t
 Three columns; the middle one scrolls, the side ones stay put (`position: sticky`), what scrolls up fades out under the
 floating top bar (`mask-image` on `.pages`, Home only). Home always opens at the top.
 - **Left** (`.nh-left`): stats as pixel icon + pixel number (player kills = diamond sword, deaths = skeleton skull,
-  mob kills = creeper, blocks broken = iron pickaxe, blocks placed = grass block), hover names them. At the bottom:
+  mob kills = pig (was the creeper until 16 Oct 2026), blocks broken = iron pickaxe, blocks placed = grass block), hover
+  names them. Since 16 Oct 2026 the icons are **Minecraft's own pictures** from a game the player already downloaded
+  (`src/main/mcTextures.js`; never shipped): items flat, the skull / pig head / grass block as small 3D cubes like the
+  inventory draws them (renderer.js `drawIsoBoxes`: top 100 %, left 80 %, right 60 % light; grass top tinted #91BD59).
+  The hand-drawn `PX_ICONS` stay as the fallback before any game is downloaded. At the bottom:
   **your character** - the Skins page's 3D viewer with your skin and cape (features.js `paintHomeSkin`, scale 10,
   8 under 840px tall, hidden under 770px tall or 940px wide; paused when Home isn't shown, the window isn't in front or
   a game runs), your Minecraft name above it in **Minecraft's own font** (renderer.js `paintHomeName`/`mcNameCanvas`:

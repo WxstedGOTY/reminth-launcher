@@ -2695,6 +2695,8 @@ body[data-page="home"] #app:not(.signed-out) #home.page { min-height: 100%; anim
 /* the Minecraft-style 16x16 sprites at exactly 2 screen pixels per pixel, with an inventory-like shadow; a small hop on hover */
 .px-icon { display: grid; place-items: center; width: 32px; height: 32px; color: #e9e9ec; flex: none; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .55)); transition: transform .16s ease; }
 .nh-stats li:hover .px-icon { transform: translateY(-3px) rotate(-6deg); }
+/* Minecraft's own icons (renderer.js paintMcStatIcons), drawn at the screen's own pixel size */
+.px-icon canvas.px-mc { display: block; width: 100%; height: 100%; }
 .px-icon svg.px, svg.px { width: 100%; height: 100%; fill: currentColor; stroke: none; display: block; }
 .nh-stats b { display: block; color: #fff; }
 /* the numbers are pixel digits drawn by renderer.js pxNumber (sharp at 3 screen pixels per pixel) */
