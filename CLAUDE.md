@@ -7,7 +7,14 @@
   his Moonrise icon (`design/icon/`), the rules (no Pixelify digits, cream = press me, no fake data), what's left.
   To look at the UI without touching the owner's screen or data, use `tools/preview/` (README there).
 
-- The rules for working on Reminth are in `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+- **Since 16-17 Oct 2026 the launcher is called "Spaceport Launcher"** (it was Reminth). Everything players see says
+  Spaceport Launcher / Spaceport. **Hidden names stay "reminth" on purpose** - never "fix" them: `%APPDATA%\Reminth`,
+  `%APPDATA%\reminth-launcher`, the package name, `appId`, `Reminth.exe` (`build.executableName`), `reminth://`, mod ids,
+  class names, config files, localStorage keys, log lines, `reminth.pages.dev` as the API (old launchers use it).
+  Why and what's left: `DECISIONS_AND_TEST_PLAN.md` (the 17 Oct section) and `OWNER_TODO_SPACEPORT.md`. The renamed
+  website waits on the branch `spaceport-website` until the release.
+
+- The rules for working on the launcher are in `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
 - There used to be two Claude Code windows (a cloud one that wrote code, a desktop one on the owner's Windows PC that
   tests and builds). Since 4 Oct 2026 only the desktop window works; it still keeps **`DECISIONS_AND_TEST_PLAN.md`** current.
 - **Every time you finish a batch of work** (before your final message), rewrite
