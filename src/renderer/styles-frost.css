@@ -2703,14 +2703,16 @@ body[data-page="home"] #app:not(.signed-out) #home.page { min-height: 100%; anim
 /* the numbers are pixel digits drawn by renderer.js pxNumber (sharp at 3 screen pixels per pixel) */
 svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .6)); }
 .nh-stats svg.px-num { margin-top: 3px; } /* the comma hangs below the line */
-.nh-left-bottom { display: flex; flex-direction: column; gap: 22px; }
+.nh-left-bottom { display: flex; flex-direction: column; gap: 22px; flex: 1 1 auto; min-height: 0; }
+/* your character in the middle of the room between the stats and the version line (owner, 16 Oct 2026) */
+.nh-left-bottom > .nh-me { margin: auto 0; }
 /* your character: the Skins page's 3D viewer with your own skin; one button that opens Skins (a drag spins it) */
 .nh-me {
   display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; border: 0; background: none;
   color: inherit; font: inherit; cursor: pointer;
   /* centred on the free space between the rail and the launch panel, not on its own column (owner, 15 Oct 2026):
      (column gap - Home's left padding) / 2 */
-  position: relative; left: 14px; /* a little right of centre: a waving hand swings out to the left and must stay on the page (owner, 16 Oct) */
+  position: relative; left: -12px; /* exactly in the middle of that space (owner, 16 Oct 2026: "move the skin to the center of its space"); the box doesn't clip, so a waving hand still shows (checked: it stays right of the rail) */
 }
 .nh-me-tag { display: block; min-height: 27px; margin-bottom: 14px; line-height: 0; }
 .nh-me-tag[hidden] { display: block; visibility: hidden; }
@@ -2950,7 +2952,7 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 @media (max-width: 1180px) {
   .nh { grid-template-columns: 170px minmax(0, 1fr) 228px; padding-right: 24px; padding-left: 36px; }
   .nh-me-view { width: 170px; }
-  .nh-me { left: 8px; }
+  .nh-me { left: -6px; }
 }
 /* short windows: a smaller character (renderer picks scale 8), then none - it must never reach the stats */
 @media (max-height: 840px) { .nh-me-view { width: 170px; height: 272px; } }

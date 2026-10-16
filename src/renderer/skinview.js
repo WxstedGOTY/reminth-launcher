@@ -376,8 +376,11 @@
             this.nextWave = now + (this.lively ? 30000 + Math.random() * 20000 : 15000 + Math.random() * 10000);
           } else {
             const lift = Math.sin(Math.min(1, p * 1.25) * Math.PI); // up then down
-            rArmZ = 4 + lift * 128 + Math.sin(p * TAU * 3) * 14 * lift;
-            rArmX = rArmX * (1 - lift);
+            // The hand goes up in front and next to the head, then swings a little from side to side - not out to the
+            // side: Home's character sits in the middle of its space now (owner, 16 Oct 2026) and a hand swung out
+            // sideways went under the rail (measured: at most 12 + 10 degrees out keeps it 10px clear).
+            rArmX = rArmX * (1 - lift) - lift * 165;
+            rArmZ = 4 + lift * 8 + Math.sin(p * TAU * 3) * 10 * lift;
           }
         }
       }
