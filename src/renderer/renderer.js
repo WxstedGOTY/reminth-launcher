@@ -4330,7 +4330,7 @@ const CHANGELOG = [
 ];
 
 function renderChangelog() {
-  $("nhVersion").textContent = "Spaceport Launcher " + (state.info ? state.info.appVersion : "");
+  $("nhVersion").textContent = "Spaceport " + (state.info ? state.info.appVersion : ""); // the short name: the line must fit next to What's new
   const box = $("changelog");
   box.textContent = "";
   $("changelogVersion").textContent = "Spaceport Launcher " + (state.info ? state.info.appVersion : "");
