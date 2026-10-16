@@ -2874,6 +2874,9 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-discord { background: #5865f2; border: 1px solid #5865f2; }
 .nh-discord .nh-discord-logo { width: 29px; height: 29px; flex: none; fill: #fff; }
 .nh-discord:hover { background: #4752c4; border-color: #4752c4; }
+/* 16px from the bottom of the window instead of 40 (owner, 16 Oct 2026). It hangs out of the side column into Home's
+   bottom padding, so the sticky column keeps its height and nothing jumps at the end of the scroll. */
+@media (min-width: 941px) { .nh-side > .nh-discord { margin-bottom: -24px; } } /* not in the one-column layout: it would overlap the panel */
 
 /* ---- the Friends card (renderer.js "friends") ---- */
 .nh-friends .nh-card-head { margin-bottom: 10px; }
