@@ -2684,8 +2684,11 @@ body[data-page="home"] #app:not(.signed-out) #home.page { min-height: 100%; anim
 .nh[hidden] { display: none; }
 
 /* ---- left: the stats on top; your character, the version and What's new at the bottom ---- */
+/* The side columns are exactly as tall as the room between the top bar and Home's bottom padding (104px + 40px), so
+   at the end of the scroll nothing gets pushed up: the character and Discord sit where they end up from the start
+   (owner, 16 Oct 2026: the quick 14px jump at the bottom felt bad). */
 .nh-left {
-  grid-column: 1; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 26px);
+  grid-column: 1; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 40px);
   display: flex; flex-direction: column; justify-content: space-between; min-width: 0;
 }
 .nh-stats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
@@ -2836,7 +2839,7 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 
 /* ---- right: Friends fills the column, Discord under it (PvP tiers hidden for now) ---- */
 .nh-side {
-  grid-column: 3; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 26px);
+  grid-column: 3; grid-row: 1; position: sticky; top: 104px; height: calc(100vh - 104px - 40px);
   display: flex; flex-direction: column; gap: 12px; min-width: 0;
 }
 .nh-card { padding: 14px 14px 15px; border-radius: 10px; background: rgba(11, 11, 13, .8); border: 1px solid rgba(255, 255, 255, .1); backdrop-filter: blur(6px); }
@@ -2867,10 +2870,10 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   color: #fff; font-size: 13.5px; font-weight: 700; text-decoration: none;
   box-shadow: 0 8px 22px rgba(0, 0, 0, .4); transition: background .15s, border-color .15s;
 }
-/* Discord keeps its own navy in every look (tools/night.js keeps lines that name discord) */
-.nh-discord { background: #1c1e38; border: 1.5px solid rgba(196, 202, 255, .7); }
-.nh-discord .i { width: 17px; height: 17px; }
-.nh-discord:hover { background: #262a4d; border-color: rgba(214, 219, 255, .9); }
+/* Discord's own blurple and logo in every look (tools/night.js keeps lines that name discord) */
+.nh-discord { background: #5865f2; border: 1px solid #5865f2; }
+.nh-discord .nh-discord-logo { width: 22px; height: 22px; flex: none; fill: #fff; }
+.nh-discord:hover { background: #4752c4; border-color: #4752c4; }
 
 /* ---- the Friends card (renderer.js "friends") ---- */
 .nh-friends .nh-card-head { margin-bottom: 10px; }

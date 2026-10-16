@@ -119,3 +119,42 @@ test("Audit 16: PowerShell is told to answer in UTF-8, so Greek and accented use
     Object.defineProperty(process, "platform", realPlatform);
   }
 });
+
+test("parseTasklistTitle: a window title, no window (N/A), another process, junk", () => {
+  const row = (pid, title) => `"javaw.exe","${pid}","Console","1","1,204,532 K","Running","PC\k","0:12:01","${title}"\r\n`;
+  assert.equal(rg.parseTasklistTitle(row(4242, "Minecraft* 26.2 - Multiplayer (3rd-party Server)"), 4242), "Minecraft* 26.2 - Multiplayer (3rd-party Server)");
+  assert.equal(rg.parseTasklistTitle(row(4242, "N/A"), 4242), "");
+  assert.equal(rg.parseTasklistTitle(row(4243, "Minecraft"), 4242), null);
+  assert.equal(rg.parseTasklistTitle(row(4242, 'a","b'), 4242), 'a","b');
+  assert.equal(rg.parseTasklistTitle("INFO: No tasks are running which match the specified criteria.", 4242), null);
+  assert.equal(rg.parseTasklistTitle("", 4242), null);
+});
+
+test("checkGame: loading is left alone, a closed window with Java still there is 'hung', a vanished process is 'gone'", () => {
+  // still loading mods: no window yet, for as long as it takes
+  let w = {};
+  for (let i = 0; i < 20; i++) assert.equal(rg.checkGame(w, true, ""), "ok");
+  // the window appears, then the player closes Minecraft but Java hangs: hung on the third check without a window
+  assert.equal(rg.checkGame(w, true, "Minecraft* 26.2"), "ok");
+  assert.equal(rg.checkGame(w, true, ""), "ok");
+  assert.equal(rg.checkGame(w, true, ""), "ok");
+  assert.equal(rg.checkGame(w, true, ""), "hung");
+  // a window that only flickers away (F11, a crash screen opening) doesn't count
+  w = {};
+  rg.checkGame(w, true, "Minecraft");
+  rg.checkGame(w, true, "");
+  rg.checkGame(w, true, "");
+  assert.equal(rg.checkGame(w, true, "Minecraft"), "ok");
+  assert.equal(rg.checkGame(w, true, ""), "ok");
+  // couldn't tell (tasklist failed): never a reason to end anything
+  w = { sawWindow: true };
+  for (let i = 0; i < 10; i++) assert.equal(rg.checkGame(w, true, null), "ok");
+  // the process is gone: two checks in a row
+  w = {};
+  assert.equal(rg.checkGame(w, false, null), "ok");
+  assert.equal(rg.checkGame(w, false, null), "gone");
+  w = {};
+  rg.checkGame(w, false, null);
+  rg.checkGame(w, true, "Minecraft");
+  assert.equal(rg.checkGame(w, false, null), "ok", "one missed check alone isn't gone");
+});

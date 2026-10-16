@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **16 Oct 2026 (later): no Stop button any more, Reminth stays open when the game starts, a smaller window goes to the middle, a safety net so "Playing" never sticks after Minecraft is closed, Home side columns no longer jump, Discord card blurple with its real logo. Section 0000000000000000000000000000000000000000. `npm test` 702.**
 - **16 Oct 2026: launching shows no progress box or log any more - the button just says "Launching…" then "Playing" (errors still open the log; Verify files keeps its bar), renderer.js runPlay/paintPlayButtons. The Live Preview skips its sign-in at once (no more flash of the Reminth sign-in card), tools/preview/live-hook.js. Seen working in a hidden test launcher. `npm test` 698.**
 - **15 Oct 2026 (night): Friends work for real (codes, requests, who's online/playing where, Join, Appear offline) and the Friends box is half height with an empty space for ads under it. Tested with two launchers against a local server; not released. Privacy v14 draft must go live with the release. Section 000000000000000000000000000000000000000.**
 - **15 Oct 2026 (evening): Home v2 built from `launch game panel/CLAUDE_CODE_HOME_UPDATE.md` (new background, LAUNCH GAME, your skin + Minecraft-font name, recent tiles in the panel, 12 live servers). Seen in the preview at 1280/1920/2560 wide; not released. Section 00000000000000000000000000000000000000.**
@@ -29,6 +30,54 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 0000000000000000000000000000000000000000. Launch clean-up + Home polish (16 Oct 2026) - desktop window (code chat)
+
+**Owner's asks:** (1) the character, stats and Discord moved up a little at the bottom of Home's scroll - place them
+there from the start, stats stay; (2) Discord card with the real logo and blue; (3) no Stop button - a game is ended
+by closing Minecraft - and look for bugs where Reminth says Playing after Minecraft was closed; (4) Reminth must not
+minimize when the game starts, and when the window gets smaller it should go to the middle, not a corner.
+
+**Done:**
+- Home side columns `height: calc(100vh - 104px - 40px)` (was -26px: 14px too tall, so sticky pushed them up at the
+  end). Measured in the hidden copy at 1920x1032: stats 104, character 527-944, Discord 938-992 at the top AND the
+  bottom of the scroll. (`styles.css`, remade `styles-night.css`/`styles-frost.css`.)
+- Discord card: `#5865f2`, hover `#4752c4`, the official logo path (same as the sign-in button). (`index.html`, `styles.css`.)
+- Stop buttons removed (Home `stopBtn`, instance page `instStopBtn`, `stopGame`/`stopFinished`/stop grace in
+  `renderer.js`). The `play:stop` IPC stays (unused by the page).
+- **Safety net for "Playing"** (`main.js` `sweepRunning`, every 5 s while a game runs; `runningGames.js` `windowTitle`
+  (tasklist, ~0.1 s), `parseTasklistTitle`, `checkGame`): process gone for 2 checks without an exit -> session ends;
+  the game's window was seen and has been closed for 3 checks (~15 s) but Java still runs (Minecraft hung while
+  shutting down) -> the leftover process is killed and the session ends. A game still loading (no window yet) is never
+  touched. Each case is written to `main-errors.log`. The page also checks its "Playing" against `play:runningIds`
+  every 5 s and on focus (`renderer.js` `syncRunning`), so a missed `play:exited` can't stick.
+- Reminth stays open when the game starts: `launchMinimized` default false and a one-time move for everyone
+  (`store.js` `stayOpenVersion: 1`); the Settings switch can still turn it on.
+- A window that gets smaller without the player dragging it (Windows un-maximizing/shrinking it for a fullscreen game,
+  the restore button) moves to the middle of its screen (`main.js` centerIfShrunk, `windowRestore.centeredBounds`); a
+  drag or resize by the player is left alone (will-move/will-resize).
+- Tests: `test/running-games.test.js` (2 new), `test/window-restore.test.js` (1), `test/fixes-content.test.js` (1),
+  `test/theme-night.test.js` (no stopBtn).
+
+**Seen working:** Home positions and the Discord card (hidden copy, screenshot); no script errors after a restart; Stop
+buttons gone; `play:runningIds` answers; `windowTitle` on real processes ("Reminth" for a window, "" for svchost, null
+for a missing pid).
+
+**Not tested for real:** a real game (launch -> close Minecraft -> Launch game comes back); the hung-Java kill; Reminth
+staying put and the centring when a fullscreen game starts - the owner's own game was running, so no test game was
+started. Known limit: Windows can reuse a dead game's process id; the exit event still ends a game Reminth launched
+itself, so only an adopted game (found after a Reminth restart) could then stay "Playing".
+
+**Test plan (owner, Live Preview; PASS/FAIL):**
+1. Home: scroll to the very bottom and back - the character, stats, Friends and Discord never move. PASS/FAIL
+2. The Discord card is Discord blue with the real Discord logo; hover darkens it; a click opens the invite. PASS/FAIL
+3. Launch game: no Stop button anywhere (Home or the instance page); the button says Launching… then Playing. PASS/FAIL
+4. Reminth stays exactly as it was when the game opens (not minimized). PASS/FAIL
+5. With the game fullscreen, if Reminth's window got smaller, it sits in the middle of the screen. PASS/FAIL
+6. Close Minecraft: within a few seconds the button says Launch game again. PASS/FAIL
+7. Settings: "Minimize when the game starts" is off; turn it on, launch - it minimizes; turn it off again. PASS/FAIL
 
 ---
 

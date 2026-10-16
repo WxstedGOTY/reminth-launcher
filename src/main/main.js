@@ -229,6 +229,29 @@ function createWindow() {
   };
   win.on("resize", fitZoom);
   win.webContents.on("did-finish-load", fitZoom);
+  // When the window gets smaller without the player dragging it - Windows un-maximizes (or shrinks) it for a
+  // fullscreen game, or the restore button - it goes to the middle of its screen, not into a corner (owner,
+  // 16 Oct 2026). A drag or resize by the player is left alone (will-move / will-resize come only from them).
+  let playerSizingAt = 0;
+  win.on("will-resize", () => (playerSizingAt = Date.now()));
+  win.on("will-move", () => (playerSizingAt = Date.now()));
+  let centerTimer = null;
+  const centerIfShrunk = () => {
+    clearTimeout(centerTimer);
+    centerTimer = setTimeout(() => {
+      try {
+        if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+        if (Date.now() - playerSizingAt < 1500) return;
+        const bounds = win.getBounds();
+        const next = windowRestore.centeredBounds(bounds, screen.getDisplayMatching(bounds).workArea);
+        if (next) win.setBounds(next); // never focuses the window, so a game in front keeps the focus
+      } catch {
+        // cosmetic: the window stays where Windows put it
+      }
+    }, 250);
+  };
+  win.on("unmaximize", centerIfShrunk);
+  win.on("resize", () => running.size > 0 && centerIfShrunk());
   // After a game: put the window back as it was (see restoreWindowAfterGame).
   win.on("focus", () => restoreWindowAfterGame());
   win.on("restore", () => restoreWindowAfterGame());
@@ -1538,29 +1561,81 @@ ipcMain.handle("play:stop", async (_e, options = {}) => {
   const session = running.get(inst.id);
   if (!session) return { stopped: false, wasRunning: false };
 
-  let killedReal = false;
-  if (session.child && session.child.pid) {
-    killedReal = true;
-    try {
-      session.child.kill();
-    } catch {
-      // already gone - fine, still cleaned up below
-    }
-    // spawn() with detached:true on Windows starts its own process group;
-    // a plain .kill() doesn't reliably reach that whole tree. taskkill /t
-    // does, and this is best-effort - if the process is already dead this
-    // just fails quietly.
-    if (process.platform === "win32") {
-      spawnProcess("taskkill", ["/pid", String(session.child.pid), "/t", "/f"], {
-        stdio: "ignore",
-        windowsHide: true,
-      }).on("error", () => {});
-    }
-  }
-
+  const killedReal = killSessionProcess(session);
   finishSession(inst, killedReal, session);
   return { stopped: true, wasRunning: true };
 });
+
+/** Kills a session's game process (and what it started). True when there was a process to kill. */
+function killSessionProcess(session) {
+  if (!session || !session.child || !session.child.pid) return false;
+  try {
+    session.child.kill();
+  } catch {
+    // already gone - fine
+  }
+  // spawn() with detached:true on Windows starts its own process group;
+  // a plain .kill() doesn't reliably reach that whole tree. taskkill /t
+  // does, and this is best-effort - if the process is already dead this
+  // just fails quietly.
+  if (process.platform === "win32") {
+    spawnProcess("taskkill", ["/pid", String(session.child.pid), "/t", "/f"], {
+      stdio: "ignore",
+      windowsHide: true,
+    }).on("error", () => {});
+  }
+  return true;
+}
+
+/**
+ * The safety net behind "Playing" (owner, 16 Oct 2026: there is no Stop button - a player ends a game by closing
+ * Minecraft, so Reminth must never keep saying Playing after that). Every 5 s while a game runs, each session's
+ * process is checked (runningGames.checkGame):
+ *  - gone, but its exit was never reported -> the session ends;
+ *  - its window was closed but Java stays (Minecraft hung while shutting down) -> the leftover process is killed and
+ *    the session ends. Only after the window had been seen, so a game that is still loading is never touched.
+ */
+const SWEEP_MS = 5000;
+let sweeping = false;
+async function sweepRunning() {
+  if (sweeping || running.size === 0) return;
+  sweeping = true;
+  try {
+    for (const [id, session] of [...running]) {
+      const pid = session.child && session.child.pid;
+      if (!pid) continue; // still installing / starting
+      // A safe-mode retry puts a new process in the same session: start over for it.
+      if (!session.watch || session.watch.pid !== pid) session.watch = { pid };
+      const alive = runningGames.isAlive(pid);
+      const title = alive ? await runningGames.windowTitle(pid) : null;
+      if (running.get(id) !== session || session.watch.pid !== pid) continue; // ended or replaced while we looked
+      const verdict = runningGames.checkGame(session.watch, alive, title);
+      if (verdict === "ok") continue;
+      if (verdict === "hung") killSessionProcess(session);
+      logCrash("game", verdict === "hung" ? "The game window was closed but Java kept running; Reminth ended it." : "The game had ended without telling Reminth; Playing cleared.");
+      let inst = null;
+      try {
+        inst = await instances.require(id);
+      } catch {
+        // deleted meanwhile - still clear the session below
+      }
+      if (inst) finishSession(inst, true, session);
+      else if (running.get(id) === session) {
+        running.delete(id);
+        send("play:exited", { instanceId: id });
+      }
+    }
+  } catch {
+    // a failed check never breaks anything; the next one tries again
+  } finally {
+    sweeping = false;
+  }
+}
+setInterval(() => sweepRunning(), SWEEP_MS).unref();
+
+// The page checks its "Playing" against this every few seconds (renderer.js syncRunning), so a missed
+// play:exited (a reload at the wrong moment) can't leave it stuck either.
+ipcMain.handle("play:runningIds", () => [...running.keys()]);
 
 /**
  * `claim` is the entry play:run put in `running` for this launch. Stop

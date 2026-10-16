@@ -185,7 +185,9 @@ const DEFAULT_SETTINGS = {
   // "above-normal" asks Windows to favour the game a little over background
   // apps; "normal" leaves it alone. Always normal while streamer mode is on.
   processPriority: "above-normal",
-  launchMinimized: true, // most launchers get out of the way once the game starts
+  // Reminth stays as it was when the game starts (owner, 16 Oct 2026: "it must stay the way it was"); the Settings
+  // switch can still turn minimizing on.
+  launchMinimized: false,
   hardwareAcceleration: true, // only takes effect on next app start - see main.js
   accent: "night", // UI accent colour (renderer only). "night" = the Night theme's cream, "cyan" = the blue theme's, "ember" = the orange theme's.
   // false until the player picks an accent (or a theme) themselves; while false, the accent follows the theme (see
@@ -197,6 +199,8 @@ const DEFAULT_SETTINGS = {
   theme: "night",
   // 2 = this player has had the one-time move to the Night look (1.8.0, see settingsFrom). Never set by the page.
   lookVersion: 2,
+  // 1 = this player has had the one-time move to "stay open when the game starts" (see settingsFrom). Never set by the page.
+  stayOpenVersion: 1,
   // Game window. null width/height = let Minecraft use its own last-used size.
   gameWidth: null,
   gameHeight: null,
@@ -416,11 +420,14 @@ function settingsFrom(parsed) {
       clean.accentChosen = false;
     }
   }
+  // 16 Oct 2026: everyone moves once to Reminth staying open when the game starts (it used to minimize by default).
+  // Turning "Minimize when the game starts" on after that (stayOpenVersion 1 is saved with the next write) stays.
+  if (parsed.stayOpenVersion !== 1) clean.launchMinimized = false;
   // Until the player picks an accent themselves, the old defaults follow the theme (night -> night, blue -> cyan,
   // orange -> ember). Any other old pick (violet...) was the player's own and stays.
   if (clean.accentChosen !== true && (clean.accent === undefined || clean.accent === "cyan" || clean.accent === "ember" || clean.accent === "night"))
     clean.accent = THEME_ACCENTS[clean.theme || DEFAULT_SETTINGS.theme] || "night";
-  return { ...DEFAULT_SETTINGS, ...clean, lookVersion: 2, streamer: sanitizeStreamer(parsed.streamer) };
+  return { ...DEFAULT_SETTINGS, ...clean, lookVersion: 2, stayOpenVersion: 1, streamer: sanitizeStreamer(parsed.streamer) };
 }
 
 async function loadSettings() {

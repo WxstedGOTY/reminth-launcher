@@ -96,4 +96,21 @@ function uiZoom(content, workArea) { // eslint-disable-line no-unused-vars
   return Math.round(Math.min(1, Math.max(0.75, z)) * 1000) / 1000;
 }
 
-module.exports = { afterGame, fillsWorkArea, windowSizes, uiZoom, UI_DESIGN };
+/**
+ * Pure: where a window that just got smaller goes - the middle of its screen's work area (owner, 16 Oct 2026: "it
+ * should just go smaller to the middle", not into a corner). Returns the new { x, y, width, height }, or null when
+ * nothing should move: bad input, a window as big as the work area, or one already in the middle (within 2 px).
+ */
+function centeredBounds(bounds, workArea) {
+  const ok = (r) => r && [r.x, r.y, r.width, r.height].every(Number.isFinite) && r.width > 0 && r.height > 0;
+  if (!ok(bounds) || !ok(workArea)) return null;
+  if (fillsWorkArea(bounds, workArea)) return null;
+  const width = Math.min(bounds.width, workArea.width);
+  const height = Math.min(bounds.height, workArea.height);
+  const x = Math.round(workArea.x + (workArea.width - width) / 2);
+  const y = Math.round(workArea.y + (workArea.height - height) / 2);
+  if (Math.abs(x - bounds.x) <= 2 && Math.abs(y - bounds.y) <= 2 && width === bounds.width && height === bounds.height) return null;
+  return { x, y, width, height };
+}
+
+module.exports = { afterGame, fillsWorkArea, windowSizes, uiZoom, centeredBounds, UI_DESIGN };

@@ -21,7 +21,6 @@ const state = {
   installing: new Set(), // instance ids with an install/launch in flight
   running: new Set(), // instance ids whose game is running
   stopping: new Set(), // instance ids asked to stop, until the backend confirms the exit
-  stopClickAt: 0, // when a Stop button was last pressed (or went away)
   logError: false,
   progress: new Map(), // instanceId -> { stage, pct, short }
   progressShown: null, // instance id whose run the progress bar is painting
@@ -1505,9 +1504,9 @@ $("heroPick").onclick = () => (instMenu ? closeInstanceMenu(false) : openHeroPic
  * page's pair about the one open there.
  */
 function paintPlayButtons() {
-  for (const [playId, stopId, inst] of [
-    ["playBtn", "stopBtn", heroInstance()],
-    ["instPlayBtn", "instStopBtn", activeInstance()],
+  for (const [playId, inst] of [
+    ["playBtn", heroInstance()],
+    ["instPlayBtn", activeInstance()],
   ]) {
     if (!inst) continue;
     const busy = state.installing.has(inst.id);
@@ -1526,17 +1525,8 @@ function paintPlayButtons() {
       // busy: just "Launching…" (owner, 16 Oct 2026) - how far along shows as the button's fill
       label.textContent = runningNow ? "Playing" : busy ? "Launching…" : playId === "playBtn" ? "Launch game" : "Play";
     }
-    // Only shows up once something is actually (or stuck) "running" - lets a
-    // player unstick the Play button themselves instead of relaunching
-    // Reminth every time a crash or an odd exit leaves it wedged on "Playing".
-    const stop = $(stopId);
-    if (stop) {
-      stop.hidden = !runningNow;
-      // Stays in place, busy, until the backend says the game is gone - so
-      // nothing else slides under the cursor of someone who double-clicked it.
-      stop.disabled = stopping;
-      stop.querySelector("span").textContent = stopping ? "Stopping…" : "Stop";
-    }
+    // No Stop button (owner, 16 Oct 2026): a game ends by closing Minecraft. main.js sweepRunning and syncRunning
+    // below make sure "Playing" goes away when it has.
   }
   // The Play buttons on Home's "Jump back in" cards.
   paintRecentPlayButtons();
@@ -2804,11 +2794,7 @@ async function runInstall(instanceId) {
   }
 }
 
-// A click that lands on Play just after Stop was pressed (the second half of
-// a double-click, once Stop has gone) must not start the game again.
-const STOP_GRACE_MS = 600;
 const playClick = (which) => () => {
-  if (Date.now() - state.stopClickAt < STOP_GRACE_MS) return;
   // Each button starts the instance it shows, fixed at the click.
   const inst = which();
   if (inst) runPlay({ instanceId: inst.id });
@@ -2820,45 +2806,6 @@ $("heroInstanceBtn").onclick = () => {
   if (inst) selectInstance(inst.id, true);
 };
 
-/** The game is gone (or never answered): Stop goes away, Play comes back. */
-function stopFinished(instanceId) {
-  if (!state.stopping.delete(instanceId)) return;
-  clearTimeout(stopTimers.get(instanceId));
-  stopTimers.delete(instanceId);
-  state.running.delete(instanceId);
-  state.stopClickAt = Date.now(); // Play is about to appear where Stop was
-  paintPlayButtons();
-}
-const stopTimers = new Map(); // instance id -> fallback timer
-
-async function stopGame(instanceId) {
-  const inst = instanceId ? instanceById(instanceId) : activeInstance();
-  if (!inst || state.stopping.has(inst.id)) return;
-  state.stopClickAt = Date.now();
-  state.stopping.add(inst.id);
-  paintPlayButtons();
-  try {
-    const result = await window.reminth.stopGame({ instanceId: inst.id });
-    toast(`Stopped ${inst.name}.`);
-    // Nothing was running after all (a stale "Playing"): no exit will be announced.
-    if (result && result.wasRunning === false) return stopFinished(inst.id);
-    // play:exited normally follows at once. If it never comes, don't leave
-    // the button on "Stopping…" for good.
-    if (state.stopping.has(inst.id)) stopTimers.set(inst.id, setTimeout(() => stopFinished(inst.id), 4000));
-  } catch (err) {
-    state.stopping.delete(inst.id);
-    paintPlayButtons();
-    toast(friendlyError(err.message));
-  }
-}
-$("stopBtn").onclick = () => {
-  const inst = heroInstance();
-  if (inst) stopGame(inst.id);
-};
-$("instStopBtn").onclick = () => {
-  const inst = activeInstance();
-  if (inst) stopGame(inst.id);
-};
 $("repairBtn2").onclick = () => {
   switchPage("home");
   runInstall();
@@ -2971,15 +2918,40 @@ window.reminth.onTotalPlayTime(({ totalPlayTimeMs }) => {
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);
   paintGameRunning();
-  stopFinished(instanceId);
   loadInstances();
   loadRecent();
   loadStats();
 });
+/**
+ * "Playing" on the page is only what main.js really has running: checked every 5 s while a game runs and when
+ * Reminth comes to the front. A play:exited that never arrived (the page reloading at that moment) can't leave
+ * Launch game stuck on "Playing" - there is no Stop button to unstick it (owner, 16 Oct 2026).
+ */
+async function syncRunning() {
+  let ids;
+  try {
+    ids = await window.reminth.runningIds();
+  } catch {
+    return;
+  }
+  if (!Array.isArray(ids)) return;
+  const now = new Set(ids);
+  let changed = false;
+  for (const id of [...state.running]) {
+    if (now.has(id)) continue;
+    state.running.delete(id);
+    changed = true;
+  }
+  if (!changed) return;
+  paintGameRunning();
+  paintPlayButtons();
+  loadInstances();
+}
+setInterval(() => state.running.size && syncRunning(), 5000);
+window.addEventListener("focus", () => state.running.size && syncRunning());
 window.reminth.onPlayCrashed(({ instanceId, code, signal, error, logPath }) => {
   state.running.delete(instanceId);
   paintGameRunning();
-  stopFinished(instanceId);
   paintPlayButtons();
   const reason = error ? friendlyError(error) : signal ? `the game process was killed (${signal})` : `the game process exited immediately (code ${code})`;
   const inst = instanceById(instanceId);

@@ -125,4 +125,64 @@ function watchUntilGone(pid, onGone, { alive = isAlive, intervalMs = 2000, timer
   };
 }
 
-module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone, SCRIPT };
+/**
+ * Pure: the window title in `tasklist /v /fo csv /nh` output for `pid`: "" when the process has no window ("N/A"),
+ * null when the output isn't about that process (gone, or not understood).
+ */
+function parseTasklistTitle(text, pid) {
+  const line = String(text || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l.startsWith('"') && l.endsWith('"'));
+  if (!line) return null;
+  const cells = line.slice(1, -1).split('","');
+  // image, pid, session, session#, memory, status, user, cpu time, window title (which may itself hold '","')
+  if (cells.length < 9 || Number(cells[1]) !== pid) return null;
+  const title = cells.slice(8).join('","');
+  return title === "N/A" ? "" : title;
+}
+
+/**
+ * The game window's title for `pid` ("" = the process has no window any more), or null when it can't be told (not
+ * Windows, tasklist failed or was slow). About 0.1 s on Windows 11.
+ */
+function windowTitle(pid, { run = execFile, timeoutMs = 4000 } = {}) {
+  if (process.platform !== "win32" || !Number.isInteger(pid)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      run("tasklist.exe", ["/v", "/fi", `PID eq ${pid}`, "/fo", "csv", "/nh"], { windowsHide: true, timeout: timeoutMs }, (err, stdout) =>
+        resolve(err ? null : parseTasklistTitle(stdout, pid))
+      );
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Pure: one check of a running game (every few seconds, main.js sweepRunning). `watch` is the session's own memory
+ * ({ pid, sawWindow, deadChecks, noWindowChecks }), changed in place. `alive`: is the process there; `title`: its window
+ * title, "" = no window, null = couldn't tell. Returns
+ *   "ok"   - still playing (or still starting: no window seen yet - Fabric loads mods before it opens one),
+ *   "gone" - the process has been gone for two checks in a row (its exit was somehow never reported),
+ *   "hung" - the game's window was seen and has now been closed for three checks in a row, but the Java process
+ *            stays: Minecraft hung while shutting down. The player closed the game, so it must not say Playing.
+ */
+function checkGame(watch, alive, title) {
+  if (!alive) {
+    watch.deadChecks = (watch.deadChecks || 0) + 1;
+    return watch.deadChecks >= 2 ? "gone" : "ok";
+  }
+  watch.deadChecks = 0;
+  if (title === null || title === undefined) return "ok";
+  if (title) {
+    watch.sawWindow = true;
+    watch.noWindowChecks = 0;
+    return "ok";
+  }
+  if (!watch.sawWindow) return "ok";
+  watch.noWindowChecks = (watch.noWindowChecks || 0) + 1;
+  return watch.noWindowChecks >= 3 ? "hung" : "ok";
+}
+
+module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone, parseTasklistTitle, windowTitle, checkGame, SCRIPT };

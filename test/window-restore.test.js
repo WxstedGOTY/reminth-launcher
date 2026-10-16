@@ -88,3 +88,16 @@ test("afterGame: already repaired once -> nothing (it can't loop)", () => {
   assert.equal(afterGame({ wasMaximized: true, minimizedByUs: false, repaired: true }, now({ isMaximized: true, boundsFillWorkArea: false })), "none");
   assert.equal(afterGame({ wasMaximized: true, minimizedByUs: true, repaired: true }, now({ isMinimized: true })), "none");
 });
+
+test("centeredBounds: a smaller window goes to the middle of its work area; full-size, centred or bad input stay", () => {
+  const { centeredBounds } = require("../src/main/windowRestore");
+  const wa = { x: 0, y: 0, width: 1920, height: 1032 };
+  // Windows shrank it to 800x552 in the top-left corner for a fullscreen game
+  assert.deepEqual(centeredBounds({ x: 0, y: 0, width: 800, height: 552 }, wa), { x: 560, y: 240, width: 800, height: 552 });
+  // on a second screen to the right
+  assert.deepEqual(centeredBounds({ x: 1920, y: 0, width: 1320, height: 840 }, { x: 1920, y: 0, width: 2560, height: 1400 }), { x: 2540, y: 280, width: 1320, height: 840 });
+  assert.equal(centeredBounds({ x: 560, y: 240, width: 800, height: 552 }, wa), null, "already in the middle");
+  assert.equal(centeredBounds({ x: -8, y: -8, width: 1936, height: 1048 }, wa), null, "maximized");
+  assert.equal(centeredBounds(null, wa), null);
+  assert.equal(centeredBounds({ x: 0, y: 0, width: 800, height: NaN }, wa), null);
+});

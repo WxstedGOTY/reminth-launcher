@@ -59,7 +59,7 @@ test("the Night pieces exist: icon, mark, window icon, packaged icon", () => {
 
 test("the Night home page has everything the code paints", () => {
   const html = read("src", "renderer", "index.html");
-  const ids = ["homeMain", "playBtn", "stopBtn", "heroPick", "heroLoader", "heroVersion", "heroInstance", "heroMeta", "heroLast", "heroPlaytime", "heroLede", "heroSyncBtn", "heroInstanceBtn",
+  const ids = ["homeMain", "playBtn", "heroPick", "heroLoader", "heroVersion", "heroInstance", "heroMeta", "heroLast", "heroPlaytime", "heroLede", "heroSyncBtn", "heroInstanceBtn",
     "progressWrap", "progressStage", "progressPct", "progressFill", "progressDismiss", "log", "statPlayerKills", "statDeaths", "statDeathsRow", "statMobKills", "statBroken", "statPlaced",
     "nhTierList", "nhTiersNote", "quickJoin", "nhQuickWrap", "nhVersion", "nhNews", "livePill",
     // Home v2 (15 Oct 2026): your character and name, the recent tiles under the picker, the servers

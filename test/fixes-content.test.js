@@ -936,3 +936,19 @@ test("the move to the Night look happens once: a theme picked afterwards stays",
   await store.saveSettings({ lookVersion: 1 });
   assert.equal((await store.loadSettings()).theme, "frost");
 });
+
+test("stay open when the game starts: everyone moves to it once; turning minimizing on after that sticks", async () => {
+  const fsp = require("fs").promises;
+  const paths = require("../src/main/paths");
+  await fsp.mkdir(paths.ROOT, { recursive: true });
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ launchMinimized: true, lookVersion: 2 }));
+  assert.equal((await store.loadSettings()).launchMinimized, false, "an old settings file with minimize on moves to stay open");
+  await fsp.rm(paths.SETTINGS_FILE, { force: true });
+  assert.equal((await store.loadSettings()).launchMinimized, false, "a new player: stays open");
+  await fsp.writeFile(paths.SETTINGS_FILE, JSON.stringify({ launchMinimized: true, lookVersion: 2 }));
+  await store.saveSettings({ launchMinimized: true });
+  assert.equal(JSON.parse(await fsp.readFile(paths.SETTINGS_FILE, "utf8")).stayOpenVersion, 1);
+  assert.equal((await store.loadSettings()).launchMinimized, true, "switched on in Settings after the move: stays on");
+  await store.saveSettings({ stayOpenVersion: 0 });
+  assert.equal((await store.loadSettings()).launchMinimized, true, "the page can't undo the move");
+});

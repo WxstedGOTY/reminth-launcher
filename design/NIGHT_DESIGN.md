@@ -97,7 +97,7 @@ floating top bar (`mask-image` on `.pages`, Home only). Home always opens at the
   ones (Cancel), "+" to add by friend code, your code with Copy, "Appear offline", remove with a confirm. Needs a
   Reminth account. Server: `functions/_friends.js` + `functions/api/friends/*`; launcher: `src/main/presence.js`
   (every 2 min) and the "friends" section of renderer.js. **The bottom half is empty space for ads** (`#nhAdSlot`,
-  owner: "we need that space to put ads" - no fake ads). Discord (its own navy) under it. PvP tiers is hidden for now.
+  owner: "we need that space to put ads" - no fake ads). Discord (Discord blurple #5865f2 with the real Discord logo, 16 Oct 2026) under it. The side columns are exactly as tall as the room between the top bar and the bottom padding (100vh - 144px), so nothing jumps at the end of the scroll. PvP tiers is hidden for now.
 
 ## 5. Status (15 Oct 2026, night)
 
