@@ -1523,7 +1523,8 @@ function paintPlayButtons() {
       btn.classList.toggle("progressing", busy);
       btn.classList.toggle("no-sub", busy || runningNow);
       btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
-      label.textContent = runningNow ? "Playing" : busy ? (p ? `${p.short}${p.pct !== null ? " " + p.pct + "%" : "…"}` : "Starting…") : playId === "playBtn" ? "Launch game" : "Play";
+      // busy: just "Launching…" (owner, 16 Oct 2026) - how far along shows as the button's fill
+      label.textContent = runningNow ? "Playing" : busy ? "Launching…" : playId === "playBtn" ? "Launch game" : "Play";
     }
     // Only shows up once something is actually (or stuck) "running" - lets a
     // player unstick the Play button themselves instead of relaunching
@@ -2690,23 +2691,15 @@ async function runPlay(options = {}) {
   state.lastStage = null;
   if (onHome) {
     state.progressShown = inst.id;
-    // Quiet start (owner, 8 Oct 2026: the strip that flashed up for a moment on Play "becomes ugly"): the bar and log
-    // stay hidden; only a launch still busy after QUIET_START_MS (downloading a version, Java...) shows them. Errors
-    // always show at once (appendLog).
-    state.quietUntil = Date.now() + QUIET_START_MS;
+    // Quiet launch (owner, 8 Oct 2026: the strip that flashed up on Play "becomes ugly"; 16 Oct: no "Preparing" box and
+    // line at all, the button just says Launching): the bar and log stay hidden for the whole launch, however long it
+    // takes - the button shows it, with its fill. Only an error opens them (appendLog), so a failed start still says why.
+    state.quietUntil = Infinity;
     $("progressWrap").hidden = true;
     $("log").hidden = true;
     $("log").textContent = "";
     $("progressDismiss").hidden = true;
     clearTimeout(window._quietReveal);
-    window._quietReveal = setTimeout(() => {
-      state.quietUntil = 0;
-      if (state.installing.has(inst.id) && state.progressShown === inst.id) {
-        $("progressWrap").hidden = false;
-        $("log").hidden = !$("log").textContent;
-        paintProgress(inst.id);
-      }
-    }, QUIET_START_MS);
   }
   paintPlayButtons();
   try {
@@ -2756,7 +2749,7 @@ async function runPlay(options = {}) {
   }
 }
 
-/** How long a Play stays quiet before its progress bar shows (a normal launch is done by then). */
+/** Kept for older notes: a launch now stays quiet the whole time (runPlay sets quietUntil to Infinity). */
 const QUIET_START_MS = 3000;
 
 /** A Play started less than QUIET_START_MS ago: its bar and log stay hidden (errors still show). */
@@ -2785,6 +2778,7 @@ async function runInstall(instanceId) {
   state.installing.add(inst.id);
   state.logError = false;
   state.lastStage = null; // see runPlay
+  state.quietUntil = 0; // Verify files was asked for: its bar shows (a launch keeps its own quiet)
   state.progressShown = inst.id;
   $("progressWrap" + suffix).hidden = false;
   $("log" + suffix).hidden = false;
