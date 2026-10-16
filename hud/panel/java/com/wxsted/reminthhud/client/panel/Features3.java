@@ -468,7 +468,7 @@ public final class Features3 {
 	/** A key (F7, change it in Controls) that hides every Reminth HUD display - for screenshots and recordings. */
 	static final class HideHud extends Module {
 		HideHud() {
-			super("hidehud", "Hide HUD Key", Cat.UTILITY, "hidehud", "Press F7 (change it in Controls) to hide all Reminth displays for a screenshot; again to show them.", true, true, null, 0, 0);
+			super("hidehud", "Hide HUD Key", Cat.UTILITY, "hidehud", "Press F7 (change it in Controls) to hide all Spaceport displays for a screenshot; again to show them.", true, true, null, 0, 0);
 		}
 
 		@Override
@@ -499,7 +499,7 @@ public final class Features3 {
 			}
 			if (System.currentTimeMillis() - since >= minutes.value * 60_000L) {
 				since = System.currentTimeMillis();
-				V.say(mc, Component.literal("[Reminth] You have played for " + Math.round(minutes.value) + " minutes - a short break helps your eyes.").withStyle(ChatFormatting.GOLD));
+				V.say(mc, Component.literal("[Spaceport] You have played for " + Math.round(minutes.value) + " minutes - a short break helps your eyes.").withStyle(ChatFormatting.GOLD));
 			}
 		}
 	}

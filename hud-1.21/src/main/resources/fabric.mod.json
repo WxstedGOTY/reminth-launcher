@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "reminthhud",
 	"version": "${version}",
-	"name": "ReminthHUD",
-	"description": "Part of the Reminth launcher: the Reminth panel (G) with Reminth's own features - FPS, keystrokes, armor status, potion effects, zoom and more - and the top-right FPS/GPU/CPU bar (H).",
+	"name": "Spaceport HUD",
+	"description": "Part of Spaceport Launcher: the Spaceport panel (G) with Spaceport's own features - FPS, keystrokes, armor status, potion effects, zoom and more - and the top-right FPS/GPU/CPU bar (H).",
 	"authors": [
 		"Wxsted"
 	],

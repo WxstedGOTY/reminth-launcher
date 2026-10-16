@@ -97,7 +97,7 @@ public final class ServerRulesGuard {
 			for (Mod m : s.mods()) if (FabricLoader.getInstance().isModLoaded(m.id())) on.add(m.title());
 			if (on.isEmpty()) return false;
 			allowed.add(s.id());
-			pending = Component.literal("[Reminth] Heads-up: " + s.name() + "'s rules ban " + String.join(", ", on) + ".").withStyle(ChatFormatting.GRAY);
+			pending = Component.literal("[Spaceport] Heads-up: " + s.name() + "'s rules ban " + String.join(", ", on) + ".").withStyle(ChatFormatting.GRAY);
 		} catch (Throwable t) {
 			ReminthHomeClient.LOG.warn("Reminth: the server rules check failed ({})", t.toString());
 		}

@@ -188,7 +188,7 @@ public final class TierTagger extends Module {
 		if (!IN_FLIGHT.tryAcquire()) return CompletableFuture.completedFuture(null); // busy: asked again on a later frame
 		e.pending = true;
 		String uuid = s.dashed ? id.toString() : id.toString().replace("-", "");
-		HttpRequest req = HttpRequest.newBuilder(URI.create(s.url + uuid)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Reminth (https://reminth.pages.dev)").header("Accept", "application/json").GET().build();
+		HttpRequest req = HttpRequest.newBuilder(URI.create(s.url + uuid)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Spaceport (https://reminth.pages.dev)").header("Accept", "application/json").GET().build();
 		return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString()).handle((res, err) -> {
 			try {
 				if (err != null || res == null) {
@@ -349,7 +349,7 @@ public final class TierTagger extends Module {
 	/** A fresh look-up (also fills the cache): the ranks, or null when the site couldn't be reached. */
 	private static CompletableFuture<List<Rank>> fetchNow(Site s, UUID id) {
 		String uuid = s.dashed ? id.toString() : id.toString().replace("-", "");
-		HttpRequest req = HttpRequest.newBuilder(URI.create(s.url + uuid)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Reminth (https://reminth.pages.dev)").header("Accept", "application/json").GET().build();
+		HttpRequest req = HttpRequest.newBuilder(URI.create(s.url + uuid)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Spaceport (https://reminth.pages.dev)").header("Accept", "application/json").GET().build();
 		return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString()).handle((res, err) -> {
 			if (err != null || res == null || res.statusCode() == 429 || res.statusCode() >= 500) return null;
 			List<Rank> ranks;
@@ -367,7 +367,7 @@ public final class TierTagger extends Module {
 	}
 
 	private static CompletableFuture<UUID> mojangId(String name) {
-		HttpRequest req = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + name)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Reminth (https://reminth.pages.dev)").GET().build();
+		HttpRequest req = HttpRequest.newBuilder(URI.create("https://api.mojang.com/users/profiles/minecraft/" + name)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Spaceport (https://reminth.pages.dev)").GET().build();
 		return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString()).thenApply(res -> {
 			if (res.statusCode() != 200) return null;
 			JsonElement j = JsonParser.parseString(res.body());

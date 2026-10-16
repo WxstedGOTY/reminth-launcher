@@ -112,7 +112,7 @@ public final class Features5 {
 		private Boolean before;
 
 		StreamerMode() {
-			super("streamermode", "Streamer Mode", Cat.STREAM, "streamer", "Hides your coordinates and the server's address on Reminth's displays (and less on F3), so viewers can't find you.", true, false, null, 0, 0);
+			super("streamermode", "Streamer Mode", Cat.STREAM, "streamer", "Hides your coordinates and the server's address on Spaceport's displays (and less on F3), so viewers can't find you.", true, false, null, 0, 0);
 		}
 
 		boolean hides(String id) {

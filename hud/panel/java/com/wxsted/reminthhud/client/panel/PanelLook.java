@@ -16,7 +16,7 @@ public final class PanelLook extends Module {
 	public final Opt.Choice openOn = opt(new Opt.Choice("openTab", "Opens on", 0, "Last category", "All", "HUD", "Streamer"));
 
 	PanelLook() {
-		super("panellook", "Panel Look", Cat.UTILITY, "gear", "How the Reminth panel itself looks and works.", false, true, null, 0, 0);
+		super("panellook", "Panel Look", Cat.UTILITY, "gear", "How the Spaceport panel itself looks and works.", false, true, null, 0, 0);
 		hidden = true;
 	}
 

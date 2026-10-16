@@ -31,10 +31,10 @@ public class PanelScreen extends BaseScreen {
 	private double scroll = 0;
 	private int x0, y0, w, h;
 	private static final int TOP = 30, LEFT = 118;
-	private static final int TABS_X = 160; // after the "REMINTH MODS PANEL" title
+	private static final int TABS_X = 160; // after the "SPACEPORT MODS PANEL" title
 
 	public PanelScreen(Screen parent) {
-		super(Component.literal("Reminth"));
+		super(Component.literal("Spaceport"));
 		this.parent = parent;
 	}
 
@@ -163,7 +163,7 @@ public class PanelScreen extends BaseScreen {
 		Draw.round(g, x0, y0, w, TOP, 8, Draw.BAR);
 		g.fill(x0, y0 + TOP - 8, x0 + w, y0 + TOP, Draw.BAR);
 		g.fill(x0, y0 + TOP, x0 + w, y0 + TOP + 1, 0x33FFFFFF);
-		Draw.text(g, Component.literal("REMINTH MODS PANEL").withStyle(ChatFormatting.BOLD), x0 + 12, y0 + 11, 1f, Draw.TEXT, true);
+		Draw.text(g, Component.literal("SPACEPORT MODS PANEL").withStyle(ChatFormatting.BOLD), x0 + 12, y0 + 11, 1f, Draw.TEXT, true);
 		String[] tabs = {"MODS", "SETTINGS"};
 		int tx = x0 + TABS_X;
 		for (int i = 0; i < tabs.length; i++) {

@@ -38,7 +38,7 @@ final class SoftCursor extends Module {
 	private static final boolean TEST = Boolean.getBoolean("reminthhud.testSoftCursor");
 
 	SoftCursor() {
-		super("softcursor", "Fullscreen Pointer", Cat.UTILITY, "cursor", "In full screen Reminth draws the mouse pointer itself, so it never vanishes.", true, true, null, 0, 0);
+		super("softcursor", "Fullscreen Pointer", Cat.UTILITY, "cursor", "In full screen Spaceport draws the mouse pointer itself, so it never vanishes.", true, true, null, 0, 0);
 	}
 
 	private static boolean active(Minecraft mc) {

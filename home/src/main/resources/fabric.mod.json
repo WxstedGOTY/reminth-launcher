@@ -2,8 +2,8 @@
 	"schemaVersion": 1,
 	"id": "reminthhome",
 	"version": "${version}",
-	"name": "Reminth home screen",
-	"description": "Reminth's title screen: a night scene, dark rounded buttons and a row of icons. If anything goes wrong it falls back to the normal Minecraft title screen. Turn it off in config/reminthhome.json.",
+	"name": "Spaceport home screen",
+	"description": "Spaceport's title screen: a night scene, dark rounded buttons and a row of icons. If anything goes wrong it falls back to the normal Minecraft title screen. Turn it off in config/reminthhome.json.",
 	"authors": [
 		"Wxsted"
 	],
