@@ -3085,7 +3085,7 @@ window.onAccountSkin = (skin) => {
  * The Skins page's viewer with the same skin and cape, idling. One button that opens Skins; a drag spins it instead.
  * No animation frames while Home isn't showing, while Reminth isn't in front, while a game runs, or when the window
  * is too short for it (styles.css hides it). Scale 10, or 8 in windows under 840px tall. */
-const homeSkin = { viewer: null, scale: 0, key: null, capeKey: null, profileAsked: false, downAt: null, dragged: false };
+const homeSkin = { viewer: null, scale: 0, key: null, capeKey: null, profileAsked: false, downAt: null, dragged: false, wasShown: false, lastHello: 0 };
 const homeSkinScale = () => (window.innerHeight < 840 ? 8 : 10);
 
 function homeSkinViewer() {
@@ -3100,7 +3100,9 @@ function homeSkinViewer() {
   }
   if (!homeSkin.viewer) {
     const still = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    homeSkin.viewer = new SkinViewer(box, { scale, yaw: -24, pitch: -6, animate: !still });
+    // Faces the front (owner, 16 Oct: "stop the skin from turning around"): no spinning, but it looks around, tilts its
+    // head, moves its hands and waves hello (skinview.js lively).
+    homeSkin.viewer = new SkinViewer(box, { scale, yaw: 0, pitch: -4, animate: !still, spin: false, lively: true });
     homeSkin.scale = scale;
     paintHomeSkinRunning();
   }
@@ -3137,6 +3139,12 @@ function paintHomeSkinRunning() {
     currentPage === "home" && !document.body.classList.contains("unfocused") && !document.body.classList.contains("game-running") && me && me.offsetParent !== null;
   if (shown) v.resume();
   else v.pause();
+  // Hello when Home comes on screen (not more than once a minute, so a click into the window doesn't make it wave again)
+  if (shown && !homeSkin.wasShown && Date.now() - (homeSkin.lastHello || 0) > 60000) {
+    homeSkin.lastHello = Date.now();
+    setTimeout(() => homeSkin.viewer && homeSkin.viewer.hello(), 700);
+  }
+  homeSkin.wasShown = Boolean(shown);
 }
 document.addEventListener("reminth:page", (e) => {
   if (e.detail === "home") paintHomeSkin();

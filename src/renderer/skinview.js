@@ -78,13 +78,18 @@
 
   class SkinViewer {
     /**
-     * opts: { scale (px per skin pixel), animate, interactive, yaw (deg), pitch (deg) }
+     * opts: { scale (px per skin pixel), animate, interactive, yaw (deg), pitch (deg),
+     *         spin (default true: drag turns the model and it sways; false: it always faces the front),
+     *         lively (default false: Home's character - glances around, tilts its head, fidgets with its hands and
+     *         waves hello soon after it appears) }
      */
     constructor(container, opts = {}) {
       this.container = container;
       this.S = opts.scale || 9;
       this.animate = opts.animate !== false;
       this.interactive = opts.interactive !== false;
+      this.spin = opts.spin !== false;
+      this.lively = Boolean(opts.lively);
       this.baseYaw = opts.yaw !== undefined ? opts.yaw : -24;
       this.basePitch = opts.pitch !== undefined ? opts.pitch : -8;
       this.yaw = this.baseYaw;
@@ -93,7 +98,9 @@
       this.dragging = false;
       this.lookTarget = null;
       this.started = performance.now();
-      this.nextWave = this.started + 7000 + Math.random() * 6000;
+      this.nextWave = this.lively ? this.started + 900 : this.started + 7000 + Math.random() * 6000; // lively: hello at once
+      this.glance = { yaw: 0, pitch: 0, tilt: 0, next: this.started + 1800 };
+      this.fidget = { arm: null, start: 0, next: this.started + 4500 };
       this.waveStart = null;
       this.skinUrl = null;
       this.capeUrl = null;
@@ -120,6 +127,7 @@
       let lastX = 0;
       let lastT = 0;
       c.addEventListener("pointerdown", (e) => {
+        if (!this.spin) return; // always faces the front: a press is just a click
         this.dragging = true;
         this.velocity = 0;
         lastX = e.clientX;
@@ -316,11 +324,11 @@
       const a = this.animate;
 
       // Spin: drag inertia, then a gentle sway around wherever it was left.
-      if (!this.dragging && Math.abs(this.velocity) > 0.001) {
+      if (this.spin && !this.dragging && Math.abs(this.velocity) > 0.001) {
         this.yaw += this.velocity * 16;
         this.velocity *= 0.92;
       }
-      const sway = a && !this.dragging ? Math.sin(t * 0.35) * 0.08 : 0;
+      const sway = a && this.spin && !this.dragging ? Math.sin(t * 0.35) * 0.08 : 0;
       this.yaw += sway;
       this.applyScene();
 
@@ -330,13 +338,30 @@
       // Head: an idle glance around, or towards the cursor while it's near.
       let headYaw = a ? Math.sin(t * 0.47) * 16 + Math.sin(t * 1.21) * 5 : 0;
       let headPitch = a ? Math.sin(t * 0.73) * 5 - 2 : 0;
+      let headTilt = 0;
+      if (a && this.lively) {
+        // Home's character: every few seconds it looks somewhere new (often back at us), with a small tilt, never much.
+        const g = this.glance;
+        if (now > g.next) {
+          const atUs = Math.random() < 0.4;
+          g.yaw = atUs ? 0 : (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 22);
+          g.pitch = atUs ? -2 : -8 + Math.random() * 14;
+          g.tilt = atUs ? 0 : (Math.random() - 0.5) * 9;
+          g.next = now + 2200 + Math.random() * 3200;
+        }
+        headYaw = g.yaw + Math.sin(t * 1.1) * 2;
+        headPitch = g.pitch + Math.sin(t * 0.8) * 1.5;
+        headTilt = g.tilt;
+      }
       if (a && this.lookTarget && !this.dragging) {
         headYaw = Math.max(-45, Math.min(45, this.lookTarget.x * 40));
         headPitch = Math.max(-25, Math.min(25, this.lookTarget.y * 22));
+        headTilt = 0;
       }
       this.headYaw = this.headYaw === undefined ? headYaw : this.headYaw + (headYaw - this.headYaw) * 0.08;
       this.headPitch = this.headPitch === undefined ? headPitch : this.headPitch + (headPitch - this.headPitch) * 0.08;
-      this.setPose("head", -this.headPitch, this.headYaw, 0);
+      this.headTilt = this.headTilt === undefined ? headTilt : this.headTilt + (headTilt - this.headTilt) * 0.08;
+      this.setPose("head", -this.headPitch, this.headYaw, this.headTilt);
 
       const swing = a ? Math.sin(t * 1.25) : 0;
       let rArmX = swing * 6;
@@ -348,7 +373,7 @@
           const p = (now - this.waveStart) / 2600;
           if (p >= 1) {
             this.waveStart = null;
-            this.nextWave = now + 15000 + Math.random() * 10000;
+            this.nextWave = now + (this.lively ? 30000 + Math.random() * 20000 : 15000 + Math.random() * 10000);
           } else {
             const lift = Math.sin(Math.min(1, p * 1.25) * Math.PI); // up then down
             rArmZ = 4 + lift * 128 + Math.sin(p * TAU * 3) * 14 * lift;
@@ -356,8 +381,29 @@
           }
         }
       }
+      let lArmX = -swing * 6;
+      if (a && this.lively) {
+        // Every 6-11 s one hand does something small: a hand lifts a little and moves about, then drops back.
+        const f = this.fidget;
+        if (!f.arm && now > f.next && !this.waveStart) {
+          f.arm = Math.random() < 0.5 ? "R" : "L";
+          f.start = now;
+        }
+        if (f.arm) {
+          const p = (now - f.start) / 1700;
+          if (p >= 1) {
+            f.arm = null;
+            f.next = now + 6000 + Math.random() * 5000;
+          } else {
+            const lift = Math.sin(p * Math.PI);
+            const lifted = -(34 * lift) + Math.sin(p * TAU * 2) * 7 * lift; // forward and up, a little wobble
+            if (f.arm === "R" && !this.waveStart) rArmX = lifted;
+            if (f.arm === "L") lArmX = lifted;
+          }
+        }
+      }
       this.setPose("armR", rArmX, 0, rArmZ);
-      this.setPose("armL", -swing * 6, 0, -(4 + (a ? Math.sin(t * 1.7 + 1) * 1.5 : 0)));
+      this.setPose("armL", lArmX, 0, -(4 + (a ? Math.sin(t * 1.7 + 1) * 1.5 : 0)));
       const shift = a ? Math.sin(t * 0.9) * 2 : 0;
       this.setPose("legR", -shift, 0, 0);
       this.setPose("legL", shift, 0, 0);
@@ -379,6 +425,11 @@
         this.render(now);
       };
       this.frame = requestAnimationFrame(tick);
+    }
+
+    /** Wave hello (Home does this when it appears): the right hand up, swinging about, then back down. */
+    hello() {
+      if (!this.waveStart) this.waveStart = performance.now();
     }
 
     /** The page it's on was left: stop asking for animation frames. Quality is untouched. */

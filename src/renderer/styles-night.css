@@ -2708,13 +2708,17 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   color: inherit; font: inherit; cursor: pointer;
   /* centred on the free space between the rail and the launch panel, not on its own column (owner, 15 Oct 2026):
      (column gap - Home's left padding) / 2 */
-  position: relative; left: -12px;
+  position: relative; left: 14px; /* a little right of centre: a waving hand swings out to the left and must stay on the page (owner, 16 Oct) */
 }
 .nh-me-tag { display: block; min-height: 27px; margin-bottom: 14px; line-height: 0; }
 .nh-me-tag[hidden] { display: block; visibility: hidden; }
 .nh-me-tag canvas { display: block; image-rendering: pixelated; }
 .nh-me-tag .nh-me-font { display: block; font: 800 18px/27px "Inter", sans-serif; color: #fff; text-shadow: 2px 2px 0 #3f3f3f; white-space: nowrap; }
 .nh-me-view { position: relative; width: 200px; height: 340px; }
+/* an arm swung out sideways (the wave, a fidget) reaches past the box: nothing may clip it (owner, 16 Oct: "a part of
+   the hand disappears ... when the hand is mostly moved to the left") */
+.nh-me, .nh-me-view, .nh-me-view .sv-viewport { overflow: visible; }
+.nh-me-view .sv-viewport { cursor: pointer; }
 .nh-me-sub { margin-top: 18px; font-size: 12px; font-weight: 600; color: var(--cream, #ece8de); text-decoration: underline; text-underline-offset: 3px; }
 .nh-me:hover .nh-me-sub { color: #fff; }
 .nh-version { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #a1a1a6; white-space: nowrap; }
@@ -2944,7 +2948,7 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 @media (max-width: 1180px) {
   .nh { grid-template-columns: 170px minmax(0, 1fr) 228px; padding-right: 24px; padding-left: 36px; }
   .nh-me-view { width: 170px; }
-  .nh-me { left: -6px; }
+  .nh-me { left: 8px; }
 }
 /* short windows: a smaller character (renderer picks scale 8), then none - it must never reach the stats */
 @media (max-height: 840px) { .nh-me-view { width: 170px; height: 272px; } }
