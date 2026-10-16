@@ -60,9 +60,9 @@ Night design: what the owner asked, what is built, where it lives in the code, t
 - **PLAY**: 300x76, cream, 1px white rim, soft white glow (the only glow in the app), "PLAY" Inter 800 spaced .32em.
 - **Labels**: 10-11px, weight 800, letter-spacing .17em, uppercase, `#a7a7ac` - "PVP TIERS", "QUICK JOIN", and every
   settings card title.
-- **Headings**: Pixelify Sans (top bar page name 19px uppercase .1em; Home's REMINTH 27px .14em; page h1s), in the
+- **Headings**: Pixelify Sans (top bar page name 19px uppercase .1em; Home's SPACEPORT 27px .1em; page h1s), in the
   **regular** weight: the bold one closes the gap of C/c ("INSTANCE" read "INSTANOE") - the other window's fix in
-  `night-extra.css` (15 Oct, 01:30). Home's REMINTH has no C and stays bold.
+  `night-extra.css` (15 Oct, 01:30). Home's big title is SPACEPORT since 17 Oct 2026 (the launcher's new name) and has a C, so it uses the regular weight too.
 - **Numbers**: never in Pixelify (its 2 reads as 8, 5 as 8, 7 as 1). Home's stats use the drawn 5x7 pixel digits
   (`pxNumber`, 3 screen px per pixel); everything else uses Inter. Dialog titles are Inter for the same reason.
 - **Rail**: solid `#0a0a0c`, icons `#c9c9ce`, the active one on a grey square with a 3px white bar on its left.
