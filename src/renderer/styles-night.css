@@ -2968,6 +2968,32 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .hero-menu .dd-item.picked { color: var(--text); }
 .hero-menu .dd-item.picked .i { color: var(--accent); }
 .news-body .change-list li { font-size: 13px; }
+/* ---- Host a server (renderer.js paintHostingPage): the steps for Aternos on the left, the address box on the right ---- */
+.host-v3 {
+  display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr); gap: 34px; align-items: start;
+  padding: 36px 40px; border-radius: 12px; border: 1px solid var(--line); background: rgba(16, 16, 17, .82);
+}
+.host-v3 h1 { font-size: 32px; line-height: 1.15; margin: 12px 0 0; }
+.host-v3 .lede { margin-top: 12px; max-width: 560px; }
+.hv-free { font-style: normal; font-size: 10px; letter-spacing: .12em; padding: 2px 7px; border-radius: 5px; background: rgba(74, 222, 128, .14); color: #9ee6b8; } /* keep-colour */
+.hv-steps { margin: 22px 0 24px; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; max-width: 600px; color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.hv-steps b { color: var(--text); }
+.hv-steps code { font-size: 12.5px; padding: 1px 6px; border-radius: 5px; background: rgba(255, 255, 255, .07); }
+.hv-match { color: var(--text); font-weight: 700; }
+.hv-match small { font-size: inherit; font-weight: 400; color: var(--text-2); }
+.host-v3 a.btn { text-decoration: none; }
+.hv-join { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 10px; border: 1px solid var(--line); background: rgba(0, 0, 0, .25); }
+.hv-join-label { font-size: 12px; color: var(--text-2); margin-top: 6px; }
+.hv-join .hv-join-input { flex: none; height: 40px; box-sizing: border-box; width: 100%; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, .16); background: rgba(0, 0, 0, .35); color: var(--text); font: inherit; font-size: 14px; }
+.hv-join .hv-join-input:focus { outline: none; border-color: rgba(255, 255, 255, .35); }
+.hv-join-for { margin: 0; font-size: 12px; color: var(--text-3, #9a9a9f); }
+.hv-join-for b { color: var(--text-2); }
+.hv-join-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.hv-join-msg { margin: 2px 0 0; font-size: 12.5px; color: #9ee6b8; line-height: 1.4; } /* keep-colour */
+.hv-join-msg.bad { color: #ff9cb4; } /* keep-colour */
+.hv-join-msg[hidden] { display: none; }
+.hv-join-note { margin: 6px 0 0; font-size: 11.5px; color: var(--text-3, #9a9a9f); line-height: 1.45; }
+@media (max-width: 1000px) { .host-v3 { grid-template-columns: 1fr; } }
 *, *::before, *::after { background-origin: border-box !important; }
 
 /* ===== night-extra.css ===== */

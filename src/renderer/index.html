@@ -107,7 +107,7 @@
         <button class="rail-btn" data-page="discover" data-tip="Discover"><svg><use href="#i-compass"/></svg></button>
         <button class="rail-btn" data-page="library" data-tip="Library"><svg><use href="#i-library"/></svg></button>
         <button class="rail-btn" data-page="skins" data-tip="Skins"><svg><use href="#i-skin"/></svg></button>
-        <button class="rail-btn" data-page="hosting" data-tip="Reminth Hosting"><svg><use href="#i-hosting"/></svg></button>
+        <button class="rail-btn" data-page="hosting" data-tip="Host a server"><svg><use href="#i-hosting"/></svg></button>
         <button class="rail-btn rail-plus" data-page="plus" data-tip="Reminth+"><svg><use href="#i-gem"/></svg></button>
       </nav>
 
@@ -147,7 +147,7 @@
             <svg><use href="#i-stats"/></svg><span>Player Statistics</span>
           </button>
           <button class="top-action" id="hostBtn" data-page="hosting">
-            <svg><use href="#i-server"/></svg><span>Host a server</span><em class="soon">Soon</em>
+            <svg><use href="#i-server"/></svg><span>Host a server</span>
           </button>
         </div>
 
@@ -570,79 +570,36 @@
 
         <!-- ══ REMINTH HOSTING ══ -->
         <div id="hosting" class="page">
-          <div class="host-v2">
+          <!-- Host a server (owner, 16 Oct 2026): Reminth doesn't run servers itself (they cost money per server); the free
+               way is Aternos, a separate service. No partner, no money for sending players there, nothing made up. -->
+          <div class="host-v3">
             <div class="hv-copy">
-              <div class="hv-eyebrow"><span>Reminth Hosting</span><em class="soon">Soon</em></div>
-              <h1 class="display">Your server, minus the evening of setup</h1>
-              <p class="lede">Make a server from inside Reminth, on the exact mods and version you already play, and send your friends one link. No VPS, no port forwarding, no server.properties.</p>
-              <div class="hv-features">
-                <div class="hv-feat">
-                  <span class="perk-ico perk-tile t-cyan"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
-                  <div><b>Your instance, as a server</b><p>Boots on the same loader and mod list you already play. Nothing to upload or match up by hand.</p></div>
-                </div>
-                <div class="hv-feat">
-                  <span class="perk-ico perk-tile t-amber"><img class="perk-art" src="../../assets/hosting/bolt-icon.svg" alt="" /></span>
-                  <div><b>Up in under a minute</b><p>Name it, pick who's allowed in, press create. Friends join from their own Reminth on the right version.</p></div>
-                </div>
-                <div class="hv-feat">
-                  <span class="perk-ico perk-tile t-violet"><img class="perk-art" src="../../assets/hosting/anvil-icon.svg" alt="" /></span>
-                  <div><b>Tweak it without a panel</b><p>Gamerules, whitelist, backups and restarts from the app you launch the game with.</p></div>
-                </div>
-              </div>
+              <div class="hv-eyebrow"><span>Host a server</span><em class="hv-free">Free</em></div>
+              <h1 class="display">Your own Minecraft server, free</h1>
+              <p class="lede">Reminth doesn't run servers itself. The easy free way is <b>Aternos</b>, a free Minecraft server host. Make a server there in a few minutes, then join it from here with your friends.</p>
+              <ol class="hv-steps">
+                <li><b>Open Aternos</b>, make a free account and press <b>Create</b>.</li>
+                <li><b>Pick the same game as your instance</b> under Software and Version: <span class="hv-match" id="hostMatch">your instance's loader and version</span>.</li>
+                <li><b>Press Start</b>, wait until it says Online, and copy its address (it looks like <code>yourname.aternos.me</code>).</li>
+                <li><b>Paste the address below.</b> It goes into your Minecraft server list, and Join starts the game on it.</li>
+              </ol>
               <div class="row-actions">
-                <button class="btn primary is-soon" disabled><svg class="i"><use href="#i-plus"/></svg>Create a server<em class="soon">Soon</em></button>
-                <button class="btn outline" data-page="plus"><svg class="i"><use href="#i-gem"/></svg>Free with Reminth+</button>
+                <a class="btn primary" href="https://aternos.org/" target="_blank" rel="noopener"><svg class="i"><use href="#i-server"/></svg>Open Aternos</a>
               </div>
             </div>
-
-            <!-- Illustrative preview of what hosting will look like - not interactive, labelled as a preview. -->
-            <div class="hv-stage" aria-label="Preview of Reminth Hosting">
-              <span class="hv-preview-tag">Preview</span>
-              <div class="hp-server">
-                <div class="hp-srv-top">
-                  <span class="hp-srv-ico"><img class="perk-art" src="../../assets/hosting/cube-icon.svg" alt="" /></span>
-                  <div class="hp-srv-name"><b>Friday Night SMP</b><span><i class="hp-live"></i>Online · join code <code>RMN-4F2K</code></span></div>
-                </div>
-                <div class="hp-srv-stats">
-                  <div><span>Players</span><b>3<small>/10</small></b><div class="hp-minis"><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#7a2e1a"/><rect x="0" y="1" width="1" height="1" fill="#7a2e1a"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#7a2e1a"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#7c3aed"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#7c3aed"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span><span class="hp-mini"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#1c1c1c"/><rect x="0" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="2" y="1" width="4" height="1" fill="#c69c7b"/><rect x="6" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg></span></div></div>
-                  <div><span>Instance</span><b>Fabric 26.2</b><small class="hp-sub">27 mods in sync</small></div>
-                  <div><span>Performance</span><b>20.0 <small>TPS</small></b><div class="hp-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-                </div>
+            <div class="hv-join">
+              <span class="nh-label">Your server</span>
+              <label class="hv-join-label" for="hostAddr">Address</label>
+              <input class="hv-join-input" id="hostAddr" type="text" maxlength="255" spellcheck="false" autocomplete="off" placeholder="yourname.aternos.me" />
+              <p class="hv-join-for">For <b id="hostInst">your instance</b> (change it with the picker on Home).</p>
+              <div class="hv-join-btns">
+                <button class="btn outline" id="hostAdd" type="button"><svg class="i"><use href="#i-plus"/></svg>Add to my servers</button>
+                <button class="btn primary" id="hostJoin" type="button"><svg class="i"><use href="#i-play"/></svg>Join</button>
               </div>
-              <div class="hp-invite">
-                <div class="hp-inv-head"><svg class="i"><use href="#i-people"/></svg><b>Invite friends</b></div>
-                <div class="hp-inv-search"><svg class="i"><use href="#i-search"/></svg><span>Minecraft username…</span><span class="hp-add"><svg class="i"><use href="#i-plus"/></svg>Add</span></div>
-                <div class="hp-inv-list">
-                  <div class="hp-friend">
-                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="2" height="1" fill="#e8e8e8"/><rect x="2" y="1" width="4" height="1" fill="#8d5a3b"/><rect x="6" y="1" width="2" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="3" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#8d5a3b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="0" y="5" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="0" y="7" width="8" height="1" fill="#8d5a3b"/></svg><i class="hp-dot online"></i></span>
-                    <span class="hp-fname">Kiraxx<small>Online</small></span>
-                    <span class="hp-btn">Invite</span>
-                  </div>
-                  <div class="hp-friend">
-                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#e8e8e8"/><rect x="0" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="1" y="1" width="6" height="1" fill="#c69c7b"/><rect x="7" y="1" width="1" height="1" fill="#e8e8e8"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg><i class="hp-dot ingame"></i></span>
-                    <span class="hp-fname">blockbuster_<small>In game</small></span>
-                    <span class="hp-btn done"><svg class="i"><use href="#i-check"/></svg>Invited</span>
-                  </div>
-                  <div class="hp-friend">
-                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#5a3a1c"/><rect x="0" y="1" width="1" height="1" fill="#5a3a1c"/><rect x="1" y="1" width="6" height="1" fill="#e0b48f"/><rect x="7" y="1" width="1" height="1" fill="#5a3a1c"/><rect x="0" y="2" width="8" height="1" fill="#e0b48f"/><rect x="0" y="3" width="8" height="1" fill="#e0b48f"/><rect x="0" y="4" width="1" height="1" fill="#e0b48f"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#22c55e"/><rect x="3" y="4" width="2" height="1" fill="#e0b48f"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#22c55e"/><rect x="7" y="4" width="1" height="1" fill="#e0b48f"/><rect x="0" y="5" width="8" height="1" fill="#e0b48f"/><rect x="0" y="6" width="2" height="1" fill="#e0b48f"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#e0b48f"/><rect x="0" y="7" width="8" height="1" fill="#e0b48f"/></svg><i class="hp-dot online"></i></span>
-                    <span class="hp-fname">NovaPvP<small>Online</small></span>
-                    <span class="hp-btn">Invite</span>
-                  </div>
-                  <div class="hp-friend off">
-                    <span class="hp-head"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#3b3b8f"/><rect x="0" y="1" width="2" height="1" fill="#3b3b8f"/><rect x="2" y="1" width="4" height="1" fill="#8d5a3b"/><rect x="6" y="1" width="2" height="1" fill="#3b3b8f"/><rect x="0" y="2" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="3" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#7c3aed"/><rect x="3" y="4" width="2" height="1" fill="#8d5a3b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#7c3aed"/><rect x="7" y="4" width="1" height="1" fill="#8d5a3b"/><rect x="0" y="5" width="8" height="1" fill="#8d5a3b"/><rect x="0" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="2" y="6" width="4" height="1" fill="#7a4a32"/><rect x="6" y="6" width="2" height="1" fill="#8d5a3b"/><rect x="0" y="7" width="8" height="1" fill="#8d5a3b"/></svg><i class="hp-dot offline"></i></span>
-                    <span class="hp-fname">TheRealMoss<small>Offline</small></span>
-                    <span class="hp-btn">Invite</span>
-                  </div>
-                </div>
-                <div class="hp-inv-link"><span>reminth://join/RMN-4F2K</span><svg class="i"><use href="#i-copy"/></svg></div>
-              </div>
-              <div class="hp-toast">
-                <span class="hp-head lg"><svg class="hp-face" viewBox="0 0 8 8" shape-rendering="crispEdges" aria-hidden="true"><rect x="0" y="0" width="8" height="1" fill="#1c1c1c"/><rect x="0" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="2" y="1" width="4" height="1" fill="#c69c7b"/><rect x="6" y="1" width="2" height="1" fill="#1c1c1c"/><rect x="0" y="2" width="8" height="1" fill="#c69c7b"/><rect x="0" y="3" width="8" height="1" fill="#c69c7b"/><rect x="0" y="4" width="1" height="1" fill="#c69c7b"/><rect x="1" y="4" width="1" height="1" fill="#ffffff"/><rect x="2" y="4" width="1" height="1" fill="#1f2937"/><rect x="3" y="4" width="2" height="1" fill="#c69c7b"/><rect x="5" y="4" width="1" height="1" fill="#ffffff"/><rect x="6" y="4" width="1" height="1" fill="#1f2937"/><rect x="7" y="4" width="1" height="1" fill="#c69c7b"/><rect x="0" y="5" width="8" height="1" fill="#c69c7b"/><rect x="0" y="6" width="2" height="1" fill="#c69c7b"/><rect x="2" y="6" width="4" height="1" fill="#5b3423"/><rect x="6" y="6" width="2" height="1" fill="#c69c7b"/><rect x="0" y="7" width="8" height="1" fill="#c69c7b"/></svg><i class="hp-dot online"></i></span>
-                <div class="hp-toast-text"><b>Steve_77</b> invited you to <b>Friday Night SMP</b><div class="hp-toast-btns"><span class="hp-btn accept">Join</span><span class="hp-btn">Later</span></div></div>
-              </div>
+              <p class="hv-join-msg" id="hostMsg" hidden></p>
+              <p class="hv-join-note">A free Aternos server switches off when nobody is on it for a while: start it again on Aternos, then press Join. Aternos is a separate service with its own rules and privacy policy.</p>
             </div>
           </div>
-          <p class="set-note center">Not live yet — this is what's being built. Reminth+ members get a server included when it launches.</p>
         </div>
 
         <!-- ══ REMINTH+ ══ -->

@@ -712,7 +712,7 @@ const PAGE_META = {
   library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
-  hosting: ["Servers", "Play together without the setup."],
+  hosting: ["Host a server", "Your own server, free, with your friends."],
   plus: ["Reminth+", "Your own server, minus the landlord."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
@@ -3808,6 +3808,78 @@ document.addEventListener("reminth:page", (e) => {
   if (e.detail === "home") setTimeout(alignHomeCharacter, 30);
 });
 window.addEventListener("resize", () => setTimeout(alignHomeCharacter, 30));
+
+/* ---- Host a server (the hosting page): free on Aternos, then add it / join it from here ----
+ * The instance is the one Home's picker shows (heroInstance), the same one Launch game starts. The last address typed is
+ * remembered on this PC only (localStorage) so Join is one click next time. */
+const HOST_ADDR_KEY = "reminth.hostAddress";
+function hostInstanceLabel(inst) {
+  if (!inst) return "your instance";
+  const loader = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" }[inst.loader] || inst.loader || "";
+  return `${loader} ${inst.mcVersion || ""}`.trim();
+}
+function paintHostingPage() {
+  const inst = heroInstance();
+  const match = $("hostMatch");
+  match.textContent = inst ? hostInstanceLabel(inst) : "the loader and version of the instance you play";
+  if (inst && inst.loader && inst.loader !== "vanilla") match.appendChild(el("small", null, " (mods that only change how the game looks, like Sodium, don't go on the server)"));
+  $("hostInst").textContent = inst ? `${inst.name} (${hostInstanceLabel(inst)})` : "your instance";
+  if (!$("hostAddr").value) {
+    try {
+      $("hostAddr").value = localStorage.getItem(HOST_ADDR_KEY) || "";
+    } catch {
+      // storage off: start empty
+    }
+  }
+  const busy = !inst || state.running.has(inst.id) || state.installing.has(inst.id);
+  $("hostJoin").disabled = busy;
+}
+function hostMessage(text, bad) {
+  const m = $("hostMsg");
+  m.textContent = text;
+  m.classList.toggle("bad", Boolean(bad));
+  m.hidden = !text;
+}
+/** The typed address, checked, or null (with a message). */
+function hostAddress() {
+  const text = $("hostAddr").value.trim();
+  const parsed = text ? window.ReminthPure.parseServerAddress(text) : null;
+  if (!parsed) {
+    hostMessage(text ? "That isn't a server address. It looks like yourname.aternos.me" : "Paste your server's address first.", true);
+    return null;
+  }
+  try {
+    localStorage.setItem(HOST_ADDR_KEY, text);
+  } catch {
+    // not remembered - fine
+  }
+  return { text, ...parsed };
+}
+$("hostAdd").onclick = async () => {
+  const inst = heroInstance();
+  const addr = hostAddress();
+  if (!inst || !addr) return;
+  $("hostAdd").disabled = true;
+  try {
+    const r = await window.reminth.addServer(inst.id, { name: "My server", address: addr.text });
+    hostMessage(r && r.added ? `Added to ${inst.name}'s server list as "My server".` : `It's already in ${inst.name}'s server list.`);
+  } catch (err) {
+    hostMessage(friendlyError(err.message), true);
+  } finally {
+    $("hostAdd").disabled = false;
+  }
+};
+$("hostJoin").onclick = () => {
+  const inst = heroInstance();
+  const addr = hostAddress();
+  if (!inst || !addr) return;
+  if (state.running.has(inst.id) || state.installing.has(inst.id)) return;
+  hostMessage(`Starting ${inst.name} and joining ${addr.text}…`);
+  runPlay({ instanceId: inst.id, join: { host: addr.host, port: addr.port } });
+};
+document.addEventListener("reminth:page", (e) => {
+  if (e.detail === "hosting") paintHostingPage();
+});
 
 function paintHomeServerButtons() {
   const inst = heroInstance();
