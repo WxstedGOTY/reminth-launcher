@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **16 Oct 2026 (evening): the Sponsored box under Friends - the owner sets one Minecraft server (name, address, picture, first/last day) on the website's owner tools; the launcher shows it with "Sponsored" and JOIN; no tracking. Server live with this push; launcher side not released. Privacy v14 draft has its text. Section 00000000000000000000000000000000000000000. `npm test` 708.**
 - **16 Oct 2026 (later): no Stop button any more, Reminth stays open when the game starts, a smaller window goes to the middle, a safety net so "Playing" never sticks after Minecraft is closed, Home side columns no longer jump, Discord card blurple with its real logo. Section 0000000000000000000000000000000000000000. `npm test` 702.**
 - **16 Oct 2026: launching shows no progress box or log any more - the button just says "Launching…" then "Playing" (errors still open the log; Verify files keeps its bar), renderer.js runPlay/paintPlayButtons. The Live Preview skips its sign-in at once (no more flash of the Reminth sign-in card), tools/preview/live-hook.js. Seen working in a hidden test launcher. `npm test` 698.**
 - **15 Oct 2026 (night): Friends work for real (codes, requests, who's online/playing where, Join, Appear offline) and the Friends box is half height with an empty space for ads under it. Tested with two launchers against a local server; not released. Privacy v14 draft must go live with the release. Section 000000000000000000000000000000000000000.**
@@ -30,6 +31,47 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 00000000000000000000000000000000000000000. The Sponsored box (16 Oct 2026, evening) - desktop window (code chat)
+
+**Owner's ask:** ads in the space under Friends ("cant we just put ads like the once on youtube?" -> told: Google's ads
+are for websites/phone apps only, need 18+, track people (many players are kids); the plan is to sell the space to
+Minecraft servers; owner: "yes build it").
+
+**Done:**
+- **Server** (Cloudflare Pages functions, live with this push): `functions/_sponsor.js` (one slot, table `sponsor`;
+  checks: name <= 40, a real server address, PNG/JPEG/WebP checked by its first bytes and <= 450 KB, first/last day,
+  at most a year, the last day counts in full), `GET /api/sponsor` (public, cached 5 min, null when nothing is on),
+  `GET /api/sponsor/image?v=` (the picture, cached a day, 404 when nothing is on), `GET/POST /api/admin/sponsor` (owner
+  only, 404 for everyone else; `{remove: true}` takes it down; no new picture keeps the old one).
+- **Owner tools** (`functions/_ownerPanel.js`, account page): "Sponsored box in the launcher" - what shows now, the
+  picture, name, address, picture file (cut to 1320x600 webp in the browser), first/last day, Save, Take it down.
+- **Launcher**: `src/main/sponsor.js` (asks at most every 30 min, picture only from Reminth's website, checked to be a
+  real picture, handed to the page as a data URL; offline keeps the last one until its end), IPC `sponsor:get`,
+  preload `sponsor`, renderer.js `loadSponsor` (in `#nhAdSlot`: "SPONSORED", picture, name, address, live count, JOIN
+  like the server cards, greyed while a game runs/installs), CSS `.nh-ad-slot.filled`/`.nh-sponsor`.
+- Nothing about the player is sent or stored for it (no account, id, cookie, clicks or views).
+- Privacy: `design/privacy-v14-draft.md` section "Added 16 Oct 2026" - goes live with the release, with Friends.
+- Tests: `test/sponsor.test.js` (6), `tools/sponsor-e2e.js` (9 checks against a local server + the launcher's own code:
+  ALL PASSED).
+
+**Seen working:** the e2e above; the owner form in a hidden browser (owner signed in via a pretend Discord: picture
+chosen -> 1320x600, ~110 KB, saved, "Showing now in every launcher"); the box on Home in the hidden launcher against
+that local server (screenshot: SPONSORED, picture, Donut Test, donutsmp.net, 21,061 online, JOIN).
+**Not tested for real:** the live website (needs the owner's Discord sign-in); JOIN from the box into a real server
+(same code as the server cards); small windows with the box (it clips at the bottom of its space).
+
+**Decisions for the owner:** what to show first (your own Discord server or a friend's server for free is fine). Before
+the first PAID one: a parent takes the money and makes the deal; the Terms may need a "sponsored = paid" line.
+
+**Test plan (owner; PASS/FAIL):**
+1. reminth.pages.dev/account (signed in with your Discord) -> Owner tools -> "Sponsored box in the launcher" is there. PASS/FAIL
+2. Fill in a server name and address, pick a picture, first day today, last day next week -> Save -> "Showing now in every launcher". PASS/FAIL
+3. Live Preview: Home -> under Friends, within ~30 minutes (or restart the preview): SPONSORED, your picture, name, address, JOIN. PASS/FAIL
+4. JOIN starts the game and joins that server. PASS/FAIL
+5. Take it down -> after a preview restart the space is empty again. PASS/FAIL
 
 ---
 

@@ -37,3 +37,31 @@ pushed under `site/` goes live at once. **Do this in the same push as the releas
 ```
 
 Also update the launcher's short privacy summary in `src/renderer/index.html` (Settings -> Privacy) the same day.
+
+## Added 16 Oct 2026: the sponsored box on Home (same release, same version 14)
+
+Code: `functions/_sponsor.js`, `functions/api/sponsor/*`, `functions/api/admin/sponsor.js`, `src/main/sponsor.js`,
+renderer.js `loadSponsor`. Nothing about the player is stored for it, but the launcher makes a new request, so section
+5 must name it.
+
+5. In section 5 ("The launcher: what it sends, and to whom"), add to the list:
+
+```html
+      <li><b>Reminth's website</b> (reminth.pages.dev, <code>/api/sponsor</code>): about every 30 minutes while Home
+        is open, the launcher asks which Minecraft server is in the <b>Sponsored</b> box on Home, and downloads its
+        picture. The request carries no account, id or cookie, and we don't count or store who asks, or who clicks
+        Join. Cloudflare sees your IP address as for any request (section 3). The box is always marked
+        "Sponsored"; a sponsor is a Minecraft server that pays to be shown there, and it learns nothing about you
+        from the box - pressing Join starts your game on that server, like any server address.</li>
+```
+
+6. In section 7 ("Children"), add: "The Sponsored box on Home never uses tracking or personalised ads: everyone
+   sees the same server, chosen by us."
+7. In the Version 14 history line, add: "and the Sponsored box on Home (which server is shown; nothing about you is
+   sent or stored)."
+8. The launcher's privacy summary (`src/renderer/index.html`, Settings -> Privacy): one line "Home's Sponsored box
+   is fetched from Reminth's website without any account or id; nothing about you is counted."
+
+Before the first PAID sponsor (not a code change): an adult (parent/guardian) takes the money and is the party to
+the deal; the Terms may need a line that sponsors are paid placements. Showing your own or a friend's server for
+free needs none of that.

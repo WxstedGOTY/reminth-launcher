@@ -9,6 +9,7 @@ const minecraft = require("./minecraft");
 const java = require("./java");
 const msAuth = require("./msAuth");
 const tiers = require("./tiers");
+const sponsor = require("./sponsor");
 const store = require("./store");
 const paths = require("./paths");
 const config = require("./config");
@@ -800,6 +801,8 @@ const presence = require("./presence").createPresence({
   onList: (card) => send("friends:update", card),
 });
 ipcMain.handle("friends:list", () => reminthAccount.friendsList());
+// Home's sponsored box (sponsor.js): the slot the owner set on the website, or null. Never throws.
+ipcMain.handle("sponsor:get", () => sponsor.get().catch(() => null));
 ipcMain.handle("friends:request", (_e, code) => reminthAccount.friendRequest(code));
 ipcMain.handle("friends:respond", (_e, id, accept) => reminthAccount.friendRespond(id, accept === true));
 ipcMain.handle("friends:remove", (_e, id) => reminthAccount.friendRemove(id));

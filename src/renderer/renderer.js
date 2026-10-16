@@ -763,6 +763,7 @@ function switchPage(page) {
     loadMyTiers();
     buildHomeServers();
     pingHomeServers();
+    loadSponsor();
     paintHomeName();
     loadFriends();
   }
@@ -1009,6 +1010,7 @@ function applyAccountUI() {
   if (signedIn) {
     buildHomeServers();
     pingHomeServers();
+    loadSponsor();
   }
   if ((!signedIn || needRm) && currentPage !== "home") switchPage("home");
   paintTopChip();
@@ -3535,6 +3537,77 @@ function joinHomeServer(address) {
   if (!inst || !join) return;
   if (state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id)) return;
   runPlay({ instanceId: inst.id, join: { host: join.host, port: join.port } });
+}
+
+/* ---- the sponsored box under Friends (owner, 16 Oct 2026) ----
+ * The one server the owner set on the website (main.js sponsor:get - asked at most every 30 minutes, the picture
+ * checked there). Always says "Sponsored". With no sponsor the space stays empty: nothing made up, no fake ads.
+ * JOIN is the same as on the server cards. Nothing about the player is sent or counted for it. */
+let sponsorShown = ""; // what is painted now, so a refresh with the same slot changes nothing
+let sponsorPingedAt = 0;
+async function loadSponsor() {
+  let s = null;
+  try {
+    s = window.reminth.sponsor ? await window.reminth.sponsor() : null;
+  } catch {
+    s = null;
+  }
+  const slot = $("nhAdSlot");
+  if (!slot) return;
+  if (s && !(typeof s.image === "string" && /^data:image\/(?:png|jpeg|webp);base64,/.test(s.image) && s.name && s.address)) s = null;
+  const key = s ? [s.name, s.address, s.image.length, s.until].join("|") : "";
+  if (key !== sponsorShown) {
+    sponsorShown = key;
+    slot.textContent = "";
+    slot.classList.toggle("filled", Boolean(s));
+    if (!s) {
+      slot.setAttribute("aria-hidden", "true");
+      return;
+    }
+    slot.removeAttribute("aria-hidden");
+    const head = el("div", "nh-card-head");
+    head.appendChild(el("span", "nh-label", "Sponsored"));
+    const card = el("article", "nh-srv nh-sponsor");
+    const pic = el("div", "nh-srv-pic");
+    const img = el("img");
+    img.alt = "";
+    img.draggable = false;
+    img.src = s.image;
+    pic.appendChild(img);
+    const info = el("div", "nh-srv-info");
+    const txt = el("span", "nh-srv-txt");
+    txt.appendChild(el("b", "nh-srv-name", s.name));
+    const ip = el("span", "nh-srv-ip", s.address);
+    const online = el("em", "nh-srv-on");
+    online.hidden = true;
+    ip.appendChild(online);
+    txt.appendChild(ip);
+    const join = el("button", "nh-srv-join", "Join");
+    join.type = "button";
+    join.setAttribute("aria-label", `Join ${s.name}`);
+    join.onclick = () => joinHomeServer(s.address);
+    info.append(txt, join);
+    card.append(pic, info);
+    slot.append(head, card);
+    sponsorPingedAt = 0;
+    paintHomeServerButtons();
+  }
+  if (!s) return;
+  // its live player count, like the server cards: at most once a minute, never while a game runs
+  if (state.running.size || Date.now() - sponsorPingedAt < 60 * 1000) return;
+  sponsorPingedAt = Date.now();
+  let res = null;
+  try {
+    res = await window.reminth.pingServers([s.address]);
+  } catch {
+    return;
+  }
+  const r = res && res[s.address];
+  const online = slot.querySelector(".nh-srv-on");
+  if (!online) return;
+  const count = r && r.online && typeof r.playersOnline === "number" ? r.playersOnline : null;
+  online.hidden = count === null;
+  if (count !== null) online.textContent = `${count.toLocaleString()} online`;
 }
 
 function paintHomeServerButtons() {

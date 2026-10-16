@@ -155,6 +155,7 @@ contextBridge.exposeInMainWorld("reminth", {
   onAccountRestored: on("auth:restored"),
   // friends (main.js "friends" section)
   friendsList: () => ipcRenderer.invoke("friends:list"),
+  sponsor: () => ipcRenderer.invoke("sponsor:get"),
   friendRequest: (code) => ipcRenderer.invoke("friends:request", code),
   friendRespond: (id, accept) => ipcRenderer.invoke("friends:respond", id, accept),
   friendRemove: (id) => ipcRenderer.invoke("friends:remove", id),
