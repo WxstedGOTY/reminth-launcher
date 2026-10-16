@@ -108,8 +108,9 @@ try {
 
 // The installed launcher's own browser data (and with it the key that unlocks the saved sign-ins) has always been in
 // %APPDATA%\reminth-launcher. Pinned here so the shown name (Spaceport Launcher since 16 Oct 2026) can never move it.
-// Only the installed app: the previews and tests set their own folder before this runs.
-if (app.isPackaged) {
+// Only the installed app: the previews and tests set their own folder before this runs, and a --user-data-dir given
+// on purpose (a test copy of the installed app) wins.
+if (app.isPackaged && !app.commandLine.hasSwitch("user-data-dir")) {
   try {
     app.setPath("userData", path.join(app.getPath("appData"), "reminth-launcher"));
   } catch {

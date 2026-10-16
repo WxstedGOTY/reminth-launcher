@@ -4320,13 +4320,13 @@ $("nhNews").onclick = () => {
  * ================================================================== */
 // A hand-written list for this release; the version beside it comes from the app.
 const CHANGELOG = [
-  "A new look: Night - black and white under a pixel night sky, with the new Spaceport icon.",
-  "A new Home: one big PLAY with the instance it starts right under it, your stats, your own PvP tiers (MCTiers, PvPTiers, SubTiers) and Quick join for your last worlds and servers.",
-  "New in the G panel: Tier Tagger - players' PvP tiers (MCTiers, PvPTiers, SubTiers) above their heads and in the tab list, every gamemode. Type /tiers <name> to see all of someone's tiers.",
-  "Spaceport accounts: Discord, Google or email - the same account on the website, shown at the top of the launcher.",
-  "The Spaceport Mods Panel: press G in game for 140+ of Spaceport's own features - FPS, keystrokes, armor, potion timers, zoom, hit marker, chat timestamps and more. On every version from 1.20.1 to 26.3.",
-  "A pointer that never vanishes in full screen, a new title screen, and a heads-up when a server's rules ban one of your mods.",
-  "Pick what an instance is for (PvP, survival and more) and get a matching set of mods and packs.",
+  "Reminth is now Spaceport Launcher: a new name, the same launcher. Your instances, worlds, settings and sign-in stay as they were.",
+  "A new Home: a sharp night sky, LAUNCH GAME with your last servers and worlds under it, your own skin and Minecraft name, and 12 popular servers with live player counts and Join.",
+  "Your stats now use Minecraft's own pictures: diamond sword, skeleton skull, pig, iron pickaxe and grass block.",
+  "Friends: add friends with a friend code and see who's in the launcher or playing, and on which server - Join puts you on the same one. Appear offline hides you.",
+  "Host a server: make your own free server on Aternos with steps that match your instance, then add it to your list or join it from here.",
+  "Launching is quieter: no Stop button or log popping up, the launcher stays as it was when the game starts, and Launch game comes back as soon as you close Minecraft.",
+  "In game: the Spaceport Mods Panel (G), Spaceport HUD and the Spaceport title screen carry the new name.",
 ];
 
 function renderChangelog() {

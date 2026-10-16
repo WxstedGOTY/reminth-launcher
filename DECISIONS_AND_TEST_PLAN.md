@@ -4,6 +4,7 @@
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
 section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAIL per step.
 
+- **17 Oct 2026 (night): THE LAUNCHER IS NOW "SPACEPORT LAUNCHER" (owner, 16 Oct: "we remove the reminth name from absolutely everywhere ... spaceport launcher ... even the website") + a real Host a server page (Aternos). Launcher, in-game mods (HUD 1.6.1, home screen 1.0.10), installer done on `main`; website + bot + privacy v14 / terms v9 on the branch `spaceport-website` (goes live with the release). The owner's clicks: `OWNER_TODO_SPACEPORT.md`. Section 000000000000000000000000000000000000000000. `npm test` 712.**
 - **16 Oct 2026 (night, last): the character's HEIGHT is back where it was (owner: "only heigh place, i want it to match exactly the servers"): its top (the name) is on the same line as the server cards' top. Bottom of the left column as before; on big windows, where that is lower, renderer.js `alignHomeCharacter` lifts only the character (the version line stays at the bottom). Measured in the hidden copy: 1920x1032 both at 527 (no lift needed), 2560x1392 both at 678 (lifted 209px). Windows too short to reach the line (e.g. 1382x868) keep it as low as it fits. Left/right stays centred, the new wave stays.** Test: Home -> the name above the character starts exactly where the server cards start. PASS/FAIL
 - **16 Oct 2026 (night, later): Home's character sits in the exact middle of its space - left/right between the rail and the launch panel (`.nh-me left: -12px`, was +14), up/down between the stats and the version line (`.nh-left-bottom > .nh-me { margin: auto 0 }`). The hello wave now raises the hand in front, next to the head, with a small side-to-side swing (`skinview.js`), because swinging out sideways went under the rail from the middle (measured: the hand stays at x >= 88, the rail ends at 72). Measured in the hidden copy at 1936x1040; the wave was stepped frame by frame there (hidden windows don't animate) - not seen moving for real.** Test: Home -> the character is in the middle of its space; when Home opens it waves with the hand up next to its head, never cut off. PASS/FAIL
 - **16 Oct 2026 (night): Home's stat icons are Minecraft's own pictures - diamond sword, skeleton skull (3D like the inventory), pig head with snout (instead of the creeper), iron pickaxe, grass block (3D) - read from a game the player already downloaded (`src/main/mcTextures.js`, IPC `mc:textures`, renderer.js `paintMcStatIcons`/`drawIsoBoxes`; never shipped), cached in `%APPDATA%\Reminth\cache\mc-tex-*.png`; hand-drawn ones (a pig now too) until a game is downloaded. Seen in the hidden copy with the 26.2 files and in the hand-drawn fallback. `npm test` 712.** Test: Home -> the five icons look like in the game; hover names them. PASS/FAIL
@@ -34,6 +35,82 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **Version:** `package.json` says **1.7.2** (installer `release-1.7.2`) - **published 10 Oct 2026**.
 - Prompts 10-13 were released in 1.4.1; steps below not marked PASS are still open. Release steps: section 4, R2 first.
 - Rules: `CLAUDE_CODE_HANDOFF_10.md` sections 0-1.
+
+---
+
+## 000000000000000000000000000000000000000000. Reminth -> Spaceport Launcher, and Host a server (16-17 Oct 2026, night) - desktop window (code chat)
+
+**Owner's asks:** (1) "build the server hosting system ... for absolutely free" or partner - after the honest answer (free
+hosting costs real money per server; partners won't take a 0-player launcher; start with Aternos and open affiliate
+programs, exaroton's API later, BisectHosting's partner program with real numbers) he picked **only Aternos for now**;
+(2) "we remove the reminth name from absolutely everywhere ... spaceport launcher ... even the website"; answered:
+keep hidden names, new site spaceport-launcher.pages.dev, rename the GitHub repo, keep the email, SPACEPORT big /
+"Spaceport Launcher" in text. Then asleep, "you got all night".
+
+**Host a server** (`index.html #hosting`, renderer.js `paintHostingPage`, CSS `.host-v3`): the old "coming soon"
+mockup (made-up friends, a promised Reminth+ server) is gone. Steps for a free Aternos server matching the instance
+Home's picker shows (loader + version, "mods that only change how the game looks don't go on the server"), Open
+Aternos, an address box: Add to my servers (servers.dat, "My server") / Join (same path as the server cards). Tested in
+the hidden copy: bad address refused, added once, second add "already in the list".
+
+**The rename, rules used everywhere:** formal spots (window title, installer, page titles, link previews, "Welcome
+to …", "<name> <version>") = **Spaceport Launcher**; sentences and product names = **Spaceport** (Spaceport account,
+Spaceport+, Spaceport HUD, Spaceport home screen, Spaceport panel, SPACEPORT MODS PANEL); Home's big title SPACEPORT
+in the **regular** pixel weight (bold closes the C). The rename tools are in the session scratchpad (string literals
+only, never comments, ids, paths or log lines).
+
+**Hidden on purpose (data, sign-ins and updates keep working):** `%APPDATA%\Reminth` (all data), `%APPDATA%\reminth-launcher`
+(Chromium profile with the key for saved sign-ins - now pinned in main.js for the installed app; a --user-data-dir
+given on purpose wins), package name `reminth-launcher` (install folder `Programs\reminth-launcher`, updater cache),
+`appId com.reminth.launcher`, `reminth://`, **the program file `Reminth.exe`** (`build.executableName`: on an update the
+installer renames the old shortcut but keeps its target - a new exe name would break every desktop/Start/pinned
+shortcut; Task Manager shows "Spaceport Launcher" from the file description), mod ids/class names/config files/jar
+prefixes, localStorage keys, log lines, the `publish` repo `reminth-launcher` until the owner renames the repo (GitHub
+redirects either way), the API address reminth.pages.dev (old launchers use it), `reminth-token-key:` salt.
+
+**Done on `main`:** 117 launcher strings + index.html (folder paths kept true; ads claims fixed - "No ads" was false
+since the Sponsored box); main instance still named "Reminth" becomes "Spaceport" (instances.js normalise); new
+players' clips `Videos\Spaceport Launcher`, existing `Videos\Reminth` kept (paths.capturesDir); package.json
+productName/shortcut/protocol label/artifact `Spaceport-Launcher-Setup.exe`; Home's version line "Spaceport <v>"
+(fits next to What's new); in-app privacy summary -> v14 and terms -> v9; What's new for the next release; README;
+Live Preview title; 20 mod jars rebuilt (HUD 1.6.1, home 1.0.10, same Minecraft ranges - compared one by one).
+
+**Done on the branch `spaceport-website`** (worktree `../spaceport-website-wt`; site/ and functions/ go live on push to
+main, so it waits for the release): every page, titles, link previews, JSON-LD, download button ->
+`Spaceport-Launcher-Setup.exe`, new `og.png` (Night look, "SPACEPORT LAUNCHER"); privacy **v14** (rename note, Friends,
+Sponsored box, children line) and terms **v9** (rename, Sponsored box = possibly paid, someone else's server); bot,
+sign-in pages, owner tools, setup texts; AutoMod rules and the channel webhook made under the old name are found and
+renamed (`OUR_RULE`, also fixed `slice(9)` that assumed the 9-letter prefix); the workflow also uploads to
+`spaceport-launcher` (only warns until that project exists); the pretend Discord now deletes webhook messages (the
+bot e2e step was already failing on main since the 15 Oct "never edit" change - checked).
+
+**Seen working:** npm test 712 on main and on the branch; bot e2e (incl. old-named rules/webhook reused and renamed),
+accounts e2e, friends e2e, sponsor e2e - all against a local copy of the branch; real games 26.2 and 1.21.11 with the
+new jars (G panel "SPACEPORT MODS PANEL", tip "Spaceport Mods Panel", no errors but the offline-player ones); the
+packaged app built (`Spaceport-Launcher-Setup.exe`, `Reminth.exe` with product "Spaceport Launcher") and started with
+test folders: title, sign-in card say Spaceport, the real `%APPDATA%\reminth-launcher` untouched; a scan of every page
+for "Reminth": only the real folder path, the privacy rename note and the What's new line are left (on purpose).
+
+**Not tested:** updating an installed Reminth to the new build (the shortcut rename and the old uninstaller) - it
+would replace the owner's own install; the new Cloudflare project, Discord/Google sign-in on the new address (they
+need the owner's steps B-D first); the bot in the real server after the rename.
+
+**Decisions for the owner (recommendation first):**
+- Version of the renamed release: **2.0.0** (a new name is a big step) - or 1.9.0.
+- The X account `x.com/reminthsupport` and the email stay until he makes new ones.
+- Spaceport+ still promises "a server included when Spaceport Hosting launches" (no own hosting is planned now) - rewrite
+  it when he decides what Plus is.
+
+**Owner steps:** `OWNER_TODO_SPACEPORT.md` (A repo rename, B Cloudflare project with the same D1 and variables, C
+Discord app name + redirect, D Google app name + redirect, E release).
+
+**Test plan (owner; PASS/FAIL):**
+1. Live Preview: every page says Spaceport; Home's big title SPACEPORT with an open C; "Spaceport 1.8.0 • What's new" fits. PASS/FAIL
+2. Host a server: Open Aternos opens the site; paste an address -> Add to my servers -> it's in Minecraft's server list. PASS/FAIL
+3. In game: G opens "SPACEPORT MODS PANEL"; Mod Menu shows Spaceport HUD / Spaceport home screen. PASS/FAIL
+4. After the release, on a PC that had Reminth: the update installs by itself, the desktop shortcut is called Spaceport Launcher and opens it, your instances and sign-in are all there. PASS/FAIL
+5. After steps B-D: spaceport-launcher.pages.dev shows the site; signing in with Discord/Google on it works. PASS/FAIL
+6. After the release: owner tools -> Set up my server -> the AutoMod rules are called "Spaceport: …" (no doubles). PASS/FAIL
 
 ---
 

@@ -67,6 +67,7 @@
       "uninstallerIcon": "assets/icons/reminth-night.ico",
       "installerHeaderIcon": "assets/icons/reminth-night.ico",
       "runAfterFinish": true
-    }
+    },
+    "executableName": "Reminth"
   }
 }
