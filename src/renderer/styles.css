@@ -2702,9 +2702,7 @@ body[data-page="home"] #app:not(.signed-out) #home.page { min-height: 100%; anim
 /* the numbers are pixel digits drawn by renderer.js pxNumber (sharp at 3 screen pixels per pixel) */
 svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, .6)); }
 .nh-stats svg.px-num { margin-top: 3px; } /* the comma hangs below the line */
-.nh-left-bottom { display: flex; flex-direction: column; gap: 22px; flex: 1 1 auto; min-height: 0; }
-/* your character in the middle of the room between the stats and the version line (owner, 16 Oct 2026) */
-.nh-left-bottom > .nh-me { margin: auto 0; }
+.nh-left-bottom { display: flex; flex-direction: column; gap: 22px; } /* at the bottom: the character's top lines up with the servers (owner, 16 Oct 2026) */
 /* your character: the Skins page's 3D viewer with your own skin; one button that opens Skins (a drag spins it) */
 .nh-me {
   display: flex; flex-direction: column; align-items: center; width: 100%; padding: 0; border: 0; background: none;

@@ -3778,6 +3778,37 @@ async function loadSponsor() {
   if (count !== null) online.textContent = `${count.toLocaleString()} online`;
 }
 
+/* Home's character: its top on the same line as the servers' top (owner, 16 Oct 2026: "match exactly the servers").
+ * It sits at the bottom of the left column; where that is lower than the servers (big windows), it is lifted (the
+ * version line stays at the bottom) until both tops meet. Measured as if Home were scrolled to the top (the side columns don't scroll). A window too
+ * short to reach the line keeps it as low as it fits. Runs whenever either column changes size. */
+function alignHomeCharacter() {
+  const me = $("nhMe");
+  const grid = $("nhServers");
+  if (!me || !grid) return;
+  const before = me.style.marginBottom;
+  me.style.marginBottom = "";
+  if (me.offsetParent === null) return;
+  const gridTop = grid.getBoundingClientRect().top + $("pages").scrollTop;
+  const lift = Math.round(me.getBoundingClientRect().top - gridTop);
+  const next = lift > 0 ? lift + "px" : "";
+  me.style.marginBottom = next; // the version line under it stays at the bottom
+  // (setting the same value again doesn't resize anything, so the observer below can't loop)
+  return before !== next;
+}
+if (window.ResizeObserver) {
+  const homeAlign = new ResizeObserver(() => alignHomeCharacter());
+  for (const sel of ["#homeMain .nh-center", "#homeMain .nh-left", "#nhMe"]) {
+    const node = document.querySelector(sel);
+    if (node) homeAlign.observe(node);
+  }
+}
+// and once Home is on screen and laid out (the observer can fire while it is still hidden)
+document.addEventListener("reminth:page", (e) => {
+  if (e.detail === "home") setTimeout(alignHomeCharacter, 30);
+});
+window.addEventListener("resize", () => setTimeout(alignHomeCharacter, 30));
+
 function paintHomeServerButtons() {
   const inst = heroInstance();
   const busy = !inst || state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id);
