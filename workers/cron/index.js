@@ -196,6 +196,6 @@ export default {
     );
   },
   async fetch() {
-    return new Response("Reminth cron - nothing to see here.", { status: 200 });
+    return new Response("Spaceport cron - nothing to see here.", { status: 200 });
   },
 };
