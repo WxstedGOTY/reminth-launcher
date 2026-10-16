@@ -848,7 +848,10 @@ function wireTabs(navId, onChange) {
 }
 
 document.addEventListener("click", (e) => {
-  const target = e.target.closest("[data-page]");
+  // Not <body>: it carries data-page too (the page that is open, for the stylesheets), so every click anywhere
+  // matched it and "opened" the current page again - Home's Quick join, servers and cards reloaded and replayed their
+  // arrival animation on every click (owner, 16 Oct).
+  const target = e.target.closest("[data-page]:not(body)");
   if (target && !target.disabled) switchPage(target.dataset.page);
 });
 

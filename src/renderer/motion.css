@@ -6,7 +6,8 @@
    - the page name in the top bar slides in; Home's stats, PLAY and side cards arrive in turn;
    - rows and tiles appear in a quick cascade; cards lift a little under the pointer; buttons press in.
    Only transform and opacity move (no layout work). All of it stops while a game runs or Reminth isn't the window in
-   front (body.game-running / body.unfocused in styles.css), and for players who ask Windows for less motion. */
+   front (the endless ones: body.game-running / body.unfocused in styles.css), and for players who ask Windows for less
+   motion. The short ones are never switched off and on again, so they cannot replay when the window gets focus. */
 
 :root { --m-ease: cubic-bezier(.2, .8, .2, 1); }
 

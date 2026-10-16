@@ -2498,17 +2498,17 @@ kbd { font-family: ui-monospace, Consolas, monospace; font-size: 11px; font-weig
 .boost-to { color: var(--emerald); font-weight: 600; }
 .boost-arrow { width: 14px; height: 14px; transform: rotate(-90deg); color: var(--text-3); }
 
-/* While a game runs, nothing here animates (renderer.js paintGameRunning): a
-   launcher left visible next to a windowed game, or on a second screen, would
-   otherwise redraw at the monitor's refresh rate and take frames from it.
-   "animation: none", NOT "animation-play-state: paused": the page and dialog
-   fade-ins start at opacity 0, and frozen at their start (or halfway, after a
-   reload) the content stayed invisible or dim for as long as the game ran.
-   With no animation an element simply shows its normal, finished look. */
-body.game-running *, body.game-running *::before, body.game-running *::after { animation: none !important; }
-/* The same while Reminth is not the window in front (renderer.js): a launcher left open behind other
-   windows should cost nothing, not 7-10% of a CPU core for animations nobody can see. */
-body.unfocused *, body.unfocused *::before, body.unfocused *::after { animation: none !important; }
+/* While a game runs, or while Reminth is not the window in front (renderer.js paintGameRunning / paintFocus), the
+   endless decorative animations stop (below): a launcher left visible next to a windowed game, or behind other
+   windows, would otherwise redraw at the monitor's refresh rate and take frames from it.
+   Only the ENDLESS ones are switched off. The short ones (a page, card or tile appearing) finish in under a second by
+   themselves, and switching "all animation" off and on again made them PLAY AGAIN every time the window got the focus
+   back - Home's Quick join and server tiles seemed to reload on every click into the launcher (owner, 16 Oct).
+   "animation: none", NOT "animation-play-state: paused": a paused endless animation costs nothing too, but one frozen
+   at its start stays invisible.
+   When you add an animation with "infinite", add its selector here. */
+:is(body.game-running, body.unfocused) :is(.fill.busy, .st.now b, .rail-live .live-dot, .live-pill .live-dot, .buffer-status .dot, .key-btn.listening, .side-plus .gem,
+    .hp-server, .hp-live, .hp-bars i, .hp-invite, .hp-toast, .pv-sk-line, .boot-glow, .boot-glow::before, .boot-glow::after, .boot-splash *) { animation: none !important; }
 
 /* Library: the line that points people at streamer mode */
 .creator-tip { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .08); background: rgba(255, 255, 255, .03); color: var(--text-2); font-size: 13px; }

@@ -98,3 +98,12 @@ test("Home v2: LAUNCH GAME, tiers hidden for now, the 12 servers and their pictu
   }
   assert.ok(fs.existsSync(path.join(root, "assets", "img", "new background reminth.webp")), "the background picture");
 });
+
+test("a click anywhere does not 'open' the current page again (body carries data-page too)", () => {
+  const code = read("src", "renderer", "renderer.js");
+  assert.match(code, /closest\("\[data-page\]:not\(body\)"\)/, "the global click handler skips <body>");
+  assert.ok(!/closest\("\[data-page\]"\)/.test(code), "no other handler matches body by accident");
+  // the endless animations stop while a game runs / unfocused; the short ones are never switched off (they would replay)
+  const css = read("src", "renderer", "styles.css");
+  assert.ok(!/body\.unfocused \*[^{]*\{[^}]*animation: none/.test(css), "no blanket animation:none on unfocus");
+});
