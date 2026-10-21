@@ -27,8 +27,9 @@ we continue, and the prompt for you) in a VS Code file. **That file is the task 
 
 **21 Oct 2026 (evening) update:** the owner's question round is done - his answers are written at the END of his plan
 file (above). Batch 1 is built (Spaceport+ removed, HUD can't be hidden, G panel = "Spaceport Built-in Mods", Tier Tagger
-look-ups faster): see the top of `DECISIONS_AND_TEST_PLAN.md`. Committed locally only - **do not push without asking**
-(he wants nothing on GitHub before everything is done). Model rule: tell him before each batch to use Opus 5.5 (UI, design,
+look-ups faster): see the top of `DECISIONS_AND_TEST_PLAN.md`. Batch 2 (same night): Narrator off by default, lag spike log, skin retry, Business box,
+research in `design/RESEARCH_21_OCT.md`. He OK'd pushing to `main` (only when nothing in site/functions/workers changes -
+that deploys the website); no releases. Model rule: tell him before each batch to use Opus 5.5 (UI, design,
 hard bugs) or Sonnet 5.5 (simple code, renames, text).
 
 ## 1. The 60-second picture
