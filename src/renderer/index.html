@@ -573,15 +573,18 @@
                way is Aternos, a separate service. No partner, no money for sending players there, nothing made up. -->
           <div class="host-v3">
             <div class="hv-copy">
-              <div class="hv-eyebrow"><span>Host a server</span></div>
-              <h1 class="display">Your own Minecraft server</h1>
-              <p class="lede">Spaceport doesn't run servers itself. Pick a host below, make a server there, then join it from here with your friends. Free hosts are the top row, paid hosts the bottom row.</p>
+              <div class="hv-eyebrow"><span>Host a server</span><em class="hv-free">Free</em></div>
+              <h1 class="display">Your own Minecraft server, free</h1>
+              <p class="lede">Spaceport doesn't run servers itself. The easy free way is <b>Aternos</b>, a free Minecraft server host. Make a server there in a few minutes, then join it from here with your friends.</p>
               <ol class="hv-steps">
-                <li><b>Pick a host below</b>, make an account and create a Minecraft server.</li>
+                <li><b>Open Aternos</b>, make a free account and press <b>Create</b>.</li>
                 <li><b>Pick the same game as your instance</b> under Software and Version: <span class="hv-match" id="hostMatch">your instance's loader and version</span>.</li>
-                <li><b>Start it</b>, wait until it says Online, and copy its address (it looks like <code>yourname.aternos.me</code>).</li>
-                <li><b>Paste the address on the right.</b> It goes into your Minecraft server list, and Join starts the game on it.</li>
+                <li><b>Press Start</b>, wait until it says Online, and copy its address (it looks like <code>yourname.aternos.me</code>).</li>
+                <li><b>Paste the address below.</b> It goes into your Minecraft server list, and Join starts the game on it.</li>
               </ol>
+              <div class="row-actions">
+                <a class="btn primary" href="https://aternos.org/" target="_blank" rel="noopener"><svg class="i"><use href="#i-server"/></svg>Open Aternos</a>
+              </div>
             </div>
             <div class="hv-join">
               <span class="nh-label">Your server</span>
@@ -593,13 +596,9 @@
                 <button class="btn primary" id="hostJoin" type="button"><svg class="i"><use href="#i-play"/></svg>Join</button>
               </div>
               <p class="hv-join-msg" id="hostMsg" hidden></p>
-              <p class="hv-join-note">A server on a free host usually switches off when nobody is on it for a while: start it again on the host's site, then press Join. Every host is a separate service with its own rules and privacy policy.</p>
+              <p class="hv-join-note">A free Aternos server switches off when nobody is on it for a while: start it again on Aternos, then press Join. Aternos is a separate service with its own rules and privacy policy.</p>
             </div>
           </div>
-
-          <!-- the host cards: drawn by renderer.js paintHostRows from hosts.js (free row, paid row) -->
-          <div class="hv-hosts" id="hostRows"></div>
-          <p class="hv-hosts-note" id="hostRowsNote"></p>
         </div>
 
         <!-- ══ STREAMER SETTINGS ══ -->
@@ -967,7 +966,6 @@
 </div>
 
 <script src="pure.js"></script>
-<script src="hosts.js"></script>
 <script src="markdown.js"></script>
 <script src="renderer.js"></script>
 <script src="skinview.js"></script>
