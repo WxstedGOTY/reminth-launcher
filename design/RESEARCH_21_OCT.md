@@ -107,3 +107,14 @@ FREE row:
 Consequence for the page: for the free row almost nothing is published, so "ranked by CPU" will mostly say "not published". Better
 for free hosts: show what IS published (RAM, slots, sleeps/renew rules) in a fixed order, and rank only by CPU in the paid row.
 Owner to confirm.
+
+## 7. Hosting list built as data (21 Oct, `src/renderer/hosts.js`, `test/hosts.test.js`)
+
+- **Paid row (5), by best published chip:** PebbleHost (Ryzen 9 9950X3D), Sparked Host (9900X), BisectHosting (9900X, "mixed" so after Sparked),
+  Shockbyte (EPYC 4465P, 5.4 GHz), Apex (7950X). The order of chips is a rule of thumb (`CHIP_SCORE`), not a benchmark; the owner can change it.
+- **Free row: only 4 are verified**, ordered by RAM: Falix (3 GB), Minefort (1 GB), Minehut (1 GB), Aternos (not published).
+  **exaroton is NOT free** (5-credit trial, then 1 credit per GB per hour) - left out. FreeMCHost not read yet, so not in the list.
+  The 5th free host is still open; owner/next window: read FreeMCHost's own page, or pick another.
+- Minehut: 1 GB, 10 players, sleeps when empty (own plans page). Minefort: 1 GB; its help centre says unlimited free use ended; renew rule not found.
+- The page that SHOWS this (cards, "ordered by the processor each company says it uses - not tested by us", Add to my servers / Join) is not built:
+  it is design work, waiting for Opus and the owner's Claude Design files. Re-read all pages before the first release (`CHECKED` in hosts.js).
