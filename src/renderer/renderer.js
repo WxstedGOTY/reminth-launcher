@@ -712,7 +712,7 @@ const PAGE_META = {
   library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
-  hosting: ["Host a server", "Your own server, free, with your friends."],
+  hosting: ["Host a server", "Pick a host, make a server, join it from here."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
   settings: ["Configuration", "Make Spaceport work the way you want."],
@@ -3846,7 +3846,48 @@ function hostInstanceLabel(inst) {
   const loader = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" }[inst.loader] || inst.loader || "";
   return `${loader} ${inst.mcVersion || ""}`.trim();
 }
+/* The host cards (owner, 21 Oct 2026): a free row and a paid row from hosts.js. The paid row is ordered by the best
+ * processor each host publishes on its own site - the note under the cards says so; nothing is measured by us. */
+let hostRowsPainted = false;
+function paintHostRows() {
+  const root = $("hostRows");
+  const H = window.SpaceportHosts;
+  if (!root || !H || hostRowsPainted) return;
+  hostRowsPainted = true;
+  const rows = H.rows();
+  const sections = [
+    ["Free hosts", "Ordered by the RAM a free server gets", rows.free],
+    ["Paid hosts", "Ordered by the best processor each company publishes", rows.paid],
+  ];
+  for (const [title, sub, hosts] of sections) {
+    const head = el("div", "hv-row-head");
+    head.append(el("b", null, title), el("span", null, sub));
+    const grid = el("div", "hv-row");
+    for (const h of hosts) {
+      const card = el("article", "card hv-host");
+      card.appendChild(el("b", "hv-host-name", h.name));
+      const chip = el("div", "hv-host-chip" + (h.chip ? "" : " none"));
+      chip.appendChild(el("span", null, h.chipText));
+      if (h.chip && h.chipNote) chip.appendChild(el("small", null, h.chipNote));
+      card.appendChild(chip);
+      const facts = el("ul", "hv-host-facts");
+      for (const f of h.facts) facts.appendChild(el("li", null, f));
+      card.appendChild(facts);
+      const open = el("a", "btn outline sm hv-host-open", "Open " + h.name);
+      open.href = h.url;
+      open.target = "_blank";
+      open.rel = "noopener";
+      card.appendChild(open);
+      grid.appendChild(card);
+    }
+    root.append(head, grid);
+  }
+  $("hostRowsNote").textContent =
+    "Ordered by what each company says on its own website (read on " + H.CHECKED + ") - not tested by us. Minecraft runs mostly on one processor core, so a faster chip helps; " +
+    "chips differ by location, and free hosts publish almost nothing. Spaceport earns nothing from these links. Prices and limits change: check the host's page.";
+}
 function paintHostingPage() {
+  paintHostRows();
   const inst = heroInstance();
   const match = $("hostMatch");
   match.textContent = inst ? hostInstanceLabel(inst) : "the loader and version of the instance you play";

@@ -2993,4 +2993,18 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .hv-join-msg[hidden] { display: none; }
 .hv-join-note { margin: 6px 0 0; font-size: 11.5px; color: var(--text-3, #9a9a9f); line-height: 1.45; }
 @media (max-width: 1000px) { .host-v3 { grid-template-columns: 1fr; } }
+/* ---- the host cards under the steps (renderer.js paintHostRows, hosts.js): a free row, then a paid row ---- */
+.hv-hosts { margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+.hv-row-head { display: flex; align-items: baseline; gap: 12px; margin-top: 10px; }
+.hv-row-head b { font-size: 15px; }
+.hv-row-head span { font-size: 12.5px; color: var(--text-3, #9a9a9f); }
+.hv-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+.hv-host { display: flex; flex-direction: column; gap: 8px; padding: 16px; min-width: 0; }
+.hv-host-name { font-size: 15.5px; }
+.hv-host-chip { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text); font-weight: 700; }
+.hv-host-chip.none { color: var(--text-3, #9a9a9f); font-weight: 500; }
+.hv-host-chip small { font-size: 11.5px; font-weight: 400; color: var(--text-3, #9a9a9f); line-height: 1.4; }
+.hv-host-facts { margin: 0; padding-left: 17px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-2); line-height: 1.45; flex: 1; }
+.hv-host-open { align-self: flex-start; text-decoration: none; margin-top: 4px; }
+.hv-hosts-note { margin: 6px 0 0; font-size: 11.5px; color: var(--text-3, #9a9a9f); line-height: 1.5; max-width: 820px; }
 *, *::before, *::after { background-origin: border-box !important; }
