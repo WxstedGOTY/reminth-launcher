@@ -32,6 +32,12 @@ research in `design/RESEARCH_21_OCT.md`. He OK'd pushing to `main` (only when no
 that deploys the website); no releases. Model rule: tell him before each batch to use Opus 5.5 (UI, design,
 hard bugs) or Sonnet 5.5 (simple code, renames, text).
 
+**RULE (owner, 21 Oct 2026, late): do NOT design UI/pages yourself.** He rejected my Host a server cards ("terrible", reverted).
+What he wants there: in the launcher ONE button that opens HIS WEBSITE on a page where the player chooses a host (5 free + 5
+paid, ordered by published chip - data ready in `src/renderer/hosts.js`, research in `design/RESEARCH_21_OCT.md`). He will
+explain/design it on **22 Oct** - when he asks to "remake" it, FIRST remind him he said not to design it myself, then ask him
+how he wants it. Website pages only go on the branch `spaceport-website` (main deploys the live site).
+
 ## 1. The 60-second picture
 
 - **Spaceport Launcher** (until 16 Oct 2026 called **Reminth**) is an Electron Minecraft launcher for Windows, built
