@@ -1934,7 +1934,8 @@ function openInstanceModal(existing) {
   async function paintHud() {
     const token = ++hudToken;
     const eligible = pick.loader === "fabric" || pick.loader === "quilt";
-    hudField.hidden = !eligible;
+    // The HUD bar is always on (owner, 21 Oct 2026), so the switch is never shown.
+    hudField.hidden = true;
     if (!eligible) return;
     let available = false;
     if (pick.version) {

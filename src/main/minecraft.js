@@ -243,8 +243,8 @@ async function ensureInstalled(instance, onProgress) {
       }
     }
     for (const e of await installBundledMods(bundled, modsDir, report)) note(e.file, e.mod, true); // Reminth's own, whoever copied it in
-    // The HUD switch: the top-right bar on or off (the panel is always there). Never stops a launch.
-    if (bundled.some((b) => b.entry.mod === "reminthhud")) await writeHudBar(gameDir, instance.hud === true).catch(() => {});
+    // The top-right bar is always on (owner, 21 Oct 2026: no switch, can't be hidden). Never stops a launch.
+    if (bundled.some((b) => b.entry.mod === "reminthhud")) await writeHudBar(gameDir, true).catch(() => {});
     if (wantsPerfMods) {
       report("Installing performance mods", 0, 1);
       const detail = [];
