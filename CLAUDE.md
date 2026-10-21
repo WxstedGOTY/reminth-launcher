@@ -1,6 +1,6 @@
 # Notes for Claude Code sessions in this repo
 
-- **New chat? Read `HANDOFF_SPACEPORT.md` FIRST (written 21 Oct 2026), then the owner's own plan file `SPACEPORT_PLAN.md` (his task list / prompt for the new start; section 0 of the hand-off says what to do if it isn't there)**: the state, the owner's plan (no releases yet,
+- **New chat? Read `HANDOFF_SPACEPORT.md` FIRST (written 21 Oct 2026), then the owner's own plan file `C:\Users\kolijos\Downloads\reminth-launcher - Copy\discord\claude prompt, how we will continue the` (no file extension; his task list / prompt for the new start; hand-off section 0): the state, the owner's plan (no releases yet,
   GitHub starts from zero, he is writing a long change list), rules, recipes, open decisions. `HANDOFF_FULL.md` is the
   complete older history (3-6 Oct 2026; it still says "Reminth"). Local-only chat logs are in `local-notes/` (git-ignored).
 

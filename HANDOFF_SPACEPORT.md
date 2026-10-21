@@ -12,7 +12,11 @@ Your memory folder (`MEMORY.md`) is loaded automatically and has the owner's wor
 
 On 21 Oct 2026 the owner was typing his plan for "the new start of Spaceport Launcher" (what he wants to happen, how
 we continue, and the prompt for you) in a VS Code file. **That file is the task list. Do it, don't make your own.**
-- Expected name/place: **`C:\Users\kolijos\Downloads\reminth-launcher\SPACEPORT_PLAN.md`** (he was told to save it there).
+- **THE FILE (exact path, no file extension, saved 21 Oct 19:57):**
+  **`C:\Users\kolijos\Downloads\reminth-launcher - Copy\discord\claude prompt, how we will continue the`**
+  Read it with the Read tool (plain text). It sits in a different folder than the repo (`reminth-launcher - Copy`, an old
+  copy of the project). If he wants it in the repo, copy it to `SPACEPORT_PLAN.md` (never delete the original).
+- (If that path is gone: `SPACEPORT_PLAN.md` in the repo root, then the search below.)
 - If it isn't there: look for newly saved `.md`/`.txt` files in `Downloads\reminth-launcher` and
   `Downloads\spaceport-experiment` (`find ... -mmin -2000`), also VS Code's unsaved backups are only a last resort
   (`%APPDATA%\Code\Backups\*\untitled\` - read them only if he says so). If you still can't find it, ask him in ONE short
