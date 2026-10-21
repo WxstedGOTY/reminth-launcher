@@ -8,6 +8,19 @@ Your memory folder (`MEMORY.md`) is loaded automatically and has the owner's wor
 
 ---
 
+## 0. THE OWNER'S OWN PLAN FILE - READ IT RIGHT AFTER THIS ONE
+
+On 21 Oct 2026 the owner was typing his plan for "the new start of Spaceport Launcher" (what he wants to happen, how
+we continue, and the prompt for you) in a VS Code file. **That file is the task list. Do it, don't make your own.**
+- Expected name/place: **`C:\Users\kolijos\Downloads\reminth-launcher\SPACEPORT_PLAN.md`** (he was told to save it there).
+- If it isn't there: look for newly saved `.md`/`.txt` files in `Downloads\reminth-launcher` and
+  `Downloads\spaceport-experiment` (`find ... -mmin -2000`), also VS Code's unsaved backups are only a last resort
+  (`%APPDATA%\Code\Backups\*\untitled\` - read them only if he says so). If you still can't find it, ask him in ONE short
+  line to paste it or tell you the file name. He may also paste the text straight into the chat.
+- Any "claude prompt" he mentions is the same plan/prompt: it takes priority over this file's suggestions.
+- Read it fully, then say back in a few plain lines what you understood and in which order you'll do it (he is often away:
+  start with the clear parts, ask only about irreversible ones - see section 6).
+
 ## 1. The 60-second picture
 
 - **Spaceport Launcher** (until 16 Oct 2026 called **Reminth**) is an Electron Minecraft launcher for Windows, built
