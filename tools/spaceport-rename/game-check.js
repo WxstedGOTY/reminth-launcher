@@ -34,7 +34,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const installResult = await minecraft.ensureInstalled(inst, () => {});
   console.log("installed in", Math.round((Date.now() - t0) / 1000), "s; mods:", fs.readdirSync(path.join(gameDir, "mods")).filter((f) => /reminth/.test(f)).join(", "));
   fs.writeFileSync(path.join(gameDir, "options.txt"), ["onboardAccessibility:false", "skipMultiplayerWarning:true", "pauseOnLostFocus:false", "fullscreen:false", "enableVsync:false", "maxFps:60", "narrator:0"].join("\n") + "\n");
-  const settings = { maxMemoryMb: 3072, gc: "auto", processPriority: "normal", fullscreen: false, gameWidth: 1280, gameHeight: 720, extraJvmArgs: `-Dreminthhud.testOpenPanel=${panelAt}`, appVersion: "1.8.0" };
+  const settings = { maxMemoryMb: 3072, gc: "auto", processPriority: "normal", fullscreen: false, gameWidth: 1280, gameHeight: 720, extraJvmArgs: `-Dreminthhud.testOpenPanel=${panelAt}${process.env.EXTRA_JVM ? " " + process.env.EXTRA_JVM : ""}`, appVersion: "1.8.0" };
   const account = { username: "Bench", uuid: "8d3f5b0e2c1a4b7f9e6d5c4b3a291807", minecraftAccessToken: "0", xuid: "0" };
   let crash = null;
   const launchedAt = Date.now();

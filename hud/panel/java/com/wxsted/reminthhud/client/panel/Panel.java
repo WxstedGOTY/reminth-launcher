@@ -144,6 +144,7 @@ public final class Panel {
 			Features4.tick(mc);
 			Features5.tick(mc);
 			TierTagger.testTick(mc);
+			SpikeLog.tick(mc);
 			for (Module m : MODULES) if (m.enabled) m.tick(mc);
 		} catch (Throwable t) {
 			ReminthHud.LOGGER.warn("Reminth panel: tick failed ({})", t.toString());
