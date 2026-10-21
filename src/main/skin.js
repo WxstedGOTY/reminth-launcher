@@ -229,14 +229,32 @@ function validateSkinPng(buf) {
   return null;
 }
 
-async function servicesFetch(account, url, init = {}) {
+// Mojang allows only a few skin/cape changes a minute and answers 429 after that (the owner's "Mojang is processing
+// too much" error). Instead of failing at once, wait as long as it asks (Retry-After) and try again, a few times.
+const SERVICES_ATTEMPTS = 3;
+const MAX_RETRY_WAIT_MS = 30000;
+
+/** Pure: how long to wait before attempt `attempt + 1` after a 429 - Retry-After (seconds) if sent, else 5 s, 10 s; capped at 30 s. */
+function retryWaitMs(headers, attempt) {
+  const raw = headers && typeof headers.get === "function" ? headers.get("retry-after") : null;
+  const secs = raw !== null && /^\d+(\.\d+)?$/.test(String(raw).trim()) ? Number(raw) : null;
+  const ms = secs !== null ? secs * 1000 : 5000 * (attempt + 1);
+  return Math.min(MAX_RETRY_WAIT_MS, Math.max(1000, ms));
+}
+
+async function servicesFetch(account, url, init = {}, { wait = (ms) => new Promise((r) => setTimeout(r, ms)), fetchFn = timedFetch } = {}) {
   if (!account || !account.minecraftAccessToken) throw new Error("Sign in first.");
-  const res = await timedFetch(url, {
-    ...init,
-    headers: { ...(init.headers || {}), Authorization: `Bearer ${account.minecraftAccessToken}` },
-  });
+  let res;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetchFn(url, {
+      ...init,
+      headers: { ...(init.headers || {}), Authorization: `Bearer ${account.minecraftAccessToken}` },
+    });
+    if (res.status !== 429 || attempt >= SERVICES_ATTEMPTS - 1) break;
+    await wait(retryWaitMs(res.headers, attempt));
+  }
   if (res.status === 401) throw new Error("Your sign-in expired - sign out and back in, then try again.");
-  if (res.status === 429) throw new Error("Mojang is rate-limiting skin changes. Wait a minute and try again.");
+  if (res.status === 429) throw new Error("Mojang is busy with skin changes right now (too many in a short time). Wait a minute and try again.");
   if (!res.ok) {
     let detail = "";
     try {
@@ -369,4 +387,7 @@ module.exports = {
   forget,
   validateSkinPng,
   pngSize,
+  // for tests
+  servicesFetch,
+  retryWaitMs,
 };

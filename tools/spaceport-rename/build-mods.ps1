@@ -5,7 +5,7 @@ $repo = "C:\Users\kolijos\Downloads\reminth-launcher"
 $out = Join-Path $env:TEMP "spaceport-mod-jars"
 New-Item -ItemType Directory -Force $out | Out-Null
 try { (Get-Process -Id $PID).PriorityClass = "BelowNormal" } catch {}
-$hud = "1.6.1"; $homeV = "1.0.10"
+$hud = "1.6.2"; $homeV = "1.0.10"
 
 function Build($dir, $args2, $jar) {
   Push-Location $dir

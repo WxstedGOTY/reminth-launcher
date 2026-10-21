@@ -26,8 +26,16 @@ public final class OptionFeature extends Module {
 	private final double numScale;
 	private int ticks;
 
+	/**
+	 * On from the start (owner, 21 Oct 2026: lag fixes happen by themselves). The Narrator causes lag spikes when menus
+	 * open (it reads them out): "narrator" keeps it Off (its first choice), "nonarrator" stops Ctrl+B turning it on by
+	 * accident (that setting doesn't exist on 1.20.1, so there "narrator" puts it back to Off within half a second).
+	 * A player who needs the Narrator switches these off in Spaceport Built-in Mods.
+	 */
+	private static final java.util.Set<String> DEFAULT_ON = java.util.Set.of("narrator", "nonarrator");
+
 	private OptionFeature(String id, String name, Cat cat, String icon, String desc, Function<Options, OptionInstance<?>> getter, Kind kind, boolean boolWant, double numScale) {
-		super(id, name, cat, icon, desc, true, false, null, 0, 0);
+		super(id, name, cat, icon, desc, true, DEFAULT_ON.contains(id), null, 0, 0);
 		this.getter = getter;
 		this.kind = kind;
 		this.boolWant = boolWant;
