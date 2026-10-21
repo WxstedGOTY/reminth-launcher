@@ -81,3 +81,29 @@ Winternode (Ryzen 7 3700X / 5800X), VeryCloud (Ryzen 7 7700X), xGaming (Ryzen 9 
 Sources: https://board.aternos.org/thread/40073-specs-of-the-aternos-servers/ , https://docs.dedicatedmc.io/general-information/server-specs ,
 https://help.winternode.com/Getting-Started/Server-Hardware-Specifications , https://xgamingserver.com/minecraft-server-hosting ,
 https://www.torchbyte.com/game/minecraft
+
+## 6. Official pages read (21 Oct, owner's game was running - no test games, web reading only)
+
+Published CPU per host, from the host's OWN pages (a search of each official site; not independently tested). Chips differ by
+location on every host, so the page should say "best chip they list" and link the host's specs page.
+
+PAID row (candidates, by the best chip each lists):
+- **PebbleHost** - Premium: Ryzen 9 9900X (Europe), **Ryzen 9 9950X3D (North America)**, EPYC 4465P (Australia/Singapore/US West),
+  7950X (Miami). Budget page still lists older chips (Ryzen 7 5700X, Intel) and is old. https://pebblehost.com/minecraft/premium , https://pebblehost.com/specs
+- **Shockbyte** - up to **AMD EPYC 4465P, max 5.40 GHz** (EU notice says 4464P); Bedrock page: up to Ryzen 9 7950X, 5.70 GHz. https://shockbyte.com/hardware
+- **Apex Hosting** - **Ryzen 9 7950X (4.5 GHz)** at most locations, 9 5900X on "EX" plans, but some locations still list old Xeon /
+  i7-7700K (Sydney, Tel Aviv). https://apexminecrafthosting.com/server-specs/
+- **BisectHosting** - "80% Ryzen" (own claim, FAQ says 65%+), newest buys Ryzen 7 9700X / 9900X, but Intel Xeon still in the mix;
+  Minecraft Java is placed on high-frequency CPUs automatically; no per-plan chip named. https://www.bisecthosting.com/hardware-server-performance
+- 5th paid host still to pick (Sparked Host? needs its own page read; DedicatedMC, Winternode, VeryCloud, xGaming, Torchbyte all
+  publish chips - see section 5).
+
+FREE row:
+- **Falix** - free: 3 GB RAM (one page says 2.5), 1 CPU core, 10 GB, 1 server per account, sleeps when empty, 10-min idle kick.
+  Its own pages did NOT name a chip in this search (the "Ryzen 9 9950X3D" claim came from a third-party article). https://falixnodes.net/free-minecraft-server-hosting
+- **Aternos** - no chip published (see section 5).
+- Minehut, Minefort, FreeMCHost, (exaroton free?) - not read yet.
+
+Consequence for the page: for the free row almost nothing is published, so "ranked by CPU" will mostly say "not published". Better
+for free hosts: show what IS published (RAM, slots, sleeps/renew rules) in a fixed order, and rank only by CPU in the paid row.
+Owner to confirm.
