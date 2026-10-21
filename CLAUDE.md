@@ -1,7 +1,8 @@
 # Notes for Claude Code sessions in this repo
 
-- **New chat? Read `HANDOFF_FULL.md` first** (the complete hand-off of the 3-6 Oct 2026 work: owner, rules, features,
-  releases, open items). Local-only chat logs are in `local-notes/` (git-ignored).
+- **New chat? Read `HANDOFF_SPACEPORT.md` FIRST (written 21 Oct 2026)**: the state, the owner's plan (no releases yet,
+  GitHub starts from zero, he is writing a long change list), rules, recipes, open decisions. `HANDOFF_FULL.md` is the
+  complete older history (3-6 Oct 2026; it still says "Reminth"). Local-only chat logs are in `local-notes/` (git-ignored).
 
 - **Anything about the launcher's look (since 15 Oct 2026): read `design/NIGHT_DESIGN.md`** - the owner's Night design,
   his Moonrise icon (`design/icon/`), the rules (no Pixelify digits, cream = press me, no fake data), what's left.
