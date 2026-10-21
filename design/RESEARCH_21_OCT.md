@@ -54,3 +54,15 @@ https://cybernews.com/game-server-hosting/free-minecraft-hosting-services/ ,
 https://falixnodes.net/falix-vs-aternos?lang=lt , https://pinggy.io/blog/best_minecraft_server_hosting/ ,
 https://dathost.net/blog/minecraft-server-performance-benchmarks-2026 ,
 https://mineguard.pro/en/blog/best-minecraft-server-hosting-2026
+
+## 4. Second pass (21 Oct, later)
+
+**Smooth Container (checked on Modrinth's own API):** licence **MIT** (fine to bundle), client-side required, Fabric/Forge/NeoForge,
+last update 10 Jul 2026, only about 1,700 downloads. Versions: **1.20.1, 1.21.1, 1.21.11, 26.1.2 only** - no 26.2, 26.3 or
+1.21.4-1.21.10, which are the versions our players use most. **Recommendation: do NOT add it now.** Too small and too few
+versions; first let our own lag spike log show whether containers really cause spikes on real PCs.
+
+**Paid hosts:** the only numbers found are the hosts' own (DatHost's table gives Apex ~18-20 TPS, Shockbyte 17-19, Bisect 17-19,
+no method, and DatHost is itself a seller) - not usable as "performance". Nothing at all for PebbleHost. So the paid row cannot
+honestly be ranked by measured performance. Options: (a) rank by published CPU, labelled "published hardware, not measured";
+(b) buy the cheapest plan of a few hosts (a parent pays) and measure TPS ourselves. Owner picks later.
