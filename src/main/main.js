@@ -214,6 +214,8 @@ function createWindow() {
   // browser instead, and the window itself is pinned to its own page.
   const openExternally = (url) => {
     if (/^https?:\/\//i.test(url)) openInBrowser(url).catch(() => {});
+    // the Business inquiries box: a plain address only, nothing after it (no ?subject=/body= tricks)
+    else if (/^mailto:[^\s@<>"?&]+@[^\s@<>"?&]+\.[a-z]{2,}$/i.test(url)) shell.openExternal(url).catch(() => {});
   };
   win.webContents.setWindowOpenHandler(({ url }) => {
     openExternally(url);

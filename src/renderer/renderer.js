@@ -3713,15 +3713,43 @@ function joinHomeServer(address) {
  * JOIN is the same as on the server cards. Nothing about the player is sent or counted for it. */
 let sponsorShown = ""; // what is painted now, so a refresh with the same slot changes nothing
 let sponsorPingedAt = 0;
+// Owner, 21 Oct 2026: for now the box is a "Business inquiries" contact, not a sponsor. It stays hidden until the
+// email exists - PASTE THE BUSINESS EMAIL HERE (e.g. "business@example.com"). SHOW_SPONSOR brings the sponsor back.
+const BUSINESS_EMAIL = "";
+const SHOW_SPONSOR = false;
+function paintBusinessBox(slot) {
+  const email = /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(BUSINESS_EMAIL) ? BUSINESS_EMAIL : "";
+  if (sponsorShown === "contact:" + email) return;
+  sponsorShown = "contact:" + email;
+  slot.textContent = "";
+  slot.classList.toggle("filled", Boolean(email));
+  if (!email) {
+    slot.setAttribute("aria-hidden", "true");
+    return;
+  }
+  slot.removeAttribute("aria-hidden");
+  const head = el("div", "nh-card-head");
+  head.appendChild(el("span", "nh-label", "Business inquiries"));
+  const card = el("a", "nh-srv nh-contact");
+  card.href = "mailto:" + email;
+  card.target = "_blank";
+  card.rel = "noopener";
+  const txt = el("span", "nh-srv-txt");
+  txt.appendChild(el("b", "nh-srv-name", "Work with Spaceport"));
+  txt.appendChild(el("span", "nh-srv-ip", email));
+  card.appendChild(txt);
+  slot.append(head, card);
+}
 async function loadSponsor() {
+  const slot = $("nhAdSlot");
+  if (!slot) return;
+  if (!SHOW_SPONSOR) return paintBusinessBox(slot);
   let s = null;
   try {
     s = window.reminth.sponsor ? await window.reminth.sponsor() : null;
   } catch {
     s = null;
   }
-  const slot = $("nhAdSlot");
-  if (!slot) return;
   if (s && !(typeof s.image === "string" && /^data:image\/(?:png|jpeg|webp);base64,/.test(s.image) && s.name && s.address)) s = null;
   const key = s ? [s.name, s.address, s.image.length, s.until].join("|") : "";
   if (key !== sponsorShown) {
