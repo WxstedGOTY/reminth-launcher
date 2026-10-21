@@ -364,7 +364,7 @@ public final class Features {
 
 		/** Called after the game drew its effect icons. */
 		public void drawOnIcons(Gfx g, Minecraft mc) {
-			if (!enabled || mc.player == null || Panel.hudHidden) return;
+			if (!enabled || mc.player == null) return;
 			if (V.screenShowsEffects(mc)) return; // the game draws none then either
 			var effects = mc.player.getActiveEffects();
 			if (effects.isEmpty()) return;

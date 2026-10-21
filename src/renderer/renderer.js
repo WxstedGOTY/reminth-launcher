@@ -713,7 +713,6 @@ const PAGE_META = {
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
   hosting: ["Host a server", "Your own server, free, with your friends."],
-  plus: ["Spaceport+", "Your own server, minus the landlord."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
   settings: ["Configuration", "Make Spaceport work the way you want."],
@@ -747,7 +746,7 @@ function switchPage(page) {
   $("statsBtn").classList.toggle("active", page === "stats");
   $("hostBtn").classList.toggle("active", page === "hosting");
   // Discover has its own filter column in the space the sidebar uses.
-  // The instance page keeps the side column too (news, Reminth+, your
+  // The instance page keeps the side column too (news, your
   // profile) - same as Home - instead of stretching the mod list across it.
   // Home (the Night design) has its own What's new and Discord at the bottom; the Night look has no sidebar at all
   // (styles-night.css), the old looks keep it on the other pages.
@@ -777,7 +776,7 @@ function switchPage(page) {
  * A page slides in from the side of the rail you moved towards, its parts one after another; the rail's marker glides
  * to the new tab; the top bar's page name slides in. Classes are taken off again afterwards, so a list that is drawn
  * again later doesn't replay the whole entrance. */
-const PAGE_ORDER = ["home", "discover", "library", "skins", "hosting", "plus", "instance", "streamer", "stats", "settings"];
+const PAGE_ORDER = ["home", "discover", "library", "skins", "hosting", "instance", "streamer", "stats", "settings"];
 let enterTimer = null;
 function playPageEnter(prevPage, page) {
   const node = $(page);
@@ -1954,7 +1953,7 @@ function openInstanceModal(existing) {
     hudSub.textContent = !pick.version
       ? "Pick a version to see if there's a HUD build for it."
       : available
-      ? "A small bar at the top right. H shows or hides it in game. (The Spaceport panel, G, is always there.)"
+      ? "A small bar at the top right. (Spaceport Built-in Mods, opened with G, are always there.)"
       : `No Spaceport HUD build for ${pick.version} yet — it's built per version.`;
   }
   hudSwitch.onclick = () => {
@@ -4326,7 +4325,7 @@ const CHANGELOG = [
   "Friends: add friends with a friend code and see who's in the launcher or playing, and on which server - Join puts you on the same one. Appear offline hides you.",
   "Host a server: make your own free server on Aternos with steps that match your instance, then add it to your list or join it from here.",
   "Launching is quieter: no Stop button or log popping up, the launcher stays as it was when the game starts, and Launch game comes back as soon as you close Minecraft.",
-  "In game: the Spaceport Mods Panel (G), Spaceport HUD and the Spaceport title screen carry the new name.",
+  "In game: Spaceport Built-in Mods (G), Spaceport HUD and the Spaceport title screen carry the new name.",
 ];
 
 function renderChangelog() {

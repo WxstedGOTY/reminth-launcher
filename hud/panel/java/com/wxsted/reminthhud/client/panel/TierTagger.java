@@ -88,7 +88,11 @@ public final class TierTagger extends Module {
 	private static final long FRESH_MS = 30 * 60 * 1000L;
 	private static final long RETRY_MS = 2 * 60 * 1000L;
 	private static final Map<String, Entry> CACHE = new ConcurrentHashMap<>();
-	private static final Semaphore IN_FLIGHT = new Semaphore(6);
+	// Each list has its own slots: a list that hangs (MCTiers' domain was down for days) can't hold up the other two.
+	private static final Semaphore[] IN_FLIGHT = {new Semaphore(3), new Semaphore(3), new Semaphore(3)};
+	// A list that couldn't be reached at all is left alone for RETRY_MS instead of timing out once per player.
+	private static final long[] DOWN_UNTIL = new long[Site.values().length];
+	private int prefetchIn;
 	private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).followRedirects(HttpClient.Redirect.NORMAL)
 		.executor(Executors.newFixedThreadPool(3, r -> {
 			Thread t = new Thread(r, "Reminth tier tagger");
@@ -114,6 +118,34 @@ public final class TierTagger extends Module {
 
 	public static TierTagger get() {
 		return Panel.byId("tiertagger") instanceof TierTagger t ? t : null;
+	}
+
+	/**
+	 * Once a second: starts the look-ups of everyone on the server, the nearest players first, so the tier is there the
+	 * moment a name shows. (Before, a look-up only started when the game drew a name - and most PvP servers hide the
+	 * game's own name tags, so many players were never looked up.)
+	 */
+	@Override
+	public void tick(Minecraft mc) {
+		if (--prefetchIn > 0) return;
+		prefetchIn = 20;
+		if (mc.player == null || mc.level == null) return;
+		try {
+			List<UUID> ids = new ArrayList<>();
+			List<net.minecraft.world.entity.player.Player> near = new ArrayList<>(mc.level.players());
+			near.sort(Comparator.comparingDouble(p -> p.distanceToSqr(mc.player)));
+			for (net.minecraft.world.entity.player.Player p : near) if (p != mc.player) ids.add(p.getUUID());
+			if (mc.getConnection() != null) for (PlayerInfo info : mc.getConnection().getOnlinePlayers()) {
+				UUID id = profileId(info.getProfile());
+				if (id != null && !ids.contains(id)) ids.add(id);
+			}
+			for (UUID id : ids) {
+				if (id == null || id.version() != 4) continue;
+				for (Site s : Site.values()) if (site.value == 0 || site.value == s.ordinal() + 1) ranks(s, id, false);
+			}
+		} catch (Throwable ignored) {
+			// asked again on the next draw
+		}
 	}
 
 	// ---------- names ----------
@@ -180,12 +212,14 @@ public final class TierTagger extends Module {
 		Entry e = CACHE.computeIfAbsent(key, k -> new Entry());
 		long age = System.currentTimeMillis() - e.at;
 		boolean stale = e.at == 0 || age > (e.failed ? RETRY_MS : FRESH_MS);
-		if ((stale || force) && !e.pending) fetch(s, id, e);
+		boolean down = System.currentTimeMillis() < DOWN_UNTIL[s.ordinal()];
+		if ((stale || force) && !e.pending && !down) fetch(s, id, e);
 		return e.ranks;
 	}
 
 	private static CompletableFuture<Void> fetch(Site s, UUID id, Entry e) {
-		if (!IN_FLIGHT.tryAcquire()) return CompletableFuture.completedFuture(null); // busy: asked again on a later frame
+		Semaphore slots = IN_FLIGHT[s.ordinal()];
+		if (!slots.tryAcquire()) return CompletableFuture.completedFuture(null); // busy: asked again on a later frame
 		e.pending = true;
 		String uuid = s.dashed ? id.toString() : id.toString().replace("-", "");
 		HttpRequest req = HttpRequest.newBuilder(URI.create(s.url + uuid)).timeout(Duration.ofSeconds(10)).header("User-Agent", "Spaceport (https://reminth.pages.dev)").header("Accept", "application/json").GET().build();
@@ -193,6 +227,7 @@ public final class TierTagger extends Module {
 			try {
 				if (err != null || res == null) {
 					e.failed = true;
+					DOWN_UNTIL[s.ordinal()] = System.currentTimeMillis() + RETRY_MS;
 					if (testAt > 0) ReminthHud.LOGGER.info("Tier test: {} unreachable ({})", s.title, err);
 				} else if (res.statusCode() == 200) {
 					e.ranks = parse(s, res.body());
@@ -209,7 +244,7 @@ public final class TierTagger extends Module {
 			} finally {
 				e.at = System.currentTimeMillis();
 				e.pending = false;
-				IN_FLIGHT.release();
+				slots.release();
 			}
 			return null;
 		});

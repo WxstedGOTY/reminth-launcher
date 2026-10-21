@@ -25,12 +25,6 @@ final class Compat {
 			Identifier.fromNamespaceAndPath("reminthhud", "reminthhud_category")
 	);
 
-	static KeyMapping registerToggleKey() {
-		return KeyBindingHelper.registerKeyBinding(
-				new KeyMapping("key.reminthhud.toggle", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_H, CATEGORY)
-		);
-	}
-
 	/** Moves the drawing origin to (x, y) and scales everything drawn after it, until pop(). */
 	static void pushScaled(GuiGraphics graphics, float x, float y, float scale) {
 		graphics.pose().pushMatrix();

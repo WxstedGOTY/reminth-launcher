@@ -43,7 +43,7 @@ final class Tips {
 		try {
 			Component line = Component.empty().append(Component.literal("Fun fact: press ")).append(gold(key(Panel.openKey())))
 					.append(Component.literal(" in game to open the "))
-					.append(Component.literal("Spaceport Mods Panel").withStyle(ChatFormatting.BOLD))
+					.append(Component.literal("Spaceport Built-in Mods").withStyle(ChatFormatting.BOLD))
 					.append(Component.literal(" - " + Panel.MODULES.size() + " features"));
 			drawFitted(g, screen, line, 4);
 		} catch (Throwable ignored) {
@@ -69,13 +69,13 @@ final class Tips {
 		Minecraft mc = Minecraft.getInstance();
 		int n = Panel.MODULES.size();
 		Component[] facts = {
-			Component.empty().append("press ").append(gold(key(Panel.openKey()))).append(" in game for the Spaceport Mods Panel: " + n + " features, one click each."),
+			Component.empty().append("press ").append(gold(key(Panel.openKey()))).append(" in game for Spaceport Built-in Mods: " + n + " features, one click each. Change the key in Controls."),
 			Component.empty().append("hold ").append(gold(key(Panel.zoomKey()))).append(" to zoom. Scroll while zooming to zoom even more."),
-			Component.empty().append("in the ").append(gold(key(Panel.openKey()))).append(" panel, Edit HUD Layout lets you drag every display anywhere."),
-			Component.empty().append("profiles in the ").append(gold(key(Panel.openKey()))).append(" panel keep a different setup for every server you play."),
-			Component.empty().append("hold ").append(gold(key(Panel.snapKey()))).append(" to look behind you (Snaplook, switch it on in the ").append(gold(key(Panel.openKey()))).append(" panel)."),
+			Component.empty().append("in the ").append(gold(key(Panel.openKey()))).append(" menu, Edit HUD Layout lets you drag every display anywhere."),
+			Component.empty().append("profiles in the ").append(gold(key(Panel.openKey()))).append(" menu keep a different setup for every server you play."),
+			Component.empty().append("hold ").append(gold(key(Panel.snapKey()))).append(" to look behind you (Snaplook, switch it on in the ").append(gold(key(Panel.openKey()))).append(" menu)."),
 			Component.literal("Spaceport warns you before you join a server that bans a mod you have on."),
-			Component.empty().append("Potion Effects in the ").append(gold(key(Panel.openKey()))).append(" panel shows the exact level and the seconds left."),
+			Component.empty().append("Potion Effects in the ").append(gold(key(Panel.openKey()))).append(" menu shows the exact level and the seconds left."),
 		};
 		return facts[(int) ((System.currentTimeMillis() / 6000) % facts.length)];
 	}

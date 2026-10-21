@@ -1,13 +1,9 @@
 "use strict";
 /**
- * What the player's plan unlocks. Reminth+ perks live here so there's one
- * place to check them.
+ * How much memory Minecraft may be given on this machine.
  *
- * RAM is NOT a paid perk: every player gets whatever this PC can spare.
- * Reminth+ is about hosting (see the Reminth+ page). There is no payment or
- * licence backend yet, so hasPlus() is false for everyone; when one exists
- * it must check a signed licence from a server, not a flag on disk -
- * settings.json is a text file anyone can edit.
+ * RAM is not a paid perk: every player gets whatever this PC can spare.
+ * (There is no paid plan: Spaceport+ was removed, everything is free.)
  */
 const os = require("os");
 
@@ -22,10 +18,6 @@ const RESERVED_FOR_SYSTEM_MB = 2048;
 const MAX_USEFUL_RAM_MB = 16384;
 const MIN_RAM_MB = 1024;
 
-function hasPlus() {
-  return false;
-}
-
 /** The most memory Minecraft may be given on this machine (512 MB steps). */
 function ramCapMb(totalBytes = os.totalmem()) {
   const totalMb = totalBytes / (1024 * 1024);
@@ -34,7 +26,7 @@ function ramCapMb(totalBytes = os.totalmem()) {
 }
 
 function summary() {
-  return { plus: hasPlus(), ramCapMb: ramCapMb(), purchasable: false };
+  return { ramCapMb: ramCapMb() };
 }
 
-module.exports = { hasPlus, ramCapMb, summary, MAX_USEFUL_RAM_MB, RESERVED_FOR_SYSTEM_MB };
+module.exports = { ramCapMb, summary, MAX_USEFUL_RAM_MB, RESERVED_FOR_SYSTEM_MB };

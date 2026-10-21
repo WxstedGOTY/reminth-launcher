@@ -92,7 +92,6 @@ public final class Features3 {
 			return p || mc == null ? "4" : null;
 		}));
 		l.add(new HitMarker());
-		l.add(new HideHud());
 		l.add(new SoftCursor());
 		l.add(new BreakReminder());
 		l.add(new TooltipDurability());
@@ -464,23 +463,6 @@ public final class Features3 {
 	}
 
 	/* ------------------------------ Utility / Chat / Visual ------------------------------ */
-
-	/** A key (F7, change it in Controls) that hides every Reminth HUD display - for screenshots and recordings. */
-	static final class HideHud extends Module {
-		HideHud() {
-			super("hidehud", "Hide HUD Key", Cat.UTILITY, "hidehud", "Press F7 (change it in Controls) to hide all Spaceport displays for a screenshot; again to show them.", true, true, null, 0, 0);
-		}
-
-		@Override
-		public void tick(Minecraft mc) {
-			while (Panel.hideKey() != null && Panel.hideKey().consumeClick()) Panel.hudHidden = !Panel.hudHidden;
-		}
-
-		@Override
-		public void onDisable(Minecraft mc) {
-			Panel.hudHidden = false;
-		}
-	}
 
 	/** A friendly reminder to take a break after a while. */
 	static final class BreakReminder extends Module {

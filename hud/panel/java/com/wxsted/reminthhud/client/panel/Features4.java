@@ -812,7 +812,7 @@ public final class Features4 {
 		try {
 			V.hideCrosshair(() -> {
 				Minecraft mc = Minecraft.getInstance();
-				return Panel.byId("customcrosshair") instanceof Crosshair c && c.showing(mc) && c.hideGame.value && !Panel.hudHidden;
+				return Panel.byId("customcrosshair") instanceof Crosshair c && c.showing(mc) && c.hideGame.value;
 			});
 		} catch (Throwable ignored) {
 			// the game's crosshair just stays

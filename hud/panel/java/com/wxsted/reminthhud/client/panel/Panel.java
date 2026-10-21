@@ -44,21 +44,14 @@ public final class Panel {
 	private static KeyMapping openKey;
 	private static KeyMapping zoomKey;
 	private static KeyMapping snapKey;
-	private static KeyMapping hideKey;
 	private static int testOpenIn = Integer.getInteger("reminthhud.testOpenPanel", 0);
 	private static final boolean testWatch = testOpenIn > 0;
 	private static String testEnable = System.getProperty("reminthhud.testEnable");
 	private static final boolean TEST_WALK = Boolean.getBoolean("reminthhud.testWalk");
 	private static boolean testWalking;
 	private static int testWalkTicks;
-	/** Hide HUD Key: every Reminth display hidden for a screenshot. */
-	public static boolean hudHidden;
 	/** The HUD layout editor was opened at least once (the panel stops pointing at its button then). */
 	public static boolean layoutSeen;
-
-	public static KeyMapping hideKey() {
-		return hideKey;
-	}
 
 	public static KeyMapping snapKey() {
 		return snapKey;
@@ -77,7 +70,6 @@ public final class Panel {
 		openKey = V.registerKey("key.reminthhud.panel", InputConstants.KEY_G, category);
 		zoomKey = V.registerKey("key.reminthhud.zoom", InputConstants.KEY_C, category);
 		snapKey = V.registerKey("key.reminthhud.snaplook", InputConstants.KEY_V, category);
-		hideKey = V.registerKey("key.reminthhud.hidehud", InputConstants.KEY_F7, category);
 		StreamKeys.register(category);
 		Features4.registerCrosshair();
 		Features3.initTooltips();
@@ -174,7 +166,6 @@ public final class Panel {
 		if (mc.player == null) return;
 		if (V.debugShown(mc)) return;
 		if (V.screen(mc) instanceof HudEditorScreen) return; // it draws them itself
-		if (hudHidden) return;
 		overlays(g, mc, false);
 		drawHud(g, mc, false);
 		overlays(g, mc, true);

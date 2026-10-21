@@ -3,7 +3,7 @@
 	"id": "reminthhud",
 	"version": "${version}",
 	"name": "Spaceport HUD",
-	"description": "Part of Spaceport Launcher: the Spaceport panel (G) with Spaceport's own features - FPS, keystrokes, armor status, potion effects, zoom and more - and the top-right FPS/GPU/CPU bar (H).",
+	"description": "Part of Spaceport Launcher: Spaceport Built-in Mods (open with G, change the key in Controls) with Spaceport's own features - FPS, keystrokes, armor status, potion effects, zoom and more - and the top-right FPS/GPU/CPU bar.",
 	"authors": [
 		"Wxsted"
 	],

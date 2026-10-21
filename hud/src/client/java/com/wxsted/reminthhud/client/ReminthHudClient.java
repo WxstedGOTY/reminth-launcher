@@ -1,12 +1,9 @@
 package com.wxsted.reminthhud.client;
 
-import com.mojang.blaze3d.platform.InputConstants;
 import com.wxsted.reminthhud.ReminthHud;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
-import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 
@@ -24,24 +21,11 @@ import net.minecraft.world.effect.MobEffectInstance;
 
 public class ReminthHudClient implements ClientModInitializer {
 
-	// Whether the overlay is currently shown. Starts on.
-	private static boolean hudVisible = true;
-
 	private static HudConfig config = new HudConfig();
 
 	// Groups our keybind under its own heading in Options > Controls > Key Binds.
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(
 			ReminthHud.id("reminthhud_category")
-	);
-
-	// Default key: H. Players can rebind this in the controls menu regardless.
-	private static final KeyMapping TOGGLE_KEY = KeyMappingHelper.registerKeyMapping(
-			new KeyMapping(
-					"key.reminthhud.toggle",
-					keyboardType(),
-					InputConstants.KEY_H,
-					CATEGORY
-			)
 	);
 
 	// Plain text, no background, no drop shadow (at this size the shadow turned the
@@ -92,22 +76,6 @@ public class ReminthHudClient implements ClientModInitializer {
 	private static final Line bar = new Line();
 	private static long nextRebuild = 0;
 
-	/**
-	 * 26.3 merged the old KEYSYM/SCANCODE input types into KEYBOARD. Minecraft
-	 * 26 isn't obfuscated, so the name can be looked up while the game runs
-	 * and one source builds for both 26.2 and 26.3.
-	 */
-	private static InputConstants.Type keyboardType() {
-		for (String name : new String[] {"KEYBOARD", "KEYSYM"}) {
-			try {
-				return Enum.valueOf(InputConstants.Type.class, name);
-			} catch (IllegalArgumentException ignored) {
-				// try the other name
-			}
-		}
-		throw new IllegalStateException("No keyboard input type");
-	}
-
 	@Override
 	public void onInitializeClient() {
 		config = HudConfig.load();
@@ -127,13 +95,6 @@ public class ReminthHudClient implements ClientModInitializer {
 		}
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> SystemLoad.stop());
 
-		// Flip hudVisible once per key press, checked every client tick.
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			while (TOGGLE_KEY.consumeClick()) {
-				hudVisible = !hudVisible;
-			}
-		});
-
 		// Draw our overlay right before the chat HUD layer renders.
 		HudElementRegistry.attachElementBefore(
 				VanillaHudElements.CHAT,
@@ -143,7 +104,7 @@ public class ReminthHudClient implements ClientModInitializer {
 	}
 
 	private static void render(GuiGraphicsExtractor graphics, DeltaTracker tickCounter) {
-		if (!hudVisible || !config.bar) {
+		if (!config.bar) {
 			return;
 		}
 

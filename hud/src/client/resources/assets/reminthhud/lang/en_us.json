@@ -1,10 +1,8 @@
 {
-  "key.reminthhud.toggle": "Toggle Spaceport HUD Overlay",
   "key.category.reminthhud.reminthhud_category": "Spaceport",
-  "key.reminthhud.panel": "Open the Spaceport panel",
+  "key.reminthhud.panel": "Open Spaceport Built-in Mods",
   "key.reminthhud.zoom": "Zoom",
   "key.reminthhud.snaplook": "Snaplook (look behind you)",
-  "key.reminthhud.hidehud": "Hide Spaceport HUD",
   "key.reminthhud.brb": "Be Right Back screen (on/off)",
   "key.reminthhud.streamtext": "Hide / show Stream Text"
 }

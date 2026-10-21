@@ -24,13 +24,7 @@ import net.minecraft.world.effect.MobEffectInstance;
  */
 public class ReminthHudClient implements ClientModInitializer {
 
-	// Whether the overlay is currently shown. Starts on.
-	private static boolean hudVisible = true;
-
 	private static HudConfig config = new HudConfig();
-
-	// Default key: H. Players can rebind this in the controls menu regardless.
-	private static final KeyMapping TOGGLE_KEY = Compat.registerToggleKey();
 
 	// Plain text, no background, no drop shadow, smaller than the game's own
 	// text: a grey label, a bold light-grey value, thin "|" between items.
@@ -91,13 +85,6 @@ public class ReminthHudClient implements ClientModInitializer {
 		SystemLoad.start(config.cpu, config.gpu);
 		ClientLifecycleEvents.CLIENT_STOPPING.register(client -> SystemLoad.stop());
 
-		// Flip hudVisible once per key press, checked every client tick.
-		ClientTickEvents.END_CLIENT_TICK.register(client -> {
-			while (TOGGLE_KEY.consumeClick()) {
-				hudVisible = !hudVisible;
-			}
-		});
-
 		// (older versions pass a float here, newer ones a DeltaTracker: unused either way)
 		HudRenderCallback.EVENT.register((graphics, ignored) -> render(graphics));
 		// The Reminth panel (G): Reminth's own features, the same code as on 26.x (../hud/panel).
@@ -109,10 +96,6 @@ public class ReminthHudClient implements ClientModInitializer {
 	}
 
 	private static void render(GuiGraphics graphics) {
-		if (!hudVisible) {
-			return;
-		}
-
 		Minecraft client = Minecraft.getInstance();
 		LocalPlayer player = client.player;
 		if (player == null) {
