@@ -66,3 +66,18 @@ versions; first let our own lag spike log show whether containers really cause s
 no method, and DatHost is itself a seller) - not usable as "performance". Nothing at all for PebbleHost. So the paid row cannot
 honestly be ranked by measured performance. Options: (a) rank by published CPU, labelled "published hardware, not measured";
 (b) buy the cheapest plan of a few hosts (a parent pays) and measure TPS ourselves. Owner picks later.
+
+## 5. Owner chose option A (21 Oct 2026): rank hosts by the CPU each host publishes
+
+Decision: order by published CPU, with a plain note on the page: "ordered by the processor each company says it uses -
+not tested by us".
+First check (one search each, NOT enough to publish): **Aternos does not publish a CPU** - staff said "Intel i7/Xeon" about 6
+years ago, a later reply says it uses dozens of models now and can't name one. So a CPU ranking of the FREE row is only
+possible for hosts that publish it (e.g. Falix claims Ryzen 9 9950X3D on its own page). For the paid row, official pages of
+Bisect, Apex, Shockbyte, PebbleHost and Sparked were NOT found by search - each needs its own page read (WebFetch agent)
+before anything is written on the site. Hosts that publish a CPU on their own pages: DedicatedMC (Ryzen 5 3600 / 9 3950X),
+Winternode (Ryzen 7 3700X / 5800X), VeryCloud (Ryzen 7 7700X), xGaming (Ryzen 9 7950X), Torchbyte (Ryzen 9 5900X / 7950X3D).
+**Rule for the page: a host with no published CPU is listed as "not published", never guessed, and goes last in its row.**
+Sources: https://board.aternos.org/thread/40073-specs-of-the-aternos-servers/ , https://docs.dedicatedmc.io/general-information/server-specs ,
+https://help.winternode.com/Getting-Started/Server-Hardware-Specifications , https://xgamingserver.com/minecraft-server-hosting ,
+https://www.torchbyte.com/game/minecraft
