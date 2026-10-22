@@ -19,6 +19,7 @@ const state = {
   recent: null,
   stats: null,
   installing: new Set(), // instance ids with an install/launch in flight
+  joining: new Map(), // instance id -> { host, port } while that run was started by a JOIN (buttons say "Joining…")
   running: new Set(), // instance ids whose game is running
   stopping: new Set(), // instance ids asked to stop, until the backend confirms the exit
   logError: false,
@@ -1529,7 +1530,7 @@ function paintPlayButtons() {
       btn.classList.toggle("no-sub", busy || runningNow);
       btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
       // busy: just "Launching…" (owner, 16 Oct 2026) - how far along shows as the button's fill
-      label.textContent = runningNow ? "Playing" : busy ? "Launching…" : playId === "playBtn" ? "Launch game" : "Play";
+      label.textContent = runningNow ? "Playing" : busy ? (state.joining.has(inst.id) ? "Joining…" : "Launching…") : playId === "playBtn" ? "Launch game" : "Play";
     }
     // No Stop button (owner, 16 Oct 2026): a game ends by closing Minecraft. main.js sweepRunning and syncRunning
     // below make sure "Playing" goes away when it has.
@@ -2647,6 +2648,7 @@ async function runPlay(options = {}) {
   // second Play button) can't start another run while the mods are looked at
   // or the "won't start" question is open.
   state.installing.add(inst.id);
+  if (options.join) state.joining.set(inst.id, { host: String(options.join.host || ""), port: Number(options.join.port) || 25565 });
   if (inst.loader !== "vanilla" && typeof compatBeforePlay === "function") {
     state.progress.set(inst.id, { stage: "Checking mods", pct: null, short: "Checking" });
     paintPlayButtons();
@@ -2659,6 +2661,7 @@ async function runPlay(options = {}) {
     state.progress.delete(inst.id);
     if (!go) {
       state.installing.delete(inst.id);
+      state.joining.delete(inst.id);
       paintPlayButtons();
       return;
     }
@@ -2676,6 +2679,7 @@ async function runPlay(options = {}) {
     }
     if (!go) {
       state.installing.delete(inst.id);
+      state.joining.delete(inst.id);
       paintPlayButtons();
       return;
     }
@@ -2740,6 +2744,7 @@ async function runPlay(options = {}) {
     if (alreadyRunning) scheduleHideProgress();
   } finally {
     state.installing.delete(inst.id);
+    state.joining.delete(inst.id);
     state.progress.delete(inst.id);
     paintPlayButtons();
     loadRecent();
@@ -2823,13 +2828,25 @@ function appendLog(line, isError, suffix) {
   const node = $("log" + (suffix || ""));
   if (isError) state.quietUntil = 0;
   if (!quiet()) {
-    $("progressWrap" + (suffix || "")).hidden = false;
+    // The progress box only comes with a REAL install/progress (a stage that arrived); a launch that fails before that -
+    // "Not signed in" - shows just the red line (owner, 22 Oct 2026: no "Preparing" box at all).
+    if (state.progress.has(state.progressShown)) $("progressWrap" + (suffix || "")).hidden = false;
     node.hidden = false;
   }
   node.textContent += (isError ? "! " : "") + line.replace(/\n$/, "") + "\n";
   node.scrollTop = node.scrollHeight;
   const dismiss = $("progressDismiss" + (suffix || ""));
   if (dismiss) dismiss.hidden = !isError;
+  if (isError && $("progressWrap" + (suffix || "")).hidden) {
+    clearTimeout(window._hideLonelyError);
+    window._hideLonelyError = setTimeout(() => {
+      if ($("progressWrap" + (suffix || "")).hidden) {
+        node.hidden = true;
+        node.textContent = "";
+        state.logError = false;
+      }
+    }, 10000);
+  }
 }
 
 /** Clears a pinned progress bar/log - the × next to the percentage. */
@@ -3764,6 +3781,7 @@ async function loadSponsor() {
     const head = el("div", "nh-card-head");
     head.appendChild(el("span", "nh-label", "Sponsored"));
     const card = el("article", "nh-srv nh-sponsor");
+    card.dataset.address = s.address;
     const pic = el("div", "nh-srv-pic");
     const img = el("img");
     img.alt = "";
@@ -3916,7 +3934,14 @@ document.addEventListener("reminth:page", (e) => {
 function paintHomeServerButtons() {
   const inst = heroInstance();
   const busy = !inst || state.running.has(inst.id) || state.installing.has(inst.id) || state.stopping.has(inst.id);
-  document.querySelectorAll(".nh-srv-join").forEach((b) => (b.disabled = busy));
+  const joining = inst ? state.joining.get(inst.id) : null;
+  document.querySelectorAll(".nh-srv-join").forEach((b) => {
+    b.disabled = busy;
+    // the JOIN that was pressed says "Joining…" while the game starts (owner, 22 Oct 2026); the others stay JOIN
+    const addr = b.closest(".nh-srv") && b.closest(".nh-srv").dataset.address;
+    const p = joining && addr ? window.ReminthPure.parseServerAddress(addr) : null;
+    b.textContent = p && p.host === joining.host && (Number(p.port) || 25565) === joining.port ? "Joining…" : "Join";
+  });
 }
 
 /** Live player counts and the newest icons: when Home opens, at most once a minute, never while a game runs. */
