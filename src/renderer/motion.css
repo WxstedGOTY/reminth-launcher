@@ -57,9 +57,10 @@
 @keyframes m-pop { from { opacity: 0; transform: scale(.9); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
 
 /* PLAY: a soft lift under the pointer, a press when clicked */
-.nh-play { transition: transform .16s var(--m-ease), box-shadow .2s ease, background-color .2s ease; }
-.nh-play:hover:not(:disabled) { transform: translateY(-2px) scale(1.015); }
-.nh-play:active:not(:disabled) { transform: scale(.97); transition-duration: .06s; }
+/* owner, 22 Oct 2026: LAUNCH GAME grows 15% on hover in slow time (the same 1.25 s as the box behind it) with a very slight glow (styles.css) */
+.nh-play { transition: transform 1.25s var(--m-ease), box-shadow 1.25s ease, filter 1.25s ease, background-color .2s ease; }
+.nh-play:hover:not(:disabled) { transform: scale(1.15); }
+.nh-play:active:not(:disabled) { transform: scale(1.1); transition-duration: .08s; }
 
 /* ---- the top bar's page name ---- */
 .topbar-title.swap .eyebrow { animation: m-title .36s var(--m-ease) both; }

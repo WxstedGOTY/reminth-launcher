@@ -19,3 +19,8 @@ something he has not sent yet.
 3. **DONE 22 Oct (evening) - hover timing adjusted again** (owner: "25% longer for the launch game and 10 percent longer for servers"), read as ON TOP of the current times:
    launch game box 1 s -> **1.25 s**; server card picture .9 s -> **.99 s** and its border .36 s -> **.4 s**. Depth unchanged (1.09 / 1.06).
    Totals vs the ORIGINAL: launch box .5 s -> 1.25 s (2.5x), servers .45 s -> .99 s (2.2x). If he meant 25%/10% longer than the ORIGINAL, say so and revert to .625 s / .5 s.
+
+4. **DONE 22 Oct (evening) - LAUNCH GAME button** (owner: "15% bigger in slow time and slightly glow, really slightly; I don't like the font, it's boring, make it better the way you think"):
+   Hover: grows **15%** (`transform: scale(1.15)`, was a 2 px lift) over **1.25 s** (same slow time as the box behind it), glow only very slightly up (shadow .16 -> .21, 54 px; styles.css). Pressed: 1.1.
+   Font (my choice, he delegated it): the title is now **Pixelify Sans, weight 500** (the app's heading font; 600+ closes the C), uppercase, letter-spacing .06em, size 2.5cqw (19-34 px). "Launch Spaceport" under it stays Inter. While it installs/launches ("progressing" state: percent numbers, "Playing") the title goes back to Inter because Pixelify misreads digits 2/5/7 (his own rule).
+   Seen in the hidden copy at 1500 wide (normal, hover size, and a 2.2x zoom to check the C). Not seen: the progressing state with the new button size.

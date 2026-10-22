@@ -2748,16 +2748,18 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 46px rgba(236, 232, 222, .16), 0 14px 34px rgba(0, 0, 0, .45);
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-size: clamp(17px, 2.1cqw, 30px); font-weight: 800; letter-spacing: .01em; text-transform: uppercase; white-space: nowrap; }
-.nh-play-title b { font-weight: 800; }
+/* the title is in Pixelify Sans, regular weight (owner: the Inter was boring; bold closes the C). Progress text with numbers goes back to Inter below: Pixelify misreads 2, 5 and 7. */
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Pixelify Sans", "Inter", sans-serif; font-size: clamp(19px, 2.5cqw, 34px); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title b { font-weight: 500; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
 .nh-play-sub { position: relative; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
-.nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 60px rgba(236, 232, 222, .24), 0 18px 40px rgba(0, 0, 0, .5); }
+.nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
 .nh-play:disabled { cursor: default; filter: saturate(.6) brightness(.82); }
 /* while it installs, the button fills up like a progress bar (renderer.js paintPlayButtons sets --p); the line under the
    title makes room for the progress text and for "Playing" */
-.nh-play.progressing .nh-play-title { letter-spacing: .06em; font-size: 13px; }
+.nh-play.progressing .nh-play-title { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: .06em; font-size: 13px; }
+.nh-play.progressing .nh-play-title b { font-weight: 800; }
 .nh-play.progressing .nh-play-title b { margin-right: 0; }
 .nh-play.no-sub .nh-play-sub { display: none; }
 .nh-play.progressing::before { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: rgba(0, 0, 0, .14); transition: width .3s; }
