@@ -31,8 +31,13 @@
 <!-- the black bar on top (owner, 22 Oct 2026: about 3 cm, full width, the logo on the left and the whole name next to it) -->
 <header class="bar">
   <a class="bar-brand" href="/"><img src="img/mark.svg" alt="" width="40" height="40" /><span>Spaceport Launcher</span></a>
-  <!-- the menu (owner's picture spaceport-navbar-preview.png, 22 Oct 2026). News / Staff / Support pages and the YouTube /
-       TikTok accounts don't exist yet: those have no link (they do nothing) until he gives them. -->
+</header>
+
+<main>
+  <!-- the big picture right under it, edge to edge: the owner's picture img/hero.jpg (home.css .hero) -->
+  <section class="hero" id="hero">
+  <!-- the menu: a see-through strip lying on the top of the picture (owner's mockup spaceport-page-mockup.png, 22 Oct 2026).
+       News / Staff / Support pages and the YouTube / TikTok accounts don't exist yet: those have no link (they do nothing). -->
   <nav class="nav" aria-label="Main">
     <a class="nav-link" aria-disabled="true">News</a>
     <a class="nav-link" aria-disabled="true">Staff</a>
@@ -48,11 +53,6 @@
       </div>
     </div>
   </nav>
-</header>
-
-<main>
-  <!-- the big picture right under it (about 20 cm, edge to edge): the owner's picture img/hero.jpg (home.css .hero) -->
-  <section class="hero" id="hero">
     <div class="hero-in" id="heroIn">
       <img class="hero-logo" src="img/mark.svg" alt="" width="96" height="96" />
       <h1 class="hero-name">Spaceport Launcher</h1>
@@ -64,11 +64,12 @@
             <img src="img/os-windows.svg" alt="" width="20" height="20" /><span>Windows</span>
           </a>
           <!-- macOS and Linux: not built or tested yet (owner, 21 Oct 2026: Windows first, then Linux, then Mac; "Coming soon" until tested) -->
+          <!-- owner's mockup (22 Oct): dark navy, no logo on these two -->
           <span class="dl-btn soon" aria-disabled="true" title="Coming soon">
-            <img src="img/os-apple.svg" alt="" width="20" height="20" /><span>macOS</span><em>Soon</em>
+            <span>macOS</span><em>Soon</em>
           </span>
           <span class="dl-btn soon" aria-disabled="true" title="Coming soon">
-            <img src="img/os-linux.svg" alt="" width="20" height="20" /><span>Linux</span><em>Soon</em>
+            <span>Linux</span><em>Soon</em>
           </span>
         </div>
       </div>

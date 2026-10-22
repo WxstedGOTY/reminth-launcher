@@ -6,7 +6,7 @@
 
 :root {
   --bar-h: 2.4cm; /* owner, 22 Oct round 4: a little smaller than 3 cm; the logo + name stay in its vertical middle */
-  --hero-h: 20cm;
+  --hero-h: max(20cm, 100vh - var(--bar-h)); /* owner's mockup (22 Oct): the picture fills the rest of the screen, at least 20 cm */
   --gap-dl: 30px; /* owner (22 Oct, round 3): the download part right below the name, in the middle - no big gap */
   --blue: #2563eb;
   --blue-hi: #3b82f6;
@@ -25,12 +25,15 @@ a { color: inherit; }
 .bar-brand { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; }
 .bar-brand img { width: 1.45cm; height: 1.45cm; display: block; } /* owner: slightly bigger logo */
 .bar-brand span { font-family: var(--head); font-weight: 800; font-size: 36px; letter-spacing: -.02em; } /* owner: bigger text */
-/* the menu in the middle of the bar (owner's picture spaceport-navbar-preview.png): the logo + name stay on the left */
-.bar { display: grid; grid-template-columns: 1fr auto 1fr; }
-.bar-brand { justify-self: start; }
-.nav { display: flex; align-items: center; gap: clamp(20px, 2.6vw, 48px); }
+/* the menu (owner's mockup spaceport-page-mockup.png): a see-through dark strip lying on the top of the picture, items centred */
+.nav {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5; min-height: 56px; padding: 0 16px;
+  display: flex; align-items: center; justify-content: center; gap: clamp(20px, 2.5vw, 48px);
+  background: rgba(3, 6, 10, .5); border-bottom: 1px solid rgba(255, 255, 255, .05);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
 .nav-link, .nav-dl {
-  font-family: var(--head); font-weight: 800; font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
+  font-family: var(--head); font-weight: 800; font-size: 15px; letter-spacing: .09em; text-transform: uppercase;
   color: var(--text); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer;
 }
 .nav-link[aria-disabled="true"] { cursor: default; }
@@ -73,28 +76,28 @@ a.nav-link:not([aria-disabled]):hover { border-color: var(--text); }
 .hero-in {
   position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
   /* owner: the logo and name almost in the middle of the picture (their block sits at about 33-55% of its height) */
-  margin-top: calc(var(--hero-h) * .33); will-change: opacity, transform;
+  margin-top: calc(var(--hero-h) * .217); will-change: opacity, transform; /* mockup: the logo starts ~22% down the picture */
 }
-.hero-logo { width: 2.5cm; height: 2.5cm; display: block; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .6)); }
-.hero-name { margin: 14px 0 0; font-family: var(--head); font-weight: 800; font-size: clamp(30px, 3.4vw, 52px); letter-spacing: -.02em; line-height: 1.05; text-shadow: 0 4px 24px rgba(0, 0, 0, .55); }
+.hero-logo { width: 2.3cm; height: 2.3cm; display: block; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .6)); }
+.hero-name { margin: 26px 0 0; font-family: var(--head); font-weight: 800; font-size: clamp(30px, 3.35vw, 64px); letter-spacing: -.02em; line-height: 1.05; text-shadow: 0 4px 24px rgba(0, 0, 0, .55); }
 
 /* the download part, 3.5 cm under the name */
 .dl { margin-top: var(--gap-dl); display: flex; flex-direction: column; align-items: center; }
-.dl-title { margin: 0; font-family: var(--head); font-weight: 800; font-size: clamp(24px, 2.2vw, 34px); letter-spacing: -.01em; text-shadow: 0 3px 18px rgba(0, 0, 0, .6); }
+.dl-title { margin: 0; font-family: var(--head); font-weight: 800; font-size: clamp(24px, 1.9vw, 36px); letter-spacing: -.01em; text-shadow: 0 3px 18px rgba(0, 0, 0, .6); }
 .dl-btns { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 /* blue buttons, white text, the OS logo on the left (owner) */
 .dl-btn {
   position: relative; display: inline-flex; align-items: center; gap: 10px; min-width: 170px; justify-content: center;
-  height: 52px; padding: 0 22px; border-radius: 10px; background: var(--blue); color: #fff; text-decoration: none;
-  font-family: var(--head); font-weight: 700; font-size: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
+  height: 52px; padding: 0 30px; border-radius: 5px; background: var(--blue); color: #fff; text-decoration: none;
+  font-family: var(--head); font-weight: 700; font-size: 17px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
   transition: background-color .2s ease, transform .6s ease;
 }
 .dl-btn img { width: 20px; height: 20px; display: block; }
 /* hover: slightly bigger, slowly (owner). Only a real link (Windows); the "Soon" spans (macOS, Linux) are not <a>, so they do nothing. */
 a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
-/* not ready yet: still blue, but faded and not clickable, with a small "Soon" */
-.dl-btn.soon { opacity: .55; cursor: default; }
-.dl-btn em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .2); }
+/* not ready yet (mockup): dark navy, greyish-blue text, no logo, not clickable, with a small "Soon" */
+.dl-btn.soon { background: #1e3a8a; color: #b9c4e8; cursor: default; }
+.dl-btn em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: rgba(255, 255, 255, .12); color: #c9d3f5; }
 
 /* ---- opening animation (owner, 22 Oct round 6): the bar and the picture show at once; then, one after the other at
  * medium speed, the icon pops up, the name fades in, then the download part. Simple, small movements. ---- */
@@ -111,11 +114,9 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 .foot { padding: 80px clamp(16px, 2.5vw, 48px) 48px; text-align: center; color: var(--muted); font-size: 13px; }
 .foot a { color: var(--text); }
 
-/* narrower windows: the name and the menu don't fit side by side, so the menu goes on a second row under the logo + name */
-@media (max-width: 1150px) {
-  .bar { height: auto; min-height: var(--bar-h); grid-template-columns: 1fr; justify-items: center; row-gap: 10px; padding-top: 12px; padding-bottom: 12px; }
-  .bar-brand { justify-self: center; }
-  .nav { flex-wrap: wrap; justify-content: center; row-gap: 6px; }
+/* narrow windows: the menu items wrap onto a second line inside the strip */
+@media (max-width: 900px) {
+  .nav { flex-wrap: wrap; row-gap: 4px; padding-top: 8px; padding-bottom: 8px; }
 }
 
 /* phones and small windows: smaller sizes, nothing wider than the screen */
