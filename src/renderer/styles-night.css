@@ -2757,7 +2757,7 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
 /* the title is in Plus Jakarta Sans ExtraBold, tight (owner: like the text on Lunar's button, from his screenshot). Progress text with numbers stays in Inter below. */
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(15px, 1.95cqw, 26px); font-weight: 800; letter-spacing: -.03em; word-spacing: .1em; -webkit-text-stroke: .035em currentColor; /* the stroke thickens the letters so the holes inside stay tiny, like Lunar's */ text-transform: uppercase; white-space: nowrap; }
+.nh-play-title { position: relative; display: flex; align-items: center; gap: clamp(4px, .4cqw, 6px); font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(15px, 1.95cqw, 26px); font-weight: 800; letter-spacing: -.03em; word-spacing: .1em; -webkit-text-stroke: .035em currentColor; /* the stroke thickens the letters so the holes inside stay tiny, like Lunar's */ text-transform: uppercase; white-space: nowrap; }
 .nh-play-title b { font-weight: 800; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
 .nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(10.5px, .95cqw, 14px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }

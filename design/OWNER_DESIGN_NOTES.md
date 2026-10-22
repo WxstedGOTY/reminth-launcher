@@ -37,3 +37,5 @@ something he has not sent yet.
 
 8. **DONE 22 Oct (evening) - LAUNCH GAME text, second pass** (owner: "text smaller like Lunar's and less space inside the letters, almost no background showing"):
    Title size 2.4cqw -> **1.95cqw** (15-26 px) - measured: the text is now ~51% of the button's width, the same as in his Lunar screenshot (before 63%); letter-spacing -.01em -> **-.03em**; a thin text stroke (`-webkit-text-stroke: .035em`) thickens the letters so the holes stay tiny; the sub line 1.1cqw -> .95cqw. The progress state (Inter, numbers) has no stroke.
+
+9. **DONE 22 Oct (evening) - LAUNCH GAME: text closer to the triangle** (gap between the play triangle and the text 12 px -> `clamp(4px, .4cqw, 6px)`, styles.css `.nh-play-title`). The triangle and text stay centred together as one group.
