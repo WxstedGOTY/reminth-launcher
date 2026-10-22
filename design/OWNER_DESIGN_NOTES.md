@@ -75,3 +75,10 @@ something he has not sent yet.
    - Links that do NOTHING yet (no page / no account found - not invented): **News, Staff, Support, YouTube, TikTok.** Waiting for him: the YouTube + TikTok addresses, and what News/Staff/Support should open.
    - Windows narrower than 1150 px: the menu goes on a second row under the logo + name; on phones Socials wraps to a third row.
    Seen: screenshots at 1920 (list open), 1000 and 390 wide. Not seen: a real mouse hover/click (hidden browser).
+9. **22 Oct (night) - homepage round 8: his full page mockup replaces round 7's layout** (owner: "spaceport-page-mockup.png, this is the one I actually want"; copied to `design/spaceport-page-mockup.png`, 1920x1080):
+   - The black bar has only the logo + name again. The **menu is a see-through dark strip (56 px) lying on the top of the picture**, under the black bar, items centred (same items/links as round 7; still dead: News, Staff, Support, YouTube, TikTok).
+   - The picture now **fills the rest of the screen** (`--hero-h: max(20cm, 100vh - bar)`); was exactly 20 cm.
+   - Logo 2.5 -> 2.3 cm, starts ~22% down the picture; name bigger (up to 64 px), 26 px under the logo; "Download" up to 36 px.
+   - Download buttons: corners 10 -> 5 px, wider (padding 30 px), text 17 px. **macOS and Linux: dark navy (#1e3a8a), no logo** (as in the mockup), greyish-blue text, "SOON" tag. Windows keeps its logo and hover.
+   - Kept from his earlier words (the mockup differs slightly): the top-bar logo size (1.45 cm; the mockup's is a bit smaller). The picture's crop is a bit closer than in the mockup (the mockup shows more of the picture around the moon) - the browser's "cover" fit; said to him.
+   Seen: screenshots 1920x1080 (compared with the mockup: logo/name/Download/buttons within a few px), 1280x720, 390 phone (menu wraps to 2 lines). Not seen: real mouse hover.
