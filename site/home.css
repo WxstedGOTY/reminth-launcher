@@ -29,7 +29,8 @@ a { color: inherit; }
 /* ---- the big picture, edge to edge ---- */
 .hero {
   position: relative; height: var(--hero-h); width: 100%; overflow: hidden;
-  background: #05060b url("img/hero-placeholder.webp") center / cover no-repeat;
+  /* the owner's picture (Claude Design, 22 Oct 2026: spaceport-hero-3-island.jpg, 2400x1000) */
+  background: #05060b url("img/hero.jpg") center / cover no-repeat;
   display: flex; justify-content: center;
 }
 /* in the middle, a little higher than the exact middle */
