@@ -45,6 +45,8 @@ how he wants it. Website pages only go on the branch `spaceport-website` (main d
 4. **The in-game side:** better in-game UI, bug fixes, more mods for the G panel ("G panel" is just his shortcut name; players see "Spaceport Built-in Mods").
 5. **A final review before publishing** (and then the GitHub clean start - ask first).
 
+**His UI instructions for category 1 are collected in `design/OWNER_DESIGN_NOTES.md` (running list) - read and extend it.**
+
 ## 1. The 60-second picture
 
 - **Spaceport Launcher** (until 16 Oct 2026 called **Reminth**) is an Electron Minecraft launcher for Windows, built
