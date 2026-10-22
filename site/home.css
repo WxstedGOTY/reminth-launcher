@@ -110,7 +110,7 @@ a.nav-link:not([aria-disabled]):hover { border-color: var(--text); }
 /* blue buttons, white text, the OS logo on the left (owner) */
 .dl-btn {
   position: relative; display: inline-flex; align-items: center; gap: 10px; min-width: 170px; justify-content: center;
-  height: 52px; padding: 0 30px; border-radius: 5px; background: var(--blue); color: #fff; text-decoration: none;
+  height: 52px; padding: 0 30px; border-radius: 8px; /* owner's screenshot (22 Oct): corners like that site's buttons, measured 8 px */ background: var(--blue); color: #fff; text-decoration: none;
   font-family: var(--head); font-weight: 700; font-size: 17px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
   transition: background-color .2s ease, transform .6s ease;
 }
