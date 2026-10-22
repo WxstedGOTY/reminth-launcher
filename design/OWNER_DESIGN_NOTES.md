@@ -15,3 +15,7 @@ something he has not sent yet.
 2. **DONE 22 Oct (evening) - all server cards on Home: hover 50% slower, same depth** (owner: "do the 50% slower thing on also all the servers").
    Picture zoom `.nh-srv-pic img` .45 s -> .9 s (scale 1.06 kept; motion.css); card border brighten .18 s -> .36 s (styles.css). The entry animation
    when Home opens (.32 s) was not touched (it is not a hover). Also applies to the sponsor/contact box if shown (same classes).
+
+3. **DONE 22 Oct (evening) - hover timing adjusted again** (owner: "25% longer for the launch game and 10 percent longer for servers"), read as ON TOP of the current times:
+   launch game box 1 s -> **1.25 s**; server card picture .9 s -> **.99 s** and its border .36 s -> **.4 s**. Depth unchanged (1.09 / 1.06).
+   Totals vs the ORIGINAL: launch box .5 s -> 1.25 s (2.5x), servers .45 s -> .99 s (2.2x). If he meant 25%/10% longer than the ORIGINAL, say so and revert to .625 s / .5 s.
