@@ -7,7 +7,7 @@
 :root {
   --bar-h: 3cm;
   --hero-h: 20cm;
-  --gap-dl: 3.5cm; /* owner: move the download part down 3-4 cm */
+  --gap-dl: 30px; /* owner (22 Oct, round 3): the download part right below the name, in the middle - no big gap */
   --blue: #2563eb;
   --blue-hi: #3b82f6;
   --text: #f5f5f6;
@@ -67,7 +67,7 @@ a.dl-btn:hover { background: var(--blue-hi); transform: translateY(-1px); }
 
 /* phones and small windows: smaller sizes, nothing wider than the screen */
 @media (max-width: 700px) {
-  :root { --bar-h: 64px; --hero-h: max(560px, 85svh); --gap-dl: 56px; }
+  :root { --bar-h: 64px; --hero-h: max(560px, 85svh); --gap-dl: 24px; }
   .bar-brand img { width: 38px; height: 38px; }
   .bar-brand span { font-size: 23px; }
   .hero-in { margin-top: calc(var(--hero-h) * .22); padding: 0 16px; }
