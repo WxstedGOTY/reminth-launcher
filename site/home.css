@@ -60,6 +60,14 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 .dl-btn.soon { opacity: .55; cursor: default; }
 .dl-btn em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .2); }
 
+/* ---- opening animation (owner, 22 Oct round 6): the bar and the picture show at once; then, one after the other at
+ * medium speed, the icon pops up, the name fades in, then the download part. Simple, small movements. ---- */
+@keyframes hero-pop { 0% { opacity: 0; transform: scale(.6); } 70% { opacity: 1; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes hero-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.hero-logo { animation: hero-pop .7s cubic-bezier(.2, .7, .3, 1) .15s both; }
+.hero-name { animation: hero-rise .6s ease-out .55s both; }
+.dl { animation: hero-rise .6s ease-out .9s both; }
+
 /* ---- fades while scrolling (medium speed); home.js drives the picture's text and adds .in to .fade blocks ---- */
 .fade { opacity: 0; transform: translateY(24px); transition: opacity .6s ease, transform .6s ease; }
 .fade.in { opacity: 1; transform: none; }
@@ -78,5 +86,6 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 }
 @media (prefers-reduced-motion: reduce) {
   .fade, .dl-btn { transition: none; }
+  .hero-logo, .hero-name, .dl { animation: none; }
   .fade { opacity: 1; transform: none; }
 }
