@@ -46,6 +46,8 @@ input, textarea, [contenteditable="true"] { caret-color: auto; -webkit-user-sele
 .bar-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .bar-explore { align-self: stretch; display: flex; align-items: center; justify-content: center; gap: 10px; width: 250px; background: #dc2626; color: #fff; font-size: 18px; }
 .bar-explore svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; flex: none; }
+.bar-acc i { font-style: normal; color: var(--muted); margin: 0 -4px; } /* the "/" between SIGN IN and SIGN UP */
+.bar-brand span { white-space: nowrap; }
 @media (max-width: 1000px) { .bar-acc { display: none; } } /* not enough room next to the full name below ~1000 px */
 /* the menu (owner's mockup spaceport-page-mockup.png): a see-through dark strip lying on the top of the picture, items centred */
 .nav {
