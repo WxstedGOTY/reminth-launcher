@@ -23,8 +23,8 @@ a { color: inherit; }
 /* ---- the black bar ---- */
 .bar { height: var(--bar-h); background: #000; display: flex; align-items: center; padding: 0 clamp(16px, 2.5vw, 48px); }
 .bar-brand { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; }
-.bar-brand img { width: 1.15cm; height: 1.15cm; display: block; }
-.bar-brand span { font-family: var(--head); font-weight: 800; font-size: 26px; letter-spacing: -.02em; }
+.bar-brand img { width: 1.45cm; height: 1.45cm; display: block; } /* owner: slightly bigger logo */
+.bar-brand span { font-family: var(--head); font-weight: 800; font-size: 36px; letter-spacing: -.02em; } /* owner: bigger text */
 
 /* ---- the big picture, edge to edge ---- */
 .hero {
@@ -35,16 +35,16 @@ a { color: inherit; }
 /* in the middle, a little higher than the exact middle */
 .hero-in {
   position: relative; display: flex; flex-direction: column; align-items: center; text-align: center;
-  margin-top: 8%; will-change: opacity, transform;
+  /* owner: the logo and name almost in the middle of the picture (their block sits at about 33-55% of its height) */
+  margin-top: calc(var(--hero-h) * .33); will-change: opacity, transform;
 }
 .hero-logo { width: 2.5cm; height: 2.5cm; display: block; filter: drop-shadow(0 6px 24px rgba(0, 0, 0, .6)); }
 .hero-name { margin: 14px 0 0; font-family: var(--head); font-weight: 800; font-size: clamp(30px, 3.4vw, 52px); letter-spacing: -.02em; line-height: 1.05; text-shadow: 0 4px 24px rgba(0, 0, 0, .55); }
 
 /* the download part, 3.5 cm under the name */
 .dl { margin-top: var(--gap-dl); display: flex; flex-direction: column; align-items: center; }
-.dl-title { margin: 0; font-family: var(--head); font-weight: 800; font-size: clamp(22px, 2vw, 30px); letter-spacing: -.01em; text-shadow: 0 3px 18px rgba(0, 0, 0, .6); }
-.dl-sub { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
-.dl-btns { margin-top: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.dl-title { margin: 0; font-family: var(--head); font-weight: 800; font-size: clamp(24px, 2.2vw, 34px); letter-spacing: -.01em; text-shadow: 0 3px 18px rgba(0, 0, 0, .6); }
+.dl-btns { margin-top: 14px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 /* blue buttons, white text, the OS logo on the left (owner) */
 .dl-btn {
   position: relative; display: inline-flex; align-items: center; gap: 10px; min-width: 170px; justify-content: center;
@@ -68,9 +68,9 @@ a.dl-btn:hover { background: var(--blue-hi); transform: translateY(-1px); }
 /* phones and small windows: smaller sizes, nothing wider than the screen */
 @media (max-width: 700px) {
   :root { --bar-h: 64px; --hero-h: max(560px, 85svh); --gap-dl: 56px; }
-  .bar-brand img { width: 32px; height: 32px; }
-  .bar-brand span { font-size: 19px; }
-  .hero-in { margin-top: 64px; padding: 0 16px; }
+  .bar-brand img { width: 38px; height: 38px; }
+  .bar-brand span { font-size: 23px; }
+  .hero-in { margin-top: calc(var(--hero-h) * .22); padding: 0 16px; }
   .hero-logo { width: 72px; height: 72px; }
   .dl-btn { min-width: 0; flex: 1 1 140px; }
 }
