@@ -118,3 +118,25 @@ Owner to confirm.
 - Minehut: 1 GB, 10 players, sleeps when empty (own plans page). Minefort: 1 GB; its help centre says unlimited free use ended; renew rule not found.
 - The page that SHOWS this (cards, "ordered by the processor each company says it uses - not tested by us", Add to my servers / Join) is not built:
   it is design work, waiting for Opus and the owner's Claude Design files. Re-read all pages before the first release (`CHECKED` in hosts.js).
+
+## 8. Phase 0 result (22 Oct 2026): which hosts let a player control the server from another program?
+
+Owner's decision: ONLY hosts with full control go on the "Select your host" page. Searches of each host's own docs (snippets, not every
+page opened - read the cited page before building on it):
+
+| Host | Control from another program? | Evidence |
+|---|---|---|
+| **BisectHosting** | **YES** - Pterodactyl client API with a key | Official docs https://www.bisecthosting.com/docs/server-spawn : key under Account > API Credentials (shown once), Bearer token, `POST /servers/{id}/power` (start/stop/restart/kill), `POST /servers/{id}/command`, `GET /servers/{id}/websocket` (live console), resources. Warns keys must never ship in a game client. |
+| **Sparked Host** | **LIKELY YES** (old docs) | https://help.sparkedhost.com/en/article/how-to-use-the-pterodactyl-api-using-python-1qgp6n6/ : "API Credentials" in the panel, Bearer key, `/api/client/servers/<id>` and `/resources`, websocket. Articles ~3.5 years old and the panel was rebranded "Apollo" - re-check. |
+| **exaroton** | **YES**, official API + token | https://www.npmjs.com/package/exaroton (console stream accepts commands). **Not free** (5-credit trial, then credits). |
+| **PebbleHost** | **MAYBE** - its own signed API (HMAC), not the standard one | https://help.pebblehost.com/en/article/using-the-pebblehost-game-panel-api-mv0hk4/ : power actions (on/off/soft/cycle/reset); owner account only; one article is marked deprecated after a panel change. Needs the current docs read. |
+| **Falix** | **UNKNOWN** | Console + power buttons in its panel; no API docs found. |
+| **Apex Hosting** | **NO found** | Multicraft panel; no public API found. |
+| **Shockbyte** | **NO found** | Multicraft panel; no API found. |
+| **Aternos** | **NO** | No official API. |
+| **Minehut** | **NO** | Its API is private/shut down (a wrapper says "private use only"). |
+| **Minefort** | not found | - |
+
+Result: **no FREE host with confirmed full control.** The "5 free + 5 paid" idea cannot be kept honestly; today: 2 confirmed paid
+(Bisect, exaroton), 2 likely/maybe (Sparked, PebbleHost), 0 free. Free hosts stay possible later if one offers a client API
+(Falix to be checked on its own panel; free Pterodactyl hosts such as HybridServers exist but are unverified).

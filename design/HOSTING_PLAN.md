@@ -1,5 +1,7 @@
 # Hosting plan: "Select your host" (22 Oct 2026) - PLAN ONLY, nothing built
 
+**UPDATE 22 Oct (owner answers):** only hosts with FULL control go on the page; website login/see-your-servers: yes; name "Select your host": yes; Claude researches (done, see RESEARCH section 8: Bisect + exaroton confirmed, Sparked/PebbleHost likely/maybe, NO free host confirmed). The page is built in STEPS: 1 Select your host, 2 Settings (important first, then optional), 3 Add it in the launcher (IP address bar), more if needed (e.g. start it and wait until Online), then Done/check.
+
 Owner's words (22 Oct): "select your host ... it all works on our page like the whitelisting, blacklisting, server name and
 everything works on the launcher and our website. I don't know how I want it to look - I'll leave that on you. Don't start yet, just
 plan; when you're ready I'll give you Opus 5.5." (Look: the owner left it to Claude this time. Earlier rule "don't design UI yourself"
