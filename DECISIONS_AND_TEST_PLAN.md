@@ -1,4 +1,4 @@
-﻿# Reminth: what to know, decide and test
+# Reminth: what to know, decide and test
 
 **This is the one living hand-off file between the windows.** Every Claude Code session that finishes
 work rewrites it (see `CLAUDE.md`). Desktop window: `git pull`, read this top to bottom, then work
@@ -8,7 +8,7 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
   Now on the page: black bar (logo + name left; **Sign in / Sign up** with an "unknown" round picture + red full-height **EXPLORE** with a compass, top right - both do nothing yet, on purpose); see-through menu strip on the picture (NEWS, STAFF, DOWNLOAD, SUPPORT, SOCIALS list - working: Download, Discord, X; dead: News, Staff, Support, YouTube, TikTok); his picture `site/img/hero.jpg` fills the screen; opening animation (icon pops, name, then download part); Windows / macOS / Linux buttons (8 px corners, Windows grows slowly on hover, macOS/Linux navy + SOON with their logos); no blinking text cursor.
   Not built yet (waiting for him): what Explore / Sign in / Sign up (owner: Sign in and Sign up each open a DIFFERENT page) / News / Staff / Support open; YouTube + TikTok links; signed-in picture (Discord picture is available from `/api/me`; Minecraft avatar needs the name sent + a privacy update); everything below the picture; the other pages (account, hosting, privacy, terms, 404) in the new look.
   Test (owner, Firefox): T1 open `site/index.html`: bar + picture at once, then icon pop, name, download part. T2 hover Windows -> grows slowly; macOS/Linux don't. T3 hover/click SOCIALS -> list; Discord and X open. T4 click on the text -> no blinking line. T5 narrow the window -> nothing overlaps, Sign in/up hides under ~1000 px. PASS/FAIL each.
-- **22 Oct 2026 - Select your host (owner left the look to Claude this time; plan: `design/HOSTING_PLAN.md`).** Website: `site/hosting.html` + `hosting.css` + `hosting.js` + `site/fonts/` on the branch **spaceport-website** (pushed, NOT live - main deploys the site). 4 steps: Host -> Settings (important + optional) -> Create it (per-host steps; free hosts get ready-to-copy server.properties) -> Add to Spaceport. Paid row = Full control (PebbleHost, exaroton, Sparked, Bisect by published chip; PebbleHost and Sparked show "Full control Â· checking"), free row = Limited control (Falix, Minehut, Aternos). Launcher (main): Host a server page = one "Select your host" button (`HOST_SELECT_URL` = https://reminth.pages.dev/hosting, a 404 until the branch is released) + the address box (unchanged). Seen in hidden copies: website at 1280 and 390 wide (no sideways scroll, no script errors), launcher page. `npm test` 726.
+- **22 Oct 2026 - Select your host (owner left the look to Claude this time; plan: `design/HOSTING_PLAN.md`).** Website: `site/hosting.html` + `hosting.css` + `hosting.js` + `site/fonts/` on the branch **spaceport-website** (pushed, NOT live - main deploys the site). 4 steps: Host -> Settings (important + optional) -> Create it (per-host steps; free hosts get ready-to-copy server.properties) -> Add to Spaceport. Paid row = Full control (PebbleHost, exaroton, Sparked, Bisect by published chip; PebbleHost and Sparked show "Full control · checking"), free row = Limited control (Falix, Minehut, Aternos). Launcher (main): Host a server page = one "Select your host" button (`HOST_SELECT_URL` = https://reminth.pages.dev/hosting, a 404 until the branch is released) + the address box (unchanged). Seen in hidden copies: website at 1280 and 390 wide (no sideways scroll, no script errors), launcher page. `npm test` 726.
   **RELEASE BLOCKERS:** (1) step 4 promises "Link <host>: paste your API key ... Start, Stop, Whitelist, Ban list" and step 2 "Spaceport sets these for you" - the linking is NOT built yet (Phase 2-3 of the plan); (2) re-confirm PebbleHost and Sparked APIs, then drop "checking" or move them out; (3) re-read every host fact (hosting.js CHECKED); (4) HOST_SELECT_URL follows the new web address.
   Test: launcher Host a server -> Select your host opens the browser; on the website page, pick a host, fill Settings, Create it shows that host's steps, Copy works, Start over resets. PASS/FAIL.
 - **21 Oct 2026 (night) - batch 2, small wins while the owner was away (2 hours).** `npm test` **721** pass. HUD is now **1.6.2** (all 10 jars rebuilt into `assets/mods/`). Pushed.
@@ -33,7 +33,7 @@ section 4 in order (it starts with prompt 17, then Audit 16) and report PASS/FAI
 - **16 Oct 2026 (night): Home's stat icons are Minecraft's own pictures - diamond sword, skeleton skull (3D like the inventory), pig head with snout (instead of the creeper), iron pickaxe, grass block (3D) - read from a game the player already downloaded (`src/main/mcTextures.js`, IPC `mc:textures`, renderer.js `paintMcStatIcons`/`drawIsoBoxes`; never shipped), cached in `%APPDATA%\Reminth\cache\mc-tex-*.png`; hand-drawn ones (a pig now too) until a game is downloaded. Seen in the hidden copy with the 26.2 files and in the hand-drawn fallback. `npm test` 712.** Test: Home -> the five icons look like in the game; hover names them. PASS/FAIL
 - **16 Oct 2026 (evening): the Sponsored box under Friends - the owner sets one Minecraft server (name, address, picture, first/last day) on the website's owner tools; the launcher shows it with "Sponsored" and JOIN; no tracking. Server live with this push; launcher side not released. Privacy v14 draft has its text. Section 00000000000000000000000000000000000000000. `npm test` 708.**
 - **16 Oct 2026 (later): no Stop button any more, Reminth stays open when the game starts, a smaller window goes to the middle, a safety net so "Playing" never sticks after Minecraft is closed, Home side columns no longer jump, Discord card blurple with its real logo. Section 0000000000000000000000000000000000000000. `npm test` 702.**
-- **16 Oct 2026: launching shows no progress box or log any more - the button just says "Launchingâ€¦" then "Playing" (errors still open the log; Verify files keeps its bar), renderer.js runPlay/paintPlayButtons. The Live Preview skips its sign-in at once (no more flash of the Reminth sign-in card), tools/preview/live-hook.js. Seen working in a hidden test launcher. `npm test` 698.**
+- **16 Oct 2026: launching shows no progress box or log any more - the button just says "Launching…" then "Playing" (errors still open the log; Verify files keeps its bar), renderer.js runPlay/paintPlayButtons. The Live Preview skips its sign-in at once (no more flash of the Reminth sign-in card), tools/preview/live-hook.js. Seen working in a hidden test launcher. `npm test` 698.**
 - **15 Oct 2026 (night): Friends work for real (codes, requests, who's online/playing where, Join, Appear offline) and the Friends box is half height with an empty space for ads under it. Tested with two launchers against a local server; not released. Privacy v14 draft must go live with the release. Section 000000000000000000000000000000000000000.**
 - **15 Oct 2026 (evening): Home v2 built from `launch game panel/CLAUDE_CODE_HOME_UPDATE.md` (new background, LAUNCH GAME, your skin + Minecraft-font name, recent tiles in the panel, 12 live servers). Seen in the preview at 1280/1920/2560 wide; not released. Section 00000000000000000000000000000000000000.**
 - **15 Oct 2026 (15:20): tab motion + Minecraft stat icons (commit 3d01e61, not released - 1.8.0 is the published one). `src/renderer/motion.css` (new): pages slide in from the side of the rail you moved towards, parts one after another; one gliding rail marker `#railInd` (renderer.js `placeRailInd`); top bar title slides in; Home stats/PLAY/side cards arrive in turn; rows/tiles cascade in; hover lift, button press; dialogs rise. All off while a game runs, while Reminth is not in front (body.unfocused) and for reduced motion. Home stats: 16x16 colour sprites in Minecraft style drawn in code (`PX_PAL`/`PX_ICONS` in renderer.js: diamond sword, skeleton skull, creeper, iron pickaxe, grass block; Quick join worlds use the grass block). Checked in the hidden test copy (focus faked, since a hidden window is "unfocused"): animations run, nothing left faded after any switch. Not seen on the owner's screen yet. The design window made the Minecraft night background (`scene.js`, dc9492b). `npm test` 693.**
@@ -77,7 +77,7 @@ Aternos, an address box: Add to my servers (servers.dat, "My server") / Join (sa
 the hidden copy: bad address refused, added once, second add "already in the list".
 
 **The rename, rules used everywhere:** formal spots (window title, installer, page titles, link previews, "Welcome
-to â€¦", "<name> <version>") = **Spaceport Launcher**; sentences and product names = **Spaceport** (Spaceport account,
+to …", "<name> <version>") = **Spaceport Launcher**; sentences and product names = **Spaceport** (Spaceport account,
 Spaceport+, Spaceport HUD, Spaceport home screen, Spaceport panel, SPACEPORT MODS PANEL); Home's big title SPACEPORT
 in the **regular** pixel weight (bold closes the C). The rename tools are in the session scratchpad (string literals
 only, never comments, ids, paths or log lines).
@@ -128,12 +128,12 @@ need the owner's steps B-D first); the bot in the real server after the rename.
 Discord app name + redirect, D Google app name + redirect, E release).
 
 **Test plan (owner; PASS/FAIL):**
-1. Live Preview: every page says Spaceport; Home's big title SPACEPORT with an open C; "Spaceport 1.8.0 â€¢ What's new" fits. PASS/FAIL
+1. Live Preview: every page says Spaceport; Home's big title SPACEPORT with an open C; "Spaceport 1.8.0 • What's new" fits. PASS/FAIL
 2. Host a server: Open Aternos opens the site; paste an address -> Add to my servers -> it's in Minecraft's server list. PASS/FAIL
 3. In game: G opens "SPACEPORT MODS PANEL"; Mod Menu shows Spaceport HUD / Spaceport home screen. PASS/FAIL
 4. After the release, on a PC that had Reminth: the update installs by itself, the desktop shortcut is called Spaceport Launcher and opens it, your instances and sign-in are all there. PASS/FAIL
 5. After steps B-D: spaceport-launcher.pages.dev shows the site; signing in with Discord/Google on it works. PASS/FAIL
-6. After the release: owner tools -> Set up my server -> the AutoMod rules are called "Spaceport: â€¦" (no doubles). PASS/FAIL
+6. After the release: owner tools -> Set up my server -> the AutoMod rules are called "Spaceport: …" (no doubles). PASS/FAIL
 
 ---
 
@@ -218,7 +218,7 @@ itself, so only an adopted game (found after a Reminth restart) could then stay 
 **Test plan (owner, Live Preview; PASS/FAIL):**
 1. Home: scroll to the very bottom and back - the character, stats, Friends and Discord never move. PASS/FAIL
 2. The Discord card is Discord blue with the real Discord logo; hover darkens it; a click opens the invite. PASS/FAIL
-3. Launch game: no Stop button anywhere (Home or the instance page); the button says Launchingâ€¦ then Playing. PASS/FAIL
+3. Launch game: no Stop button anywhere (Home or the instance page); the button says Launching… then Playing. PASS/FAIL
 4. Reminth stays exactly as it was when the game opens (not minimized). PASS/FAIL
 5. With the game fullscreen, if Reminth's window got smaller, it sits in the middle of the screen. PASS/FAIL
 6. Close Minecraft: within a few seconds the button says Launch game again. PASS/FAIL
@@ -275,7 +275,7 @@ Discord/Google-signed accounts' pictures in the list.
 4. Both show "In the launcher" with a blue dot, "1 online". PASS/FAIL
 5. Your friend joins a server: you see "Playing on <server>" (green dot) within ~2 minutes; JOIN puts you on the same server. PASS/FAIL
 6. Appear offline on your side: your friend sees you as "Offline"; untick it: you're back. PASS/FAIL
-7. Close Reminth: your friend sees "Last seen â€¦". PASS/FAIL
+7. Close Reminth: your friend sees "Last seen …". PASS/FAIL
 8. Hover a friend -> x -> Remove: they're gone on both sides. PASS/FAIL
 
 ---
@@ -373,7 +373,7 @@ Night on real settings, the tiers card with a real account that has tiers.
 
 ## 000000000000000000000000000000000000. The Night look + Night home page, Reminth 1.8.0 (14-15 Oct 2026, night) - desktop window (design chat)
 
-**Owner's ask (then went to sleep, "dont ask me questions"):** his "Home Â· Night" design and new Moonrise icon for
+**Owner's ask (then went to sleep, "dont ask me questions"):** his "Home · Night" design and new Moonrise icon for
 the whole app; "design the whole app again ... following the home screen type/color/vibe"; put the design in a file
 for the other windows. **Everything is in `design/NIGHT_DESIGN.md`** (asks, tokens, files, rules, status, what's
 left) with screenshots in `design/screens/`, the owner's design `design/home-night.png` and his icon kit `design/icon/`.
@@ -501,7 +501,7 @@ secrets) shows `gateway` (online status) and `settings` (which bot settings exis
   owner (`user.extra` in his /api/me); every owner address answers 404 to others (`ownerOnly` in _lib.js).
 - **Releases from GitHub's feed** (`fetchLatestRelease` in _bot.js, releases.atom) - the API returned 403 to Cloudflare's
   shared addresses. 1.7.1 marked seen; the next release is posted with the Launcher Updates ping.
-- Setup: #off-topic made if onboarding lacks a 5th chat channel (he made "ðŸ‘€ï½œoff-topic" himself); #read-first read-only;
+- Setup: #off-topic made if onboarding lacks a 5th chat channel (he made "👀｜off-topic" himself); #read-first read-only;
   "#chat" = general (2 s slowmode); AutoMod problems shown. Middleware trims pasted Cloudflare values.
 - Texts: `discord/texts.md` 1-5 posted by the owner via the webhook button; 6 (support + apply) is for Tickets v2.
 - **Incident:** an old Notepad saved the owner's codes INTO OWNER_TODO.md (bot token included) - caught before any
@@ -865,7 +865,7 @@ install it when he's done (built 8 Oct 17:13, `release-1.4.8\`).
   attack" rule); spam clicks don't count. A hit counts only when the mob gets newly hurt (its hurt time jumps back up).
 - **Damage Taken / Lowest Health** count hearts the way the game draws them (health and absorption rounded up to half
   hearts, like `Gui`): no more "-0.0", nothing shown when your hearts didn't go down; quick drops add up; shown as
-  "-1.5 â¤". Seen in the game (layout editor samples).
+  "-1.5 ❤". Seen in the game (layout editor samples).
 
 **Potion Effects now draws on the game's own effect icons** (owner: "replace the old potion system"): the level
 (II, IV... - level I only with an option) top-right on the icon and the time left at its bottom (m:ss up to 99:59, then
@@ -1565,7 +1565,7 @@ job. No version bump, no build. I did not touch `hud/`, `hud-1.21/`, `assets/mod
 
 **Not tested for real (no Electron, Windows or Minecraft here):**
 - the installer writing the scheme to the registry;
-- Windows starting Reminth from `reminth://â€¦`, and the real `second-instance` argv;
+- Windows starting Reminth from `reminth://…`, and the real `second-instance` argv;
 - `flashFrame` and focus rules in a real window;
 - a real game loading a `reminthhome` jar (none exists yet);
 - the dialog in real Electron.
@@ -1588,7 +1588,7 @@ boot). It also covered instance and bad links: bad links do nothing.
   - `ensureInstalled` runs the steps in order:
     1. `bundledModsFor`: what's wanted and fits;
     2. `installBundledMods`: the same `installBundledJar` copy as before, noted as Reminth's own;
-    3. `tidyManagedMods(â€¦ dropBundled: bundledModsToDrop(instance))`: removes the home screen when it's switched
+    3. `tidyManagedMods(… dropBundled: bundledModsToDrop(instance))`: removes the home screen when it's switched
        off, or on a Forge, NeoForge or vanilla instance.
   - Wanted but no build for this version: the copy that's there stays and nothing is said, which is the HUD's rule.
   - The HUD keeps its exact old conditions, including Fabric API whenever the HUD is on. The home screen brings
@@ -1606,7 +1606,7 @@ boot). It also covered instance and bad links: bad links do nothing.
   - "Reminth home screen" is added to `app:info.managedMods`.
 - **`src/main/preload.js`**: `bundledSupports(mod, mc)`.
 - **`src/renderer/renderer.js`**: the instance dialog has a **"Reminth home screen"** switch next to ReminthHUD.
-  - With no build it says "No Reminth home screen build for <version> yet â€” it's built per version." and is
+  - With no build it says "No Reminth home screen build for <version> yet — it's built per version." and is
     disabled.
   - It sends `homeScreen` **only when the player used the switch while a build exists**. Unlike the HUD switch, a
     save never writes `false` just because there's no build yet. Otherwise every instance saved today would lose the
@@ -1659,8 +1659,8 @@ boot). It also covered instance and bad links: bad links do nothing.
   - argv noise: the exe path with Greek letters, `--some-flag`, `--user-data-dir=`, `.`, `--inspect`;
   - two links, or a bad one next to a good one, mean nothing;
   - the handler calls only `bringForward`/`showPage`, and nothing at all for a bad link;
-  - main.js's real `second-instance` wiring: bad link â†’ no window calls and nothing sent; good link â†’ show/focus
-    plus `deeplink:open`; during a game â†’ only `flashFrame`;
+  - main.js's real `second-instance` wiring: bad link → no window calls and nothing sent; good link → show/focus
+    plus `deeplink:open`; during a game → only `flashFrame`;
   - the installer config.
 
 **Privacy text: sentences for the desktop window to add** (I didn't edit it; the owner's name stays as it is):
@@ -1694,10 +1694,10 @@ Microsoft token refresh. The checks in (c) below cover these.
 ### (a) Bugs fixed (file:line, what a player saw, the test)
 
 1. **`src/main/runningGames.js:58`**: on a PC whose Windows user name has Greek or accented letters
-   (`C:\Users\Î“Î¹ÏŽÏÎ³Î¿Ï‚`), Reminth didn't find a game that was still running after a restart. Pressing Play then
+   (`C:\Users\Γιώργος`), Reminth didn't find a game that was still running after a restart. Pressing Play then
    started a second copy on the same worlds. Cause: PowerShell answered in the OEM code page, so the game folder
    never matched. Fix: PowerShell is now told to answer in UTF-8.
-   Test: `test/running-games.test.js` "Audit 16: PowerShell is told to answer in UTF-8â€¦".
+   Test: `test/running-games.test.js` "Audit 16: PowerShell is told to answer in UTF-8…".
 2. **`src/main/main.js:749` (`content:applyUpdates`)**: while "Update" (a mod update from the Mods tab or the compat
    panel) was replacing jars, Play could start and write Reminth's own jars into the same `mods/`, and a second
    update could run on top. Play then failed with "file in use", or the game started on a half-swapped mods folder.
@@ -1711,7 +1711,7 @@ Microsoft token refresh. The checks in (c) below cover these.
 4. **`src/main/main.js:557-559` (`instances:update`)**: changing an instance's version or loader while its mods were
    being updated left it on the new version with mods picked for the old one. Fix: a version or loader change
    waits for the update (a rename still works).
-   Test: `test/perf-profiles.test.js` "Audit 16: an instance's version can't be changed while its modsâ€¦".
+   Test: `test/perf-profiles.test.js` "Audit 16: an instance's version can't be changed while its mods…".
 5. **`src/main/content.js:778-783` (turning a mod on or off)**: Windows' rename replaces a file that already has the
    target name. Example: the player turned off `sodium.jar`, then dropped a newer `sodium.jar` into the folder.
    Turning the old one back on **silently deleted the newer jar**, and the other way round too. That is the
@@ -1723,16 +1723,16 @@ Microsoft token refresh. The checks in (c) below cover these.
    `-2`. Test: `test/audit16.test.js` "two screenshots in the same second are both kept".
 7. **`src/main/gameData.js:426` (add a server to the multiplayer list)**: two adds at once (two quick clicks on two
    servers) both started from the old `servers.dat`, so the second dropped the first. Both still said "added".
-   Fix: adds to one list run one at a time. Test: `test/audit16.test.js` "two servers added at onceâ€¦".
+   Fix: adds to one list run one at a time. Test: `test/audit16.test.js` "two servers added at once…".
 8. **`src/main/msAuth.js:59,365` (wrong clock)**: the Minecraft token's expiry is saved as now + 24 h. If the PC
    clock was days ahead at sign-in and then got corrected, the dead token looked valid for days. The game
    started, but every server refused the login ("Invalid session"). Fix: an expiry more than 25 h away is
-   renewed. Test: `test/audit16.test.js` "a token saved while the PC clock ran ahead is renewedâ€¦".
+   renewed. Test: `test/audit16.test.js` "a token saved while the PC clock ran ahead is renewed…".
 9. **`src/main/modsSync.js:212-215` (wrong clock)**: the copies of replaced jars (`.reminth/replaced-mods`) are
    pruned to the newest five by name, and the name is the date. With the clock behind (a flat CMOS battery), the
    copy just made sorted first and was **deleted right after being written**, so "Restore replaced mods" had
    nothing to give back. Fix: the new copy is never the one pruned.
-   Test: `test/audit16.test.js` "with the PC clock behind, the copy of the jars an update just replacedâ€¦".
+   Test: `test/audit16.test.js` "with the PC clock behind, the copy of the jars an update just replaced…".
 10. **`src/main/atomic.js:126-133` (wrong clock)**: the same problem for the copy of a damaged `instances.json` or
     `settings.json` (`.corrupt-<time>`). With the clock behind, the only copy of the damaged file was pruned at
     once. Fix: same as 9. Test: `test/audit16.test.js` "a damaged file that was just set aside isn't pruned".
@@ -1741,7 +1741,7 @@ Microsoft token refresh. The checks in (c) below cover these.
     1097x590, so the window could not fit, and its bottom (the Settings button) hung under the taskbar. Fix: the
     minimum is now the smaller of 1000x660 and the screen; normal screens get exactly the sizes they had before.
     I checked in Chromium that the page itself still works at 1097x577: the instance list in the rail scrolls.
-    Test: `test/audit16.test.js` "on a screen smaller than 1000x660â€¦ the window fits on it". (Before the fix the
+    Test: `test/audit16.test.js` "on a screen smaller than 1000x660… the window fits on it". (Before the fix the
     test failed because `windowSizes` didn't exist; the old inline formula gave min 1000x660 whatever the screen.)
 
 ### (b) Suspected, NOT fixed, most likely first
@@ -1762,7 +1762,7 @@ Microsoft token refresh. The checks in (c) below cover these.
    finished. It corrects itself on the next Discover visit. Not fixed: the renderer has no node test harness, and
    the rule is a test for every fix.
 5. **(Fixed by the desktop window in `c582945`.)** **Turning a mod on or off when antivirus is scanning the jar**: `content.setEnabled` uses a plain rename, with
-   no EBUSY/EPERM retry like the downloads have. The player gets "That file is in use â€” close Minecraft and try
+   no EBUSY/EPERM retry like the downloads have. The player gets "That file is in use — close Minecraft and try
    again." and a second click works. One-line fix (`atomic.renameWithRetry`) if check A16-6 shows it.
 6. **Very long Java command line**: the classpath is passed on the command line with no `@argfile`. Windows'
    limit is 32,767 characters. A Forge or NeoForge instance with a very long user name could get close; I
@@ -1801,24 +1801,24 @@ A16-1. **Greek user name:** on a Windows account whose name has Greek or accente
        account is fine), start a game from Reminth, close Reminth, then reopen it. The instance shows "Running"
        within about 6 s, and Play says it's already running.
 A16-2. **Update + Play:** in a throwaway instance, start "Update" for a few mods from the Mods tab, and press Play
-       while it runs. You get "Its mods are being updated - wait a momentâ€¦", and Play works once it's done.
+       while it runs. You get "Its mods are being updated - wait a moment…", and Play works once it's done.
 A16-3. **Delete while busy:** while an instance's mods are updating, choose Delete for it. You get "That instance
-       is busyâ€¦" and nothing is deleted. Delete works once the update ends.
+       is busy…" and nothing is deleted. Delete works once the update ends.
 A16-4. **Version change while busy:** while an update runs, open the instance's edit dialog, change the version, and
        save. You get the "wait a moment" sentence. A rename alone saves.
 A16-5. **Same-named mod:** in a throwaway instance, put `test.jar` and `test.jar.disabled` (two different files) in
-       `mods/`. Toggle either one in the Mods tab. You get "There is already a file calledâ€¦", and both files are
+       `mods/`. Toggle either one in the Mods tab. You get "There is already a file called…", and both files are
        unchanged (check their sizes in Explorer).
 A16-6. **Toggle right after a download** (antivirus on): install a mod and toggle it off at once. Note whether a
        "file in use" toast appears (this is suspect (b) 5; report it, it isn't a FAIL).
 A16-7. **Two quick screenshots:** with streamer mode on and a game running, press the screenshot hotkey twice
        quickly. Two files appear, one ending in `-2.png`.
-A16-8. **Two quick server adds:** in Discover â†’ Servers, click "Add to server list" on two servers quickly for the
+A16-8. **Two quick server adds:** in Discover → Servers, click "Add to server list" on two servers quickly for the
        same instance (game closed). Open Minecraft's Multiplayer list: both are there, with the old entries intact.
 A16-9. **Server add while running (suspect (b) 3):** with the game open on the multiplayer screen, add a server from
        Reminth, then press Refresh or leave and come back in game. Report whether it stays.
 A16-10. **Long command line (suspect (b) 6):** launch a Forge or NeoForge instance and copy the command line from
-        Task Manager (Details â†’ Command line column). Report its length.
+        Task Manager (Details → Command line column). Report its length.
 A16-11. **Small scaled screen:** set Windows to 1920x1080 at 175 % (or a 1366x768 screen at 125 %), then start
         Reminth. The whole window is on screen: the Settings button at the bottom left is visible above the
         taskbar. Restore Down, then Maximize again: still fits. Back at 100 %: same size as before.
@@ -1839,8 +1839,8 @@ The number was the time the server took to build its status answer (MOTD, icon, 
 Now, like Minecraft's own server list: after the status answer, up to 3 Ping/Pong packets (8-byte payload, must
 echo exactly), `process.hrtime`, median kept. A server that never answers a ping falls back to the status time
 (`latencyKind: "status"`, tooltip says so); a vanilla server that hangs up after the first pong still counts it;
-ping phase capped at 1.5 s inside the old 3.5 s timeout. Real servers, old vs new: hypixel.net 439 â†’ 149 ms,
-donutsmp.net 103 â†’ 42, play.cubecraft.net 82 â†’ 40, 2b2t.org 37 â†’ 17.
+ping phase capped at 1.5 s inside the old 3.5 s timeout. Real servers, old vs new: hypixel.net 439 → 149 ms,
+donutsmp.net 103 → 42, play.cubecraft.net 82 → 40, 2b2t.org 37 → 17.
 
 **2. Updates without the admin prompt** (`package.json` build.nsis, `build/installer.nsh`, `updater.js`).
 The UAC popup came from the "all users" install in `C:\Program Files\Reminth` (Windows must ask to write there).
@@ -1853,11 +1853,11 @@ shortcuts go. Player data is in `%APPDATA%\Reminth` and is not touched. The inst
 menu shortcuts and the HKCU uninstall entry, and its silent uninstall removes them. **Not checked: the removal of
 the old Program Files copy** (needs someone to answer the Windows prompt) - section 4 R2.
 
-**3. ReminthHUD 1.1.0** (`hud/`, jars in `assets/mods/`: `reminthhud-1.1.0+26.2.jar`, `â€¦+26.3.jar`).
+**3. ReminthHUD 1.1.0** (`hud/`, jars in `assets/mods/`: `reminthhud-1.1.0+26.2.jar`, `…+26.3.jar`).
 Top-right bar `FPS 208 | GPU 55 % | CPU 7 % | LAT 0 ms` (owner's screenshot), coordinates + facing on a line
 under it (the old top-left box sat on top of Xaero's minimap). GPU = Windows `\GPU Engine(*)\Utilization
 Percentage` via `pdh.dll` through `java.lang.foreign`, summed per engine (luid+phys+eng - this PC has 7 separate
-"copy" engines), busiest engine, on one low-priority daemon thread; failure â†’ the item is left out. CPU =
+"copy" engines), busiest engine, on one low-priority daemon thread; failure → the item is left out. CPU =
 `OperatingSystemMXBean.getCpuLoad()` (= Windows "% Processor Time"; Win 11 Task Manager shows the clock-scaled
 "% Processor Utility", so they can differ). LAT = `getPlayerInfo(uuid).getLatency()`. `config/reminthhud.json`
 switches items off. Moves below potion icons. One source builds both jars (key type looked up by name:
@@ -1866,11 +1866,11 @@ switches items off. Moves below potion icons. One source builds both jars (key t
 loads with no warning, bar and coordinates line drawn as above, no FPS cost (paired runs 228/219 vs 215-221).
 The HUD is **off** on the owner's main instance (`hud:false`) - he turns it on in the instance settings.
 
-**4. "Boost FPSâ€¦"** (instance menu; `gameOptions.js planBoost/applyBoost/undoBoost`, IPC `perf:boostPlan/
+**4. "Boost FPS…"** (instance menu; `gameOptions.js planBoost/applyBoost/undoBoost`, IPC `perf:boostPlan/
 boostApply/boostUndo`, `renderer.js boostFpsFlow`, `test/boost-fps.test.js`). Only on the player's click and
-"Change them", never while the game runs. Lists every change from â†’ to; on the owner's file: render distance
-16 â†’ 12, simulation 12 â†’ 8, entity shadows off, clouds off, biome blend 2 â†’ off (also: V-Sync off, a frame cap
-â†’ unlimited, particles all â†’ decreased, when set). Only keys already in options.txt change, in the game's own
+"Change them", never while the game runs. Lists every change from → to; on the owner's file: render distance
+16 → 12, simulation 12 → 8, entity shadows off, clouds off, biome blend 2 → off (also: V-Sync off, a frame cap
+→ unlimited, particles all → decreased, when set). Only keys already in options.txt change, in the game's own
 spelling; `graphicsPreset` becomes `"custom"` from 1.21.11 (else the preset overwrites the values). Old values
 saved first to `.reminth/options-before-boost.json`; "Put my old settings back" restores the ones still at the
 boosted value. Max FPS profile text now points here.
@@ -1882,14 +1882,14 @@ before this: Reminth used 0 % CPU and 0 % GPU (its window was hidden), so this i
 **FPS investigation (real game, owner's PC, 26.2).** A test-only mod (`reminthbench`, scratchpad only, not in
 the repo) records every frame time; launched through Reminth's own `minecraft.launch()` with an offline test
 account into a copy of the owner's world, window 1600x900, camera turning. Roblox (30-50 % GPU) and Medal's
-recorder were running the whole time, so absolute numbers swing Â±20 % between runs; only runs next to each
+recorder were running the whole time, so absolute numbers swing ±20 % between runs; only runs next to each
 other are compared (paired with a baseline on both sides).
 - **Same mods + same settings, Reminth's launch vs a Modrinth-style launch** (Zulu 25 + Modrinth's G1 flags,
   normal priority): 164 vs 164, 236 vs 223, and 201 vs 232 (neighbours). **Reminth's Java setup is not
   slower**, and had fewer frames over 50 ms (0 vs 4 in round 1). Keep ZGC: G1 gave +2 % average but 1 % lows
   85 vs ~100.
 - **The 200-vs-500 gap is the instance, not the launcher**: Modrinth's profile runs render distance 8,
-  simulation 8, no shadows/clouds/biome blend, 22 mods (no Xaero's Minimap, JEIâ€¦), no resource packs. In the
+  simulation 8, no shadows/clouds/biome blend, 22 mods (no Xaero's Minimap, JEI…), no resource packs. In the
   same run pair, Modrinth's mods + settings through Reminth's launch: 241 vs 164 (+47 %).
 - Indoor scene (the saved player stood inside a house, walls hid the world): Boost settings +14 % average,
   1 % lows 112 vs 58 (+91 %), worst frame 15 ms vs 198-280 ms in the baselines; no Xaero's Minimap +17 %;
@@ -1911,7 +1911,7 @@ panel and the yellow button; blocked, "may not work" and "crashed the game" all 
 | all mods have one | no compatibility result yet | grey **"Checking your installed mods..."** - decided when it arrives, never the happy sentence |
 | all mods have one | none blocked / may not work / crashed | green **"Your mods already fit Minecraft X - there is nothing you need to change."** |
 | all mods have one | N files are for another version | amber **"Builds exist for Minecraft X for all your mods, but N of the files in this instance are made for another version. Press "Update mods to fit" to swap them."** + that button **inside the dialog** (the yellow button's own operation, progress and result toast; the line is then worked out again) |
-| all mods have one | problems the button can't fix (it already left them) | amber, no button: "â€¦but N mods in this instance won't load or may not work. The Mods tab says which, and what to do." |
+| all mods have one | problems the button can't fix (it already left them) | amber, no button: "…but N mods in this instance won't load or may not work. The Mods tab says which, and what to do." |
 | some mods have none | (anything) | today's best-match line and ranked list (the case the owner originally asked for) |
 
 The "Other versions that also fit" list is shown as before in the first four rows (no "Best match" badge, no
@@ -1931,16 +1931,16 @@ combinations, no result yet, and blocked + may-not-work + crashed counts.
 
 | Job | What it does now | Files |
 |---|---|---|
-| 1 - lifetime Time played | Home's **Time played** = every minute played through Reminth, on every instance, **deleted ones included** (the owner's correction to prompt 3). A counter `totalPlayTimeMs` in `settings.json` (finite, non-negative, max 200 years; junk = absent). **Seeded once** at start, before the page can show it, from the sum of the instances' recorded time - never seeded twice, never lowered, never recomputed. Each finished session adds its time right after the instance's own time is recorded (`finishSession` â†’ `recordSession` â†’ `store.addPlayTime`), same rules (a start that failed adds nothing; a crash in play counts; two games at once both count - the settings lock). Only `store.seedPlayTime/addPlayTime` change it; a settings save from the page ignores it. A failed write never touches the exit handling. Home shows it ("12h 6m") with the tooltip "All your time in Minecraft through Reminth, across every instance - including ones you deleted." and repaints when a game ends (`play:totalTime`). Last played on Home, the instance page and Player Statistics are unchanged. | `store.js`, `main.js`, `preload.js`, `renderer.js` (`paintHeroStats`), `pure.js` (`homePlayTime`), `test/play-time.test.js` (new) |
+| 1 - lifetime Time played | Home's **Time played** = every minute played through Reminth, on every instance, **deleted ones included** (the owner's correction to prompt 3). A counter `totalPlayTimeMs` in `settings.json` (finite, non-negative, max 200 years; junk = absent). **Seeded once** at start, before the page can show it, from the sum of the instances' recorded time - never seeded twice, never lowered, never recomputed. Each finished session adds its time right after the instance's own time is recorded (`finishSession` → `recordSession` → `store.addPlayTime`), same rules (a start that failed adds nothing; a crash in play counts; two games at once both count - the settings lock). Only `store.seedPlayTime/addPlayTime` change it; a settings save from the page ignores it. A failed write never touches the exit handling. Home shows it ("12h 6m") with the tooltip "All your time in Minecraft through Reminth, across every instance - including ones you deleted." and repaints when a game ends (`play:totalTime`). Last played on Home, the instance page and Player Statistics are unchanged. | `store.js`, `main.js`, `preload.js`, `renderer.js` (`paintHeroStats`), `pure.js` (`homePlayTime`), `test/play-time.test.js` (new) |
 | 2 - nothing to change | When the instance's own version already fits every checked mod (and a checked server takes it), the picker's green line says **"Your mods already fit Minecraft 26.2 - there is nothing you need to change."** and only the other fitting versions follow under "Other versions that also fit" - no "Best match" badge, nothing pre-selected. With problems on the current version, unchanged. | `pure.js` (`pickerView`), `features.js` |
-| 3 - complete promise | "Switch this instance" confirm step now shows an **exact preview** from the main process (`compat:previewSwitch` â†’ `versionSwitch.previewSwitch`): the same advisor answer, the same compatibility check and swap plan against the new version, nothing changed. Preview and switch build their list with ONE function (`turnOffPlan`), so "Will be turned off (3)" with each mod and reason ("no version made for 1.21.10" / "its own file says it can't run on 1.21.10") is what the result screen shows. The Switch button waits for the preview; a failed preview says so with Try again. | `versionSwitch.js`, `main.js`, `preload.js`, `pure.js` (`previewGroups`), `features.js` |
+| 3 - complete promise | "Switch this instance" confirm step now shows an **exact preview** from the main process (`compat:previewSwitch` → `versionSwitch.previewSwitch`): the same advisor answer, the same compatibility check and swap plan against the new version, nothing changed. Preview and switch build their list with ONE function (`turnOffPlan`), so "Will be turned off (3)" with each mod and reason ("no version made for 1.21.10" / "its own file says it can't run on 1.21.10") is what the result screen shows. The Switch button waits for the preview; a failed preview says so with Try again. | `versionSwitch.js`, `main.js`, `preload.js`, `pure.js` (`previewGroups`), `features.js` |
 | 4 - stale button | When "Update mods to fit" ends, the old answer is dropped and the button repainted at once (hidden), then painted from a fresh check. Mods the run couldn't fix (no stable build / not on Modrinth / failed) don't count again until the switched-on mods change, so the button hides when nothing it can fix is left. (I couldn't find a path that repainted an old answer after the fresh check; the "(2)" most likely WAS the two mods it couldn't fix - both causes are covered.) | `features.js` (`runModsSync`, `syncCount`), `pure.js` (`syncButtonCount`) |
 
 ### Prompt 10 ("stop creating me a million instances that I can't delete simply")
 
 | Job | What it does now | Files |
 |---|---|---|
-| 1 - instance menu | **Right-click** (or the Menu key / Shift+F10 on a focused button) on a rail instance or a Library card, and the instance page's **â‹®** button, open ONE menu (`openInstanceMenu`): Play, Open, Renameâ€¦, Open folder, Verify files, Move up / Move down / Move to top / Move to bottom, **Deleteâ€¦** (red, last). The main "Reminth" instance's Delete is shown **off with the line "This is your main instance - it can't be deleted."**; a running instance can't be renamed or deleted ("Close the game first."). Stays inside the window, arrows/Home/End/Enter, Esc gives the focus back, closes on a click outside, scroll, blur or resize. **Renameâ€¦** = a name field (normal instances:update). **Deleteâ€¦** says what goes: "<name> - 2 worlds, 1.4 GB. Everything inside it is deleted for good (worlds, mods, screenshots). There's no undo. Your other instances are not touched." (`instances:summary` in main: worlds = `saves/*/level.dat`, bytes with a 1.5 s cap â†’ "about", links/junctions never followed). After deleting: the last played instance is selected, every list redrawn, "<name> deleted." The old static â‹® dropdown is gone (its Open folder / Verify files / Delete are in the menu). | `renderer.js`, `pure.js` (`instanceMenuItems`, `summaryText`), `instances.js` (`summary`), `main.js` (`instances:summary`, one shared delete path), `preload.js`, `index.html`, `styles.css` |
+| 1 - instance menu | **Right-click** (or the Menu key / Shift+F10 on a focused button) on a rail instance or a Library card, and the instance page's **⋮** button, open ONE menu (`openInstanceMenu`): Play, Open, Rename…, Open folder, Verify files, Move up / Move down / Move to top / Move to bottom, **Delete…** (red, last). The main "Reminth" instance's Delete is shown **off with the line "This is your main instance - it can't be deleted."**; a running instance can't be renamed or deleted ("Close the game first."). Stays inside the window, arrows/Home/End/Enter, Esc gives the focus back, closes on a click outside, scroll, blur or resize. **Rename…** = a name field (normal instances:update). **Delete…** says what goes: "<name> - 2 worlds, 1.4 GB. Everything inside it is deleted for good (worlds, mods, screenshots). There's no undo. Your other instances are not touched." (`instances:summary` in main: worlds = `saves/*/level.dat`, bytes with a 1.5 s cap → "about", links/junctions never followed). After deleting: the last played instance is selected, every list redrawn, "<name> deleted." The old static ⋮ dropdown is gone (its Open folder / Verify files / Delete are in the menu). | `renderer.js`, `pure.js` (`instanceMenuItems`, `summaryText`), `instances.js` (`summary`), `main.js` (`instances:summary`, one shared delete path), `preload.js`, `index.html`, `styles.css` |
 | 2 - moving instances | **Drag** a rail instance: it dims, a thin line shows where it lands, Esc or dropping outside the rail cancels, a long rail scrolls by itself at its top/bottom edge; selection and running state never change. The menu's Move up/down/top/bottom do the same (the impossible ones are off). Saved by `instances:reorder` (atomic, registry lock, refused unless the ids are exactly the instances there are - the old order stays); the main instance may move too; new instances still go at the **end**. Library > Instances sorts by **"My order"** by default (the other sorts stay) and shows each instance's size on disk (worked out lazily while Library is open, kept for the session). | `renderer.js` (`railDrag*`, `moveInstance`, `saveInstanceOrder`, Library), `pure.js` (`moveIndex`, `moveItem`, `dropGapToIndex`), `instances.js` (`reorder`, `normalise` keeps the saved order), `main.js`, `preload.js`, `styles.css` |
 | 3 - no surprise instances | **One question** before every instance the player didn't ask for in the New instance dialog (`confirmNewInstance`): "Reminth will make a new instance: <name> - Minecraft <v> <loader>. Your other instances are not changed." Create / Cancel - or, when an instance is already on that version and loader, **"Use <that>"** first and "Make a new one" second. Used by server Play's vanilla instance (both of its ways in - before, the "vanilla" choice after the mods question made one without asking). The version picker's new-instance card (prompt 11) shows the same sentence and offers "Use <instance>" there. **No two instances with the same name + version + loader**: " (2)", and the question says so (one rule in `pure.uniqueInstanceName`, used by `instances.create`). **madeFor** (cleaned, max 60 chars, text only): the server's name or "Copy of <instance>", shown under the instance name ("Made for Hypixel" / "Copy of Survival"). **Undo**: a toast button (~10 s) after the version picker made a new instance and its window was closed without playing; main deletes it only if never played and no world in `saves/`. | `renderer.js` (`confirmNewInstance`, `toastWithAction`, `offerUndoCreate`, madeFor line), `features.js` (server Play, picker), `pure.js` (`createSentence`, `reusableInstance`, `uniqueInstanceName`), `instances.js` (`madeFor`, `cleanMadeFor`, `undoAllowed`), `main.js` (`instances:undoCreate`, madeFor on copies), `index.html` (toast button), `styles.css` |
 
@@ -1950,21 +1950,21 @@ moves and drag gaps, summary text, the creation sentence and reuse, `cleanMadeFo
 temp folder (worlds, bytes, a junction not followed, the time cap), and an **audit of every `createInstance` /
 `copyInstanceToVersion` call** in the renderer (each must be in the New instance dialog, the picker, or a function
 that asks `confirmNewInstance`). `test/perf-profiles.test.js` (+1): `instances:undoCreate` on a fake Electron.
-Clicked through in headless Chromium: right-click menus (rail, Library, â‹®), keyboard, Move to top, Shift+F10,
+Clicked through in headless Chromium: right-click menus (rail, Library, ⋮), keyboard, Move to top, Shift+F10,
 the delete numbers, drag with the line, "My order" with sizes, the question with and without an instance to use,
 Undo and its call, "Made for".
 
-### Prompt 11 ("I pick a version and some mods still don't fitâ€¦ stop creating me a million instances")
+### Prompt 11 ("I pick a version and some mods still don't fit… stop creating me a million instances")
 
 | Job | What it does now | Files |
 |---|---|---|
-| 1 - say what happens first | The version list is ranked by the fewest mods without a build, then the newest (versions a checked server takes first). **Best 5** shown, "Show more versions" for the rest. A green line on top: "Best match: 1.21.1 â€” all 29 mods fit" or "Fits most: 1.21.4 â€” 3 mods have to be turned off". For the version picked (and again on the confirm step) every mod sits in one plain group: **Will work (N)**, **No build for <v> (N)** "They can't work with the rest on <v>, so they will be turned off (you can turn them on again)" / "â€¦left out of the copy", **Not from Modrinth, Reminth can't check these (N)** "kept as they are, unless the file itself says it can't run on <v> â€” then it is turned off" / "left out of the copy", **Couldn't be checked just now (N)**. Lists of more than 6 names are collapsed. A one-line help text says what a "build" is. The advisor now counts **stable** versions only (a beta-only mod is "No build", because the switch never installs a beta). | `pure.js` (`rankVersionRows`, `bestLine`, `modGroups`, `compareMc`), `features.js` (`openVersionAdvisor`), `compat.js` (`supportedReleases` stableOnly for the advisor), `styles.css` |
-| 2 - two clear choices | The confirm step has two radio cards: **"Switch this instance to <v>"** ("Your mods are updated to fit. Mods with no build for <v> are turned off (you can turn them on again). Your worlds stay. A backup of every replaced mod is kept.") and **"Keep this one as it is and make a new instance on <v>"** ("Nothing here changes. It uses more disk space; worlds are not copied."). Recommended: switch for the same or a newer version; a new instance is the only choice (with one plain sentence why) for an **older version while the instance has worlds**, a **modpack** instance, or a **running** game. The new-instance card says "Reminth will make a new instance: <name> â€” Minecraft <v> <loader>. Your other instances are not changed.", never repeats an existing name (" (2)"), and offers **"Use <instance>"** when one is already on that version and loader. A server that started the flow still joins afterwards in both cases. **Switch** runs in the main process (`compat:switchVersion` â†’ `versionSwitch.js`): checks (running, modpack, vanilla, same version, older-over-worlds), which mods have no stable build there + the loader version (any failure: nothing changed), `.reminth/version-change.json` (atomic), the instance update (registry queue), the stable-only swap (modsSync, replaced-mods backup), every mod still without a build **renamed to .disabled** (never deleted) with its reason; a failure after the update comes back as "â€¦is now on Minecraft <v>, but updating its mods stopped: â€¦ Press 'Update mods to fit <v>' to finish." with the note kept. | `versionSwitch.js` (new), `main.js`, `preload.js`, `compat.js` (`adviseVersions` `target`: files of the mods without a build), `content.js` (`setOffReason`), `pure.js` (`versionChoices`), `features.js` |
-| 3 - result screen | Same window: "Done â€” <instance> is on Minecraft <v>." with **Updated (N)**, **Already fitting (N)**, **Turned off (N)** (each: name, the reason in plain words â€” "no version made for 26.3" / "no finished (stable) version made for 26.3 yet" / "its own file says it can't run on 26.3" â€” and **Find a replacement** (Discover's mod search with that name, this instance selected) + **Turn on anyway** (the game may not start)), **Not checked (N)**. One big **Play** (or "Play <server>"), a small Close. The Mods tab's Off group shows "Turned off by Reminth: <reason>" under those mods; the reason is kept in `.reminth/content.json` (`turnedOff`, atomic, locked) and dropped when the player turns the mod on or removes it. | `features.js`, `content.js` (`setEnabled`/`remove` clear it, `listAll` gives `offReason`), `styles.css` |
-| 4 - plain words | Dialog: **"Pick a Minecraft version for my mods"**, with an intro line ("See what happens to each of your mods on another Minecraft version. Nothing changes until you confirm."). Buttons: **"Pick a version that fits my mods"** (Mods panel, the "no build" window, the "No build yet" window) and the Mods toolbar's **"Pick a version"** (was "Version check"). The "no build" window and the What's new line rewritten; "Reminth-managed" badge â†’ "Added by Reminth". The Play question ("Minecraft won't start like this") adds one line naming mods with no version for this Minecraft **or anything newer**: "picking another version won't help them â€” they have to be turned off to play (Fix and play does that)". | `features.js`, `renderer.js` (What's new), `index.html`, `styles.css` |
+| 1 - say what happens first | The version list is ranked by the fewest mods without a build, then the newest (versions a checked server takes first). **Best 5** shown, "Show more versions" for the rest. A green line on top: "Best match: 1.21.1 — all 29 mods fit" or "Fits most: 1.21.4 — 3 mods have to be turned off". For the version picked (and again on the confirm step) every mod sits in one plain group: **Will work (N)**, **No build for <v> (N)** "They can't work with the rest on <v>, so they will be turned off (you can turn them on again)" / "…left out of the copy", **Not from Modrinth, Reminth can't check these (N)** "kept as they are, unless the file itself says it can't run on <v> — then it is turned off" / "left out of the copy", **Couldn't be checked just now (N)**. Lists of more than 6 names are collapsed. A one-line help text says what a "build" is. The advisor now counts **stable** versions only (a beta-only mod is "No build", because the switch never installs a beta). | `pure.js` (`rankVersionRows`, `bestLine`, `modGroups`, `compareMc`), `features.js` (`openVersionAdvisor`), `compat.js` (`supportedReleases` stableOnly for the advisor), `styles.css` |
+| 2 - two clear choices | The confirm step has two radio cards: **"Switch this instance to <v>"** ("Your mods are updated to fit. Mods with no build for <v> are turned off (you can turn them on again). Your worlds stay. A backup of every replaced mod is kept.") and **"Keep this one as it is and make a new instance on <v>"** ("Nothing here changes. It uses more disk space; worlds are not copied."). Recommended: switch for the same or a newer version; a new instance is the only choice (with one plain sentence why) for an **older version while the instance has worlds**, a **modpack** instance, or a **running** game. The new-instance card says "Reminth will make a new instance: <name> — Minecraft <v> <loader>. Your other instances are not changed.", never repeats an existing name (" (2)"), and offers **"Use <instance>"** when one is already on that version and loader. A server that started the flow still joins afterwards in both cases. **Switch** runs in the main process (`compat:switchVersion` → `versionSwitch.js`): checks (running, modpack, vanilla, same version, older-over-worlds), which mods have no stable build there + the loader version (any failure: nothing changed), `.reminth/version-change.json` (atomic), the instance update (registry queue), the stable-only swap (modsSync, replaced-mods backup), every mod still without a build **renamed to .disabled** (never deleted) with its reason; a failure after the update comes back as "…is now on Minecraft <v>, but updating its mods stopped: … Press 'Update mods to fit <v>' to finish." with the note kept. | `versionSwitch.js` (new), `main.js`, `preload.js`, `compat.js` (`adviseVersions` `target`: files of the mods without a build), `content.js` (`setOffReason`), `pure.js` (`versionChoices`), `features.js` |
+| 3 - result screen | Same window: "Done — <instance> is on Minecraft <v>." with **Updated (N)**, **Already fitting (N)**, **Turned off (N)** (each: name, the reason in plain words — "no version made for 26.3" / "no finished (stable) version made for 26.3 yet" / "its own file says it can't run on 26.3" — and **Find a replacement** (Discover's mod search with that name, this instance selected) + **Turn on anyway** (the game may not start)), **Not checked (N)**. One big **Play** (or "Play <server>"), a small Close. The Mods tab's Off group shows "Turned off by Reminth: <reason>" under those mods; the reason is kept in `.reminth/content.json` (`turnedOff`, atomic, locked) and dropped when the player turns the mod on or removes it. | `features.js`, `content.js` (`setEnabled`/`remove` clear it, `listAll` gives `offReason`), `styles.css` |
+| 4 - plain words | Dialog: **"Pick a Minecraft version for my mods"**, with an intro line ("See what happens to each of your mods on another Minecraft version. Nothing changes until you confirm."). Buttons: **"Pick a version that fits my mods"** (Mods panel, the "no build" window, the "No build yet" window) and the Mods toolbar's **"Pick a version"** (was "Version check"). The "no build" window and the What's new line rewritten; "Reminth-managed" badge → "Added by Reminth". The Play question ("Minecraft won't start like this") adds one line naming mods with no version for this Minecraft **or anything newer**: "picking another version won't help them — they have to be turned off to play (Fix and play does that)". | `features.js`, `renderer.js` (What's new), `index.html`, `styles.css` |
 
 Tests: `test/version-flow.test.js` (new, 9): ranking/best line (perfect, partial, none, server), the groups per
-action, the choices (newer/older/same Ã— worlds Ã— modpack Ã— running), `switchVersion` with stubs for each failure
+action, the choices (newer/older/same × worlds × modpack × running), `switchVersion` with stubs for each failure
 point (no loader build, update fails, swap stops half way) checking that every file is still there, and the
 turned-off reasons (set, cleared on enable/remove, on disk). Clicked through in headless Chromium with a fake main
 process: list + best line + groups + "Show more", both choice cards for a newer and an older-with-worlds version,
@@ -1984,14 +1984,14 @@ versions with a range that reaches forward (the existing test is unchanged).
 |---|---|---|
 | A - fit button | Every "listed for another Minecraft version" warning is marked (`listedElsewhere`) and counts for **"Update mods to fit 26.2 (N)"**, the edit notice and the one-click swap: same stable-only `planSync` path, same `.reminth/replaced-mods` copy, same "No 26.2 build yet" list (switch off / advisor / leave) when there is no stable build of exactly this version + loader - never deleted. The panel's "Fix all" already applied these mods' own (stable-filtered) "Switch to" fixes. Reminth's own jars still never reported or touched. `planSync`/`applySync`/`mods:sync` take an optional file list. | `compat.js` (`judgeMod`, `builtForNewerOnly`, `modSetOf`), `modsSync.js` (`syncCandidates`, `files` option), `main.js`, `preload.js`, `features.js` (`syncCount`, notice text) |
 | B - Play warning | When there are no blocked mods but "may not work (built for another version)" ones, Play from **every** entry (instance page, Home hero, Home cards - all go through `compatBeforePlay`) shows **"These mods may crash the game"**: "N mods are built for another Minecraft version and may crash the game: <names>", the rows, a **"Don't ask again for this instance"** tick box, and Cancel / Play anyway / Fix and play. Play anyway remembers nothing. The tick (with Play anyway) stores the fingerprint of the switched-on mods (`skipModWarning`, instance registry, atomic write); `compat:check` drops it as soon as the mods differ. Fix and play = the fit swap for just those files; mods without a stable build are named and the dialog stays open (Play anyway / Cancel). Blocked mods keep "Minecraft won't start like this" and win when both kinds exist. | `pure.js` (`modWarning`, `riskyText`), `features.js` (`riskyBeforePlay`), `instances.js` (`skipModWarning`), `main.js` (`compat:skipModWarning`, clearing in `compat:check`), `preload.js`, `styles.css` (`.gate-skip`) |
-| C - after a crash | On every game exit main.js reads the **newest crash report written since that launch**, only from `<instance>/crash-reports`, never through a link, first 512 KB, nothing in it used as a path. `crashReport.js` parses Description, the error line and the first stack frames (until "A detailed walkthrough") and names a mod only when exactly one matches: a frame in a package that mod's own code uses (content.js now reads `packages` from `fabric.mod.json` entrypoints + mixin configs' `package`), a Forge/NeoForge frame `TRANSFORMER/<modid>@â€¦/`, a Mixin handler `handler$â€¦$<modid>$â€¦`, or a Mixin error "from mod <id>". Two mods tied, Fabric API / loader / one of Reminth's own jars on top, or no match â†’ nothing is said. The finding goes to `.reminth/crash-finding.json` (atomic; ignored once that jar changes; a report already told isn't told again; a clean exit (code 0, no new report) forgets it). The panel shows the mod as **"Crashed the game"** with its fix; the window gets a toast and a dismissible notice on the instance page: "The game crashed in AppleSkin (appleskin-fabric-mc26.3-3.0.10.jar). It is built for Minecraft 26.3 and this instance is on 26.2." with **Fix it** (the stable swap for that one mod, when the check has a stable build) or **Switch it off**. | `crashReport.js` (new), `content.js` (`modPackages`, `packageOfClass`), `compat.js` (crash finding â†’ issue, `managedNames` exported), `main.js` (`noteCrashReport` from the exit handler), `preload.js` (`onCrashCulprit`), `features.js` (`compatTag`, crash notice), `index.html` (`#instCrashNotice`) |
+| C - after a crash | On every game exit main.js reads the **newest crash report written since that launch**, only from `<instance>/crash-reports`, never through a link, first 512 KB, nothing in it used as a path. `crashReport.js` parses Description, the error line and the first stack frames (until "A detailed walkthrough") and names a mod only when exactly one matches: a frame in a package that mod's own code uses (content.js now reads `packages` from `fabric.mod.json` entrypoints + mixin configs' `package`), a Forge/NeoForge frame `TRANSFORMER/<modid>@…/`, a Mixin handler `handler$…$<modid>$…`, or a Mixin error "from mod <id>". Two mods tied, Fabric API / loader / one of Reminth's own jars on top, or no match → nothing is said. The finding goes to `.reminth/crash-finding.json` (atomic; ignored once that jar changes; a report already told isn't told again; a clean exit (code 0, no new report) forgets it). The panel shows the mod as **"Crashed the game"** with its fix; the window gets a toast and a dismissible notice on the instance page: "The game crashed in AppleSkin (appleskin-fabric-mc26.3-3.0.10.jar). It is built for Minecraft 26.3 and this instance is on 26.2." with **Fix it** (the stable swap for that one mod, when the check has a stable build) or **Switch it off**. | `crashReport.js` (new), `content.js` (`modPackages`, `packageOfClass`), `compat.js` (crash finding → issue, `managedNames` exported), `main.js` (`noteCrashReport` from the exit handler), `preload.js` (`onCrashCulprit`), `features.js` (`compatTag`, crash notice), `index.html` (`#instCrashNotice`) |
 
 Tests: `test/may-not-work.test.js` (new, 15): AppleSkin-shaped real jar (outer jar listed for 26.3, range
-`>=1.21.9` that 26.2 satisfies) through `checkInstance`, the fit plan (stable swap, beta-only â†’ "no build",
+`>=1.21.9` that 26.2 satisfies) through `checkInstance`, the fit plan (stable swap, beta-only → "no build",
 only-some-files), the Play rule and sentence, the registry field, the parser on the real report + a Mixin
 error + no mod frames + a cut-off file, ties / Fabric API / Reminth's jars / Forge frames, the report finder
 (older, too big, a link), the "Crashed the game" issue. `test/perf-profiles.test.js` (+2, real main.js on a
-fake Electron): the "don't ask again" IPC and its clearing; a crash report after a game exit â†’ finding written
+fake Electron): the "don't ask again" IPC and its clearing; a crash report after a game exit → finding written
 and `play:crashCulprit` sent, a clean exit forgets it. All existing tests unchanged.
 Clicked through in headless Chromium with a fake main process: button count includes the "may not work" mods,
 the Play dialog (text, tick, buttons, "don't ask again" honoured for the same mods and asked again when they
@@ -2012,16 +2012,16 @@ Statistics page, streamer page and bar lists don't use them), so nothing needed 
 
 The packaged 1.4.0 said "You're on the latest version (1.1.1)": the up-to-date state carried the newest
 version in GitHub's feed (the only published release is 1.1.1). Now it carries the **running** version
-(`app.getVersion()`), whatever the feed says (newer â†’ still "Downloading <new>â€¦" as before; equal, older or
-missing â†’ "You're on the latest version (<running>)"). The feed's number is kept as `feedVersion` (not shown,
+(`app.getVersion()`), whatever the feed says (newer → still "Downloading <new>…" as before; equal, older or
+missing → "You're on the latest version (<running>)"). The feed's number is kept as `feedVersion` (not shown,
 for diagnostics; the updater log still writes it). Settings now prefers `currentVersion`. Every other state
 and message is unchanged.
 
 | Files | |
 |---|---|
-| `src/main/updater.js` | `update-not-available` â†’ `version: app.getVersion()`, `feedVersion` |
+| `src/main/updater.js` | `update-not-available` → `version: app.getVersion()`, `feedVersion` |
 | `src/renderer/renderer.js` | the "up-to-date" Settings line prefers `currentVersion` |
-| `test/updater.test.js` | +2 tests: feed equal / older / missing / no version â†’ running version; feed newer â†’ downloading the new one |
+| `test/updater.test.js` | +2 tests: feed equal / older / missing / no version → running version; feed newer → downloading the new one |
 
 ### Prompt 6 (window still small after a fullscreen game)
 
@@ -2055,11 +2055,11 @@ repaired to 1936x1048.` (sizes are the outer rectangle, so 816x568 = the 800x552
 | Step | What it does now | Files |
 |---|---|---|
 | Job 0 - Play on Home cards | The Play button sits inside the card's text strip (name/meta left, Play right), no longer floating over the picture. Meta capped at 2 lines; all cards the same height. | `renderer.js` (`recentCard`), `styles.css` |
-| Description renderer | New pure module. Markdown + the HTML Modrinth authors use (headings, bold/italic/strike, code, quotes, lists + task lists, tables with alignment, `<details>`, `<center>`, `<br>`, `<img>`, `<a>`, `<iframe>`) â†’ a tree of plain objects â†’ DOM with `createElement`/`textContent` only (**no innerHTML anywhere**). Links: https only, no user:password, no backslashes, max 2048 chars; `/path` â†’ modrinth.com; a link whose text shows another host gets "(real host)" next to it. Pictures: only `cdn.modrinth.com` and `avatars.githubusercontent.com`, everything else â†’ **"Image hosted elsewhere"** box with an "Open in browser" link. YouTube/Vimeo embeds â†’ a "Video" link card. Caps: 200 KB of text (then "Read the rest on Modrinth"), depth 8, 20 000 nodes, tables 200x20, 1000 list items, **120 ms** parse time. | `src/renderer/markdown.js` (new), `test/markdown.test.js` (new, 22 tests) |
+| Description renderer | New pure module. Markdown + the HTML Modrinth authors use (headings, bold/italic/strike, code, quotes, lists + task lists, tables with alignment, `<details>`, `<center>`, `<br>`, `<img>`, `<a>`, `<iframe>`) → a tree of plain objects → DOM with `createElement`/`textContent` only (**no innerHTML anywhere**). Links: https only, no user:password, no backslashes, max 2048 chars; `/path` → modrinth.com; a link whose text shows another host gets "(real host)" next to it. Pictures: only `cdn.modrinth.com` and `avatars.githubusercontent.com`, everything else → **"Image hosted elsewhere"** box with an "Open in browser" link. YouTube/Vimeo embeds → a "Video" link card. Caps: 200 KB of text (then "Read the rest on Modrinth"), depth 8, 20 000 nodes, tables 200x20, 1000 list items, **120 ms** parse time. | `src/renderer/markdown.js` (new), `test/markdown.test.js` (new, 22 tests) |
 | One IPC for the page | `catalog:projectPage` returns project + people + versions + the parsed description in one answer. Cached 5 min (by slug and id, 30 projects), failures never cached, ids checked. Team/organisation and the version list are best effort (page says when missing). Changelogs kept for the newest 50 builds (20 000 chars each). Goes through `modrinth.js` (its retries and rate-limit waits). **Fixed during testing:** Modrinth ids are case-sensitive; the first version lower-cased them before asking. `link:open` opens a link in the default browser after checking it again in the main process. | `src/main/projectPage.js` (new), `main.js`, `preload.js`, `test/project-page.test.js` (new, 9 tests), `test/perf-profiles.test.js` (+1) |
-| Page rules | `fitsInstance` ("Fits your instance X (1.21.4 Fabric)." / "Only a beta build fits..." / "No build for 1.21.4 Forge yet." / vanilla needs a loader / modpacks install as their own instance), `collapseVersions` (300 versions â†’ "1.21â€“1.21.11", "26.1â€“26.3", snapshots only counted), `buildConfirmText` (beta/alpha question naming the channel). | `src/renderer/pure.js` |
+| Page rules | `fitsInstance` ("Fits your instance X (1.21.4 Fabric)." / "Only a beta build fits..." / "No build for 1.21.4 Forge yet." / vanilla needs a loader / modpacks install as their own instance), `collapseVersions` (300 versions → "1.21–1.21.11", "26.1–26.3", snapshots only counted), `buildConfirmText` (beta/alpha question naming the channel). | `src/renderer/pure.js` |
 | The page | Click or Enter on a Discover result opens the page **inside Discover**. Header: icon, title, summary, people with avatars (owner first, or the organisation), downloads, followers, updated, client/server, categories, license (clickable when it has a URL), Install (same paths, same running-instance guard as the cards; mods also get the version chooser). Support card: fit line, loaders, Minecraft ranges. Tabs: **Description** (credit line "Description by the project's author, shown from Modrinth."), **Gallery**, **Versions** (30 at a time + "Show more"; changelog parsed when a row opens; per-row Install, off when the build doesn't fit the instance; beta/alpha ask first, naming the channel), **Links** (source, issues, wiki, Discord, donations, View on Modrinth). **Back / Esc / mouse Back button** return to the results with search, filters, page and scroll exactly as they were (the list is only hidden, never rebuilt). Skeleton while loading, error box with Retry, a late answer for a project you already left is dropped. | `features.js` (section 10 + `projectRow`), `index.html` (`#projectView`, `markdown.js` script), `styles.css` (`pv-*`, `md-*`, before the last rule) |
-| Entry from installed mods | Mods/packs rows that Modrinth knows get **"Open project page"** in their â‹® menu. Back then says "Back to <instance name>" and returns to the instance page. | `features.js` (`rowMenu`, `openProject`/`closeProject`) |
+| Entry from installed mods | Mods/packs rows that Modrinth knows get **"Open project page"** in their ⋮ menu. Back then says "Back to <instance name>" and returns to the instance page. | `features.js` (`rowMenu`, `openProject`/`closeProject`) |
 
 Not added: the suggested-mods window does not open project pages (it's a modal with its own tick list;
 opening a page from inside it would need it to close and reopen with its ticks kept - not small).
@@ -2100,7 +2100,7 @@ P17-2. **The home screen is ON by default for modpack instances too** (plan sect
    **Recommend: default OFF for instances made from a modpack** (a missing value = off when `instance.modpack` is set).
    It's one line in `config.bundledModWanted`, plus a test.
 P17-3. **The ReminthHUD switch still writes `hud: false` when the dialog is saved on a version with no HUD build**
-   (old behaviour, kept exactly as the prompt asked). Example: edit a 1.20.1 instance that had the HUD on and save â†’
+   (old behaviour, kept exactly as the prompt asked). Example: edit a 1.20.1 instance that had the HUD on and save →
    the HUD is off for good, even after a build for it ships. The home switch doesn't do this. **Recommend: make the
    HUD behave like the home switch** (send `hud` only when the switch could be used). It's small; it's a separate
    change.
@@ -2116,7 +2116,7 @@ A16-D2. **Data folder on PCs with redirected AppData** (school or work PCs). **R
 
 D1. **No more install-folder chooser** (one-click per-user installer). It's the price of no admin prompt; every
    big launcher (Modrinth App, Discord, VS Code user setup) does the same. **Recommend: keep.**
-D2. **Boost FPS changes 5 video settings on the owner's instance and can make the view shorter** (16 â†’ 12
+D2. **Boost FPS changes 5 video settings on the owner's instance and can make the view shorter** (16 → 12
    chunks). It only happens on his click, after the list, with undo. **Recommend: keep 12** (servers usually
    send 8-12 chunks anyway); see the outdoor numbers in section 1 for 10 vs 12.
 D3. **Not added to the performance pack: More Culling + BadOptimizations** unless the outdoor numbers in
@@ -2141,8 +2141,8 @@ P10-1. **Undo is offered only after the version picker made a new instance and w
    menu has Delete. **Recommend: keep.**
 P10-2. **Installing a modpack doesn't get the extra question**: the player pressed Install on a modpack, which is
    asking for a new instance. It does get " (2)" for a repeated name. **Recommend: keep.**
-P10-3. **The â‹® button on the instance page now opens the same menu as a right-click** (Play, Rename, Moveâ€¦, Delete
-   â€¦); Verify files and Open folder moved into it. **Recommend: keep** (one menu everywhere).
+P10-3. **The ⋮ button on the instance page now opens the same menu as a right-click** (Play, Rename, Move…, Delete
+   …); Verify files and Open folder moved into it. **Recommend: keep** (one menu everywhere).
 P10-4. **Library's default sort is "My order"** for players who never picked one; anyone who chose another sort
    keeps it. **Recommend: keep.**
 
@@ -2248,7 +2248,7 @@ wrong-loader mods count for "Update mods to fit"; six extra-mod slugs.
 
 - **Prompt 9 never met a real crash or real Modrinth.** The crash parser was tested on the report text from
   the prompt (head only) and made-up Mixin / Forge shapes; real reports from other mods may name nobody
-  (by design: no match â†’ nothing said). Mods whose code isn't in an entrypoint or mixin package (pure
+  (by design: no match → nothing said). Mods whose code isn't in an entrypoint or mixin package (pure
   libraries, Kotlin objects, some Forge mods - Forge jars aren't read for packages, only Forge frames that
   name their mod) can't be named.
 - AppleSkin's real `fabric.mod.json` range wasn't checked (no network here). If it declares a range that
@@ -2299,7 +2299,7 @@ P17-3. **Fake home jar:** make a copy of any small Fabric jar for 26.2 whose `fa
           `{ "mod": "reminthhome" }`, and the Mods tab shows it with "Added by Reminth".
        3. Switch it off, save, and press Play: the jar is gone from `mods/`, and the HUD and the pack are untouched.
        4. Switch it on: it's back.
-       5. A 1.21.1 instance: the switch is disabled ("No â€¦ build for 1.21.1 yet"), and Play adds nothing.
+       5. A 1.21.1 instance: the switch is disabled ("No … build for 1.21.1 yet"), and Play adds nothing.
 
        Remove the fake jar afterwards.
 P17-4. **Links, packaged app** (built and installed per-user):
@@ -2326,22 +2326,22 @@ Don't touch the screen while the owner plays. Use throwaway instances. Report PA
 you saw; stop and report on any FAIL that risks his files.
 
 ### Basics
-1. `git pull`, `npm install` if needed, `npm test` â†’ **621 pass**. Report any Windows-only failure verbatim.
+1. `git pull`, `npm install` if needed, `npm test` → **621 pass**. Report any Windows-only failure verbatim.
    Check `styles.css` still ends with the `background-origin` rule and CRLF files are still CRLF.
 2. `npm start`; keep DevTools console and `%APPDATA%\Reminth\main-errors.log` open throughout. Any red line = FAIL.
 
 ### Desktop batch, 3 Oct evening (ping, HUD, Boost FPS, updates) - test with 1.4.2
-B1. Discover â†’ Servers: the ping badges are lower than before (hypixel ~150, cubecraft ~40 here) and agree within
-    a few ms with Minecraft's own multiplayer list for the same server. Hover: "â€¦measured the way Minecraft's own
+B1. Discover → Servers: the ping badges are lower than before (hypixel ~150, cubecraft ~40 here) and agree within
+    a few ms with Minecraft's own multiplayer list for the same server. Hover: "…measured the way Minecraft's own
     server list does".
-B2. Instance settings â†’ ReminthHUD on â†’ Play: top-right bar `FPS | GPU % | CPU % | LAT ms`, coordinates line under
+B2. Instance settings → ReminthHUD on → Play: top-right bar `FPS | GPU % | CPU % | LAT ms`, coordinates line under
     it, nothing over a minimap. GPU roughly matches Task Manager's GPU column. LAT 0 in singleplayer, a real number
     on a server. **H** hides/shows. A potion effect: the bar moves below the icons. `config/reminthhud.json`
-    with `"gpu": false` â†’ the GPU item is gone and the bar closes up. F3 open â†’ the HUD hides (F3 shows the
-    same). A server with `reducedDebugInfo` â†’ no coordinates line. Same on a 26.3 instance.
-B3. Right-click an instance â†’ **Boost FPSâ€¦** â†’ the list of from â†’ to; Cancel changes nothing; **Change them** â†’
+    with `"gpu": false` → the GPU item is gone and the bar closes up. F3 open → the HUD hides (F3 shows the
+    same). A server with `reducedDebugInfo` → no coordinates line. Same on a 26.3 instance.
+B3. Right-click an instance → **Boost FPS…** → the list of from → to; Cancel changes nothing; **Change them** →
     toast; options.txt shows the new values, everything else identical; `.reminth/options-before-boost.json`
-    exists. Open again â†’ "already has the fast settings" + **Put my old settings back** â†’ the old values return.
+    exists. Open again → "already has the fast settings" + **Put my old settings back** → the old values return.
     With the game running: the entry is greyed out with "Close the game first."
 B4. While a game runs, the launcher's looping animations (Plus page, progress shimmer) stand still; they move
     again after the game closes.
@@ -2351,204 +2351,204 @@ B5. **JEI (switched ON) on DonutSMP (or another server): join, then open the inv
 
 ### Release 1.4.2
 R1. **Done by the desktop window:** `npm test` (582), bump to 1.4.2, `npm run dist`, check `dist/latest.yml` has no `isAdminRightsRequired`.
-R2. **The migration, on the owner's PC, before uploading:** close Reminth, run `dist\Reminth-Setup.exe` by hand â†’
-    a small "Installing" box (no wizard), then Windows asks ONCE (that's the old copy being removed) â†’ Yes â†’
+R2. **The migration, on the owner's PC, before uploading:** close Reminth, run `dist\Reminth-Setup.exe` by hand →
+    a small "Installing" box (no wizard), then Windows asks ONCE (that's the old copy being removed) → Yes →
     Reminth opens from `%LOCALAPPDATA%\Programs\reminth-launcher`; `C:\Program Files\Reminth` is gone; one
     "Reminth" on the desktop and in Start; instances, worlds, sign-in, settings all still there.
 R3. Upload the release (installer + `latest.yml` + `.blockmap`).
-R4. When 1.4.3 exists: Settings â†’ Check for updates â†’ download â†’ **Restart and update** â†’ no Windows prompt, no
+R4. When 1.4.3 exists: Settings → Check for updates → download → **Restart and update** → no Windows prompt, no
     installer window, Reminth reopens on 1.4.3.
 
 ### Prompt 13 (test these first - it blocks 1.4.1)
 W1. A throwaway **Fabric 1.21.1** instance holding the mod files of a 26.2 instance (copy its `mods` folder). Open
     its Mods tab (the panel says "N mods will stop Minecraft from starting"; the yellow button shows a number).
-    Open **"Pick a version that fits my mods"** â†’ briefly "Checking your installed mods..." (grey) if the check
+    Open **"Pick a version that fits my mods"** → briefly "Checking your installed mods..." (grey) if the check
     hasn't run yet, then the **amber** line "Builds exist for Minecraft 1.21.1 for all your mods, but N of the files
     in this instance are made for another version. Press "Update mods to fit" to swap them." with an
     "Update mods to fit 1.21.1" button inside the dialog. N equals the yellow button's number. The list below is
     titled "Other versions that also fit", no "Best match" badge, no row selected. **The green sentence is NOT shown.**
-W2. Press the button inside the dialog â†’ progress, the usual result toast ("Updated N modsâ€¦"), and the amber line
+W2. Press the button inside the dialog → progress, the usual result toast ("Updated N mods…"), and the amber line
     turns into the **green** "Your mods already fit Minecraft 1.21.1 - there is nothing you need to change." The
     yellow button and the Mods panel behind it agree (hidden / no red panel). Mods with no stable build (if any)
     are listed in the "No 1.21.1 build yet" window and the line stays amber without a button.
 W3. A **26.2 instance holding 26.2 files** (e.g. the Reminth copy after M2): the green sentence, no amber line.
 W4. An instance where some mod has **no build for its own version**: the best-match line and the ranked list as
-    before prompt 12 (green "Best match: â€¦" or "Fits most: â€¦").
+    before prompt 12 (green "Best match: …" or "Fits most: …").
 W5. An instance with a mod that crashed the game last time (M9's finding present): the green sentence is NOT shown.
 
 ### Prompt 12 (test these first)
 T1. Note Home's **Time played** before installing this build, and the sum of every instance page's time. After the
-    update, Home shows that sum (or more), with the tooltip "All your time in Minecraft through Reminthâ€¦".
+    update, Home shows that sum (or more), with the tooltip "All your time in Minecraft through Reminth…".
     `%APPDATA%\Reminth\settings.json` has `totalPlayTimeMs`.
-T2. Play any instance for ~2 minutes and quit â†’ Home's Time played grows by ~2 minutes without restarting Reminth.
-T3. Delete a throwaway instance that has play time â†’ Home's Time played does NOT go down. Restart Reminth â†’ still
+T2. Play any instance for ~2 minutes and quit → Home's Time played grows by ~2 minutes without restarting Reminth.
+T3. Delete a throwaway instance that has play time → Home's Time played does NOT go down. Restart Reminth → still
     the same (never recomputed).
-T4. Two instances running at once for a few minutes, quit both â†’ both sessions are added.
+T4. Two instances running at once for a few minutes, quit both → both sessions are added.
 T5. The instance page's own time and Player Statistics show what they showed before (unchanged).
 T6. Version picker on an instance whose mods all fit its version (e.g. the Reminth copy on 26.2 after M2): the green
     line says "Your mods already fit Minecraft 26.2 - there is nothing you need to change.", the list is titled
     "Other versions that also fit", no "Best match" tag, no row picked.
-T7. Picker â†’ a version where some mods' own files refuse it (e.g. 1.21.10 with Client Side Crystals) â†’ Next â†’
-    "Checking each mod's own fileâ€¦" then "Will be turned off (N)" naming each with its reason; the Switch button is
-    off until that list is there. Switch â†’ the result screen's Turned off list has the SAME N mods and reasons.
-T8. "Update mods to fit (N)" on an instance where some mods have no stable build â†’ after the run the button is
-    hidden (or shows only what it can still fix), never the old number. Turn a mod on/off â†’ it counts again.
+T7. Picker → a version where some mods' own files refuse it (e.g. 1.21.10 with Client Side Crystals) → Next →
+    "Checking each mod's own file…" then "Will be turned off (N)" naming each with its reason; the Switch button is
+    off until that list is there. Switch → the result screen's Turned off list has the SAME N mods and reasons.
+T8. "Update mods to fit (N)" on an instance where some mods have no stable build → after the run the button is
+    hidden (or shows only what it can still fix), never the old number. Turn a mod on/off → it counts again.
 
 ### Prompt 10 - instance menu, moving, no surprise instances
-I1. **Right-click** an instance in the rail â†’ the menu opens next to the pointer, inside the window: Play, Open,
-    Renameâ€¦, Open folder, Verify files, Move up/down/top/bottom, Deleteâ€¦ (red, last). Arrow keys move, Esc closes
+I1. **Right-click** an instance in the rail → the menu opens next to the pointer, inside the window: Play, Open,
+    Rename…, Open folder, Verify files, Move up/down/top/bottom, Delete… (red, last). Arrow keys move, Esc closes
     and the rail button has the focus again. Same menu from a **Library > Instances** card and from the instance
-    page's **â‹®** button. Tab to a rail button and press **Shift+F10** (or the Menu key) â†’ the same menu.
-I2. Right-click the main **"Reminth"** instance â†’ Deleteâ€¦ is greyed out with "This is your main instance - it
+    page's **⋮** button. Tab to a rail button and press **Shift+F10** (or the Menu key) → the same menu.
+I2. Right-click the main **"Reminth"** instance → Delete… is greyed out with "This is your main instance - it
     can't be deleted." (shown, not hidden). With the game running on an instance: Rename and Delete are off.
-I3. Make a throwaway instance, play it once (create a world), quit. Right-click â†’ Deleteâ€¦ â†’ the question says
-    "<name> - 1 world, <size>. Everything inside it is deleted for goodâ€¦". Compare the size with Explorer's
-    Properties of the instance folder (roughly equal). Delete â†’ "<name> deleted.", the last played instance is
+I3. Make a throwaway instance, play it once (create a world), quit. Right-click → Delete… → the question says
+    "<name> - 1 world, <size>. Everything inside it is deleted for good…". Compare the size with Explorer's
+    Properties of the instance folder (roughly equal). Delete → "<name> deleted.", the last played instance is
     selected, the rail/Library/Home no longer show it, the folder is gone.
-I4. **Drag** the bottom rail instance to the top: it dims, a line shows the drop place; drop â†’ it's at the top.
-    Drag one and press **Esc** â†’ nothing moves; drag one off the rail and let go â†’ nothing moves. Move up / Move
+I4. **Drag** the bottom rail instance to the top: it dims, a line shows the drop place; drop → it's at the top.
+    Drag one and press **Esc** → nothing moves; drag one off the rail and let go → nothing moves. Move up / Move
     to bottom from the menu work; the first/last ones' impossible moves are off.
-I5. **Restart Reminth** â†’ the order is the same. Library > Instances shows "My order" (same order) and each
-    instance's size. Make a new instance â†’ it appears at the **bottom**.
-I6. Discover â†’ Servers â†’ Play a server whose version none of your instances has â†’ the question "Make an
+I5. **Restart Reminth** → the order is the same. Library > Instances shows "My order" (same order) and each
+    instance's size. Make a new instance → it appears at the **bottom**.
+I6. Discover → Servers → Play a server whose version none of your instances has → the question "Make an
     instance for <server>?" with "Reminth will make a new instance: <server> - Minecraft <v> vanilla. Your other
-    instances are not changed." â†’ Create â†’ it is made and joins. Its page shows "Made for <server>". Do it again
-    for the same server â†’ it now just joins on that instance (no second one).
-I7. With a modded instance active, a server whose version none has â†’ choose "New vanilla <v> instance" â†’ the
+    instances are not changed." → Create → it is made and joins. Its page shows "Made for <server>". Do it again
+    for the same server → it now just joins on that instance (no second one).
+I7. With a modded instance active, a server whose version none has → choose "New vanilla <v> instance" → the
     same question appears (before: it made one without asking).
-I8. Version picker â†’ pick a version â†’ "Keep this oneâ€¦ make a new instance" â†’ make it â†’ Close the result window
-    (don't Play) â†’ a toast "<name> was made." with **Undo** â†’ Undo â†’ "<name> removed.", the instance and its
-    folder are gone. Make another, wait 10 s â†’ the toast is gone; the instance stays and shows "Copy of <name>".
-I9. New instance dialog with a name that already exists on the same version and loader â†’ it is made as
+I8. Version picker → pick a version → "Keep this one… make a new instance" → make it → Close the result window
+    (don't Play) → a toast "<name> was made." with **Undo** → Undo → "<name> removed.", the instance and its
+    folder are gone. Make another, wait 10 s → the toast is gone; the instance stays and shows "Copy of <name>".
+I9. New instance dialog with a name that already exists on the same version and loader → it is made as
     "<name> (2)".
 I10. One instance only: the menu still opens (all Moves off, Delete off for "Reminth"). Many instances (make ~15
     quick throwaways): the rail scrolls; dragging near its top/bottom edge scrolls it.
 
 ### Prompt 11 - "Pick a Minecraft version for my mods" (a throwaway COPY of "Reminth", Fabric 26.2, 29 mods)
-V1. Mods tab â†’ **"Pick a version that fits my mods"** (panel) or **"Pick a version"** (toolbar) â†’ the dialog is
+V1. Mods tab → **"Pick a version that fits my mods"** (panel) or **"Pick a version"** (toolbar) → the dialog is
     titled "Pick a Minecraft version for my mods", with the intro line and the one-line "build" help. Within a few
-    seconds: a green "Best matchâ€¦" or "Fits mostâ€¦" line, at most 5 versions, "Show more versions" if there are more.
+    seconds: a green "Best match…" or "Fits most…" line, at most 5 versions, "Show more versions" if there are more.
 V2. Pick versions one by one: under the list the groups change (Will work / No build for <v> / Not from Modrinth /
     Couldn't be checked) with names; long lists are collapsed. Write down which mods are listed under "No build".
-V3. Pick a **newer** version (e.g. 26.3) â†’ Next â†’ two cards; **"Switch this instance to 26.3"** is selected and
+V3. Pick a **newer** version (e.g. 26.3) → Next → two cards; **"Switch this instance to 26.3"** is selected and
     marked Recommended; the groups are shown again with "will be turned off".
-V4. Switch â†’ progress â†’ result screen "Done â€” <copy> is on Minecraft 26.3." Updated / Already fitting / Turned
+V4. Switch → progress → result screen "Done — <copy> is on Minecraft 26.3." Updated / Already fitting / Turned
     off (each with its reason and two buttons) / Not checked. The Turned-off list = the V2 "No build" list.
     `<instance>\.reminth\replaced-mods\<time>\` holds the replaced jars; nothing missing from `mods\` (turned-off
     ones end in `.disabled`); no `.reminth\version-change.json` left.
-V5. Big **Play** â†’ the game starts on 26.3 and reaches the title screen.
+V5. Big **Play** → the game starts on 26.3 and reaches the title screen.
 V6. Back on the Mods tab: the turned-off mods are in the **Off** group with "Turned off by Reminth: no version made
-    for 26.3". Turn one on â†’ the line disappears; turn it off by hand â†’ no line.
-V7. On the result screen (do V4 again on another copy): **Find a replacement** â†’ Discover, Mods tab, the mod's name
-    in the search box, "Showing what fits" = this instance. **Turn on anyway** â†’ the file loses `.disabled`.
-V8. In a copy that has worlds, pick an **older** version (e.g. 1.21.4) â†’ Next â†’ the switch card is greyed out with
-    "Your worlds were saved in Minecraft 26.2. Opening them in the older 1.21.4 can damage themâ€¦"; only the
+    for 26.3". Turn one on → the line disappears; turn it off by hand → no line.
+V7. On the result screen (do V4 again on another copy): **Find a replacement** → Discover, Mods tab, the mod's name
+    in the search box, "Showing what fits" = this instance. **Turn on anyway** → the file loses `.disabled`.
+V8. In a copy that has worlds, pick an **older** version (e.g. 1.21.4) → Next → the switch card is greyed out with
+    "Your worlds were saved in Minecraft 26.2. Opening them in the older 1.21.4 can damage them…"; only the
     new-instance card can be picked (Recommended).
-V9. Make a new instance â†’ the card says "Reminth will make a new instance: <name> - Minecraft <v> Fabric. Your
-    other instances are not changed." â†’ it is made, worlds are not copied, its name doesn't repeat an existing
-    one, its page shows "Copy of <original>". Open the dialog again on the original, same version â†’ the
+V9. Make a new instance → the card says "Reminth will make a new instance: <name> - Minecraft <v> Fabric. Your
+    other instances are not changed." → it is made, worlds are not copied, its name doesn't repeat an existing
+    one, its page shows "Copy of <original>". Open the dialog again on the original, same version → the
     new-instance card now offers **"Use <that instance>"**, and using it makes no new instance.
-V10. While the instance's game is running: the switch card is greyed out with "Close the game firstâ€¦".
-V11. A modpack instance: the switch card is greyed out ("Its mods belong to the modpackâ€¦").
+V10. While the instance's game is running: the switch card is greyed out with "Close the game first…".
+V11. A modpack instance: the switch card is greyed out ("Its mods belong to the modpack…").
 V12. Play with a mod that has no version for 26.2 or anything newer (an old 1.20.1-only jar): "Minecraft won't
     start like this" shows the extra line "<mod> has no version for Minecraft 26.2 or anything newer, so picking
-    another version won't help it â€” it has to be turned off to play".
-V13. Pull the network cable on the Switch click (or while it runs): either "Nothing was changed: â€¦" (before the
-    instance moved) or the result screen's "â€¦is now on Minecraft <v>, but updating its mods stoppedâ€¦" with
+    another version won't help it — it has to be turned off to play".
+V13. Pull the network cable on the Switch click (or while it runs): either "Nothing was changed: …" (before the
+    instance moved) or the result screen's "…is now on Minecraft <v>, but updating its mods stopped…" with
     `version-change.json` present; "Update mods to fit <v>" then finishes it. No file deleted in either case.
 
 ### Prompt 9 - "may not work" mods (a COPY of the "Reminth" instance, never the real one)
 M1. Copy the owner's "Reminth" instance (Fabric 26.2 + AppleSkin `appleskin-fabric-mc26.3-3.0.10.jar` and the
     other 26.3 mods) to a throwaway instance. Its Mods tab: AppleSkin shows **May not work** ("listed for
-    Minecraft 26.3, not 26.2â€¦"). The button reads **"Update mods to fit 26.2 (N)"** and N includes AppleSkin
+    Minecraft 26.3, not 26.2…"). The button reads **"Update mods to fit 26.2 (N)"** and N includes AppleSkin
     (and the other "may not work" ones that are listed for another version) - note N before/after vs. the
     old 18.
-M2. Press the button â†’ AppleSkin is now the **26.2 build** (file name `â€¦mc26.2â€¦`), the old jar is in
+M2. Press the button → AppleSkin is now the **26.2 build** (file name `…mc26.2…`), the old jar is in
     `.reminth/replaced-mods/<time>/`; anything with no stable 26.2 build is in the "No 26.2 build yet" window,
     nothing deleted. Panel no longer lists AppleSkin.
-M3. **Play + join the same server as before** (Home "Jump back in" server card) â†’ in-game, HUD draws, **no
+M3. **Play + join the same server as before** (Home "Jump back in" server card) → in-game, HUD draws, **no
     crash** for 2-3 minutes. (This is the main PASS/FAIL of prompt 9.)
 M4. Put the 26.3 AppleSkin jar back (from replaced-mods) in a second copy. Press Play from the **instance
     page**, then from the **Home hero**, then from a **Home card**: each shows **"These mods may crash the
-    game"** with "N mods are built for another Minecraft version and may crash the game: AppleSkinâ€¦",
-    Cancel / Play anyway / Fix and play. Cancel â†’ nothing starts.
-M5. Play anyway (no tick) â†’ game starts; quit; Play again â†’ the question comes back.
-M6. Tick "Don't ask again for this instance" + Play anyway â†’ game starts; quit; Play â†’ **no** question.
-    Switch any mod off or on â†’ Play â†’ the question is back. (`instances.json` has `skipModWarning` while it
+    game"** with "N mods are built for another Minecraft version and may crash the game: AppleSkin…",
+    Cancel / Play anyway / Fix and play. Cancel → nothing starts.
+M5. Play anyway (no tick) → game starts; quit; Play again → the question comes back.
+M6. Tick "Don't ask again for this instance" + Play anyway → game starts; quit; Play → **no** question.
+    Switch any mod off or on → Play → the question is back. (`instances.json` has `skipModWarning` while it
     holds.)
-M7. Fix and play â†’ AppleSkin swapped to 26.2, game starts.
+M7. Fix and play → AppleSkin swapped to 26.2, game starts.
 M8. With one blocked mod (a jar that needs 26.3 in its own range) AND AppleSkin 26.3: Play shows the old
     **"Minecraft won't start like this"** question, not the new one.
 M9. **After a crash**: in a throwaway instance keep AppleSkin 26.3, tick "Don't ask again", Play anyway, join
-    a server â†’ the game crashes like on 3 Oct. Back in Reminth: a toast and a notice on the instance page
+    a server → the game crashes like on 3 Oct. Back in Reminth: a toast and a notice on the instance page
     "The game crashed in AppleSkin (appleskin-fabric-mc26.3-3.0.10.jar). It is built for Minecraft 26.3 and
     this instance is on 26.2." with **Fix it**; the Mods panel shows AppleSkin as **"Crashed the game"**.
-    `<instance>\.reminth\crash-finding.json` exists. Fix it â†’ swapped to the 26.2 build, notice gone.
-M10. A crash with no mod to blame (e.g. start a world, then end `javaw.exe` from Task Manager â†’ no report;
-    or any crash report whose stack shows only Minecraft/Fabric frames) â†’ **no** notice, no toast naming a mod.
-M11. Close the game normally after M9's fix â†’ `crash-finding.json` is deleted.
-M12. Forge/NeoForge instance: a normal Play and quit â†’ no notice, nothing in `main-errors.log`.
+    `<instance>\.reminth\crash-finding.json` exists. Fix it → swapped to the 26.2 build, notice gone.
+M10. A crash with no mod to blame (e.g. start a world, then end `javaw.exe` from Task Manager → no report;
+    or any crash report whose stack shows only Minecraft/Fabric frames) → **no** notice, no toast naming a mod.
+M11. Close the game normally after M9's fix → `crash-finding.json` is deleted.
+M12. Forge/NeoForge instance: a normal Play and quit → no notice, nothing in `main-errors.log`.
 
 ### Prompt 5 - the two bugs
-P1. Home shows instance A as hero. Start instance **B** from its page â†’ as soon as the game window appears
+P1. Home shows instance A as hero. Start instance **B** from its page → as soon as the game window appears
     (and certainly within 2 s), Home's hero shows **B** (name, Last played). No manual refresh.
-P2. Same with "launch minimized" ON: Reminth minimizes; open it from the taskbar during the game â†’ hero is B.
+P2. Same with "launch minimized" ON: Reminth minimizes; open it from the taskbar during the game → hero is B.
 P3. **(prompt 6 - the main one)** Reminth maximized on the 1920x1080 display, "launch minimized" OFF, game
-    set to **Start in fullscreen** â†’ play, quit the game â†’ Reminth's window is **1920x1032 again** (fills the
+    set to **Start in fullscreen** → play, quit the game → Reminth's window is **1920x1032 again** (fills the
     screen above the taskbar; measure it the same way as before), title-bar icon shows "restore" (two
     squares), and `%APPDATA%\Reminth\main-errors.log` has one new `window: After a game the window said
-    maximized but was ...; repaired to ...` line. Play and quit a second time â†’ same, again one line.
-P4. Same with "launch minimized" ON â†’ when the game ends Reminth comes back on screen **maximized at full
+    maximized but was ...; repaired to ...` line. Play and quit a second time → same, again one line.
+P4. Same with "launch minimized" ON → when the game ends Reminth comes back on screen **maximized at full
     size** (1920x1032), not 800x552.
 P5. During the game Reminth never pops up, resizes or takes focus (alt-tab around a bit).
-P6. Reminth NOT maximized (restore it to a window) â†’ play fullscreen â†’ quit â†’ it stays a normal window
+P6. Reminth NOT maximized (restore it to a window) → play fullscreen → quit → it stays a normal window
     of the same size, and no `window:` line is logged.
-P7. "launch minimized" OFF, minimize Reminth yourself during the game, quit the game â†’ it stays minimized;
-    click it on the taskbar â†’ it comes back maximized.
+P7. "launch minimized" OFF, minimize Reminth yourself during the game, quit the game → it stays minimized;
+    click it on the taskbar → it comes back maximized.
 P8. Two instances running at once: Reminth is only put back after the **second** one closes.
 
 ### Prompt 4 - Job 0
-3. Home â†’ "Jump back in": Play sits at the right of each card's text strip, never over the picture or the
-   name; long names/addresses end in "â€¦"; all cards the same height. Check at the smallest window (1100 px).
+3. Home → "Jump back in": Play sits at the right of each card's text strip, never over the picture or the
+   name; long names/addresses end in "…"; all cards the same height. Check at the smallest window (1100 px).
 
 ### Prompt 4 - project page (select a Fabric 1.21.x instance in Discover's "Showing what fits")
-4. Discover â†’ Mods â†’ search "fabric api", go to page 2 of results, scroll down a bit, click **Fabric API**'s
-   text (not Install) â†’ the page opens: icon, title, summary, people with avatars, downloads, followers,
-   "Updated â€¦", Client/Server tag, license. **Fits your instance â€¦ (1.21.x Fabric)** in green.
-5. Click **Back to results** â†’ same search text, same filters, page 2, same scroll position, the card has
-   the focus. Open it again and press **Esc** â†’ same. Open again and press the **mouse Back button** â†’ same.
+4. Discover → Mods → search "fabric api", go to page 2 of results, scroll down a bit, click **Fabric API**'s
+   text (not Install) → the page opens: icon, title, summary, people with avatars, downloads, followers,
+   "Updated …", Client/Server tag, license. **Fits your instance … (1.21.x Fabric)** in green.
+5. Click **Back to results** → same search text, same filters, page 2, same scroll position, the card has
+   the focus. Open it again and press **Esc** → same. Open again and press the **mouse Back button** → same.
 6. **Sodium**: Description tab shows images (from cdn.modrinth.com), headings, lists; the credit line
    "Description by the project's author, shown from Modrinth." is at the top. Versions tab: release/beta
-   tags, "Show more", open a row â†’ changelog appears.
+   tags, "Show more", open a row → changelog appears.
 7. **Iris**: Gallery tab shows pictures; Links tab lists source/issues/Discord etc.
-8. **Entity Culling**: Minecraft ranges read like "1.21â€“1.21.x" (not 300 chips); loaders listed.
-9. Pick a **Forge** instance in "Showing what fits" while Sodium's page is open â†’ the line changes to
+8. **Entity Culling**: Minecraft ranges read like "1.21–1.21.x" (not 300 chips); loaders listed.
+9. Pick a **Forge** instance in "Showing what fits" while Sodium's page is open → the line changes to
    "No build for 1.20.1 Forge yet." (or similar) without leaving the page.
 10. A **modpack** (e.g. Fabulously Optimized): line says "Installs as a new instance of its own."; Install
     opens the modpack install flow (cancel it).
 11. A **shader** (Complementary) on a Fabric instance: fit line works; Install goes through the normal
     shader path (Iris question if missing). On a vanilla instance the line says shaders need a loader.
 12. A **resource pack** (e.g. Faithful): fit line and Install work.
-13. **Install this version**: on Sodium's Versions tab pick a **beta** (or alpha) row â†’ a dialog names the
-    channel ("â€¦is a beta buildâ€¦") â†’ Cancel installs nothing; Install the beta installs that exact version.
+13. **Install this version**: on Sodium's Versions tab pick a **beta** (or alpha) row → a dialog names the
+    channel ("…is a beta build…") → Cancel installs nothing; Install the beta installs that exact version.
     A release row installs without a question. Rows for other Minecraft versions have Install greyed out.
 14. With the instance **running**: the page's Install shows it unavailable the same way the cards do.
 15. **Description with images and tables**: find a mod whose page has a table (many do - e.g. "Distant
-    Horizons" or "Create Fabric") â†’ table drawn with borders, scrolls sideways if wide, no page overflow.
-16. **A link opens the default browser**: click a link in a description and one on the Links tab â†’ it
+    Horizons" or "Create Fabric") → table drawn with borders, scrolls sideways if wide, no page overflow.
+16. **A link opens the default browser**: click a link in a description and one on the Links tab → it
     opens in Edge/Chrome/etc, never inside Reminth; Reminth's window doesn't navigate.
 17. **Non-Modrinth image**: find a description with an imgur/GitHub-hosted picture (many older mods; check a
-    few) â†’ the box "Image hosted elsewhere" with "Open in browser" shows instead of the picture. In DevTools
-    â†’ Network, no request goes to that host.
-18. Unplug network / turn Wi-Fi off â†’ open a project not opened in the last 5 minutes â†’ error box with
-    **Retry**; reconnect â†’ Retry loads it.
-19. Click a result and immediately Back, then another result quickly â†’ the page shows the second project,
+    few) → the box "Image hosted elsewhere" with "Open in browser" shows instead of the picture. In DevTools
+    → Network, no request goes to that host.
+18. Unplug network / turn Wi-Fi off → open a project not opened in the last 5 minutes → error box with
+    **Retry**; reconnect → Retry loads it.
+19. Click a result and immediately Back, then another result quickly → the page shows the second project,
     never the first one popping in late.
-20. Keyboard: Tab to a result card (focus ring visible) â†’ **Enter** opens it.
-21. Instance page â†’ Mods â†’ â‹® on a mod installed from Modrinth â†’ **Open project page** â†’ page opens, button
-    says "Back to <instance>" â†’ it returns to the instance page.
+20. Keyboard: Tab to a result card (focus ring visible) → **Enter** opens it.
+21. Instance page → Mods → ⋮ on a mod installed from Modrinth → **Open project page** → page opens, button
+    says "Back to <instance>" → it returns to the instance page.
 22. Window at **1100 px** wide: header, support card, version rows and gallery fit without sideways scroll.
-23. Open 10 different pages quickly â†’ no lag in the window; DevTools Performance: no long task over
+23. Open 10 different pages quickly → no lag in the window; DevTools Performance: no long task over
     ~100 ms from the page itself.
 24. If the owner accepts decision 1, edit the privacy text (app + `site/privacy.html`) exactly as written.
 25. Report PASS/FAIL P1-P8 and 3-24.
@@ -2557,28 +2557,28 @@ P8. Two instances running at once: Reminth is only put back after the **second**
 26. In a throwaway instance put a folder with a few files, an empty folder and a `.rar` in `mods/`, and a
     `.txt` in `resourcepacks/`. The Mods tab shows **"Safe to delete"** with **Delete all**; names fully
     visible.
-27. Delete all â†’ the confirmation lists every item with size / file count â†’ confirm â†’ they are in the
+27. Delete all → the confirmation lists every item with size / file count → confirm → they are in the
     **Windows Recycle Bin** (restore one to prove it); real jars untouched.
-28. Lock one item (open a file inside the folder in another program) â†’ toast "Moved N of M; 1 is in use".
+28. Lock one item (open a file inside the folder in another program) → toast "Moved N of M; 1 is in use".
 29. Same on the Resource packs tab (only the .txt goes).
 30. Start an instance. On its Mods tab: switches/bins/Delete all/bulk bar/"Browse content" are off, the line
     "Close Minecraft to change mods." shows. Resource packs tab still works.
-31. Discover â†’ Install on a mod â†’ the "which instance?" panel shows the running instance as "Game running".
-32. Quit the game â†’ everything is enabled again without a restart.
-33. Skins: restart Reminth, wait 10 s on Home, then DevTools â†’ Console:
+31. Discover → Install on a mod → the "which instance?" panel shows the running instance as "Game running".
+32. Quit the game → everything is enabled again without a restart.
+33. Skins: restart Reminth, wait 10 s on Home, then DevTools → Console:
     `performance.getEntriesByType("measure").filter(m=>m.name.startsWith("skins:")).map(m=>[m.name,Math.round(m.duration)])`
-    â†’ note the numbers. Open/leave Skins 5 times: no rebuild flicker; report whether the lag is gone.
-34. Play instance A, quit; select instance B in the rail â†’ Home still shows **A**. Play B from its page â†’
+    → note the numbers. Open/leave Skins 5 times: no rebuild flicker; report whether the lag is gone.
+34. Play instance A, quit; select instance B in the rail → Home still shows **A**. Play B from its page →
     Home switches to B as soon as the game starts.
-35. Home cards: **Play** on a world card of a 1.20+ instance â†’ the game opens straight into that world;
-    pre-1.20 â†’ title screen + toast.
-36. Play on a server card â†’ joins the server (IPv6 `[address]:port` if you can).
+35. Home cards: **Play** on a world card of a 1.20+ instance → the game opens straight into that world;
+    pre-1.20 → title screen + toast.
+36. Play on a server card → joins the server (IPv6 `[address]:port` if you can).
 37. While a card's instance runs, its Play button is off.
 38. Profiles: Far view on 26.x (render distance 16/20/24 by PC); an existing instance's own `options.txt`
     stays unchanged after a profile change + Play.
 39. Suggested-mods window: rows load, no-build rows can't be ticked, C2ME asks twice.
 40. Instance dialog: pack list per loader, "At the last Play" status, Restore (refused while running).
-41. Settings â†’ Performance card and the memory helper.
+41. Settings → Performance card and the memory helper.
 
 ### Release (only after the above pass)
 42. Bump to 1.4.0, build, smoke-test the packaged app (open one project page in the packaged app too -
@@ -2594,9 +2594,9 @@ H2. Hover each card (and Tab-focus into one if it can be focused): the border tu
     a short fade, exactly like the world/server cards below; nothing moves, no shadow appears.
 
 ### Prompt 7 (packaged app only - "Check for updates" says "Updates only work in the installed app." in a dev run)
-U1. Installed 1.4.0 (or newer), GitHub's newest release older or equal â†’ Settings â†’ **Check for updates** â†’
+U1. Installed 1.4.0 (or newer), GitHub's newest release older or equal → Settings → **Check for updates** →
     "You're on the latest version (**1.4.0**)" - the running version, never 1.1.1.
-U2. After the 1.4.0 release is published: an installed 1.3.x copy â†’ Check for updates â†’ "Downloading 1.4.0â€¦"
+U2. After the 1.4.0 release is published: an installed 1.3.x copy → Check for updates → "Downloading 1.4.0…"
     then "1.4.0 is ready." (unchanged behaviour).
 
 ### Report back
