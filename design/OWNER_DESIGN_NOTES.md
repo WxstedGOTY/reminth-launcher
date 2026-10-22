@@ -93,3 +93,4 @@ something he has not sent yet.
    - **EXPLORE**: a compass icon left of the text (hidden on phones), width **210 -> 250 px**.
    - "Connect your account" now hides under ~1000 px wide (was 920; it's longer now).
    Seen: screenshots at 1920, 1010, 990, 360 wide.
+13. **22 Oct (night) - rounder corners on the middle buttons** (owner's `Screenshot 2026-10-22 224206.png`: another site's DOWNLOAD / STORE buttons; "give our buttons in the middle the same curving in the corners"): measured the curve in his screenshot = **8 px**; Windows / macOS / Linux buttons `border-radius` 5 -> **8 px** (`site/home.css .dl-btn`). The strip's Download button (6 px) and the SOON tags were not changed - say if they should match too. Seen: 1920x1080 screenshot, zoomed 3x.
