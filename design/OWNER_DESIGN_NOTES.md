@@ -27,3 +27,6 @@ something he has not sent yet.
 
 5. **DONE 22 Oct (evening) - LAUNCH GAME button, second round** (owner: "it gets WAY too big, make it smaller and slightly slower, I don't like the blocky font either"):
    Hover grow **15% -> 6%** (`scale(1.06)`, pressed 1.03); time **1.25 s -> 1.6 s**. Font: Pixelify (too blocky) replaced by **Chakra Petch SemiBold** (SIL OFL, `assets/fonts/ChakraPetch-SemiBold.ttf` + `OFL-ChakraPetch.txt`, @font-face in styles.css), uppercase, letter-spacing .05em, 2.4cqw. Progress text with numbers still Inter. My pick again (he delegated); candidates if he dislikes it: Rajdhani, Orbitron, Oxanium, Exo 2, Space Grotesk. Seen in the hidden copy.
+
+6. **DONE 22 Oct (evening) - LAUNCH GAME, third round** (owner: "more bold, letters closer to each other but a slight space, and the whole launch game box slower on the animation"):
+   Font **Chakra Petch Bold 700** (`assets/fonts/ChakraPetch-Bold.ttf`, OFL), letter-spacing **.05em -> .015em**. Hover times: box picture **1.25 s -> 1.6 s** (scale 1.09 kept), button **1.6 s -> 2.0 s** (scale 1.06 kept). "The whole thing" read as picture + button; the box's fade-in when Home opens (.34 s / .55 s) was NOT slowed - say so if he meant that too.

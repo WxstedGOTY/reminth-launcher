@@ -29,6 +29,12 @@
   font-weight: 600;
   font-display: block;
 }
+@font-face {
+  font-family: "Chakra Petch";
+  src: url("../../assets/fonts/ChakraPetch-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: block;
+}
 
 :root {
   /* surfaces */
@@ -2757,8 +2763,8 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
 /* the title is in Chakra Petch SemiBold (owner: Inter was boring, Pixelify too blocky). Progress text with numbers stays in Inter below. */
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Chakra Petch", "Inter", sans-serif; font-size: clamp(19px, 2.4cqw, 32px); font-weight: 600; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
-.nh-play-title b { font-weight: 600; }
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Chakra Petch", "Inter", sans-serif; font-size: clamp(19px, 2.4cqw, 32px); font-weight: 700; letter-spacing: .015em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title b { font-weight: 700; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
 .nh-play-sub { position: relative; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
