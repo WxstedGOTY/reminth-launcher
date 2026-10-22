@@ -42,7 +42,8 @@
 #home.entering .nh-srv { animation: m-srv-in .32s var(--m-ease) both; animation-delay: calc(260ms + var(--i, 0) * 35ms); }
 @keyframes m-srv-in { from { opacity: 0; transform: translateY(32px); } to { opacity: 1; transform: none; } }
 /* a server's picture zooms in a little under the pointer (and while its Join button has keyboard focus) */
-.nh-srv-pic img { transition: transform .45s var(--m-ease), filter .45s ease; }
+/* owner, 22 Oct 2026: server card hover 50% slower (half speed: .45 s -> .9 s), same depth (scale 1.06 below) */
+.nh-srv-pic img { transition: transform .9s var(--m-ease), filter .9s ease; }
 .nh-srv-pic:hover img, .nh-srv:has(.nh-srv-join:focus-visible) img { transform: scale(1.06); filter: brightness(1.06); will-change: transform; }
 /* the launch panel's picture zooms too, a bit more than the servers' (owner, 15 Oct 2026); isolation keeps the zoomed
    picture inside the panel's round corners */

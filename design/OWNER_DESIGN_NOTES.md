@@ -11,3 +11,7 @@ something he has not sent yet.
    and `.nh-panel:hover .nh-panel-art { transform: scale(1.09); filter: brightness(1.06); }`. So: keep **scale 1.09** (the depth, the distance it moves)
    and make the time **half the speed = 1.0 s** (APPLIED in motion.css; scale 1.09 kept) (.5 s -> 1 s) on the new box. If he meant "50% longer" (0.75 s) he will say so - ask once when the box arrives.
    Note: CLAUDE.md of the restaurant project says transitions under 200 ms - that is a different project, not this one.
+
+2. **DONE 22 Oct (evening) - all server cards on Home: hover 50% slower, same depth** (owner: "do the 50% slower thing on also all the servers").
+   Picture zoom `.nh-srv-pic img` .45 s -> .9 s (scale 1.06 kept; motion.css); card border brighten .18 s -> .36 s (styles.css). The entry animation
+   when Home opens (.32 s) was not touched (it is not a hover). Also applies to the sponsor/contact box if shown (same classes).
