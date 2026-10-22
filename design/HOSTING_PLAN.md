@@ -54,3 +54,13 @@ So the real promise is: "full control for the hosts that have an API; for the re
 2. Should the website page also let players log in and see their servers (needs the website account), or is the website only the "select a host" page?
 3. Which host should be first for full control if exaroton (not free) is the only sure API - is that OK, or wait for Phase 0?
 4. Name of the page/button: "Select your host" ok?
+
+## 6. Owner's decision (22 Oct 2026, after Phase 0): "add 3 free hosts and mention limited control"
+
+- **Paid row = full control** (Bisect, Sparked, PebbleHost, exaroton - each still to be confirmed against its current docs before it
+  gets the "Full control" badge; a host that doesn't pass stays off the full-control row).
+- **Free row = 3 free hosts with a "Limited control" badge**: link to the host + the address box (Add to my servers / Join); no
+  start/stop/whitelist from Spaceport because these hosts have no usable API. Chosen from the verified list in `hosts.js`:
+  **Aternos, Falix, Minehut** (Minefort is the spare). Falix gets re-checked: if its panel offers a client API it moves up to full control.
+- The page says plainly what "Full control" and "Limited control" mean. Look/design: left to Claude (owner's words), built in steps
+  (select host, settings, add to launcher, done) with Opus 5.5. NOT STARTED - waiting for the owner to switch to Opus.
