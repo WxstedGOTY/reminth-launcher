@@ -26,6 +26,21 @@
     }, { passive: true });
     paint();
   }
+  // the menu's Socials list: opens on hover (home.css) and also on click/tap; a click elsewhere or Esc closes it
+  const drop = document.getElementById("navSocials");
+  if (drop) {
+    const btn = drop.querySelector(".nav-drop-btn");
+    const set = (open) => {
+      drop.classList.toggle("open", open);
+      btn.setAttribute("aria-expanded", String(open));
+    };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      set(!drop.classList.contains("open"));
+    });
+    document.addEventListener("click", (e) => { if (!drop.contains(e.target)) set(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") set(false); });
+  }
   const blocks = document.querySelectorAll(".fade");
   if (reduce || !("IntersectionObserver" in window)) {
     blocks.forEach((b) => b.classList.add("in"));

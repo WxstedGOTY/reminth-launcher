@@ -25,6 +25,42 @@ a { color: inherit; }
 .bar-brand { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; }
 .bar-brand img { width: 1.45cm; height: 1.45cm; display: block; } /* owner: slightly bigger logo */
 .bar-brand span { font-family: var(--head); font-weight: 800; font-size: 36px; letter-spacing: -.02em; } /* owner: bigger text */
+/* the menu in the middle of the bar (owner's picture spaceport-navbar-preview.png): the logo + name stay on the left */
+.bar { display: grid; grid-template-columns: 1fr auto 1fr; }
+.bar-brand { justify-self: start; }
+.nav { display: flex; align-items: center; gap: clamp(20px, 2.6vw, 48px); }
+.nav-link, .nav-dl {
+  font-family: var(--head); font-weight: 800; font-size: 15px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer;
+}
+.nav-link[aria-disabled="true"] { cursor: default; }
+.nav-link { display: inline-flex; align-items: center; gap: 6px; height: 36px; border-bottom: 2px solid transparent; transition: border-color .15s ease, color .15s ease; }
+a.nav-link:not([aria-disabled]):hover { border-color: var(--text); }
+.nav-dl {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 18px; border-radius: 6px; background: var(--blue);
+  box-shadow: 0 0 22px rgba(37, 99, 235, .45); transition: background-color .15s ease;
+}
+.nav-dl:hover { background: var(--blue-hi); }
+.nav svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+/* Socials: a list that drops down (hover with a mouse, click/tap too); the arrow points up while it is open */
+.nav-drop { position: relative; }
+.nav-drop-btn svg { width: 14px; height: 14px; stroke-width: 3; transform: rotate(180deg); transition: transform .15s ease; }
+.nav-menu {
+  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); min-width: 212px; padding: 6px; z-index: 10;
+  background: #0e1115; border: 1px solid rgba(255, 255, 255, .09); border-radius: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .55);
+  display: none;
+}
+.nav-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; } /* keeps the hover alive across the gap */
+.nav-menu a {
+  display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 7px; text-decoration: none;
+  font-family: var(--head); font-weight: 800; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: #c9ccd2;
+}
+.nav-menu a:not([aria-disabled]):hover { background: rgba(255, 255, 255, .06); color: #fff; }
+.nav-menu a[aria-disabled="true"] { cursor: default; }
+.nav-menu svg { width: 17px; height: 17px; stroke-width: 1.8; }
+.nav-drop:hover .nav-menu, .nav-drop.open .nav-menu { display: block; }
+.nav-drop:hover .nav-drop-btn, .nav-drop.open .nav-drop-btn { border-color: var(--text); }
+.nav-drop:hover .nav-drop-btn svg, .nav-drop.open .nav-drop-btn svg { transform: none; }
 
 /* ---- the big picture, edge to edge ---- */
 .hero {
@@ -75,6 +111,13 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 .foot { padding: 80px clamp(16px, 2.5vw, 48px) 48px; text-align: center; color: var(--muted); font-size: 13px; }
 .foot a { color: var(--text); }
 
+/* narrower windows: the name and the menu don't fit side by side, so the menu goes on a second row under the logo + name */
+@media (max-width: 1150px) {
+  .bar { height: auto; min-height: var(--bar-h); grid-template-columns: 1fr; justify-items: center; row-gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+  .bar-brand { justify-self: center; }
+  .nav { flex-wrap: wrap; justify-content: center; row-gap: 6px; }
+}
+
 /* phones and small windows: smaller sizes, nothing wider than the screen */
 @media (max-width: 700px) {
   :root { --bar-h: 56px; --hero-h: max(560px, 85svh); --gap-dl: 24px; }
@@ -83,6 +126,9 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
   .hero-in { margin-top: calc(var(--hero-h) * .22); padding: 0 16px; }
   .hero-logo { width: 72px; height: 72px; }
   .dl-btn { min-width: 0; flex: 1 1 140px; }
+  .nav { gap: 6px 16px; }
+  .nav-link, .nav-dl { font-size: 12px; }
+  .nav-dl { padding: 0 12px; height: 32px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fade, .dl-btn { transition: none; }
