@@ -39,3 +39,5 @@ something he has not sent yet.
    Title size 2.4cqw -> **1.95cqw** (15-26 px) - measured: the text is now ~51% of the button's width, the same as in his Lunar screenshot (before 63%); letter-spacing -.01em -> **-.03em**; a thin text stroke (`-webkit-text-stroke: .035em`) thickens the letters so the holes stay tiny; the sub line 1.1cqw -> .95cqw. The progress state (Inter, numbers) has no stroke.
 
 9. **DONE 22 Oct (evening) - LAUNCH GAME: text closer to the triangle** (gap between the play triangle and the text 12 px -> `clamp(4px, .4cqw, 6px)`, styles.css `.nh-play-title`). The triangle and text stay centred together as one group.
+
+10. **DONE 22 Oct (evening) - LAUNCH GAME: the TEXT in the exact middle** (owner: "get the triangle and text more to the left, I want the text right in the middle"): the text "LAUNCH GAME" is centred in the button (same centre as "Launch Spaceport"), the triangle hangs on its left; done with an empty balancing block on the right as wide as triangle + gap (`.nh-play-title:has(> .i)::after`, styles.css). Measured in a 4x crop: text centre within ~1 px of the button centre.

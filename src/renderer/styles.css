@@ -2759,6 +2759,8 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-play-title { position: relative; display: flex; align-items: center; gap: clamp(4px, .4cqw, 6px); font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(15px, 1.95cqw, 26px); font-weight: 800; letter-spacing: -.03em; word-spacing: .1em; -webkit-text-stroke: .035em currentColor; /* the stroke thickens the letters so the holes inside stay tiny, like Lunar's */ text-transform: uppercase; white-space: nowrap; }
 .nh-play-title b { font-weight: 800; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
+/* the TEXT is in the exact middle of the button (owner, 22 Oct 2026); the triangle hangs on its left: an empty block as wide as the triangle + gap on the right balances it */
+.nh-play-title:has(> .i)::after { content: ""; flex: none; width: calc(clamp(13px, 1.3cqw, 18px) + clamp(4px, .4cqw, 6px)); }
 .nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(10.5px, .95cqw, 14px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
