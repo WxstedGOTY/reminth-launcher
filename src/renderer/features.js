@@ -2264,6 +2264,23 @@ function isDefaultView() {
   );
 }
 
+// Modrinth answers pages as deep as 100,000 results (searchProjects in main/modrinth.js clamps the offset there); its biggest list
+// (mods) has about 77,000, so every page can be reached. The old cap of 10,000 results was only this launcher's own (500 pages).
+const MAX_DISCOVER_RESULTS = 100000;
+const realTotals = new Map(); // project type -> total_hits of the plain list (asked once per launch)
+async function realTotalFor(type) {
+  if (realTotals.has(type)) return realTotals.get(type);
+  let n = 0;
+  try {
+    const r = await window.reminth.searchCatalog({ projectType: type, index: "downloads", offset: 0, limit: 1 });
+    n = Number(r && r.total_hits) || 0;
+  } catch {
+    n = 0; // offline: the saved catalog's own count stays
+  }
+  if (n > 0) realTotals.set(type, n);
+  return n;
+}
+
 async function runBrowse() {
   const grid = $("browseGrid");
   const reqId = ++disc.requestId;
@@ -2279,10 +2296,13 @@ async function runBrowse() {
         hits = r.hits.map((h) => ({ ...h, project_id: h.id }));
         total = r.total;
       } else {
-        const live = await window.reminth.searchCatalog(searchParamsFor());
+        // past the saved catalog (it keeps the top 10,000 by downloads): Modrinth live, sorted the same way
+        const live = await window.reminth.searchCatalog({ ...searchParamsFor(), index: "downloads" });
         hits = live.hits;
         total = live.total_hits;
       }
+      // the saved catalog is shorter than the real list: the page count comes from Modrinth's own total (asked once per kind)
+      if (hits.length) total = Math.max(total, await realTotalFor(disc.type));
     } else {
       const live = await window.reminth.searchCatalog(searchParamsFor());
       hits = live.hits;
@@ -2308,7 +2328,7 @@ async function runBrowse() {
     return runBrowse();
   }
   grid.classList.remove("loading");
-  disc.total = Math.min(total, 10000);
+  disc.total = Math.min(total, MAX_DISCOVER_RESULTS);
   renderProjectRows(hits, offlineNote);
   renderPagers();
 }
@@ -2529,7 +2549,7 @@ async function runServerBrowse(reqId) {
   grid.classList.remove("loading");
   let hits = result.hits;
   if (disc.filters.onlineOnly) hits = hits.filter((h) => h.online);
-  disc.total = Math.min(result.total, 10000);
+  disc.total = Math.min(result.total, MAX_DISCOVER_RESULTS);
   grid.textContent = "";
   if (!hits.length) {
     renderEmpty(grid, "No servers match that", "Try fewer filters or a different word.");
