@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Spaceport Launcher - the free Minecraft launcher for mods, shaders and performance</title>
+<meta name="description" content="Spaceport Launcher is a free Minecraft: Java Edition launcher for Windows. Sign in with Microsoft and hit Play - Fabric, Java and performance mods set themselves up. Mods from Modrinth, shaders, modpacks, and an in-game panel with 140+ features." />
+<meta name="theme-color" content="#0c0909" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" href="favicon.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="canonical" href="https://reminth.pages.dev/" />
+<meta name="google-site-verification" content="b8DqpiY8MURhY40jmF9AHo7YcWRlk9aw0xWYd1MJX5c" />
+<meta name="robots" content="index, follow" />
+<meta property="og:url" content="https://reminth.pages.dev/" />
+<meta property="og:site_name" content="Spaceport Launcher" />
+<meta property="og:image" content="https://reminth.pages.dev/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:image" content="https://reminth.pages.dev/og.png" />
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Spaceport Launcher", "applicationCategory": "GameApplication", "operatingSystem": "Windows 10, Windows 11", "description": "Spaceport Launcher is a free Minecraft: Java Edition launcher for Windows. Sign in with Microsoft and hit Play - Fabric, Java and performance mods set themselves up. Mods from Modrinth, shaders, modpacks, and an in-game panel with 140+ features.", "url": "https://reminth.pages.dev/", "image": "https://reminth.pages.dev/og.png", "downloadUrl": "https://github.com/WxstedGOTY/reminth-launcher/releases/latest/download/Spaceport-Launcher-Setup.exe", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}</script>
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Spaceport Launcher — the Minecraft launcher built for mods" />
+<meta property="og:description" content="Sign in with Microsoft, hit Play — Fabric and Java set themselves up." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Spaceport Launcher — the Minecraft launcher built for mods" />
+<meta name="twitter:description" content="Sign in with Microsoft, hit Play — Fabric and Java set themselves up." />
+<script>document.documentElement.classList.add("js")</script>
+<style>
+  :root {
+    --bg: #0c0909;
+    --bg-2: #120d0d;
+    --surface: #181213;
+    --border: rgba(255, 255, 255, 0.08);
+    --border-2: rgba(255, 255, 255, 0.14);
+    --text: #fbf3ef;
+    --text-dim: #b9a9a3;
+    --text-mute: #86756f;
+    --accent: #ff4a1c;
+    --accent-2: #ffb38a;
+    --cat-perf: #ff7445;
+    --cat-visual: #ffb38a;
+    --cat-util: #ffb547;
+    --cat-lib: #4ade80;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --font-body: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; background: var(--bg); color-scheme: dark; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* film grain so the dark areas don't read as flat plastic */
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    pointer-events: none;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  img { max-width: 100%; }
+  a { color: inherit; }
+  svg { display: block; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 24px; }
+  .page { position: relative; overflow-x: clip; }
+
+  /* ---------- ambient hero background ---------- */
+  .hero-bg {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1050px;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .hero-bg .grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse 65% 55% at 50% 32%, #000 15%, transparent 72%);
+    mask-image: radial-gradient(ellipse 65% 55% at 50% 32%, #000 15%, transparent 72%);
+    animation: gridDrift 24s linear infinite;
+  }
+  @keyframes gridDrift { to { background-position: 0 64px, 0 64px; } }
+  .orb { position: absolute; border-radius: 50%; }
+  .orb-a {
+    width: 760px; height: 760px; left: 50%; top: -380px; margin-left: -380px;
+    background: radial-gradient(circle, rgba(255, 74, 28, 0.34), transparent 62%);
+    animation: float 13s ease-in-out infinite;
+  }
+  .orb-b {
+    width: 560px; height: 560px; right: -180px; top: 140px;
+    background: radial-gradient(circle, rgba(255, 116, 69, 0.26), transparent 62%);
+    animation: float 17s ease-in-out infinite reverse;
+  }
+  .orb-c {
+    width: 480px; height: 480px; left: -200px; top: 420px;
+    background: radial-gradient(circle, rgba(194, 30, 0, 0.2), transparent 62%);
+    animation: float 21s ease-in-out infinite;
+  }
+  @keyframes float { 50% { transform: translate3d(40px, 50px, 0) scale(1.1); } }
+
+  /* ---------- header ---------- */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    border-bottom: 1px solid transparent;
+    transition: background 0.25s, border-color 0.25s;
+  }
+  .site-header.scrolled {
+    background: rgba(14, 9, 9, 0.72);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    border-bottom-color: var(--border);
+  }
+  .header-inner { display: flex; align-items: center; gap: 28px; height: 74px; }
+  .brand {
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+    font-family: var(--font-display); font-weight: 700; font-size: 20px; letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 0 10px rgba(255, 74, 28, 0.5)); }
+  .nav { display: flex; align-items: center; gap: 4px; }
+  .nav a {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 13px; border-radius: 10px;
+    color: var(--text-dim); text-decoration: none;
+    font-size: 14.5px; font-weight: 500; white-space: nowrap;
+    transition: color 0.15s, background 0.15s;
+  }
+  .nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.06); }
+  .nav a svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav a:hover svg { color: var(--accent); }
+  .top-signin {
+    display: none; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 10px; text-decoration: none;
+    color: var(--text); font-size: 14.5px; font-weight: 500; border: 1px solid var(--border-2); background: rgba(255, 255, 255, 0.04);
+  }
+  .top-signin svg { width: 17px; height: 17px; }
+  .soon {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1;
+    padding: 4px 7px; border-radius: 999px;
+    color: #ffc6a6; background: rgba(255, 116, 69, 0.14); border: 1px solid rgba(255, 116, 69, 0.32);
+  }
+  .actions { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+    padding: 13px 22px; border-radius: 12px; border: 1px solid transparent;
+    font: 600 15px/1 var(--font-body); text-decoration: none; white-space: nowrap; cursor: pointer;
+    transition: transform 0.15s var(--ease), box-shadow 0.25s, background 0.2s, border-color 0.2s;
+  }
+  .btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    color: #1c0600;
+    background: linear-gradient(180deg, #ff7a4a 0%, #ff4a1c 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 10px 32px -10px rgba(255, 74, 28, 0.7);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 16px 44px -10px rgba(255, 74, 28, 0.9);
+  }
+  .btn-primary .soon { color: #3a0e00; background: rgba(28, 6, 0, 0.12); border-color: rgba(28, 6, 0, 0.22); }
+  .btn-ghost { color: var(--text); background: rgba(255, 255, 255, 0.04); border-color: var(--border-2); }
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.09); border-color: rgba(255, 255, 255, 0.24); transform: translateY(-2px); }
+  .btn-sm { padding: 10px 15px; font-size: 14px; border-radius: 10px; }
+  .btn-sm svg { width: 16px; height: 16px; }
+  .btn-lg { padding: 17px 28px; font-size: 16px; border-radius: 14px; }
+  .btn-lg svg { width: 20px; height: 20px; }
+  .icon-btn {
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border-radius: 11px; border: 1px solid var(--border-2); background: rgba(255, 255, 255, 0.04);
+    color: var(--text-dim); cursor: pointer; transition: color 0.2s, background 0.2s;
+  }
+  .icon-btn svg { width: 19px; height: 19px; transition: transform 0.5s var(--ease); }
+  .icon-btn:hover { color: var(--text); background: rgba(255, 255, 255, 0.09); }
+  .icon-btn:hover svg { transform: rotate(90deg); }
+
+  /* ---------- hero ---------- */
+  main { position: relative; z-index: 1; }
+  .hero { text-align: center; padding-block: 64px 72px; }
+  .status {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 7px 15px 7px 11px; border-radius: 999px;
+    border: 1px solid var(--border-2); background: rgba(26, 18, 18, 0.6);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    font-size: 13px; color: var(--text-dim);
+  }
+  .status b { color: var(--text); font-weight: 600; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: ping 2s infinite; }
+  @keyframes ping {
+    0% { box-shadow: 0 0 0 0 rgba(255, 74, 28, 0.6); }
+    80%, 100% { box-shadow: 0 0 0 9px rgba(255, 74, 28, 0); }
+  }
+  .logo-stage { position: relative; width: 176px; height: 176px; margin: 38px auto 30px; display: grid; place-items: center; }
+  .logo-stage .halo {
+    position: absolute; inset: -40px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 74, 28, 0.3), transparent 60%);
+    animation: breathe 4.5s ease-in-out infinite;
+  }
+  @keyframes breathe { 50% { transform: scale(1.14); opacity: 0.65; } }
+  .logo-stage .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 74, 28, 0.95) 80deg, transparent 150deg, transparent 200deg, rgba(255, 116, 69, 0.9) 280deg, transparent 350deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+    animation: spin 8s linear infinite;
+  }
+  .logo-stage .ring.two { inset: 16px; opacity: 0.45; animation-duration: 13s; animation-direction: reverse; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .logo-stage img { position: relative; width: 124px; height: 124px; filter: drop-shadow(0 0 24px rgba(255, 74, 28, 0.5)); }
+
+  .headline {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(42px, 7.4vw, 92px); line-height: 1.02; letter-spacing: -0.04em;
+    margin: 0 0 24px;
+  }
+  .headline .line { display: block; }
+  .headline .word-line { display: block; min-height: 1.14em; }
+  .word {
+    display: inline-block; padding: 0 0.04em 0.1em;
+    background: linear-gradient(90deg, #ff4a1c 0%, #ff7445 45%, #ff9a6b 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    transition: transform 0.5s var(--ease), opacity 0.5s, filter 0.5s;
+  }
+  .word.out { transform: translateY(-0.35em); opacity: 0; filter: blur(8px); }
+  .word.pre { transform: translateY(0.35em); opacity: 0; filter: blur(8px); transition: none; }
+  .lead { max-width: 580px; margin: 0 auto 36px; font-size: clamp(16px, 1.55vw, 19px); color: var(--text-dim); }
+  .lead b { color: var(--text); font-weight: 600; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 40px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--border); background: rgba(26, 18, 18, 0.6);
+    font-size: 13px; color: var(--text-dim);
+  }
+  .chip svg { width: 15px; height: 15px; color: var(--accent); }
+
+  /* ---------- section heads ---------- */
+  .section-head { text-align: center; max-width: 920px; margin: 0 auto 46px; padding-inline: 24px; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent);
+  }
+  .eyebrow::before, .eyebrow::after { content: ""; width: 20px; height: 1px; background: currentColor; opacity: 0.5; }
+  .section-title {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(30px, 3.8vw, 48px); line-height: 1.08; letter-spacing: -0.03em;
+    margin: 14px 0 0;
+  }
+  .grad {
+    background: linear-gradient(90deg, #ff4a1c, #ff9a6b);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .section-sub {
+    max-width: 560px; margin: 16px auto 0; font-size: 15px; line-height: 1.55; color: var(--text-dim);
+  }
+
+  /* ---------- mods marquee ---------- */
+  .mods {
+    position: relative; padding: 92px 0 96px;
+    border-block: 1px solid var(--border);
+    background:
+      radial-gradient(55% 70% at 50% 0%, rgba(255, 74, 28, 0.08), transparent 65%),
+      radial-gradient(40% 60% at 85% 100%, rgba(255, 116, 69, 0.07), transparent 65%),
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 28px),
+      repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 28px),
+      var(--bg-2);
+  }
+  .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px; font-size: 13px; color: var(--text-dim); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c); }
+  .marquee { display: grid; gap: 6px; }
+  .marquee-row {
+    overflow: hidden; padding-block: 6px;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  }
+  .track { display: flex; width: max-content; animation: mqL var(--dur, 30s) linear infinite; will-change: transform; }
+  .track.rev { animation-name: mqR; }
+  .set { display: flex; gap: 14px; padding-right: 14px; }
+  .marquee-row:hover .track { animation-play-state: paused; }
+  @keyframes mqL { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  @keyframes mqR { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+  .mod-card {
+    flex: 0 0 auto; width: 280px;
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 15px 16px; border-radius: 15px;
+    background: linear-gradient(180deg, rgba(38, 27, 26, 0.95), rgba(24, 16, 16, 0.95));
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, transform 0.25s var(--ease), box-shadow 0.25s;
+  }
+  .mod-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--c) 55%, transparent);
+    box-shadow: 0 14px 34px -14px color-mix(in srgb, var(--c) 65%, transparent);
+  }
+  .mc-icon {
+    width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center;
+    border-radius: 12px; color: var(--c);
+    background: color-mix(in srgb, var(--c) 13%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 38%, transparent);
+    box-shadow: 0 0 20px -6px color-mix(in srgb, var(--c) 70%, transparent);
+  }
+  .mc-icon svg { width: 22px; height: 22px; }
+  .mc-icon.has-img { overflow: hidden; background: #171011; }
+  .mc-icon.has-img img { width: 100%; height: 100%; display: block; object-fit: cover; border-radius: inherit; }
+  .mc-body { min-width: 0; }
+  .mc-tag { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--c); }
+  .mc-included {
+    display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 5px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #110c0c; background: var(--accent, #4ade80); vertical-align: middle;
+  }
+  .mc-name { margin: 2px 0 3px; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mc-desc {
+    margin: 0; font-size: 12.5px; line-height: 1.42; color: var(--text-dim);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  .news { padding-block: 40px 30px; }
+  .news-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .news-card.mod-card.feature { max-width: none; margin: 0; }
+  .mod-card.feature { --c: var(--accent); width: auto; max-width: 640px; margin: 26px auto 0; text-align: left; }
+  .mod-card.feature .mc-name { white-space: normal; font-family: var(--font-display); font-size: 18px; }
+  .mod-card.feature .mc-desc { display: block; font-size: 14px; line-height: 1.55; }
+
+  /* ---------- how it works ---------- */
+  .how { padding-block: 120px 100px; }
+  .how-grid { display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr); gap: 72px; align-items: center; }
+  .how .section-head { text-align: left; margin: 0 0 34px; padding: 0; }
+  .how .eyebrow::before { display: none; }
+  .steps { position: relative; list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .steps li { position: relative; }
+  .steps li:not(:last-child)::after {
+    content: ""; position: absolute; left: 43px; top: 72px; bottom: -28px; width: 2px;
+    background: linear-gradient(180deg, rgba(255, 74, 28, 0.4), rgba(255, 116, 69, 0.4));
+  }
+  .step {
+    position: relative; width: 100%;
+    display: grid; grid-template-columns: 54px 1fr; gap: 18px; align-items: start;
+    padding: 18px 20px 24px 16px; border-radius: 16px;
+    border: 1px solid transparent; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+    transition: background 0.35s, border-color 0.35s;
+  }
+  .step:hover { background: rgba(255, 255, 255, 0.02); }
+  .step.active { background: rgba(255, 255, 255, 0.04); border-color: var(--border-2); }
+  .step-node {
+    position: relative; z-index: 1; width: 54px; height: 54px; display: grid; place-items: center;
+    border-radius: 15px; border: 1px solid var(--border-2); background: var(--surface); color: var(--text-mute);
+    transition: color 0.35s, background 0.35s, box-shadow 0.35s, border-color 0.35s;
+  }
+  .step-node svg { width: 23px; height: 23px; }
+  .step.active .step-node {
+    color: #1c0600; border-color: transparent;
+    background: linear-gradient(180deg, #ff7a4a, #ff4a1c);
+    box-shadow: 0 0 34px -4px rgba(255, 74, 28, 0.65);
+  }
+  .step-num { display: block; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-mute); transition: color 0.35s; }
+  .step.active .step-num { color: var(--accent); }
+  .step-title { display: block; margin: 3px 0 5px; font-family: var(--font-display); font-size: 21px; font-weight: 600; letter-spacing: -0.015em; }
+  .step-text { display: block; margin: 0; color: var(--text-dim); font-size: 14.5px; }
+  .step .timer { position: absolute; left: 88px; right: 20px; bottom: 11px; height: 2px; border-radius: 2px; background: rgba(255, 255, 255, 0.06); overflow: hidden; opacity: 0; transition: opacity 0.3s; }
+  .step.active .timer { opacity: 1; }
+  .step.active .timer::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transform-origin: left; animation: timer 4.2s linear forwards; }
+  @keyframes timer { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  .mock { position: relative; }
+  .mock::before {
+    content: ""; position: absolute; inset: -60px; z-index: 0; pointer-events: none;
+    background: radial-gradient(45% 45% at 50% 50%, rgba(255, 74, 28, 0.16), transparent 70%);
+  }
+  .window {
+    position: relative; z-index: 1; overflow: hidden; border-radius: 18px;
+    border: 1px solid var(--border-2);
+    background: radial-gradient(120% 120% at 10% 0%, #1c1415 0%, #0e0a0a 65%);
+    box-shadow: 0 50px 90px -40px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 74, 28, 0.05);
+  }
+  .win-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 11px 15px; background: rgba(36, 26, 25, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 13px; font-weight: 600;
+  }
+  .win-bar .t { display: flex; align-items: center; gap: 8px; }
+  .win-bar .t img { width: 18px; height: 18px; }
+  .win-bar .t span { color: var(--text-mute); font-weight: 400; font-size: 12px; }
+  .win-ctl { display: flex; gap: 14px; color: var(--text-mute); font-size: 12px; }
+  .win-body {
+    position: relative; height: 380px;
+    background:
+      radial-gradient(50% 60% at 50% 50%, rgba(255, 74, 28, 0.07), transparent 70%),
+      linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 32px 32px,
+      linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px) 0 0 / 32px 32px;
+  }
+  .mock-state {
+    position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
+    opacity: 0; transform: translateY(12px) scale(0.98); pointer-events: none;
+    transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  }
+  .mock-state.active { opacity: 1; transform: none; }
+  .m-panel {
+    width: min(100%, 340px); padding: 26px 24px; border-radius: 14px; text-align: center;
+    border: 1px solid rgba(255, 74, 28, 0.6); background: rgba(36, 26, 25, 0.5);
+    box-shadow: 0 0 40px -18px rgba(255, 74, 28, 0.6);
+  }
+  .m-logo { width: 60px; height: 60px; margin: 0 auto 10px; filter: drop-shadow(0 0 14px rgba(255, 74, 28, 0.4)); }
+  .m-title { font-family: var(--font-display); font-weight: 700; font-size: 20px; }
+  .m-sub { font-size: 12.5px; color: var(--text-dim); margin: 2px 0 16px; }
+  .m-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 12px; border-radius: 10px;
+    border: 1px solid var(--accent); background: rgba(255, 74, 28, 0.1); color: var(--accent);
+    font-weight: 600; font-size: 14px;
+  }
+  .m-btn svg { width: 15px; height: 15px; }
+  .mock-state.active .m-btn.pulse { animation: btnGlow 1.6s ease-in-out infinite; }
+  @keyframes btnGlow { 50% { box-shadow: 0 0 26px -4px rgba(255, 74, 28, 0.7); background: rgba(255, 74, 28, 0.18); } }
+  .m-code {
+    margin: 4px 0 14px; padding: 13px; border-radius: 10px; border: 1px dashed var(--accent);
+    font: 700 24px/1 ui-monospace, "Cascadia Code", Consolas, monospace; letter-spacing: 4px; color: var(--accent);
+  }
+  .m-wait { font-size: 12.5px; color: var(--text-dim); }
+  .m-wait i { display: inline-block; width: 4px; height: 4px; margin-left: 3px; border-radius: 50%; background: var(--text-dim); animation: dot 1.2s infinite; }
+  .m-wait i:nth-child(2) { animation-delay: 0.2s; }
+  .m-wait i:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+  .m-account { font-size: 13px; color: var(--text-dim); margin-bottom: 14px; }
+  .m-account b { color: var(--text); }
+  .m-bar { height: 6px; margin-top: 16px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+  .m-bar i { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+  .mock-state.active .m-bar i { animation: fillbar 3.6s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+  @keyframes fillbar { to { width: 100%; } }
+  .m-stage { margin-top: 10px; font-size: 12px; color: var(--text-dim); text-align: left; min-height: 1.4em; }
+
+  /* ---------- final CTA ---------- */
+  .cta-band { padding-block: 10px 110px; }
+  .cta-card {
+    position: relative; overflow: hidden; text-align: center;
+    padding: 72px 32px; border-radius: 26px; border: 1px solid var(--border-2);
+    background:
+      radial-gradient(55% 110% at 50% 0%, rgba(255, 74, 28, 0.18), transparent 62%),
+      radial-gradient(40% 80% at 100% 100%, rgba(255, 116, 69, 0.18), transparent 60%),
+      var(--surface);
+  }
+  .cta-card::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000, transparent 75%);
+    mask-image: radial-gradient(ellipse 60% 70% at 50% 0%, #000, transparent 75%);
+  }
+  .cta-card > * { position: relative; }
+  .cta-card img { width: 72px; height: 72px; margin: 0 auto 18px; display: block; filter: drop-shadow(0 0 20px rgba(255, 74, 28, 0.5)); }
+  .cta-card h2 { font-family: var(--font-display); font-size: clamp(32px, 4.4vw, 54px); letter-spacing: -0.035em; line-height: 1.05; margin: 0 0 12px; }
+  .cta-card p { color: var(--text-dim); margin: 0 0 30px; }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--border); padding: 34px 0 44px; font-size: 13.5px; color: var(--text-mute); }
+  .foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 20px 32px; }
+  .foot .brand { font-size: 17px; color: var(--text); }
+  .foot .brand img { width: 26px; height: 26px; }
+  .foot-links { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+  .foot-links a { color: var(--text-dim); text-decoration: none; }
+  .foot-links a:hover { color: var(--text); }
+  .legal { width: 100%; padding-top: 20px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; }
+
+  /* ---------- toast ---------- */
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; z-index: 100;
+    display: flex; align-items: center; gap: 10px;
+    max-width: calc(100vw - 32px); padding: 12px 18px; border-radius: 13px;
+    background: rgba(26, 18, 18, 0.94); border: 1px solid rgba(255, 74, 28, 0.35);
+    box-shadow: 0 24px 50px -16px rgba(0, 0, 0, 0.8), 0 0 30px -10px rgba(255, 74, 28, 0.55);
+    font-size: 14px; color: var(--text);
+    opacity: 0; transform: translate(-50%, 16px); pointer-events: none;
+    transition: opacity 0.25s, transform 0.25s var(--ease);
+  }
+  .toast svg { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- scroll reveal ---------- */
+  .js .reveal { opacity: 0; transform: translateY(26px); transition: opacity 0.8s var(--ease), transform 0.8s var(--ease); }
+  .js .reveal.in { opacity: 1; transform: none; }
+  .js .d1 { transition-delay: 0.08s; }
+  .js .d2 { transition-delay: 0.16s; }
+  .js .d3 { transition-delay: 0.24s; }
+  .js .d4 { transition-delay: 0.32s; }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1000px) {
+    .how-grid { grid-template-columns: 1fr; gap: 56px; }
+    .how .section-head { text-align: center; }
+    .how .eyebrow::before { display: block; }
+  }
+  @media (max-width: 860px) {
+    .header-inner { flex-wrap: wrap; height: auto; padding-block: 12px; row-gap: 6px; }
+    .nav {
+      order: 3; width: calc(100% + 48px); margin-inline: -24px; padding-inline: 14px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .nav::-webkit-scrollbar { display: none; }
+    /* the row scrolls sideways: a soft fade at the right edge shows there is more */
+    .nav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+    /* "Sign in" sits next to the logo on small screens, always in view */
+    .nav .nav-signin { display: none; }
+    .top-signin { display: inline-flex !important; margin-left: auto; }
+    .hero { padding-top: 36px; }
+    .hero .cta-row .btn { flex: 1 1 100%; }
+  }
+  @media (max-width: 520px) {
+    .actions .btn-ghost { display: none; }
+    .logo-stage { width: 140px; height: 140px; margin-top: 28px; }
+    .logo-stage img { width: 98px; height: 98px; }
+    .mod-card { width: 250px; }
+    .step { grid-template-columns: 46px 1fr; gap: 14px; }
+    .step-node { width: 46px; height: 46px; }
+    .steps li:not(:last-child)::after { left: 39px; top: 64px; }
+    .step .timer { left: 76px; }
+    .win-body { height: 360px; }
+    .cta-card { padding: 56px 20px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    html { scroll-behavior: auto; }
+    .track { animation: none !important; }
+    .mock-state .m-bar i { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="hero-bg" aria-hidden="true">
+    <div class="grid"></div>
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#top"><img src="favicon.svg" alt="" /> Spaceport</a>
+      <nav class="nav" aria-label="Main">
+        <a href="#new"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/></svg> What's new</a>
+        <a href="#mods"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg> Mods</a>
+        <a href="#" data-soon="Server hosting is coming soon."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg> Host a server <span class="soon">Soon</span></a>
+        <a href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg> Discord</a>
+        <a href="#get"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Get Spaceport App</a>
+        <a class="nav-signin" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Sign in</a>
+      </nav>
+      <a class="top-signin" href="/account.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg> Sign in</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="status reveal in"><span class="dot"></span><b>Spaceport for Windows</b> is available</div>
+
+      <div class="logo-stage" aria-hidden="true">
+        <div class="halo"></div>
+        <div class="ring"></div>
+        <div class="ring two"></div>
+        <img src="favicon.svg" alt="" />
+      </div>
+
+      <h1 class="headline" aria-label="The launcher built for mods, shaders, performance and survival">
+        <span class="line" aria-hidden="true">The launcher built for</span>
+        <span class="word-line" aria-hidden="true"><span class="word" id="word">mods</span></span>
+      </h1>
+      <p class="lead">Sign in with Microsoft and hit Play. <b>Minecraft, Fabric and Java set themselves up</b> — no mod folders, no installers, no version juggling.</p>
+
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="https://github.com/WxstedGOTY/reminth-launcher/releases/latest/download/Spaceport-Launcher-Setup.exe" download><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.6 10.4 4.5v7.1H3zM11.6 4.3 21 3v8.6h-9.4zM3 12.8h7.4v7.1L3 18.8zM11.6 12.8H21V21l-9.4-1.3z"/></svg> Download for Windows</a>
+        <a class="btn btn-ghost btn-lg" href="#how"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5.5 3.5-5.5 3.5z"/></svg> See how it works</a>
+      </div>
+
+      <div class="chips">
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg> Fabric, Quilt, Forge &amp; NeoForge</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0V8Z"/><path d="M12 18v4"/></svg> Fabric built in</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4M7 9h3M7 12h5"/></svg> Spaceport Mods Panel in game</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 8h1a3 3 0 0 1 0 6h-1"/><path d="M3 8h14v6a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V8Z"/><path d="M7 2v3M11 2v3"/></svg> No Java install needed</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.34 10.03 L21.90 10.61 L21.90 13.39 L19.34 13.97 L18.58 15.80 L19.99 18.02 L18.02 19.99 L15.80 18.58 L13.97 19.34 L13.39 21.90 L10.61 21.90 L10.03 19.34 L8.20 18.58 L5.98 19.99 L4.01 18.02 L5.42 15.80 L4.66 13.97 L2.10 13.39 L2.10 10.61 L4.66 10.03 L5.42 8.20 L4.01 5.98 L5.98 4.01 L8.20 5.42 L10.03 4.66 L10.61 2.10 L13.39 2.10 L13.97 4.66 L15.80 5.42 L18.02 4.01 L19.99 5.98 L18.58 8.20 Z"/><circle cx="12" cy="12" r="3"/></svg> Sodium + Lithium on Fabric &amp; Quilt</span>
+        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg> Checks your mods before you play</span>
+      </div>
+    </section>
+
+    <section class="news wrap" id="new">
+      <div class="section-head reveal">
+        <div class="eyebrow">New in Spaceport Launcher 1.6.0</div>
+        <h2 class="section-title">A new look, and a lot <span class="grad">more inside.</span></h2>
+        <p class="section-sub">A new icon and the orange brand colour across the launcher - plus everything below.</p>
+      </div>
+      <div class="news-grid">
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 13h3M8 16h6"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">In game</div>
+            <div class="mc-name">Spaceport Mods Panel</div>
+            <p class="mc-desc">Press G in Minecraft: over 240 of Spaceport's own features - FPS, keystrokes, armor status, potion timers, zoom, a custom crosshair, on-screen text for streamers and more - with profiles and a HUD layout editor. From 1.20.1 to 26.3.</p>
+          </div>
+        </div>
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Title screen</div>
+            <div class="mc-name">A new title screen</div>
+            <p class="mc-desc">Spaceport's own title screen: Discover opens the panel, and tips show while worlds and servers load.</p>
+          </div>
+        </div>
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3v15l4-4 3 7 3-1.4-3-6.6h6z"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Pointer</div>
+            <div class="mc-name">A pointer that never vanishes</div>
+            <p class="mc-desc">A Minecraft-style pixel pointer at your Windows pointer's size. In full screen Spaceport draws it itself, so it can't disappear.</p>
+          </div>
+        </div>
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m9 12 2 2 4-4"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Setup</div>
+            <div class="mc-name">Pick what it's for</div>
+            <p class="mc-desc">Tell Spaceport an instance is for PvP, survival or something else and get a matching set of mods and packs.</p>
+          </div>
+        </div>
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V6l-8-3Z"/><path d="M12 8v5M12 16h.01"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Servers</div>
+            <div class="mc-name">Server rules heads-up</div>
+            <p class="mc-desc">A small note when a server's rules ban one of your mods. Nothing is ever turned off for you.</p>
+          </div>
+        </div>
+        <div class="mod-card feature news-card reveal">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Stats</div>
+            <div class="mc-name">Your numbers, everywhere</div>
+            <p class="mc-desc">Player Statistics count your servers too, and the Library keeps your clips and screenshots.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="mods" id="mods">
+      <div class="section-head reveal">
+        <div class="eyebrow">Fabric, Quilt, Forge &amp; NeoForge</div>
+        <h2 class="section-title">Compatible with the mods you <span class="grad">actually use</span></h2>
+        <p class="section-sub">On Fabric and Quilt instances Spaceport adds Sodium, Lithium, FerriteCore, ImmediatelyFast, Entity Culling and ScalableLux for you, plus the Fabric API they need — stable releases from Modrinth, only when a build exists for your Minecraft version. It leaves out any mod you already have or that clashes with yours, and you can switch the pack off per instance. Everything else installs from Modrinth inside the launcher. Here's a sample of what the Fabric ecosystem has to offer:</p>
+        <div class="mod-card feature">
+          <div class="mc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 4.5 3.2 7.6 8 9 4.8-1.4 8-4.5 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg></div>
+          <div class="mc-body">
+            <div class="mc-tag">Compatibility<span class="mc-included">New</span></div>
+            <div class="mc-name">No more “Incompatible mods”</div>
+            <p class="mc-desc">Spaceport checks your mods before the game starts, tells you which ones won't load and why, and can fix them in one click. It can also work out which Minecraft version fits all your mods and your server.</p>
+          </div>
+        </div>
+        <div class="legend">
+          <span style="--c:var(--cat-perf)"><i></i>Performance</span>
+          <span style="--c:var(--cat-visual)"><i></i>Visual</span>
+          <span style="--c:var(--cat-util)"><i></i>Utility</span>
+          <span style="--c:var(--cat-lib)"><i></i>Library</span>
+        </div>
+      </div>
+      <div class="marquee">
+        <div class="marquee-row"><div class="track" style="--dur:30s"><div class="set"><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/sodium.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">Sodium</div><p class="mc-desc">Rendering engine rewrite. More FPS, far less stutter.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/iris.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Iris Shaders</div><p class="mc-desc">Shader pack loader that plays nice with Sodium.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/xaeros-minimap.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Xaero&#x27;s Minimap</div><p class="mc-desc">Minimap with terrain, players and waypoints.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/fabric-api.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library<span class="mc-included">Auto-added</span></div><div class="mc-name">Fabric API</div><p class="mc-desc">The core hooks almost every Fabric mod depends on.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/lithium.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">Lithium</div><p class="mc-desc">Game logic optimizations without changing gameplay.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/entitytexturefeatures.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Entity Texture Features</div><p class="mc-desc">Emissive and random mob textures from resource packs.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/jei.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Just Enough Items</div><p class="mc-desc">Look up any item or recipe without leaving the game.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/cloth-config.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Cloth Config API</div><p class="mc-desc">Config screens used across hundreds of mods.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/scalablelux.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">ScalableLux</div><p class="mc-desc">Starlight&#x27;s lighting-engine rewrite, ported to Fabric. Fixes lighting lag.</p></div></div></div><div class="set" aria-hidden="true"><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/sodium.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">Sodium</div><p class="mc-desc">Rendering engine rewrite. More FPS, far less stutter.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/iris.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Iris Shaders</div><p class="mc-desc">Shader pack loader that plays nice with Sodium.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/xaeros-minimap.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Xaero&#x27;s Minimap</div><p class="mc-desc">Minimap with terrain, players and waypoints.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/fabric-api.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library<span class="mc-included">Auto-added</span></div><div class="mc-name">Fabric API</div><p class="mc-desc">The core hooks almost every Fabric mod depends on.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/lithium.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">Lithium</div><p class="mc-desc">Game logic optimizations without changing gameplay.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/entitytexturefeatures.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Entity Texture Features</div><p class="mc-desc">Emissive and random mob textures from resource packs.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/jei.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Just Enough Items</div><p class="mc-desc">Look up any item or recipe without leaving the game.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/cloth-config.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Cloth Config API</div><p class="mc-desc">Config screens used across hundreds of mods.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/scalablelux.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance<span class="mc-included">Auto-added</span></div><div class="mc-name">ScalableLux</div><p class="mc-desc">Starlight&#x27;s lighting-engine rewrite, ported to Fabric. Fixes lighting lag.</p></div></div></div></div></div>
+        <div class="marquee-row"><div class="track rev" style="--dur:36s"><div class="set"><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/entity-model-features.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Entity Model Features</div><p class="mc-desc">Custom entity models from resource packs.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/appleskin.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">AppleSkin</div><p class="mc-desc">Shows hunger and saturation right on the HUD.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/yacl.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">YetAnotherConfigLib</div><p class="mc-desc">Clean, modern config screen library.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/ferrite-core.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">FerriteCore</div><p class="mc-desc">Cuts memory use so big modpacks fit in less RAM.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/not-enough-animations.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Not Enough Animations</div><p class="mc-desc">First-person animations, now in third person.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/xaeros-world-map.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Xaero&#x27;s World Map</div><p class="mc-desc">Full-screen map of everywhere you&#x27;ve explored.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/fabric-language-kotlin.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Fabric Language Kotlin</div><p class="mc-desc">Lets mods written in Kotlin run on Fabric.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/entityculling.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Entity Culling</div><p class="mc-desc">Skips rendering entities you can&#x27;t actually see.</p></div></div></div><div class="set" aria-hidden="true"><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/entity-model-features.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Entity Model Features</div><p class="mc-desc">Custom entity models from resource packs.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/appleskin.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">AppleSkin</div><p class="mc-desc">Shows hunger and saturation right on the HUD.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/yacl.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">YetAnotherConfigLib</div><p class="mc-desc">Clean, modern config screen library.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/ferrite-core.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">FerriteCore</div><p class="mc-desc">Cuts memory use so big modpacks fit in less RAM.</p></div></div><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/not-enough-animations.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">Not Enough Animations</div><p class="mc-desc">First-person animations, now in third person.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/xaeros-world-map.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Xaero&#x27;s World Map</div><p class="mc-desc">Full-screen map of everywhere you&#x27;ve explored.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/fabric-language-kotlin.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Fabric Language Kotlin</div><p class="mc-desc">Lets mods written in Kotlin run on Fabric.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/entityculling.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Entity Culling</div><p class="mc-desc">Skips rendering entities you can&#x27;t actually see.</p></div></div></div></div></div>
+        <div class="marquee-row"><div class="track" style="--dur:27s"><div class="set"><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/3dskinlayers.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">3D Skin Layers</div><p class="mc-desc">Renders the outer skin layer in real 3D.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/veinminer.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">VeinMiner</div><p class="mc-desc">Break one ore, mine the whole vein.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/architectury-api.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Architectury API</div><p class="mc-desc">Shared layer for mods built for multiple loaders.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/immediatelyfast.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">ImmediatelyFast</div><p class="mc-desc">Speeds up HUD, text and map rendering.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/modmenu.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Mod Menu</div><p class="mc-desc">See and configure every installed mod in one place.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/modernfix.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">ModernFix</div><p class="mc-desc">Faster startup, lower memory, dozens of bug fixes.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/sodium-extra.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Sodium Extra</div><p class="mc-desc">Extra tuning toggles on top of Sodium.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/reeses-sodium-options.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Reese&#x27;s Sodium Options</div><p class="mc-desc">A cleaner, searchable video settings menu.</p></div></div></div><div class="set" aria-hidden="true"><div class="mod-card" style="--c:var(--cat-visual)"><div class="mc-icon has-img"><img src="mods/3dskinlayers.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Visual</div><div class="mc-name">3D Skin Layers</div><p class="mc-desc">Renders the outer skin layer in real 3D.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/veinminer.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">VeinMiner</div><p class="mc-desc">Break one ore, mine the whole vein.</p></div></div><div class="mod-card" style="--c:var(--cat-lib)"><div class="mc-icon has-img"><img src="mods/architectury-api.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Library</div><div class="mc-name">Architectury API</div><p class="mc-desc">Shared layer for mods built for multiple loaders.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/immediatelyfast.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">ImmediatelyFast</div><p class="mc-desc">Speeds up HUD, text and map rendering.</p></div></div><div class="mod-card" style="--c:var(--cat-util)"><div class="mc-icon has-img"><img src="mods/modmenu.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Utility</div><div class="mc-name">Mod Menu</div><p class="mc-desc">See and configure every installed mod in one place.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/modernfix.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">ModernFix</div><p class="mc-desc">Faster startup, lower memory, dozens of bug fixes.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/sodium-extra.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Sodium Extra</div><p class="mc-desc">Extra tuning toggles on top of Sodium.</p></div></div><div class="mod-card" style="--c:var(--cat-perf)"><div class="mc-icon has-img"><img src="mods/reeses-sodium-options.webp" alt="" width="44" height="44" loading="lazy" decoding="async" /></div><div class="mc-body"><div class="mc-tag">Performance</div><div class="mc-name">Reese&#x27;s Sodium Options</div><p class="mc-desc">A cleaner, searchable video settings menu.</p></div></div></div></div></div>
+      </div>
+    </section>
+
+    <section class="how wrap" id="how">
+      <div class="how-grid">
+        <div>
+          <div class="section-head reveal">
+            <div class="eyebrow">How it works</div>
+            <h2 class="section-title">Three steps.<br />Then you just <span class="grad">play.</span></h2>
+          </div>
+          <ol class="steps reveal d1">
+            <li>
+              <button class="step active" type="button">
+                <span class="step-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></span>
+                <span>
+                  <span class="step-num">Step 01</span>
+                  <span class="step-title">Install Spaceport</span>
+                  <span class="step-text">Run the Windows installer. That's the entire setup.</span>
+                </span>
+                <span class="timer"></span>
+              </button>
+            </li>
+            <li>
+              <button class="step" type="button">
+                <span class="step-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 9.3-9.3M17 6l3 3M14 9l2 2"/></svg></span>
+                <span>
+                  <span class="step-num">Step 02</span>
+                  <span class="step-title">Sign in with Microsoft</span>
+                  <span class="step-text">Enter a short code at microsoft.com/link. Your password never touches Spaceport.</span>
+                </span>
+                <span class="timer"></span>
+              </button>
+            </li>
+            <li>
+              <button class="step" type="button">
+                <span class="step-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4.5v15l13-7.5-13-7.5Z"/></svg></span>
+                <span>
+                  <span class="step-num">Step 03</span>
+                  <span class="step-title">Hit Play</span>
+                  <span class="step-text">First launch pulls Minecraft, Fabric and a private Java runtime for you.</span>
+                </span>
+                <span class="timer"></span>
+              </button>
+            </li>
+          </ol>
+        </div>
+
+        <div class="mock reveal d2" aria-hidden="true">
+          <div class="window">
+            <div class="win-bar">
+              <div class="t"><img src="favicon.svg" alt="" /> Spaceport</div>
+              <div class="win-ctl"><span>&#8211;</span><span>&#10005;</span></div>
+            </div>
+            <div class="win-body">
+              <div class="mock-state active">
+                <div class="m-panel">
+                  <img class="m-logo" src="favicon.svg" alt="" />
+                  <div class="m-title">Installing Spaceport</div>
+                  <div class="m-sub">setting up your launcher</div>
+                  <div class="m-bar"><i></i></div>
+                </div>
+              </div>
+              <div class="mock-state">
+                <div class="m-panel">
+                  <div class="m-sub" style="margin-top:0">go to <b style="color:var(--text)">microsoft.com/link</b> and enter</div>
+                  <div class="m-code">R7KM-2QXD</div>
+                  <div class="m-wait">waiting for you to sign in<i></i><i></i><i></i></div>
+                </div>
+              </div>
+              <div class="mock-state">
+                <div class="m-panel">
+                  <div class="m-account">signed in as <b>Player</b></div>
+                  <div class="m-btn pulse"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4.5v15l13-7.5-13-7.5Z"/></svg> Play</div>
+                  <div class="m-bar"><i></i></div>
+                  <div class="m-stage" id="stage">Downloading assets…</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta-band wrap" id="get">
+      <div class="cta-card reveal">
+        <img src="favicon.svg" alt="" />
+        <h2>Ready when <span class="grad">you are.</span></h2>
+        <p>Windows 10/11 &middot; requires Minecraft: Java Edition</p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="https://github.com/WxstedGOTY/reminth-launcher/releases/latest/download/Spaceport-Launcher-Setup.exe" download><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.6 10.4 4.5v7.1H3zM11.6 4.3 21 3v8.6h-9.4zM3 12.8h7.4v7.1L3 18.8zM11.6 12.8H21V21l-9.4-1.3z"/></svg> Download for Windows</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <a class="brand" href="#top"><img src="favicon.svg" alt="" /> Spaceport</a>
+      <div class="foot-links">
+        <a href="#new">What's new</a>
+        <a href="#mods">Mods</a>
+        <a href="#how">How it works</a>
+        <a href="#" data-soon="Server hosting is coming soon.">Host a server</a>
+        <a href="#get">Get the app</a>
+        <a href="https://discord.gg/hhFxeRcQ7Z" target="_blank" rel="noopener">Discord</a>
+      </div>
+      <div class="legal">
+        <span>&copy; 2026 Spaceport. NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.</span>
+        <span>Requires a legitimate Minecraft: Java Edition license.</span>
+        <span><a href="privacy.html">Privacy Policy</a> &middot; <a href="terms.html">Terms of Service</a></span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span></span></div>
+
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // header gets a glass background once you scroll
+  const header = document.querySelector(".site-header");
+  const onScroll = () => header.classList.toggle("scrolled", scrollY > 8);
+  onScroll();
+  addEventListener("scroll", onScroll, { passive: true });
+
+  // anything not built yet says so instead of silently doing nothing
+  const toast = document.getElementById("toast");
+  let toastTimer;
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-soon]");
+    if (!el) return;
+    e.preventDefault();
+    toast.querySelector("span").textContent = el.dataset.soon;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+  });
+
+  // rotating headline word
+  const word = document.getElementById("word");
+  const words = ["mods", "shaders", "performance", "survival"];
+  if (word && !reduce) {
+    let i = 0;
+    setInterval(() => {
+      i = (i + 1) % words.length;
+      word.classList.add("out");
+      setTimeout(() => {
+        word.textContent = words[i];
+        word.classList.remove("out");
+        word.classList.add("pre");
+        void word.offsetWidth;
+        word.classList.remove("pre");
+      }, 480);
+    }, 2600);
+  }
+
+  // scroll reveal
+  const reveals = document.querySelectorAll(".reveal:not(.in)");
+  if (reduce || !("IntersectionObserver" in window)) {
+    reveals.forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    reveals.forEach((el) => io.observe(el));
+  }
+
+  // how-it-works stepper, synced with the mock launcher
+  const steps = [...document.querySelectorAll(".step")];
+  const states = [...document.querySelectorAll(".mock-state")];
+  const stage = document.getElementById("stage");
+  const stageText = ["Downloading assets…", "Installing Fabric…", "Launching Minecraft…"];
+  const STEP_MS = 4200;
+  let current = 0, loop, stageTimers = [];
+
+  function show(n) {
+    current = n;
+    steps.forEach((s, k) => { s.classList.toggle("active", k === n); s.setAttribute("aria-pressed", k === n); });
+    states.forEach((s, k) => s.classList.toggle("active", k === n));
+    stageTimers.forEach(clearTimeout);
+    stageTimers = [];
+    if (n === 2 && stage) {
+      stageText.forEach((t, k) => stageTimers.push(setTimeout(() => { stage.textContent = t; }, k * 1200)));
+    }
+  }
+  function autoplay() {
+    clearInterval(loop);
+    if (!reduce) loop = setInterval(() => show((current + 1) % steps.length), STEP_MS);
+  }
+  steps.forEach((s, k) => s.addEventListener("click", () => { show(k); autoplay(); }));
+
+  const how = document.getElementById("how");
+  if ("IntersectionObserver" in window) {
+    let started = false;
+    new IntersectionObserver((entries, obs) => {
+      if (entries[0].isIntersecting && !started) { started = true; show(0); autoplay(); obs.disconnect(); }
+    }, { threshold: 0.3 }).observe(how);
+  } else {
+    show(0); autoplay();
+  }
+})();
+</script>
+</body>
+</html>
