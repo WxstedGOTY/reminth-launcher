@@ -38,6 +38,13 @@ paid, ordered by published chip - data ready in `src/renderer/hosts.js`, researc
 explain/design it on **22 Oct** - when he asks to "remake" it, FIRST remind him he said not to design it myself, then ask him
 how he wants it. Website pages only go on the branch `spaceport-website` (main deploys the live site).
 
+**THE ORDER OF WORK (owner, 22 Oct 2026) - do the categories in this order, finish one before the next:**
+1. **The launcher app UI** (his Claude Design files / his instructions; do NOT design it myself).
+2. **The website** (UI, text, privacy policy, team page, downloads for every OS, search name/icon).
+3. **The server / hosting systems** ("Select your host" page exists as v1 on the branch; linking a host with an API key, start/stop, whitelist, ban list, MOTD, friends see the server - plan in `design/HOSTING_PLAN.md`).
+4. **The in-game side:** better in-game UI, bug fixes, more mods for the G panel ("G panel" is just his shortcut name; players see "Spaceport Built-in Mods").
+5. **A final review before publishing** (and then the GitHub clean start - ask first).
+
 ## 1. The 60-second picture
 
 - **Spaceport Launcher** (until 16 Oct 2026 called **Reminth**) is an Electron Minecraft launcher for Windows, built

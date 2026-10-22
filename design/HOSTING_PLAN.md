@@ -64,3 +64,7 @@ So the real promise is: "full control for the hosts that have an API; for the re
   **Aternos, Falix, Minehut** (Minefort is the spare). Falix gets re-checked: if its panel offers a client API it moves up to full control.
 - The page says plainly what "Full control" and "Limited control" mean. Look/design: left to Claude (owner's words), built in steps
   (select host, settings, add to launcher, done) with Opus 5.5. NOT STARTED - waiting for the owner to switch to Opus.
+
+## 7. Where this sits in the order of work (owner, 22 Oct 2026)
+
+The systems part (linking a host, start/stop, whitelist, ban list) is category **3**, after the launcher UI (1) and the website (2). The website page `site/hosting.html` (branch spaceport-website) and the launcher button are only version 1 and will change with categories 1 and 2.
