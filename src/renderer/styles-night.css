@@ -2731,7 +2731,7 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 /* ---- middle: the launch panel (never cropped), the picker, then the servers ---- */
 .nh-center { grid-column: 2; grid-row: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; container-type: inline-size; }
 .nh-panel {
-  position: relative; width: 100%; height: auto; aspect-ratio: 2704 / 636; overflow: hidden;
+  position: relative; width: 100%; height: auto; aspect-ratio: 2500 / 580; overflow: hidden;
   border-radius: 22px; border: 2px solid #2e2e31; background: #070809; /* a dark grey, close to black (owner, 15 Oct: "not so lightning") */
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .6), 0 18px 44px rgba(0, 0, 0, .55);
   display: grid; place-items: center;
@@ -2742,16 +2742,17 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-panel-col { position: relative; display: grid; place-items: center; }
 .nh-play {
   position: relative; overflow: hidden;
-  width: 300px; max-width: 100%; height: 76px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, .6);
+  /* sized like the button painted in the owner's new banner (22 Oct 2026): 24% of the panel wide, 6% of its width tall */
+  width: clamp(230px, 24cqw, 420px); max-width: 100%; height: clamp(62px, 6.04cqw, 104px); border-radius: 12px; border: 1px solid rgba(255, 255, 255, .6);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
   background: var(--play-bg, #ece8de); color: var(--play-ink, #111113); font-family: "Inter", sans-serif;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 46px rgba(236, 232, 222, .16), 0 14px 34px rgba(0, 0, 0, .45);
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-size: 19px; font-weight: 800; letter-spacing: .22em; text-transform: uppercase; white-space: nowrap; }
-.nh-play-title b { font-weight: 800; margin-right: -.22em; }
-.nh-play .i { width: 14px; height: 14px; position: relative; flex: none; }
-.nh-play-sub { position: relative; font-size: 12px; font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-size: clamp(17px, 2.1cqw, 30px); font-weight: 800; letter-spacing: .01em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title b { font-weight: 800; }
+.nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
+.nh-play-sub { position: relative; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 60px rgba(236, 232, 222, .24), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
 .nh-play:disabled { cursor: default; filter: saturate(.6) brightness(.82); }

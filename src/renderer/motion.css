@@ -47,7 +47,8 @@
 /* the launch panel's picture zooms too, a bit more than the servers' (owner, 15 Oct 2026); isolation keeps the zoomed
    picture inside the panel's round corners */
 .nh-panel { isolation: isolate; }
-.nh-panel-art { transition: transform .5s var(--m-ease), filter .5s ease; }
+/* owner, 22 Oct 2026: the launch box hover is 50% slower (half speed: .5 s -> 1 s), same depth (scale 1.09 below) */
+.nh-panel-art { transition: transform 1s var(--m-ease), filter 1s ease; }
 .nh-panel:hover .nh-panel-art { transform: scale(1.09); filter: brightness(1.06); will-change: transform; }
 #home.entering #rmGate, #home.entering #signInHero { animation: m-pop .32s var(--m-ease) both; }
 @keyframes m-from-left { from { opacity: 0; transform: translateX(-26px); } to { opacity: 1; transform: none; } }
