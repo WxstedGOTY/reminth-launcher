@@ -2761,6 +2761,11 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
 /* the TEXT is in the exact middle of the button (owner, 22 Oct 2026); the triangle hangs on its left: an empty block as wide as the triangle + gap on the right balances it */
 .nh-play-title:has(> .i)::after { content: ""; flex: none; width: calc(clamp(13px, 1.3cqw, 18px) + clamp(4px, .4cqw, 6px)); }
+/* the line under the title: our icon (small) on its left, like Lunar's button (owner, 22 Oct 2026). Title and line sit slightly to the right (half the icon + gap) so the TEXTS stay lined up with each other. */
+.nh-play { --ico: clamp(11px, 1.05cqw, 15px); --igap: clamp(4px, .4cqw, 6px); }
+.nh-play-title { transform: translateX(calc((var(--ico) + var(--igap)) / 2)); }
+.nh-play-subrow { position: relative; display: flex; align-items: center; gap: var(--igap); }
+.nh-play-ico { width: var(--ico); height: var(--ico); display: block; flex: none; }
 .nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(10.5px, .95cqw, 14px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
@@ -2770,7 +2775,8 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
 .nh-play.progressing .nh-play-title { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: .06em; font-size: 13px; -webkit-text-stroke: 0; word-spacing: 0; }
 .nh-play.progressing .nh-play-title b { font-weight: 800; }
 .nh-play.progressing .nh-play-title b { margin-right: 0; }
-.nh-play.no-sub .nh-play-sub { display: none; }
+.nh-play.no-sub .nh-play-subrow { display: none; }
+.nh-play.no-sub .nh-play-title { transform: none; } /* no icon line under it while launching/playing: the title is simply centred */
 .nh-play.progressing::before { content: ""; position: absolute; inset: 0; width: var(--p, 0%); background: rgba(0, 0, 0, .14); transition: width .3s; }
 .nh-quick-row { display: flex; gap: 12px; }
 .nh-quick-row[hidden], .nh-quick[hidden] { display: none !important; }
