@@ -51,10 +51,11 @@ a { color: inherit; }
   position: relative; display: inline-flex; align-items: center; gap: 10px; min-width: 170px; justify-content: center;
   height: 52px; padding: 0 22px; border-radius: 10px; background: var(--blue); color: #fff; text-decoration: none;
   font-family: var(--head); font-weight: 700; font-size: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, .45);
-  transition: background-color .2s ease, transform .2s ease;
+  transition: background-color .2s ease, transform .6s ease;
 }
 .dl-btn img { width: 20px; height: 20px; display: block; }
-a.dl-btn:hover { background: var(--blue-hi); transform: translateY(-1px); }
+/* hover: slightly bigger, slowly (owner). Only a real link (Windows); the "Soon" spans (macOS, Linux) are not <a>, so they do nothing. */
+a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 /* not ready yet: still blue, but faded and not clickable, with a small "Soon" */
 .dl-btn.soon { opacity: .55; cursor: default; }
 .dl-btn em { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, .2); }
