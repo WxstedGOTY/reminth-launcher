@@ -22,17 +22,11 @@
   font-weight: 400 700;
   font-display: block;
 }
-/* Chakra Petch SemiBold (SIL OFL, assets/fonts/OFL-ChakraPetch.txt): the LAUNCH GAME title (owner, 22 Oct 2026: not Inter, not blocky pixels) */
+/* Plus Jakarta Sans (SIL OFL, assets/fonts/OFL-PlusJakartaSans.txt): the LAUNCH GAME button text - the heavy, tight look the owner liked in a screenshot of Lunar's button (22 Oct 2026); a free look-alike, not Lunar's own font */
 @font-face {
-  font-family: "Chakra Petch";
-  src: url("../../assets/fonts/ChakraPetch-SemiBold.ttf") format("truetype");
-  font-weight: 600;
-  font-display: block;
-}
-@font-face {
-  font-family: "Chakra Petch";
-  src: url("../../assets/fonts/ChakraPetch-Bold.ttf") format("truetype");
-  font-weight: 700;
+  font-family: "Plus Jakarta Sans";
+  src: url("../../assets/fonts/PlusJakartaSans.ttf") format("truetype");
+  font-weight: 200 800;
   font-display: block;
 }
 
@@ -2762,11 +2756,11 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 46px rgba(236, 232, 222, .16), 0 14px 34px rgba(0, 0, 0, .45);
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
-/* the title is in Chakra Petch SemiBold (owner: Inter was boring, Pixelify too blocky). Progress text with numbers stays in Inter below. */
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Chakra Petch", "Inter", sans-serif; font-size: clamp(19px, 2.4cqw, 32px); font-weight: 700; letter-spacing: .015em; text-transform: uppercase; white-space: nowrap; }
-.nh-play-title b { font-weight: 700; }
+/* the title is in Plus Jakarta Sans ExtraBold, tight (owner: like the text on Lunar's button, from his screenshot). Progress text with numbers stays in Inter below. */
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(19px, 2.4cqw, 32px); font-weight: 800; letter-spacing: -.01em; word-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title b { font-weight: 800; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
-.nh-play-sub { position: relative; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: .02em; opacity: .62; white-space: nowrap; }
+.nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
 .nh-play:disabled { cursor: default; filter: saturate(.6) brightness(.82); }

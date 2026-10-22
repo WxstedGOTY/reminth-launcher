@@ -30,3 +30,7 @@ something he has not sent yet.
 
 6. **DONE 22 Oct (evening) - LAUNCH GAME, third round** (owner: "more bold, letters closer to each other but a slight space, and the whole launch game box slower on the animation"):
    Font **Chakra Petch Bold 700** (`assets/fonts/ChakraPetch-Bold.ttf`, OFL), letter-spacing **.05em -> .015em**. Hover times: box picture **1.25 s -> 1.6 s** (scale 1.09 kept), button **1.6 s -> 2.0 s** (scale 1.06 kept). "The whole thing" read as picture + button; the box's fade-in when Home opens (.34 s / .55 s) was NOT slowed - say so if he meant that too.
+
+7. **DONE 22 Oct (evening) - LAUNCH GAME text like Lunar's** (owner took a screenshot of Lunar's Home, `Pictures\Screenshots\Screenshot (23).png`, and said "use that because I like it"):
+   Lunar's button text is a very heavy, tight geometric sans. I can't use Lunar's own font files, so the title and the "Launch Spaceport" line now use **Plus Jakarta Sans** (SIL OFL, `assets/fonts/PlusJakartaSans.ttf` variable 200-800 + `OFL-PlusJakartaSans.txt`): title weight 800, letter-spacing -.01em, word-spacing .12em; sub line weight 600. The Chakra Petch files were removed (unused). Progress text with numbers still Inter.
+   NOTE for later: he said earlier the launcher "looks like a copy paste of Lunar" - matching Lunar's text style goes the other way; he chose it, but remember it when he reviews the whole look.
