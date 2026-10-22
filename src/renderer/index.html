@@ -573,17 +573,13 @@
                way is Aternos, a separate service. No partner, no money for sending players there, nothing made up. -->
           <div class="host-v3">
             <div class="hv-copy">
-              <div class="hv-eyebrow"><span>Host a server</span><em class="hv-free">Free</em></div>
-              <h1 class="display">Your own Minecraft server, free</h1>
-              <p class="lede">Spaceport doesn't run servers itself. The easy free way is <b>Aternos</b>, a free Minecraft server host. Make a server there in a few minutes, then join it from here with your friends.</p>
-              <ol class="hv-steps">
-                <li><b>Open Aternos</b>, make a free account and press <b>Create</b>.</li>
-                <li><b>Pick the same game as your instance</b> under Software and Version: <span class="hv-match" id="hostMatch">your instance's loader and version</span>.</li>
-                <li><b>Press Start</b>, wait until it says Online, and copy its address (it looks like <code>yourname.aternos.me</code>).</li>
-                <li><b>Paste the address below.</b> It goes into your Minecraft server list, and Join starts the game on it.</li>
-              </ol>
+              <div class="hv-eyebrow"><span>Host a server</span></div>
+              <h1 class="display">Your own Minecraft server</h1>
+              <p class="lede">Pick a host on our website and follow the steps: free hosts, or paid hosts you control right from Spaceport. Then paste your server's address here.</p>
+              <p class="hv-for">Your instance: <span class="hv-match" id="hostMatch">your instance's loader and version</span></p>
               <div class="row-actions">
-                <a class="btn primary" href="https://aternos.org/" target="_blank" rel="noopener"><svg class="i"><use href="#i-server"/></svg>Open Aternos</a>
+                <!-- the website's "Select your host" page (site/hosting.html, branch spaceport-website - live with the first release); renderer.js HOST_SELECT_URL -->
+                <a class="btn primary" id="hostSelect" target="_blank" rel="noopener"><svg class="i"><use href="#i-server"/></svg>Select your host</a>
               </div>
             </div>
             <div class="hv-join">
@@ -596,7 +592,7 @@
                 <button class="btn primary" id="hostJoin" type="button"><svg class="i"><use href="#i-play"/></svg>Join</button>
               </div>
               <p class="hv-join-msg" id="hostMsg" hidden></p>
-              <p class="hv-join-note">A free Aternos server switches off when nobody is on it for a while: start it again on Aternos, then press Join. Aternos is a separate service with its own rules and privacy policy.</p>
+              <p class="hv-join-note">A server on a free host usually switches off when nobody is on it for a while: start it again on the host's site, then press Join. Every host is a separate company with its own rules and privacy policy.</p>
             </div>
           </div>
         </div>

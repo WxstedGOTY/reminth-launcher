@@ -712,7 +712,7 @@ const PAGE_META = {
   library: ["Library", "Your clips and screenshots."],
   discover: ["Discover", "Modpacks, mods, packs, shaders and servers."],
   skins: ["Appearance", "How you look in game."],
-  hosting: ["Host a server", "Your own server, free, with your friends."],
+  hosting: ["Host a server", "Pick a host, then join your server from here."],
   streamer: ["Streamer mode", "Hotkeys, replay buffer and privacy."],
   stats: ["Your record", "Everything you've done so far."],
   settings: ["Configuration", "Make Spaceport work the way you want."],
@@ -3841,6 +3841,10 @@ window.addEventListener("resize", () => setTimeout(alignHomeCharacter, 30));
  * The instance is the one Home's picker shows (heroInstance), the same one Launch game starts. The last address typed is
  * remembered on this PC only (localStorage) so Join is one click next time. */
 const HOST_ADDR_KEY = "reminth.hostAddress";
+// The website's "Select your host" page (owner, 22 Oct 2026). It lives on the website branch until the first release;
+// change this together with the new web address when the site is renamed.
+const HOST_SELECT_URL = "https://reminth.pages.dev/hosting";
+$("hostSelect").href = HOST_SELECT_URL;
 function hostInstanceLabel(inst) {
   if (!inst) return "your instance";
   const loader = { vanilla: "Vanilla", fabric: "Fabric", quilt: "Quilt", forge: "Forge", neoforge: "NeoForge" }[inst.loader] || inst.loader || "";
