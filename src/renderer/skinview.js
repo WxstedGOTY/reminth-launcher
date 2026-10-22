@@ -379,7 +379,9 @@
             // The hand goes up in front and next to the head, then swings a little from side to side - not out to the
             // side: Home's character sits in the middle of its space now (owner, 16 Oct 2026) and a hand swung out
             // sideways went under the rail (measured: at most 12 + 10 degrees out keeps it 10px clear).
-            rArmX = rArmX * (1 - lift) - lift * 165;
+            // CSS rotateX: a POSITIVE angle swings the hand toward the viewer, a negative one AWAY from it (behind the back) - the wave
+            // used -165 and went up behind the character (owner saw it, 22 Oct 2026); +165 raises it up and forward, toward the user.
+            rArmX = rArmX * (1 - lift) + lift * 165;
             rArmZ = 4 + lift * 8 + Math.sin(p * TAU * 3) * 10 * lift;
           }
         }
@@ -399,7 +401,7 @@
             f.next = now + 6000 + Math.random() * 5000;
           } else {
             const lift = Math.sin(p * Math.PI);
-            const lifted = -(34 * lift) + Math.sin(p * TAU * 2) * 7 * lift; // forward and up, a little wobble
+            const lifted = 34 * lift + Math.sin(p * TAU * 2) * 7 * lift; // forward and up (positive = toward the viewer in CSS), a little wobble
             if (f.arm === "R" && !this.waveStart) rArmX = lifted;
             if (f.arm === "L") lArmX = lifted;
           }
