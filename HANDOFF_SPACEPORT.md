@@ -45,6 +45,8 @@ how he wants it. Website pages only go on the branch `spaceport-website` (main d
 4. **The in-game side:** better in-game UI, bug fixes, more mods for the G panel ("G panel" is just his shortcut name; players see "Spaceport Built-in Mods").
 5. **A final review before publishing** (and then the GitHub clean start - ask first).
 
+**WHERE WE ARE (22 Oct 2026, night):** category 1 (launcher look) is DONE (owner: "the ui is fully complete"). Now **category 2, the website**, on the branch `spaceport-website` (worktree `Downloadsspaceport-website-wt`, NOT live): new homepage `site/index.html` + `home.css` + `home.js` built from his own words (black top bar 2.4 cm with logo + name, his picture `site/img/hero.jpg` 20 cm, logo + name + "Download" + blue Windows/macOS/Linux buttons in the middle, fade on scroll). Every round is listed in `design/OWNER_DESIGN_NOTES.md` (section "Category 2"). Next: whatever he says comes below the picture. Show changes by opening `site/index.html` in his browser (Start-Process). He gives exact instructions; he does not want recommendations unless he asks ("dont recommend me").
+
 **His UI instructions for category 1 are collected in `design/OWNER_DESIGN_NOTES.md` (running list) - read and extend it.**
 
 ## 1. The 60-second picture
