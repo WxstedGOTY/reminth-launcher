@@ -29,6 +29,17 @@ input, textarea, [contenteditable="true"] { caret-color: auto; -webkit-user-sele
 .bar-brand { display: inline-flex; align-items: center; gap: 14px; text-decoration: none; }
 .bar-brand img { width: 1.45cm; height: 1.45cm; display: block; } /* owner: slightly bigger logo */
 .bar-brand span { font-family: var(--head); font-weight: 800; font-size: 36px; letter-spacing: -.02em; } /* owner: bigger text */
+/* top right (owner, 22 Oct): "Spaceport Accounts", then a big red EXPLORE button as tall as the bar, touching the right edge,
+   a bit wider than the menu's Download button. Neither works yet (UI only). */
+.bar { padding-right: 0; gap: 12px; }
+@media (max-width: 920px) { .bar-acc { display: none; } } /* not enough room next to the full name below ~920 px */
+.bar-right { margin-left: auto; align-self: stretch; display: flex; align-items: center; gap: clamp(20px, 2.5vw, 40px); }
+.bar-acc, .bar-explore {
+  font-family: var(--head); font-weight: 800; letter-spacing: .09em; text-transform: uppercase; color: var(--text);
+  text-decoration: none; cursor: default; white-space: nowrap;
+}
+.bar-acc { font-size: 15px; }
+.bar-explore { align-self: stretch; display: flex; align-items: center; justify-content: center; width: 210px; background: #dc2626; color: #fff; font-size: 18px; }
 /* the menu (owner's mockup spaceport-page-mockup.png): a see-through dark strip lying on the top of the picture, items centred */
 .nav {
   position: absolute; top: 0; left: 0; right: 0; z-index: 5; min-height: 56px; padding: 0 16px;
@@ -127,7 +138,9 @@ a.dl-btn:hover { background: var(--blue-hi); transform: scale(1.07); }
 @media (max-width: 700px) {
   :root { --bar-h: 56px; --hero-h: max(560px, 85svh); --gap-dl: 24px; }
   .bar-brand img { width: 38px; height: 38px; }
-  .bar-brand span { font-size: 23px; }
+  .bar-brand { gap: 10px; }
+  .bar-brand span { font-size: 20px; white-space: nowrap; } /* 23 -> 20 px so it stays on one line next to EXPLORE */
+  .bar-explore { width: 84px; font-size: 13px; }
   .hero-in { margin-top: calc(var(--hero-h) * .22); padding: 0 16px; }
   .hero-logo { width: 72px; height: 72px; }
   .dl-btn { min-width: 0; flex: 1 1 140px; }
