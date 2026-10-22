@@ -2756,16 +2756,16 @@ svg.px-num { display: block; fill: currentColor; stroke: none; filter: drop-shad
   cursor: pointer; transition: transform .15s, filter .15s, box-shadow .15s;
 }
 /* the title is in Plus Jakarta Sans ExtraBold, tight (owner: like the text on Lunar's button, from his screenshot). Progress text with numbers stays in Inter below. */
-.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(19px, 2.4cqw, 32px); font-weight: 800; letter-spacing: -.01em; word-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+.nh-play-title { position: relative; display: flex; align-items: center; gap: 12px; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(15px, 1.95cqw, 26px); font-weight: 800; letter-spacing: -.03em; word-spacing: .1em; -webkit-text-stroke: .035em currentColor; /* the stroke thickens the letters so the holes inside stay tiny, like Lunar's */ text-transform: uppercase; white-space: nowrap; }
 .nh-play-title b { font-weight: 800; }
 .nh-play .i { width: clamp(13px, 1.3cqw, 18px); height: clamp(13px, 1.3cqw, 18px); position: relative; flex: none; }
-.nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(11.5px, 1.1cqw, 16px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }
+.nh-play-sub { position: relative; font-family: "Plus Jakarta Sans", "Inter", sans-serif; font-size: clamp(10.5px, .95cqw, 14px); font-weight: 600; letter-spacing: 0; opacity: .66; white-space: nowrap; }
 .nh-play:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4), 0 0 54px rgba(236, 232, 222, .21), 0 18px 40px rgba(0, 0, 0, .5); }
 .nh-play:active:not(:disabled) { transform: translateY(0); }
 .nh-play:disabled { cursor: default; filter: saturate(.6) brightness(.82); }
 /* while it installs, the button fills up like a progress bar (renderer.js paintPlayButtons sets --p); the line under the
    title makes room for the progress text and for "Playing" */
-.nh-play.progressing .nh-play-title { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: .06em; font-size: 13px; }
+.nh-play.progressing .nh-play-title { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: .06em; font-size: 13px; -webkit-text-stroke: 0; word-spacing: 0; }
 .nh-play.progressing .nh-play-title b { font-weight: 800; }
 .nh-play.progressing .nh-play-title b { margin-right: 0; }
 .nh-play.no-sub .nh-play-sub { display: none; }
