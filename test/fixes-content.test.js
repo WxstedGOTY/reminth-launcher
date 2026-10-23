@@ -952,3 +952,28 @@ test("stay open when the game starts: everyone moves to it once; turning minimiz
   await store.saveSettings({ stayOpenVersion: 0 });
   assert.equal((await store.loadSettings()).launchMinimized, true, "the page can't undo the move");
 });
+
+test("install while the game runs (owner, 23 Oct 2026): a NEW mod and what it needs go in as new files; a mod that's already there is never replaced", async (t) => {
+  const inst = await fabricInstance();
+  fakeModrinth(t, {
+    MAIN: { title: "Main", versions: [{ id: "m2", filename: "main-2.jar" }, { id: "m1", filename: "main-1.jar" }] },
+    NEW: { title: "New", versions: [{ id: "n1", filename: "new-1.jar", dependencies: [required({ project_id: "DEP" })] }] },
+    DEP: { title: "Dep", versions: [{ id: "d1", filename: "dep-1.jar" }] },
+  });
+  const mods = path.join(inst.gameDir, "mods");
+  await content.install(inst, { projectId: "MAIN", kind: "mod", versionId: "m1" });
+
+  const added = await content.install(inst, { projectId: "NEW", kind: "mod" }, null, { gameRunning: true });
+  assert.deepEqual(added.installed.map((i) => [i.file, i.kind]).sort(), [["dep-1.jar", "mod"], ["new-1.jar", "mod"]]);
+
+  // another build of a mod that's there = replacing a jar the game has open: refused before anything is downloaded
+  await assert.rejects(content.install(inst, { projectId: "MAIN", kind: "mod", versionId: "m2" }, null, { gameRunning: true }), /needs Minecraft closed/);
+  await assert.rejects(content.install(inst, { projectId: "MAIN", kind: "mod", versionId: "m1" }, null, { gameRunning: true }), /needs Minecraft closed/);
+  assert.equal(await exists(path.join(mods, "main-1.jar")), true);
+  assert.equal(await exists(path.join(mods, "main-2.jar")), false);
+
+  // with the game closed the same change goes through as before
+  await content.install(inst, { projectId: "MAIN", kind: "mod", versionId: "m2" });
+  assert.equal(await exists(path.join(mods, "main-2.jar")), true);
+  assert.equal(await exists(path.join(mods, "main-1.jar")), false);
+});

@@ -65,3 +65,16 @@ test("presence: reports playing + server, nothing about the server in streamer p
   assert.deepEqual(sent[3], { state: "offline", list: false });
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("presence: Refresh goes back to the server the game is on - not after a singleplayer world or a disconnect (rejoinTarget)", () => {
+  const { rejoinTarget } = require("../src/main/presence");
+  const join = "[12:00:01] [Render thread/INFO]: Connecting to mcpvp.club, 25565";
+  assert.equal(rejoinTarget(join), "mcpvp.club");
+  assert.equal(rejoinTarget([join, "[12:00:05] [VoiceChatClientThread/INFO]: [voicechat] Connecting to voice chat server: '1.2.3.4:30001'"].join("\n")), "mcpvp.club");
+  assert.equal(rejoinTarget([join, "[12:30:00] [Server thread/INFO]: Starting integrated minecraft server version 1.21.11"].join("\n")), null);
+  assert.equal(rejoinTarget([join, "[12:30:00] [Render thread/INFO]: Disconnected from server"].join("\n")), null);
+  // a singleplayer world first, then a server: back to the server
+  assert.equal(rejoinTarget(["[11:00:00] [Server thread/INFO]: Starting integrated minecraft server version 1.21.11", "[12:00:01] [Render thread/INFO]: Connecting to play.example.org, 25570"].join("\n")), "play.example.org:25570");
+  assert.equal(rejoinTarget("nothing here"), null);
+  assert.equal(rejoinTarget(""), null);
+});

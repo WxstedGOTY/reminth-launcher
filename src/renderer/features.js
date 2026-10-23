@@ -92,7 +92,7 @@ $("contentRefresh").onclick = () => loadContent(content.instanceId || state.acti
 $("openContentFolder").onclick = () => openFolder(CONTENT_TABS[content.tab] ? CONTENT_TABS[content.tab].folder : "game", content.instanceId);
 $("addContentBtn").onclick = () => {
   const t = CONTENT_TABS[content.tab];
-  if (t && t.kind === "mod" && modsLocked(content.instanceId)) return toast(MODS_LOCKED_LINE);
+  if (t && t.kind === "mod" && modsAddBlocked(content.instanceId)) return toast(REFRESHING_LINE);
   switchPage("discover");
   setDiscoverType(t ? t.discover : "mod");
 };
@@ -255,11 +255,36 @@ function rowMenu(item) {
   return wrap;
 }
 
-/* ---- a running game's mods can't change (main.js refuses too) ---- */
-const MODS_LOCKED_LINE = "Close Minecraft to change mods.";
-/** Pure-ish: are this instance's MODS locked right now? Packs, shaders and data packs never are. */
+/* ---- a running game's mods can't be removed, switched off or updated (main.js refuses too) ---- */
+const MODS_LOCKED_LINE = "Close Minecraft to remove, switch off or update mods.";
+// Owner, 23 Oct 2026: mods CAN be added while the game runs; they work after "Refresh this instance" (renderer.js
+// refreshInstance closes Minecraft and starts it again). His words for the message:
+const REFRESH_LINE = "For the mods to work you must refresh this instance (closes Minecraft for a few seconds).";
+const REFRESHING_LINE = "Minecraft is restarting for the refresh - try again in a moment.";
+/** Pure-ish: are this instance's existing MODS locked right now (no removing / switching off / updating)? Packs, shaders and data packs never are. */
 function modsLocked(id) {
   return Boolean(id) && (state.running.has(id) || state.stopping.has(id));
+}
+/** Can't even ADD a mod right now: the game is closing for a refresh (it starts again in a moment). */
+function modsAddBlocked(id) {
+  return Boolean(id) && (state.stopping.has(id) || state.refreshing.has(id));
+}
+/** The note with the Refresh button (instance page, mods tab), shown once a mod was added while the game runs. */
+function refreshNote(id) {
+  const note = el("div", "mods-refresh-note");
+  note.appendChild(el("span", null, REFRESH_LINE));
+  const busy = state.refreshing.has(id);
+  const b = button("btn sm primary", busy ? "Refreshing…" : "Refresh", "#i-refresh");
+  b.disabled = busy;
+  b.onclick = () => refreshInstance(id);
+  note.appendChild(b);
+  return note;
+}
+/** After mods were added to a running game: remember it and say so, with Refresh right in the message. */
+function askToRefresh(inst, addedLine) {
+  state.needsRefresh.add(inst.id);
+  toastWithAction(`${addedLine} ${REFRESH_LINE}`, "Refresh", () => refreshInstance(inst.id), 14000);
+  if (currentPage === "instance" && content.instanceId === inst.id) renderContentTab();
 }
 
 /* ---- grouping: what each mod is for ---- */
@@ -668,8 +693,10 @@ function managedModCard(mod) {
 function paintModsLockToolbar() {
   const t = CONTENT_TABS[content.tab];
   const locked = Boolean(t && t.kind === "mod" && modsLocked(content.instanceId));
-  $("addContentBtn").disabled = locked;
-  $("addContentBtn").title = locked ? MODS_LOCKED_LINE : "";
+  // "Browse content" stays on while the game runs: new mods can be added (they work after a refresh).
+  const blocked = Boolean(t && t.kind === "mod" && modsAddBlocked(content.instanceId));
+  $("addContentBtn").disabled = blocked;
+  $("addContentBtn").title = blocked ? REFRESHING_LINE : locked ? "New mods can be added while Minecraft runs - they work after a refresh." : "";
   // Explorer can't be stopped from changing files, so this is only a hint.
   $("openContentFolder").title = locked ? `${MODS_LOCKED_LINE} (Changes made here while it runs only half apply.)` : "";
   $("openContentFolder").classList.toggle("hint-locked", locked);
@@ -681,7 +708,8 @@ const lockPainted = new Map(); // instance id -> locked as last painted
 function paintModLock() {
   const id = content.instanceId;
   if (!id) return;
-  const now = modsLocked(id);
+  // The refresh note and its button follow along too.
+  const now = `${modsLocked(id)}|${state.needsRefresh.has(id)}|${state.refreshing.has(id)}`;
   paintModsLockToolbar();
   if (lockPainted.get(id) === now) return;
   lockPainted.set(id, now);
@@ -692,7 +720,7 @@ function paintModLock() {
 function renderContentTab() {
   const t = CONTENT_TABS[content.tab];
   if (!t || !content.data) return;
-  lockPainted.set(content.instanceId, modsLocked(content.instanceId));
+  lockPainted.set(content.instanceId, `${modsLocked(content.instanceId)}|${state.needsRefresh.has(content.instanceId)}|${state.refreshing.has(content.instanceId)}`);
   paintModsLockToolbar();
   const list = $(t.list);
   const inst = instanceById(content.instanceId);
@@ -727,7 +755,8 @@ function renderContentTab() {
     // A running game's mods can't change: their controls are off until it closes.
     locked: t.kind === "mod" && modsLocked(content.instanceId),
   };
-  if (ctx.locked) list.appendChild(el("p", "mods-locked-note", MODS_LOCKED_LINE));
+  if (ctx.locked && state.needsRefresh.has(content.instanceId)) list.appendChild(refreshNote(content.instanceId));
+  else if (ctx.locked) list.appendChild(el("p", "mods-locked-note", `Minecraft is running: you can add new mods (they work after a refresh). ${MODS_LOCKED_LINE}`));
   const sections = [];
   if (t.kind === "datapack") {
     // Data packs belong to a world - one section per world.
@@ -1044,11 +1073,12 @@ async function installProject({ projectId, projectType, title, versionId, instan
     toast(`${title || "That"} is already being added to ${inst.name}…`);
     return false;
   }
-  // The main process refuses too; this is the plain answer before anything starts.
-  if (kind === "mod" && modsLocked(inst.id)) {
-    toast(`${inst.name} is running. ${MODS_LOCKED_LINE}`);
+  // Adding works while the game runs (it loads after a refresh) - just not while it is closing for one.
+  if (kind === "mod" && modsAddBlocked(inst.id)) {
+    toast(REFRESHING_LINE);
     return false;
   }
+  const gameWasRunning = state.running.has(inst.id);
   if ((kind === "mod" || kind === "shader") && inst.loader === "vanilla") {
     toast(`${inst.name} is a vanilla instance — ${kind === "mod" ? "mods" : "shaders"} need a loader. Edit it and pick Fabric, Quilt, Forge or NeoForge first.`);
     return false;
@@ -1072,7 +1102,12 @@ async function installProject({ projectId, projectType, title, versionId, instan
     const result = await window.reminth.installContent(inst.id, { projectId, kind, world, ...(versionId ? { versionId } : {}) });
     const installed = result.installed || [];
     const extra = installed.length > 1 ? ` (+${installed.length - 1} it needs)` : "";
-    if (!quiet) toast(`${title || installed[0]?.title || "Installed"} added to ${inst.name}${extra}.${warningNote(result.warnings)}`);
+    const addedLine = `${title || installed[0]?.title || "Installed"} added to ${inst.name}${extra}.${warningNote(result.warnings)}`;
+    // A mod went in while the game runs: it only loads after a refresh (a shader pack's Iris counts too).
+    if ((gameWasRunning || state.running.has(inst.id)) && installed.some((i) => i.kind === "mod")) {
+      if (quiet) state.needsRefresh.add(inst.id);
+      else askToRefresh(inst, addedLine);
+    } else if (!quiet) toast(addedLine);
     // Green check until the player leaves this page, then grey for good.
     freshAdds.add(`${inst.id}:${projectId}`);
     // Keep the open lists pointed at the active instance even when installing elsewhere.
@@ -1716,12 +1751,13 @@ function renderCardMenu() {
     name.appendChild(sub);
     row.appendChild(name);
     const item = itemFor(inst.id, mod.id);
-    const locked = type === "mod" && modsLocked(inst.id);
+    // Its game is running: a mod that's there can't be removed until it closes (a new one CAN be added - it works
+    // after a refresh); while the game closes for a refresh, nothing.
+    const locked = type === "mod" && ((item && modsLocked(inst.id)) || modsAddBlocked(inst.id));
     if (locked) {
-      // Its game is running: mods can't be added or removed until it closes.
       row.classList.add("locked");
-      const na = el("span", "dcp-na", item ? "Installed · game running" : "Game running");
-      na.title = MODS_LOCKED_LINE;
+      const na = el("span", "dcp-na", item ? "Installed · game running" : "Refreshing…");
+      na.title = item ? MODS_LOCKED_LINE : REFRESHING_LINE;
       row.appendChild(na);
     } else if (item) {
       const have = el("span", "dcp-have" + (freshAdds.has(`${inst.id}:${mod.id}`) ? " fresh" : ""));

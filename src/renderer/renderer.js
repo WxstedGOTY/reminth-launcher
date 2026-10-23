@@ -22,6 +22,8 @@ const state = {
   joining: new Map(), // instance id -> { host, port } while that run was started by a JOIN (buttons say "Joining…")
   running: new Set(), // instance ids whose game is running
   stopping: new Set(), // instance ids asked to stop, until the backend confirms the exit
+  needsRefresh: new Set(), // instance ids that got new mods while their game ran ("Refresh this instance", owner 23 Oct 2026)
+  refreshing: new Set(), // instance ids being refreshed: Minecraft is closing, then starts again
   logError: false,
   progress: new Map(), // instanceId -> { stage, pct, short }
   progressShown: null, // instance id whose run the progress bar is painting
@@ -1530,7 +1532,7 @@ function paintPlayButtons() {
       btn.classList.toggle("no-sub", busy || runningNow);
       btn.style.setProperty("--p", busy && p && p.pct !== null ? p.pct + "%" : "0%");
       // busy: just "Launching…" (owner, 16 Oct 2026) - how far along shows as the button's fill
-      label.textContent = runningNow ? "Playing" : busy ? (state.joining.has(inst.id) ? "Joining…" : "Launching…") : playId === "playBtn" ? "Launch game" : "Play";
+      label.textContent = state.refreshing.has(inst.id) && !busy ? "Refreshing…" : runningNow ? "Playing" : busy ? (state.joining.has(inst.id) ? "Joining…" : "Launching…") : playId === "playBtn" ? "Launch game" : "Play";
     }
     // No Stop button (owner, 16 Oct 2026): a game ends by closing Minecraft. main.js sweepRunning and syncRunning
     // below make sure "Playing" goes away when it has.
@@ -2941,11 +2943,47 @@ window.reminth.onTotalPlayTime(({ totalPlayTimeMs }) => {
 });
 window.reminth.onPlayExited(({ instanceId }) => {
   state.running.delete(instanceId);
+  // The new mods load at the next start anyway; nothing left to refresh (unless this exit IS the refresh).
+  if (!state.refreshing.has(instanceId)) state.needsRefresh.delete(instanceId);
   paintGameRunning();
   loadInstances();
   loadRecent();
   loadStats();
 });
+/**
+ * "Refresh this instance" (owner, 23 Oct 2026): mods added while Minecraft runs need a restart. main.js closes the game
+ * the way its window's X does (it saves and quits normally) and waits; then it starts again like Play - back on the
+ * server it was on, when the log says one. While it closes, the Play buttons say "Refreshing…" and mods stay locked.
+ */
+async function refreshInstance(id) {
+  const inst = instanceById(id);
+  if (!inst || state.refreshing.has(id) || state.installing.has(id)) return;
+  state.refreshing.add(id);
+  state.stopping.add(id);
+  paintPlayButtons();
+  let r;
+  try {
+    r = await window.reminth.refreshGame(id);
+  } catch (err) {
+    state.refreshing.delete(id);
+    state.stopping.delete(id);
+    paintPlayButtons();
+    toast(friendlyError(err.message));
+    return;
+  }
+  state.stopping.delete(id);
+  state.running.delete(id);
+  state.needsRefresh.delete(id);
+  paintGameRunning();
+  const join = window.ReminthPure.parseServerAddress(r && r.server);
+  try {
+    await runPlay({ instanceId: id, ...(join ? { join } : {}) });
+  } finally {
+    state.refreshing.delete(id);
+    paintPlayButtons();
+  }
+}
+
 /**
  * "Playing" on the page is only what main.js really has running: checked every 5 s while a game runs and when
  * Reminth comes to the front. A play:exited that never arrived (the page reloading at that moment) can't leave
@@ -2964,6 +3002,7 @@ async function syncRunning() {
   for (const id of [...state.running]) {
     if (now.has(id)) continue;
     state.running.delete(id);
+    if (!state.refreshing.has(id)) state.needsRefresh.delete(id);
     changed = true;
   }
   if (!changed) return;

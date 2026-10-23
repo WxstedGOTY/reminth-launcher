@@ -63,6 +63,7 @@ contextBridge.exposeInMainWorld("reminth", {
   play: (options) => ipcRenderer.invoke("play:run", options || {}),
   worldJoinSupport: (instanceId) => ipcRenderer.invoke("play:worldJoinSupport", instanceId),
   stopGame: (options) => ipcRenderer.invoke("play:stop", options || {}),
+  refreshGame: (instanceId) => ipcRenderer.invoke("play:refresh", instanceId),
   runningIds: () => ipcRenderer.invoke("play:runningIds"),
   install: (instanceId) => ipcRenderer.invoke("install:run", instanceId),
 

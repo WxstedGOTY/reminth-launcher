@@ -692,12 +692,12 @@ test("main: a start Fabric refused for the Minecraft version is remembered in .r
   }
 });
 
-test("main: while an instance runs, MOD changes are refused; packs, shaders and data packs are not", async () => {
+test("main: while an instance runs, MOD changes are refused but a new mod can be ADDED (add-only); packs, shaders and data packs are not refused", async () => {
   const real = { setEnabled: content.setEnabled, remove: content.remove, install: content.install, removeInvalid: content.removeInvalid };
   const did = [];
   content.setEnabled = async (_dir, item) => did.push(["setEnabled", item.kind]);
   content.remove = async (_dir, item) => did.push(["remove", item.kind]);
-  content.install = async (_inst, req, _p, opts) => did.push(["install", req.kind, opts.noModChanges]);
+  content.install = async (_inst, req, _p, opts) => did.push(["install", req.kind, opts.gameRunning]);
   content.removeInvalid = async (_dir, kind) => did.push(["removeInvalid", kind]);
   let release;
   try {
@@ -711,11 +711,12 @@ test("main: while an instance runs, MOD changes are refused; packs, shaders and 
     for (const [channel, args] of [
       ["content:setEnabled", [{ kind: "mod", file: "a.jar" }, true]],
       ["content:remove", [{ kind: "mod", file: "a.jar" }]],
-      ["content:install", [{ kind: "mod", projectId: "x" }]],
       ["content:removeInvalid", ["mod"]],
     ]) {
-      await assert.rejects(call(channel, "i1", ...args), /Close the game first - that instance is running\./, channel);
+      await assert.rejects(call(channel, "i1", ...args), /Close Minecraft to remove, switch off or update mods\./, channel);
     }
+    // owner, 23 Oct 2026: a new mod goes in while the game runs - add-only (content.js refuses replacing a jar in use)
+    await call("content:install", "i1", { kind: "mod", projectId: "z" });
     await call("content:setEnabled", "i1", { kind: "resourcepack", file: "p.zip" }, false);
     await call("content:remove", "i1", { kind: "shader", file: "s.zip" });
     await call("content:removeInvalid", "i1", "datapack");
@@ -723,10 +724,11 @@ test("main: while an instance runs, MOD changes are refused; packs, shaders and 
     assert.deepEqual(did, [
       ["setEnabled", "mod"],
       ["install", "mod", false],
+      ["install", "mod", true],
       ["setEnabled", "resourcepack"],
       ["remove", "shader"],
       ["removeInvalid", "datapack"],
-      ["install", "shader", true], // a shader pack may go in, but not the Iris it might need
+      ["install", "shader", true], // a shader pack goes in; Iris too if needed, as a new mod (add-only)
     ]);
   } finally {
     await call("play:stop", { instanceId: "i1" });

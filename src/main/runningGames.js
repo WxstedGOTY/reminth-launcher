@@ -160,6 +160,22 @@ function windowTitle(pid, { run = execFile, timeoutMs = 4000 } = {}) {
 }
 
 /**
+ * Asks a game to close the way its own window's X does ("Refresh this instance", owner 23 Oct 2026): taskkill WITHOUT
+ * /f sends the window a close message, so Minecraft saves a singleplayer world / leaves a server and quits normally -
+ * nothing is killed. Resolves true when the message was sent, false when it couldn't be (no window, not Windows).
+ */
+function closeGameWindow(pid, { run = execFile, timeoutMs = 8000 } = {}) {
+  if (process.platform !== "win32" || !Number.isInteger(pid)) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    try {
+      run("taskkill.exe", ["/pid", String(pid)], { windowsHide: true, timeout: timeoutMs }, (err) => resolve(!err));
+    } catch {
+      resolve(false);
+    }
+  });
+}
+
+/**
  * Pure: one check of a running game (every few seconds, main.js sweepRunning). `watch` is the session's own memory
  * ({ pid, sawWindow, deadChecks, noWindowChecks }), changed in place. `alive`: is the process there; `title`: its window
  * title, "" = no window, null = couldn't tell. Returns
@@ -185,4 +201,4 @@ function checkGame(watch, alive, title) {
   return watch.noWindowChecks >= 3 ? "hung" : "ok";
 }
 
-module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone, parseTasklistTitle, windowTitle, checkGame, SCRIPT };
+module.exports = { parseGameDir, normalizeDir, matchInstances, listGameProcesses, isAlive, watchUntilGone, parseTasklistTitle, windowTitle, closeGameWindow, checkGame, SCRIPT };

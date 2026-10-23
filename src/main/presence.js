@@ -32,23 +32,51 @@ function serverFromLog(text) {
   return last[2] === "25565" ? host : `${host}:${last[2]}`;
 }
 
-/** The server a running game joined, from <gameDir>/logs/latest.log - only a log written since the game started. */
-async function serverOfGame(gameDir, startedAt) {
+/**
+ * Pure: the server "Refresh this instance" should go back to (owner, 23 Oct 2026) - the last one this log joined, unless
+ * the player went into a singleplayer world after it (the integrated server starts) or a disconnect line follows it.
+ * NOT certain: Minecraft writes little when a player leaves a server from its menu, so a player who left and sat on the
+ * title screen may be sent back to that server. null = start on the title screen.
+ */
+function rejoinTarget(text) {
+  const t = String(text || "");
+  const server = serverFromLog(t);
+  if (!server) return null;
+  let lastJoin = -1;
+  const re = /Connecting to ([^,\s]+), (\d{1,5})/g;
+  let m;
+  while ((m = re.exec(t))) {
+    const lineStart = t.lastIndexOf("\n", m.index) + 1;
+    if (!/voice/i.test(t.slice(lineStart, m.index + m[0].length))) lastJoin = m.index;
+  }
+  const after = t.slice(lastJoin);
+  if (/Starting integrated minecraft server/i.test(after)) return null;
+  if (/\]: (Disconnecting|Client disconnected)|Disconnected from server|Lost connection/i.test(after)) return null;
+  return server;
+}
+
+/** The end of <gameDir>/logs/latest.log as text - only a log written since the game started, else "". */
+async function readGameLog(gameDir, startedAt) {
   const file = path.join(gameDir, "logs", "latest.log");
   let fh;
   try {
     const st = await fsp.stat(file);
-    if (startedAt && st.mtimeMs < startedAt - 60 * 1000) return null; // an old log: this game hasn't written yet
+    if (startedAt && st.mtimeMs < startedAt - 60 * 1000) return ""; // an old log: this game hasn't written yet
     fh = await fsp.open(file, "r");
     const len = Math.min(st.size, LOG_TAIL);
     const buf = Buffer.alloc(len);
     await fh.read(buf, 0, len, st.size - len);
-    return serverFromLog(buf.toString("utf8"));
+    return buf.toString("utf8");
   } catch {
-    return null;
+    return "";
   } finally {
     if (fh) await fh.close().catch(() => {});
   }
+}
+
+/** The server a running game joined, from <gameDir>/logs/latest.log - only a log written since the game started. */
+async function serverOfGame(gameDir, startedAt) {
+  return serverFromLog(await readGameLog(gameDir, startedAt));
 }
 
 /**
@@ -107,4 +135,4 @@ function createPresence(deps) {
   };
 }
 
-module.exports = { createPresence, serverFromLog, serverOfGame };
+module.exports = { createPresence, serverFromLog, serverOfGame, rejoinTarget, readGameLog };

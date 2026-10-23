@@ -158,3 +158,16 @@ test("checkGame: loading is left alone, a closed window with Java still there is
   rg.checkGame(w, true, "Minecraft");
   assert.equal(rg.checkGame(w, false, null), "ok", "one missed check alone isn't gone");
 });
+
+test("closeGameWindow (Refresh, owner 23 Oct 2026): taskkill WITHOUT /f - the game closes like its X button, nothing is killed", async () => {
+  const calls = [];
+  const ok = (cmd, args, _opts, cb) => { calls.push([cmd, args]); cb(null, "SUCCESS"); };
+  const fail = (_cmd, _args, _opts, cb) => cb(new Error("no window"));
+  if (process.platform === "win32") {
+    assert.equal(await rg.closeGameWindow(4242, { run: ok }), true);
+    assert.deepEqual(calls, [["taskkill.exe", ["/pid", "4242"]]]);
+    assert.ok(!calls[0][1].includes("/f") && !calls[0][1].includes("/t"));
+    assert.equal(await rg.closeGameWindow(4242, { run: fail }), false);
+  }
+  assert.equal(await rg.closeGameWindow("4242", { run: ok }), false); // not a pid number
+});

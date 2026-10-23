@@ -1043,20 +1043,22 @@ async function watchActiveInstance() {
 }
 
 ipcMain.handle("content:list", async (_e, id) => content.listAll((await instances.require(id)).gameDir));
-// Mods can't change under a running game: its jars are open, and a change
-// would only half apply. The folder an action touches follows from its kind
-// (content.folderFor), so checking the kind here is the real guard - a page
-// that calls a mod something else can only ever reach the pack folders.
-// Resource packs, shaders and data packs stay allowed: Minecraft reloads them.
-const MODS_LOCKED = "Close the game first - that instance is running.";
-function refuseModChangeWhileRunning(id, kind) {
+// A running game's mods can't be removed, switched off or replaced: its jars are open, and a change would only half
+// apply. ADDING a new mod is fine (owner, 23 Oct 2026) - it loads after "Refresh this instance" (play:refresh). The
+// folder an action touches follows from its kind (content.folderFor), so checking the kind here is the real guard - a
+// page that calls a mod something else can only ever reach the pack folders. Resource packs, shaders and data packs stay
+// allowed: Minecraft reloads them. Waits for the start-up scan first: in the first seconds after Spaceport opens, a game
+// that was already running isn't in `running` yet, and a mod change must not slip through then.
+const MODS_LOCKED = "Close Minecraft to remove, switch off or update mods.";
+async function refuseModChangeWhileRunning(id, kind) {
+  await adoptionDone;
   if (running.has(id) && content.touchesMods(kind)) throw new Error(MODS_LOCKED);
 }
 // Mods a big server bans, switched on in this instance (serverRules.js). join: the address Play is about to join.
 ipcMain.handle("serverRules:check", async (_e, id, join) => serverRules.checkInstance(await instances.require(id), { join: typeof join === "string" ? join : null }));
 // Switches those mods off (never deletes them), with the reason. Works out the list again itself: no file names from the page.
 ipcMain.handle("serverRules:turnOff", async (_e, id, join) => {
-  refuseModChangeWhileRunning(id, "mod");
+  await refuseModChangeWhileRunning(id, "mod");
   const inst = await instances.require(id);
   const found = await serverRules.checkInstance(inst, { join: typeof join === "string" ? join : null });
   const done = [];
@@ -1079,25 +1081,24 @@ ipcMain.handle("serverRules:turnOff", async (_e, id, join) => {
   return { done, failed };
 });
 ipcMain.handle("content:setEnabled", async (_e, id, item, enabled) => {
-  refuseModChangeWhileRunning(id, item && item.kind);
+  await refuseModChangeWhileRunning(id, item && item.kind);
   return content.setEnabled((await instances.require(id)).gameDir, item, Boolean(enabled));
 });
 ipcMain.handle("content:remove", async (_e, id, item) => {
-  refuseModChangeWhileRunning(id, item && item.kind);
+  await refuseModChangeWhileRunning(id, item && item.kind);
   return content.remove((await instances.require(id)).gameDir, item, (full) => shell.trashItem(full));
 });
 ipcMain.handle("content:install", async (_e, id, request) => {
-  const kind = request && request.kind;
-  refuseModChangeWhileRunning(id, kind);
   const inst = await instances.require(id);
-  // A shader pack may go into a running instance, but not the Iris it may need.
-  return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }), { noModChanges: running.has(id) });
+  await adoptionDone; // a game found by the start-up scan counts as running (see refuseModChangeWhileRunning)
+  // While the game runs, mods are only ADDED as new files (content.js addOnly); the page then offers "Refresh this instance".
+  return content.install(inst, request, (p) => send("content:progress", { instanceId: id, op: "install", ...p }), { gameRunning: running.has(id) });
 });
 // "Safe to delete" -> Delete all. The main process works out what is invalid
 // itself (content.removeInvalid) - it never takes file names from the page.
 ipcMain.handle("content:invalidDetails", async (_e, id, kind) => content.invalidDetails((await instances.require(id)).gameDir, kind));
 ipcMain.handle("content:removeInvalid", async (_e, id, kind) => {
-  refuseModChangeWhileRunning(id, kind);
+  await refuseModChangeWhileRunning(id, kind);
   return content.removeInvalid((await instances.require(id)).gameDir, kind, (full) => shell.trashItem(full));
 });
 // "Update mods to fit <version>": every enabled mod built for another
@@ -1587,6 +1588,40 @@ ipcMain.handle("play:stop", async (_e, options = {}) => {
   const killedReal = killSessionProcess(session);
   finishSession(inst, killedReal, session);
   return { stopped: true, wasRunning: true };
+});
+
+/**
+ * "Refresh this instance" (owner, 23 Oct 2026): mods added while the game runs only load after a restart, so this closes
+ * Minecraft the way its own window's X does (runningGames.closeGameWindow - the game saves a singleplayer world and
+ * leaves a server normally; nothing is killed) and waits until it has really ended. The page then starts it again
+ * (renderer.js refreshInstance -> runPlay), back on `server` - the server it was on, read from its log - if any.
+ * A game that doesn't close within REFRESH_CLOSE_MS (stuck on a dialog, or it ignored the close) is left alone and the
+ * player is told: closing it by force could lose their world's last minutes.
+ */
+const REFRESH_CLOSE_MS = 90 * 1000;
+ipcMain.handle("play:refresh", async (_e, id) => {
+  const inst = await instances.require(id);
+  await adoptionDone;
+  const session = running.get(inst.id);
+  if (!session) return { closed: true, server: null };
+  const pid = session.child && session.child.pid;
+  if (!pid) throw new Error("Minecraft is still starting - refresh it once it's open.");
+  const server = presence.rejoinTarget(await presence.readGameLog(inst.gameDir, session.startedAt));
+  if (!(await runningGames.closeGameWindow(pid))) throw new Error("Spaceport couldn't close Minecraft - close it yourself, then press Play.");
+  const ended = await new Promise((resolve) => {
+    const started = Date.now();
+    const t = setInterval(() => {
+      if (running.get(inst.id) !== session) {
+        clearInterval(t);
+        resolve(true);
+      } else if (Date.now() - started > REFRESH_CLOSE_MS) {
+        clearInterval(t);
+        resolve(false);
+      }
+    }, 250);
+  });
+  if (!ended) throw new Error("Minecraft didn't close - it may be showing a question. Close it yourself, then press Play.");
+  return { closed: true, server };
 });
 
 /** Kills a session's game process (and what it started). True when there was a process to kill. */

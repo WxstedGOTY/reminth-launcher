@@ -1166,7 +1166,9 @@ function primaryFile(version) {
  * requires. `kind`/`world` are those of the request that started it (they
  * decide what counts as "already there"); report(stage, current, total).
  */
-async function createInstaller(instance, kind, world, report, { releaseOnly = false } = {}) {
+// addOnly (the game is running, owner 23 Oct 2026): a mod may only be ADDED as a new file - the jars the game has open
+// can't be replaced, and a half-replaced mod is two copies of it at the next start. Anything already there is refused.
+async function createInstaller(instance, kind, world, report, { releaseOnly = false, addOnly = false } = {}) {
   const gameDir = instance.gameDir;
   const installed = [];
   const skipped = [];
@@ -1255,6 +1257,9 @@ async function createInstaller(instance, kind, world, report, { releaseOnly = fa
     if (!isDependency && k === "mod" && onDisk.lookupFailed && !(await haveTracked(project.id))) {
       throw new Error("Couldn't check what's already installed — try again in a moment.");
     }
+    if (addOnly && k === "mod" && (onDisk.has(project.id) || (await haveTracked(project.id)))) {
+      throw new Error(`${project.title} is already in this instance. Changing a mod that's already there needs Minecraft closed.`);
+    }
     let version;
     if (vid) {
       // A version the player picked in the version chooser (or one a
@@ -1309,6 +1314,9 @@ async function createInstaller(instance, kind, world, report, { releaseOnly = fa
     // Was a file of this name here already (the same version picked again in
     // the chooser)? Then it isn't this install's to delete if it is refused.
     const hadDest = await exists(dest);
+    if (addOnly && k === "mod" && hadDest) {
+      throw new Error(`${project.title} is already in this instance. Changing a mod that's already there needs Minecraft closed.`);
+    }
     // The new file is downloaded and checked first; the copy it replaces is
     // only touched once this one is in place.
     await downloadVerified(file.url, dest, file.hashes && file.hashes.sha1, (got, total) =>
@@ -1353,7 +1361,7 @@ async function createInstaller(instance, kind, world, report, { releaseOnly = fa
       };
       return old;
     });
-    installed.push({ title: project.title, file: path.basename(dest) });
+    installed.push({ title: project.title, file: path.basename(dest), kind: k });
 
     // Now remove the older copy of the same project Reminth installed
     // earlier - and a disabled twin of the new file, which would otherwise
@@ -1434,14 +1442,15 @@ async function removeReplaced(files, keep, title) {
  * `warnings` being things that went wrong without failing the install (an
  * old file that couldn't be removed while the game is running).
  */
-async function install(instance, { projectId, kind, world, versionId }, onProgress, { noModChanges = false } = {}) {
+// gameRunning: mods may only be added (createInstaller addOnly) - the player refreshes the instance for them to load.
+async function install(instance, { projectId, kind, world, versionId }, onProgress, { gameRunning = false } = {}) {
   const report = (stage, current = 0, total = 1) => onProgress && onProgress({ stage, current, total });
   if (!KINDS[kind]) throw new Error("That kind of content can't be installed into an instance.");
   if (kind === "mod" && !loadersFor("mod", instance).length) {
     throw new Error("Mods need a mod loader - this instance is plain vanilla. Change it to Fabric, Quilt, Forge or NeoForge first.");
   }
   const gameDir = instance.gameDir;
-  const { installed, skipped, warnings, haveProject, installOne } = await createInstaller(instance, kind, world, report);
+  const { installed, skipped, warnings, haveProject, installOne } = await createInstaller(instance, kind, world, report, { addOnly: gameRunning });
 
   // Shader packs need a shader-loading mod (Iris, or Oculus on Forge);
   // install one in the same click if it isn't there.
@@ -1460,11 +1469,7 @@ async function install(instance, { projectId, kind, world, versionId }, onProgre
         has = false;
       }
     }
-    // The game is running (main.js): a shader pack may go in, but the mod it
-    // needs may not - mods can't change under a running game.
-    if (!has && noModChanges) {
-      throw new Error("Shader packs need Iris (or Oculus), which can't be added while the game is running - close the game first.");
-    }
+    // The game is running: Iris (or Oculus) goes in as a new mod like any other, and works after a refresh.
     for (const id of has ? [] : candidates) {
       const versions = await modrinth.getProjectVersions(id, { loaders: loadersFor("mod", instance), gameVersions: [instance.mcVersion] });
       const v = pickVersion(versions, instance.mcVersion);
